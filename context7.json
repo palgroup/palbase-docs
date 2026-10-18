@@ -1,0 +1,14 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Palbase",
+  "description": "Palbase is a backend for web, iOS and Android apps: auth, Postgres, storage, realtime, feature flags, notifications, analytics, AI and in-app purchases, with a TypeScript backend framework (palbase/backend) deployed by git push, web and server SDKs (palbase/web, palbase/server), Swift and Kotlin SDKs, and the palbase CLI.",
+  "folders": [
+    "docs"
+  ],
+  "rules": [
+    "Install the JavaScript SDK and CLI from the npm package palbase; import palbase/web in apps, palbase/server on servers and palbase/backend in a backend.",
+    "A backend is deployed by pushing to the GitHub branch its machine is connected to; palbase machines:deploy only builds that branch's head again.",
+    "Every route of a palbase/backend app requires a signed-in user unless it says otherwise.",
+    "Use the publishable key (pb_<ref>_c…) in apps and the secret key (pb_<ref>_s…) only on servers."
+  ]
+}

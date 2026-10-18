@@ -1,0 +1,33 @@
+name: sync
+# Copies the documentation from https://palbase.studio once a day (and on demand)
+# and commits what changed. The site is built from Palbase's main branch, so this
+# repository follows what is live. It publishes and nothing else; in a public
+# repository GitHub's runners cost nothing.
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: node scripts/sync.mjs
+      - name: commit what changed
+        run: |
+          git add -A docs llms.txt llms-full.txt
+          if git diff --cached --quiet; then echo "nothing changed"; exit 0; fi
+          git -c user.name="palbase-docs-sync" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -m "sync: the docs as palbase.studio serves them"
+          git push

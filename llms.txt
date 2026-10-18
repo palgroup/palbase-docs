@@ -1,0 +1,166 @@
+# Palbase
+
+> Palbase — the backend for apps. Every project has auth, storage, realtime,
+> flags, notifications, secrets, analytics, AI and purchases, called from web
+> apps with the publishable key (`palbase/web`), from iOS (Swift) and Android
+> (Kotlin) with the native SDKs, and from servers with the secret key
+> (`palbase/server`). Your own backend runs on a machine built from a GitHub
+> branch on every push, beside a Postgres database of its own. Backends are
+> `palbase/backend`: `@Controller` classes whose methods are routes,
+> `@Injectable` services that arrive by constructor, a `@Module` that lists what
+> exists, `PalbaseFactory.create(AppModule)` in `src/main.ts`, and the schema
+> declared with Palgres in `src/db/public.ts`. A push to the branch is the
+> deploy; the CLI (`npx palbase`) does the rest — client apps, the purchase
+> catalog, environments, tokens.
+
+## Getting Started
+
+- [Introduction](https://palbase.studio/docs/getting-started/introduction): What Palbase is: the modules every project has — auth, storage, realtime, flags, notify, secrets, analytics, ai — and the machines and databases that run your own code.
+- [Quickstart](https://palbase.studio/docs/getting-started/quickstart): Create a project in Studio, sign a user in from a web app, then put a backend on a machine from GitHub and call it.
+- [Organizations](https://palbase.studio/docs/getting-started/organizations): Organizations, projects and environments; members, invitations and the owner, admin and member roles; your Studio account's security; and the organization's audit log.
+- [Architecture](https://palbase.studio/docs/getting-started/architecture): How a palbase/backend app is shaped: a root module and one module per domain, thin controllers, services that arrive by constructor, schemas beside them, and the database declared in db/.
+- [Project Structure](https://palbase.studio/docs/getting-started/project-structure): How a backend repository is laid out for a machine: src/main.ts, src/modules/<domain>/, src/db/, its Dockerfile, .env.example and tsconfig.json.
+- [Access Tokens](https://palbase.studio/docs/getting-started/access-tokens): Organization access tokens for CI and agents: PALBASE_TOKEN, the member and admin roles, what a token cannot do, expiry, and deleting one.
+- [Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits): What is metered for each environment and where Studio shows it, the rates and monthly limits it runs under, what a free project gets, and what each limit answers.
+- [Logs](https://palbase.studio/docs/getting-started/logs): Studio's Logs by category: every request to the environment's address, auth's events, notifications, machine output and builds — and the request lines read from a server.
+
+## CLI
+
+- [Overview](https://palbase.studio/docs/cli/overview): palbase, the CLI in the npm package: signing in, choosing an environment, running a backend on your computer, tokens for CI and for AI agents, and what its commands cover.
+- [Reference](https://palbase.studio/docs/cli/reference): Every command of the palbase CLI with its usage, what it does and its flags, as the CLI's own help prints them.
+
+## Backend SDK
+
+- [Overview](https://palbase.studio/docs/backend/overview): palbase/backend — the framework your machine runs: PalbaseFactory, modules, class controllers, and the three things a handler imports — Palbase, Database and Log.
+- [Modules & Dependency Injection](https://palbase.studio/docs/backend/modules): @Module's four lists, @Injectable providers, injection by constructor type, onStart and onShutdown, and the mistakes refused at boot by name.
+- [Controllers & Routing](https://palbase.studio/docs/backend/controllers): @Controller classes, the HTTP method decorators, route options (auth, rateLimit, transaction), path parameters, @Resolve — parameters the app makes — and what a handler's return becomes, a Response included.
+- [Request Validation](https://palbase.studio/docs/backend/validation): @Body, @QueryParams, @Param and @Headers with any Standard Schema — zod, valibot, arktype — and the 400 a failed one answers.
+- [Authentication](https://palbase.studio/docs/backend/authentication): Secure-by-default routes, @User and @OptionalUser, verified email, test users, and how a caller's token is checked.
+- [Responses & Errors](https://palbase.studio/docs/backend/errors): What a handler's answer becomes, the error envelope, the built-in error classes and PalError, and what an outage or a crash answers.
+- [Database](https://palbase.studio/docs/backend/database): Database — the request's own transaction: typed tables, raw SQL with $query, plans with $transaction, $atomic and $asService().
+- [Schema](https://palbase.studio/docs/backend/schema): Your Postgres schema in TypeScript with defineSchema, defineTable, column builders, indexes, foreign keys and raw units.
+- [Row-Level Security](https://palbase.studio/docs/backend/row-level-security): Policies in the schema DSL, auth.uid(), the anon and authenticated roles, and $asService() for what the service does.
+- [Schema changes](https://palbase.studio/docs/backend/migrations): There are no migration files: a release migrates beside the version that serves — start, rollout, complete — with renamedFrom, fillWith and ignored for the changes that need them.
+- [Storage](https://palbase.studio/docs/backend/storage): Palbase.storage — buckets, objects, public reads, signed URLs and image renditions, from your backend.
+- [Direct Uploads](https://palbase.studio/docs/backend/direct-uploads): Files straight to storage: signed upload URLs your backend grants, and @Upload routes — storage asks the route where a file goes, then runs it with the stored object.
+- [Secrets](https://palbase.studio/docs/backend/secrets): The project's secrets: the set a machine is started with, and Palbase.secrets for values read while it runs.
+- [Flags](https://palbase.studio/docs/backend/flags): Palbase.flags — define flags, give single users their own values, and read what a user sees, from your backend.
+- [Notifications](https://palbase.studio/docs/backend/notifications): Palbase.notify — email, push, SMS and WhatsApp, templates, topics, each user's preferences, when a message goes (their own hour, quiet hours, the marketing cap), audiences, İYS and stop texts.
+- [Realtime](https://palbase.studio/docs/backend/realtime): Palbase.realtime — broadcast to a channel's subscribers and write its shared state from your backend.
+- [Gateways](https://palbase.studio/docs/backend/gateways): @Gateway — a realtime channel of the app: who may join, typed events, members' messages and their acks, the channel's moments, durable gateways that keep what they send, and pipes.
+- [Channels](https://palbase.studio/docs/backend/channels): The realtime module's own channel declaration, for a backend that is not a palbase/backend app: who may join, publish and write state.
+- [AI](https://palbase.studio/docs/backend/ai): Palbase.ai — one-shot answers, tools that run on your machine, agents defined at each turn, and chats your backend starts, which their members reach through a gateway.
+- [Webhooks](https://palbase.studio/docs/backend/webhooks): @Webhook — a third party's deliveries (Stripe, GitHub, Slack, …) at POST /webhooks/<name>, each signature checked before an @On of its event runs.
+- [Event Hooks](https://palbase.studio/docs/backend/hooks): @On — handle the platform's events (user.deleted, file.uploaded, …) in your backend, each delivery signed and run once.
+- [Cron](https://palbase.studio/docs/backend/cron): @Cron — a provider the platform runs on a schedule (five fields of cron's, on a time zone's clocks), waking the machine for it; run now, paused and resumed from Studio and the CLI.
+- [Tasks](https://palbase.studio/docs/backend/tasks): @Task and Tasks.enqueue — work put on the machine's queue, done once, now or later: made again when it fails, failed tasks kept to try again, the machine asleep in between.
+- [Cache](https://palbase.studio/docs/backend/cache): Cache — the project's short-lived entries, shared by every copy of a machine: get, set, getOrSet, incr and del, time to live, the quota, and what a call does when the cache is away.
+- [Translations](https://palbase.studio/docs/backend/translations): t() — a sentence in the caller's language: palbase/strings/ kept with the code by `palbase strings`, missing translations from your AI module with --translate.
+- [Test Users](https://palbase.studio/docs/backend/test-users): Test users made with the secret key: what marks them, how to make and remove them, and user.test in a route.
+- [Testing](https://palbase.studio/docs/backend/testing): Testing a backend: services as plain classes, and the app's whole HTTP layer through handle(), with no network.
+
+## Web SDK
+
+- [Overview](https://palbase.studio/docs/web/overview): palbase/web — createClient with the project's address and publishable key: what the client holds (auth, flags, analytics, consent, notify, purchases, the socket, your backend), its entry points, and what the project answers a browser.
+- [Auth](https://palbase.studio/docs/web/auth): Sign-up, sign-in, sessions, second factors, passkeys, magic links and phone codes in the browser.
+- [Calling Your Backend](https://palbase.studio/docs/web/backend-calls): pb.<backend> — your machine's routes as typed calls from the module palbase apps:sync writes, the Vite plugin that builds each environment, BackendError, and CORS.
+- [Error Handling](https://palbase.studio/docs/web/errors): PalbaseError — status, code, request id and Retry-After — the retries the client makes, and the ones it never makes.
+- [Uploads](https://palbase.studio/docs/web/uploads): Sending a file from the browser to storage: to your backend's upload route, or to a signed upload URL your backend made.
+- [Flags](https://palbase.studio/docs/web/flags): pb.flags — the project's flags and remote configuration for this reader, read without the network, kept current over realtime, with experiments' exposures.
+- [Realtime](https://palbase.studio/docs/web/realtime): Channels over the project's one socket: join, listen to broadcasts, leave — and who may join what.
+- [Gateways](https://palbase.studio/docs/web/gateways): Your backend's gateways from the generated module: join, typed events, messages and their acks, GatewayError's reasons, durable history, and a chat gateway's state.
+- [Analytics](https://palbase.studio/docs/web/analytics): pb.analytics — events, page views, person properties and the browser's own measures, held to the person's consent — and the people, places and audiences the project reads back.
+- [Consent](https://palbase.studio/docs/web/consent): pb.consent — what the person allowed, key by key: the platform's keys, starting values, a consent screen, Global Privacy Control, and the calls under it.
+- [Notifications](https://palbase.studio/docs/web/notifications): pb.notify — web push and its service worker, the signed-in person's inbox drawn ready, in-app messages shown in the page, and their preferences and topics.
+- [Next.js](https://palbase.studio/docs/web/nextjs): Next.js: palbase/web/ssr keeps the session in a cookie the browser and your server both read — the proxy, server components, route handlers — and palbase/server acts as the project.
+
+## iOS SDK
+
+- [Overview](https://palbase.studio/docs/ios/overview): The iOS SDK in Swift: palbase-swift with Swift Package Manager, its products, iOS 18, registering the app, apps:sync and the Xcode build rule that compiles an environment in, PalbaseClient, the session in the keychain, errors and retries.
+- [Auth](https://palbase.studio/docs/ios/auth): pb.auth in Swift: the observable sign-in state, email and password, guests, passkeys, Sign in with Apple and Google, second factors, magic links, phone codes, passwords and the user's sessions.
+- [Calling Your Backend](https://palbase.studio/docs/ios/backend-calls): The typed Swift client apps:sync generates for your backend: pb.<name>, request and response types, typed errors, BackendError, file uploads and untyped calls.
+- [Gateways](https://palbase.studio/docs/ios/gateways): Your backend's gateways from Swift: join, the Event, Send and Reply enums, PBGatewayError's reasons, durable history, and a chat gateway's PBChat for SwiftUI.
+- [Realtime](https://palbase.studio/docs/ios/realtime): pb.realtime: channels on the project's one socket, broadcasts, the state every member shares, presence, who may join, and the socket's observable status.
+- [Flags](https://palbase.studio/docs/ios/flags): pb.flags: feature flags read without waiting, observable in SwiftUI, kept current over realtime, a signed-in user's values, and experiments' $flag_exposure.
+- [Analytics](https://palbase.studio/docs/ios/analytics): pb.analytics: events, screens, the person's properties, the app's own events such as $install and $app_open, timings, diagnostics, and App Tracking Transparency.
+- [Consent](https://palbase.studio/docs/ios/consent): pb.consent: the platform's keys and the app's own, starting values, the person's choices, region and needsAsking, and whose the choices are across sign-in and sign-out.
+- [Notifications](https://palbase.studio/docs/ios/notifications): pb.notify: APNs registration and push reports, preferences and topics, the notification service extension, the inbox, and in-app messages drawn in SwiftUI.
+- [Storage](https://palbase.studio/docs/ios/storage): pb.storage: uploading and downloading at URLs your backend signs, a public bucket's objects, and what an upload answers.
+- [Purchases](https://palbase.studio/docs/ios/purchases): pb.purchases: what the customer has in any store, buying and restoring in the App Store, the published paywall drawn in SwiftUI, offers and codes, and web checkout from the app.
+- [Voice](https://palbase.studio/docs/ios/voice): PBVoice from palbase-swift-voice: a chat's live voice over WebRTC, its offer through your backend, the audio session, muting and closing.
+- [Debug Console](https://palbase.studio/docs/ios/debug-console): The in-app debug console: what the SDK and the app record on the device, pb.debug's calls, and the palbase.debug_console flag that opens it for one user.
+
+## Android SDK
+
+- [Overview](https://palbase.studio/docs/android/overview): The Android SDK: the studio.palbase Maven repository and BOM, minSdk 26 and Kotlin 2.2, registering the app, apps:sync and the build step that compiles an environment in, PalbaseClient, and its errors and retries.
+- [Auth](https://palbase.studio/docs/android/auth): pb.auth on Android: sign-up and sign-in, guests, second factors, magic links, phone codes, passwords, the observable session bound to the device, signing out and deleting the account.
+- [Calling Your Backend](https://palbase.studio/docs/android/backend-calls): The Kotlin client apps:sync generates from your backend's contract: pb.<name>, a typed function per route, its typed errors and BackendError, retries, uploads and a backend on your computer.
+- [Gateways](https://palbase.studio/docs/android/gateways): A backend's @Gateway classes from the generated Kotlin client: join, typed events, messages and their acks, PBGatewayError, durable gateways, and a chat gateway's state in Compose.
+- [Realtime](https://palbase.studio/docs/android/realtime): pb.realtime channels on Android: broadcasts, a shared state and presence, who may join, and the one socket's connection as a StateFlow.
+- [Flags](https://palbase.studio/docs/android/flags): pb.flags on Android: values read without waiting from what the device kept, typed reads, Compose state, per-user values, and live updates over the socket.
+- [Analytics](https://palbase.studio/docs/android/analytics): pb.analytics on Android: events, screens, timings and diagnostics, each behind its consent category, batched and kept on the device until sent.
+- [Notifications](https://palbase.studio/docs/android/notifications): FCM push on Android: the project's FCM provider, pb.notify.register for the signed-in user, showing the data message a push arrives as, preferences and topics.
+- [Storage](https://palbase.studio/docs/android/storage): pb.storage on Android: uploading and downloading through URLs your backend signed, and reading public buckets.
+- [Purchases](https://palbase.studio/docs/android/purchases): pb.purchases on Android: what the customer has in any store, kept current, and buying on Google Play with Play Billing: products, purchase, plan changes, restore and web purchase links.
+- [Voice](https://palbase.studio/docs/android/voice): PBVoice: a chat's live voice over WebRTC on Android, its offer through your backend, the microphone permission, the device's audio, mute and close.
+- [Debug Console](https://palbase.studio/docs/android/debug-console): What the Android SDK records on the device from launch, what the app adds to it, and PalbaseConsole: the in-app console the project opens for one user with a flag.
+
+## Server SDK
+
+- [Overview](https://palbase.studio/docs/server/overview): palbase/server — createServer with the project's secret key: every module's server calls, refusals as PalbaseError, retries and paging.
+- [Webhooks](https://palbase.studio/docs/server/webhooks): The project's events delivered to your server: Palbase-Signature, verifyWebhook, and delivery that may come twice but never not at all.
+
+## Auth
+
+- [Overview](https://palbase.studio/docs/auth/overview): An environment's auth, set up from Studio, the CLI or the admin calls: passwords, email confirmation, email links, sessions and token lifetimes, passkeys, risk, security emails, signing keys and auth's own emails.
+- [Sign-in Providers](https://palbase.studio/docs/auth/providers): Turning on email, phone, Google, Apple, GitHub and Microsoft sign-in — each provider's clients, secrets and callback URL — and guest accounts.
+- [Users & Roles](https://palbase.studio/docs/auth/users): The environment's users: finding, creating, banning, signing out, deleting and exporting them; their sessions; application roles; and importing users with their passwords and sessions.
+- [Blocking Hooks](https://palbase.studio/docs/auth/hooks): An endpoint of yours that auth calls and waits for before a sign-up, a sign-in or a token: the events, the signed request and answer, timeouts and failure modes.
+- [Audit Trail](https://palbase.studio/docs/auth/audit): Who did what in an environment's auth — sign-ins, changes to users and settings, admin actions — read, exported as JSON lines or CSV, and verified as an unbroken chain.
+- [OpenID Provider](https://palbase.studio/docs/auth/openid-provider): Other apps signing in with your users' accounts through the environment's OAuth 2.0 and OpenID Connect provider, service accounts for machines, and sign-in tokens your own server makes.
+
+## Purchases
+
+- [Overview](https://palbase.studio/docs/purchases/overview): One catalog sold in the App Store, on Google Play and on the web through your Stripe account, and one answer to what each customer has: products, plans, entitlements, credits, limits, the stores and test purchases.
+- [Catalog](https://palbase.studio/docs/purchases/catalog): The catalog as a JSON document in revisions: products, plans, prices, channels and what each gives; purchases:catalog:get, validate and put, and the plan that writes it to Stripe, App Store Connect and Google Play once confirmed.
+- [App Store](https://palbase.studio/docs/purchases/app-store): Selling in the App Store: the App Store Connect API key and the In-App Purchase key, server notifications, purchases:doctor, and how each StoreKit transaction is verified, owned, restored and refunded.
+- [Test Apple Purchases](https://palbase.studio/docs/purchases/testing-apple): Buying the catalog's iOS products before anyone pays: in Xcode from a StoreKit file made from the catalog, then in the App Store sandbox with a tester — and the app's and the server's code for both.
+- [Google Play](https://palbase.studio/docs/purchases/google-play): Selling on Google Play: the service account your Play Console invites, the real-time developer notifications topic, and how each Play purchase is read, owned, acknowledged and refunded.
+- [Connect Stripe](https://palbase.studio/docs/purchases/connect-stripe): The environment's own Stripe account sells the catalog on the web: connected with one click through Palbase's Stripe App, or with a restricted key.
+- [Web](https://palbase.studio/docs/purchases/web): Selling on the web with pb.purchases: offerings, Stripe Checkout, buyers with no account and their redemption links, what the customer has, the customer portal, a paywall in the page, and web checkout from an iOS app.
+- [Paywalls](https://palbase.studio/docs/purchases/paywalls): Paywalls designed once and drawn natively, published without an app update: the definition, drafts and versions, assets, placements and their targeting rules, and experiments that say which sells best.
+- [Offers & Coupons](https://palbase.studio/docs/purchases/offers): Discounts, free trials and grants for an audience or everyone, once a customer, sold as each store's own offer; and coupons: shared or one-time codes, and App Store offer codes.
+- [Entitlements, Credits & Limits](https://palbase.studio/docs/purchases/entitlements): CustomerInfo and isEntitled on your server; credits spent in one step or held with withReservation; quotas in windows with overflow; and the purchases events your backend receives.
+- [Customers](https://palbase.studio/docs/purchases/customers): Looking a customer up, giving and revoking entitlements, guests whose purchases move to the account they sign in to, restores, deleted users, and the purchase settings.
+- [Charts](https://palbase.studio/docs/purchases/charts): Revenue, MRR, subscriptions, conversion, LTV and retention from the ledger: purchases:charts, segments and filters, revenue types, CSV, and the reporting currency and fees.
+
+## Analytics
+
+- [Overview](https://palbase.studio/docs/analytics/overview): What a project's analytics keeps — events, people, performance samples, request traces, console history — whose each one is, consent, how long it is kept, and its limits.
+- [Reading Analytics](https://palbase.studio/docs/analytics/reading): Studio's Analytics screens, and the secret key's reads: summaries, event lists and timelines, breakdowns, funnels and retention, from a server or the CLI.
+- [Performance](https://palbase.studio/docs/analytics/performance): Web vitals, app starts, network and custom samples; the requests your apps and backend report; and a device's debug history — in Studio and from a server.
+
+## Client Apps
+
+- [Client Apps](https://palbase.studio/docs/apps/overview): Registering a project's iOS, Android and web apps with the CLI: what each is in an environment, its own publishable key, the passkey association files the environment publishes from it, and deleting and restoring one.
+- [Syncing an App's Settings](https://palbase.studio/docs/apps/sync): What palbase apps:sync writes under palbase/ in an app's repository — each environment's settings, its publishable key and its backends' typed clients — how a build picks its environment, and checking it in CI.
+
+## App Distribution
+
+- [App Distribution](https://palbase.studio/docs/distribution/overview): Builds from your build machine to TestFlight and Google Play's internal testing: packages and build numbers, deliveries and their states, the actions a person confirms, Studio's screens and the stores events.
+- [TestFlight](https://palbase.studio/docs/distribution/testflight): An iOS app's builds to TestFlight with your own Apple account: connecting an App Store Connect key, the unsigned .ipa and its entitlements, signing, groups and testers, Beta App Review and export compliance.
+- [Google Play](https://palbase.studio/docs/distribution/google-play): An Android app's builds to Google Play's internal testing: the service account Play Console invites, the upload key Palbase signs with, the .aab and its version code, and the first release made in Play Console.
+
+## Machines & Databases
+
+- [Machines](https://palbase.studio/docs/machines/overview): Your own code on Palbase: a machine's size, sleep and wake, its address and port, health check, copies, environment, secrets, crons and tasks.
+- [Connecting GitHub](https://palbase.studio/docs/machines/github): The Palbase Cloud GitHub App, a machine's repository, branch and directory, and which pushes build which machines.
+- [Builds, Logs & Rollback](https://palbase.studio/docs/machines/builds): What a push does: the build, the settings .env.example asks for, the rollout beside what serves, the logs, and returning to an earlier build.
+- [Databases](https://palbase.studio/docs/machines/databases): Postgres of your own: sizes, the passwords shown once, the owner and app logins, direct and pooled addresses, who may connect, a machine's database, and the SQL console.
+- [Backups & Restore](https://palbase.studio/docs/machines/backups): Backups kept for the days you choose, bringing a database back to a moment, and deleting, taking back and purging one.
+
+## Optional
+
+- [The whole corpus in one file](https://palbase.studio/llms-full.txt): every section in one file.
+- [Backend only](https://palbase.studio/llms-backend.txt): getting-started + backend + server + machines, the slice for writing a Palbase backend and putting it on a machine.
+- Any page as raw Markdown: replace `/docs/` with `/docs-md/`, or append `.md` to its URL.
