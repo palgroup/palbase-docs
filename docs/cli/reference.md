@@ -2,7 +2,7 @@
 
 # CLI reference
 
-Every command of `palbase` 0.10.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.10.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
 274 commands in 24 groups.
 

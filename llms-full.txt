@@ -103,7 +103,7 @@ And for code of your own:
 | `palgres` | The database half of the framework: the schema in TypeScript, typed queries, and migrations that run beside the version that serves | [Schema](/docs/backend/schema), [Schema changes](/docs/backend/migrations) |
 | Studio | Organizations, projects and environments; every module's screens; machines, databases, keys and secrets | [Organizations](/docs/getting-started/organizations) |
 
-The SDKs are TypeScript (`palbase/web`, `palbase/server`, `palbase/backend`), Swift and Kotlin. An iOS app takes the Swift SDK, `palbase-swift` with Swift Package Manager ([iOS SDK](/docs/ios/overview)), and an Android app the Kotlin one, `studio.palbase:palbase` and an artifact per module ([Android SDK](/docs/android/overview)). An app on another platform, such as a game engine, calls the modules over HTTPS with the publishable key in the `apikey` header and the user's access token as `Authorization: Bearer …`, the same requests the SDKs make.
+Palbase has SDKs in TypeScript (`palbase/web`, `palbase/server`, `palbase/backend`), Swift and Kotlin. An iOS app takes the Swift SDK, `palbase-swift` with Swift Package Manager ([iOS SDK](/docs/ios/overview)), and an Android app the Kotlin one, `studio.palbase:palbase` and an artifact per module ([Android SDK](/docs/android/overview)). An app on another platform, such as a game engine, calls the modules over HTTPS with the publishable key in the `apikey` header and the user's access token as `Authorization: Bearer …`, the same requests the SDKs make.
 
 The TypeScript SDKs are one npm package, `palbase`, whose parts are its subpaths — the CLI comes with it (`npx palbase`) — and `palgres`, which `palbase/backend` brings: `npm install palbase` (or `bun add palbase`). They ship compiled, under the Palbase SDK License ([Project Structure](/docs/getting-started/project-structure)).
 
@@ -1557,7 +1557,7 @@ Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:r
 
 # CLI reference
 
-Every command of `palbase` 0.10.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.10.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
 274 commands in 24 groups.
 
