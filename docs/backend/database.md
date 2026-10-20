@@ -173,23 +173,15 @@ Why giving it back is safe: under read committed, Postgres' default, every state
 
 ## Where the types come from
 
-`Database.public.<table>` is typed by a declaration file, `palbase-env.d.ts`, that augments `palbase/backend/env`'s `Tables` (and `Schemas`, for every other schema). Palgres writes it from your schema files with `makeEnvDts`. Nothing in a release writes it for you — keep a script beside the app and run it after you change a schema file:
-
-```ts
-// scripts/palbase-env.ts
-import { writeFileSync } from "node:fs";
-import { makeEnvDts } from "palgres";
-import schema from "../src/db/public";
-
-// One entry per schema file the app passes to PalbaseFactory.create.
-writeFileSync(new URL("../src/palbase-env.d.ts", import.meta.url), makeEnvDts([schema]));
-```
+`Database.public.<table>` is typed by a declaration file, `palbase/palbase-env.d.ts`, that augments `palbase/backend/env`'s `Tables` (and `Schemas`, for every other schema). The CLI writes it from your schema files — each table's row, its insert, its unique keys and its relations both ways (`with`, `has`) — between its markers in that file; `palbase init --db` writes the first one. Run it again after you change a schema file, and commit the file:
 
 ```bash
-bun run scripts/palbase-env.ts
+palbase db:types
 ```
 
-Commit the file it writes. It lands in `src/`, which a tsconfig with `"include": ["src/**/*.ts"]` already covers; written anywhere else, add it to `include`. The header the generator writes says the same: `makeEnvDts` wrote it, and nothing writes it again on its own — this script is the only thing that regenerates the file.
+It reads the app's entry (`--entry <file>` when it is not the one the project names) and writes `palbase/palbase-env.d.ts` (`--file <path>` for another); the app's tsconfig must include the file. A schema that has not changed writes the same bytes, so a check in CI can run it and fail on a diff.
+
+A build that cannot run the CLI writes the same declarations with palgres' `makeEnvDts([schema])`.
 
 When you need a row type by name, import it:
 

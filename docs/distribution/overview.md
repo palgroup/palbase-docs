@@ -92,7 +92,7 @@ What stops a delivery, by `error_code`, is on [TestFlight](https://palbase.studi
 
 ## Actions
 
-What changes something at Apple for good is planned first and runs only when a person confirms it: sending a build to Beta App Review, answering a build's export compliance question, and expiring a build. A plan holds a summary of exactly what it does and a hash of it.
+What changes something at Apple for good is planned first and runs only when a person confirms it: sending a build to Beta App Review, answering a build's export compliance question, expiring a build, and on the [App Store](https://palbase.studio/docs/distribution/app-store) writing an app's page, sending its version to App Review, withdrawing it, releasing it and changing its phased release. A plan holds a summary of exactly what it does and a hash of it.
 
 ```sh
 palbase stores:beta-review <package id>        # plans it, prints its id and hash
@@ -114,6 +114,7 @@ A confirmation names the hash of the plan that was shown, runs it once, and only
 | Groups | An iOS app's groups of testers: make, rename, delete, set their testers |
 | Actions | What waits for a person's yes, and what was done, declined or failed |
 | TestFlight | An iOS app's test information for Beta App Review, and what testers sent back |
+| App Store | An iOS app's App Store page (each language's text, its categories and screenshots), planned and confirmed, and the version App Review gets: what is missing, **Send to App Review**, **Withdraw from App Review**, **Release** and the phased release |
 
 ## Events
 
@@ -129,6 +130,7 @@ Every change emits a `stores.*` event to the environment's [webhooks](https://pa
 | `stores.delivery.changed` | A delivery moved: `queued`, `signing`, `uploading`, `processing`, `compliance`, `ready` or `failed` |
 | `stores.group.changed` | A group was made, renamed or deleted, its testers set, or a build given to it |
 | `stores.action.changed` | An action was planned, done, declined or failed |
+| `stores.version.changed` | An app's App Store version came to a new state: sent to App Review, in review, approved, rejected, withdrawn, released |
 
 ```ts
 // src/modules/releases/release-events.ts
@@ -160,6 +162,7 @@ The module's API is the environment's, at its address under `/stores`, with the 
 ## Related
 
 - [TestFlight](https://palbase.studio/docs/distribution/testflight): the Apple account, signing, groups, Beta App Review
+- [App Store](https://palbase.studio/docs/distribution/app-store): the App Store page, the version, App Review and the release
 - [Google Play](https://palbase.studio/docs/distribution/google-play): the Play connection, the upload key, internal testing
 - [Test Apple Purchases](https://palbase.studio/docs/purchases/testing-apple): sandbox testers and purchases in TestFlight
 - [CLI reference: `stores`](https://palbase.studio/docs/cli/reference#stores)

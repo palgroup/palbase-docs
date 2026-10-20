@@ -8,7 +8,7 @@ In this guide you create a Palbase project in Studio, sign a user up and in from
 
 | You need | Why |
 |---|---|
-| **A Studio account** | where the project lives |
+| **A Studio account** | where the project lives — Palbase is opening step by step: [request access](/signup) |
 | **A GitHub repository** you can push to | a machine is built from a branch of it |
 | **Bun 1.4** — [bun.sh](https://bun.sh) | the backend runs on Bun, and `bun install` writes the lockfile its build installs from |
 | **Node.js 22** | the web app (Next.js) |

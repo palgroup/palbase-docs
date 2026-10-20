@@ -21,6 +21,7 @@
 - [Architecture](https://palbase.studio/docs/getting-started/architecture): How a palbase/backend app is shaped: a root module and one module per domain, thin controllers, services that arrive by constructor, schemas beside them, and the database declared in db/.
 - [Project Structure](https://palbase.studio/docs/getting-started/project-structure): How a backend repository is laid out for a machine: src/main.ts, src/modules/<domain>/, src/db/, its Dockerfile, .env.example and tsconfig.json.
 - [Access Tokens](https://palbase.studio/docs/getting-started/access-tokens): Organization access tokens for CI and agents: PALBASE_TOKEN, the member and admin roles, what a token cannot do, expiry, and deleting one.
+- [Billing](https://palbase.studio/docs/getting-started/billing): The Free plan and Pay as you go: opening the organization's payment account, top-ups, what is charged, each environment's cap, Free and freeze, what happens when the balance runs out, and the billing API.
 - [Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits): What is metered for each environment and where Studio shows it, the rates and monthly limits it runs under, what a free project gets, and what each limit answers.
 - [Logs](https://palbase.studio/docs/getting-started/logs): Studio's Logs by category: every request to the environment's address, auth's events, notifications, machine output and builds — and the request lines read from a server.
 
@@ -149,6 +150,7 @@
 
 - [App Distribution](https://palbase.studio/docs/distribution/overview): Builds from your build machine to TestFlight and Google Play's internal testing: packages and build numbers, deliveries and their states, the actions a person confirms, Studio's screens and the stores events.
 - [TestFlight](https://palbase.studio/docs/distribution/testflight): An iOS app's builds to TestFlight with your own Apple account: connecting an App Store Connect key, the unsigned .ipa and its entitlements, signing, groups and testers, Beta App Review and export compliance.
+- [App Store](https://palbase.studio/docs/distribution/app-store): An iOS app's App Store page and the version App Review gets: the draft page and its screenshots, planned and confirmed; preparing the version, what is missing, sending it to App Review, releasing it, the phased release, and App Review's answer.
 - [Google Play](https://palbase.studio/docs/distribution/google-play): An Android app's builds to Google Play's internal testing: the service account Play Console invites, the upload key Palbase signs with, the .aab and its version code, and the first release made in Play Console.
 
 ## Machines & Databases

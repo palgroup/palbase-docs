@@ -25,7 +25,7 @@ palbase purchases:stripe:install -E staging
 
 **3. Open Palbase's install page.** It names the Palbase project and environment the account will be connected to, then sends you to Stripe. The link works once, for 30 minutes.
 
-**4. Pick the Stripe account and accept.** Stripe lists the accounts you can install apps on and shows what the App may do: write products, prices, customers, Checkout Sessions, subscriptions and customer portal sessions; read invoices, payment intents, charges, refunds, disputes and events. Accept, and Stripe sends you back to Palbase, which connects the account and says so.
+**4. Pick the Stripe account and accept.** Stripe lists the accounts you can install apps on and shows what the App may do: write products, prices, customers, Checkout Sessions, subscriptions, customer portal sessions, coupons and promotion codes; read invoices, payment intents, charges, refunds, disputes and events. Coupons carry your offers' discounts to the web, and promotion codes your coupon codes. Accept, and Stripe sends you back to Palbase, which connects the account and says so.
 
 **5. Check it.** Studio shows the account as active, connected through Palbase's Stripe App:
 
@@ -39,7 +39,7 @@ Nothing is made on your account for Stripe's events: they come to Palbase throug
 
 ## B. With a restricted key
 
-In Studio, **Purchases › Stores** and its Stripe account panel, choose **Use a restricted key instead**, or run `palbase purchases:stripe:grant`. Make a restricted key in the Stripe Dashboard (**Developers › API keys › Create restricted key**) with **Write** on Products, Prices, Customers, Checkout Sessions, Customer portal, Subscriptions and Webhook Endpoints, and **Read** on Invoices, Payment Intents, Charges, Disputes, Events and Account; open the page Palbase gives you and paste it there. A key that cannot read its account is refused with `422 stripe_permission_missing`, and so is one missing a permission Palbase checks for — the answer names it. The key goes from that page straight to Palbase, never through Studio. A secret key that can do anything is refused.
+In Studio, **Purchases › Stores** and its Stripe account panel, choose **Use a restricted key instead**, or run `palbase purchases:stripe:grant`. Make a restricted key in the Stripe Dashboard (**Developers › API keys › Create restricted key**) with **Write** on Products, Prices, Customers, Checkout Sessions, Customer portal, Subscriptions, Coupons, Promotion Codes and Webhook Endpoints, and **Read** on Invoices, Payment Intents, Charges, Disputes, Events and Account; open the page Palbase gives you and paste it there. Without Coupons and Promotion Codes the key still connects, but your offers' web discounts and your coupon codes cannot reach the account. A key that cannot read its account is refused with `422 stripe_permission_missing`, and so is one missing a permission Palbase checks for — the answer names it. The key goes from that page straight to Palbase, never through Studio. A secret key that can do anything is refused.
 
 ## Disconnecting
 

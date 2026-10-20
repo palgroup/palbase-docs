@@ -63,6 +63,8 @@ A member leaves an organization with `palbase orgs:members:remove` and their own
 
 A person who leaves, or is taken away, takes with them what they held at the organization's environments: the CLI's keys they were given, and the access tokens they made.
 
+- **Owners hear of every new role.** When someone — or an access token — is given a role in one of the organization's environments, or a higher one, each owner is mailed: who, which role, which environments, when. An owner whose own owner role is taken is mailed too. The same person and role is mailed to an owner once a day for an environment, the environments it came in named in one mail. The mail comes from Palbase's platform itself, not from Studio, to the address the owner signs in with: if you did not expect it, take the person away under **Members** and write to security@pallasite.net.
+
 ## Roles
 
 | | Member | Admin | Owner |

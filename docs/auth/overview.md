@@ -63,6 +63,14 @@ console.log(saved.data.password_min_length, saved.headers.get("etag"));
 
 Every field is checked against the values that will be in force together, so a maximum password length below the minimum, or a refresh token shorter-lived than the access token, is refused (`400`).
 
+### New users
+
+`signups_enabled` (default `true`) lets your apps create accounts. Off, every way a client opens one answers `403 signups_closed`: a sign-up with a password, a passkey sign-up, a guest, a phone's first code and a provider's first sign-in. People who have an account sign in as before, and your server still creates users with the secret key (`POST /admin/users`, imports, test users): it is how a closed app lets someone in.
+
+```sh
+palbase auth:settings:set signups_enabled=false
+```
+
 ### Passwords and email
 
 | Key | Default | What it says |

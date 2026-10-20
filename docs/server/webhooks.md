@@ -99,7 +99,8 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `stores.delivery.requested` | A delivery to TestFlight was sent, or sent again. | `{ package_id, channel }` |
 | `stores.delivery.changed` | A delivery moved: `queued`, `signing`, `uploading`, `processing`, `compliance`, `ready` or `failed`. | `{ package_id, channel, status, asc_build_id, error_code, error }` |
 | `stores.group.changed` | A tester group was made, renamed, deleted, its testers set, or a build given to it. | `{ change, group_id, app_id, name, testers, package_id }` |
-| `stores.action.changed` | A planned action (Beta App Review, export compliance, expiring a build) was done, declined or failed. | `{ action_id, kind, package_id, status, summary }` |
+| `stores.action.changed` | A planned action (Beta App Review, export compliance, expiring a build, an App Store page or version step) was done, declined or failed. | `{ action_id, kind, package_id, app_id, status, summary }` |
+| `stores.version.changed` | An app's App Store version came to a new state: sent to App Review, in review, approved, rejected, withdrawn or released. `result` is App Review's answer, `approved` or `rejected`, or `null`. | `{ app_id, bundle_id, name, version, asc_version_id, previous_state, state, result }` |
 | `database.created` / `database.updated` / `database.deleted` / `database.undeleted` / `database.purged` / `database.password_changed` / `database.restoring` | A database's life. | `{ name, size }` |
 | `purchases.*` | A purchase, a renewal, a refund, an entitlement or credits changing — each one is in [Purchases › Entitlements](https://palbase.studio/docs/purchases/entitlements#events). | the event's own |
 | `ai.response.started` | A chat's turn began: a member's message, the server's, the chat's goal, or the late messages of the turn before opened it. | `{ response_id, status: "running", model, metadata, chat_id, user_id, message_metadata, goal_id, goal_turn }` |

@@ -164,7 +164,7 @@ In this guide you create a Palbase project in Studio, sign a user up and in from
 
 | You need | Why |
 |---|---|
-| **A Studio account** | where the project lives |
+| **A Studio account** | where the project lives — Palbase is opening step by step: [request access](/signup) |
 | **A GitHub repository** you can push to | a machine is built from a branch of it |
 | **Bun 1.4** — [bun.sh](https://bun.sh) | the backend runs on Bun, and `bun install` writes the lockfile its build installs from |
 | **Node.js 22** | the web app (Next.js) |
@@ -610,6 +610,8 @@ palbase orgs:members:remove ada@example.com --org acme   # a member, or an invit
 A member leaves an organization with `palbase orgs:members:remove` and their own email. An admin takes away a member or an admin; only an owner takes away an owner. The organization's last owner stays: make another owner first (`409 last_owner`).
 
 A person who leaves, or is taken away, takes with them what they held at the organization's environments: the CLI's keys they were given, and the access tokens they made.
+
+- **Owners hear of every new role.** When someone — or an access token — is given a role in one of the organization's environments, or a higher one, each owner is mailed: who, which role, which environments, when. An owner whose own owner role is taken is mailed too. The same person and role is mailed to an owner once a day for an environment, the environments it came in named in one mail. The mail comes from Palbase's platform itself, not from Studio, to the address the owner signs in with: if you did not expect it, take the person away under **Members** and write to security@pallasite.net.
 
 ## Roles
 
@@ -1278,6 +1280,77 @@ It stops working when it expires, when it is revoked (`DELETE /v1/environments/{
 
 
 
+<!-- ===== getting-started/billing ===== -->
+
+# Billing
+
+An organization is billed for its projects' use by the calendar month (UTC). It is on one of two plans:
+
+- **Free**: no card. Every item has a free quota each month; a person with no payment account opens at most 2 projects of 2 environments each, and machines and databases are of the free sizes.
+- **Pay as you go**: the organization opens a payment account and loads a balance ahead, in US dollars. Its projects use the free quota once for the whole organization; what they use past it is priced and taken from the balance as it is used, every few minutes. There is no monthly fee and no bill afterwards.
+
+The prices, the free quotas and the terms are on the [billing terms](https://palbase.studio/legal/billing) page.
+
+## Opening the payment account
+
+An owner or admin opens it in Studio, on the organization's **Billing** page: they accept the terms for the organization (Studio records who, when, and which version), choose a first top-up of $10 or more, and pay it on Stripe's page, which asks for the card, the billing address and, for a business, its VAT number. Tax is added on top as the billing address requires. Stripe emails an invoice for every top-up; **Billing › Invoices** lists them.
+
+From then on the organization's projects may open every size of machine and database ([Machines](/docs/machines/overview#sizes), [Databases](/docs/machines/databases#sizes)) and are not held to the Free limits on projects and environments.
+
+## Top-ups
+
+- **Automatic**: when the balance comes under a threshold, the saved card is charged an amount, at most once an hour; on by default ($20 when under $5). A refund or a dispute turns it off. **Billing › Settings** changes both, sets a monthly cap on what it takes in a calendar month, or turns it off, and the balance is then the ceiling. A declined charge is tried again once a day for two days, and the owners and admins are emailed each time.
+- **Now, from the card**: **Top up** on the Billing page.
+- **By bank transfer**: **Top up › Bank transfer** makes an invoice with bank details of the organization's own; the balance gets the amount when the transfer arrives.
+
+A top-up can be spent for 12 months; what is left of it then expires.
+
+## What is charged
+
+**Billing** shows the month: the balance, what each environment used of each item and what it would cost on its own (gross), and the organization's charge for each item, its free quota taken once. **Download CSV** gives the same, a line per environment and item, for an organization that bills its own customers per project.
+
+Palbase AI's models, on Palbase's own provider keys, are their provider's price and 10%. Requests, push notifications, and email, SMS and WhatsApp sent through the project's own provider are not charged.
+
+The owners and admins are emailed when the balance comes under the days of spend they choose (3 by default, in **Settings**), and when it runs out.
+
+## Each environment's place in the bill
+
+For each environment, an admin can, on the Billing page or from the API:
+
+- set a **monthly cap**: at it, the environment is Free until the month ends, while the others go on;
+- pull it to the **Free plan**: it is charged nothing and held to the free quotas;
+- **freeze** it: its requests are refused (`403 project_frozen`), its machines and databases stop, its data is kept, and only what it stores is charged. Unfreezing brings it back.
+
+## When the balance runs out
+
+Nothing is owed. What is paid for stops: machines and databases of a paid size stop (`402 machine_not_paid` while it lasts), and the projects are held to the free quotas, as on the Free plan; what is within them goes on. Usage measured in the few minutes before it stopped is taken from the next top-up; what the projects use after it is not charged. While the balance is out, the organization's projects share one free quota, as the account's bill does. A top-up brings everything back by itself.
+
+## The API
+
+What Studio's Billing page does, an admin's [access token](/docs/getting-started/access-tokens) does too — save opening the payment account and paying on Stripe's page, which are a person's. The calls are on Studio's API, under the organization:
+
+| Call | What it does |
+|---|---|
+| `GET /v1/orgs/{id}/billing` | The plan, the balance, the settings, and each environment's place in the bill |
+| `PATCH /v1/orgs/{id}/billing` | Automatic top-up (`auto_topup`, `auto_threshold_micros`, `auto_amount_micros`, `monthly_cap_micros`) and `low_balance_days` |
+| `POST /v1/orgs/{id}/billing/topups` | A top-up from the saved card: `{ "amount_micros": 20000000 }` |
+| `POST /v1/orgs/{id}/billing/bank-transfers` | An invoice to pay by bank transfer |
+| `GET /v1/orgs/{id}/billing/charges?period=2026-10` | The month's charges, by environment and item |
+| `GET /v1/orgs/{id}/billing/charges.csv?period=2026-10` | The same, as CSV |
+| `GET /v1/orgs/{id}/billing/invoices` | The top-ups' invoices |
+| `GET /v1/orgs/{id}/billing/ledger` | Every change of the balance |
+| `PATCH /v1/orgs/{id}/billing/environments/{ref}` | An environment's `cap_micros` (`null`: none), `free`, `frozen` |
+
+Amounts are in micro-dollars (1,000,000 is $1), in whole cents. A member reads the plan and what was used; amounts and money are an admin's.
+
+## Related
+
+- [Usage & Limits](/docs/getting-started/usage-and-limits) — what is metered, and what a free project gets
+- [Organizations](/docs/getting-started/organizations) — roles, and who is emailed
+- [Access Tokens](/docs/getting-started/access-tokens) — an admin token for the API
+
+
+
 <!-- ===== getting-started/usage-and-limits ===== -->
 
 # Usage & Limits
@@ -1365,13 +1438,13 @@ A limit that counts refuses nothing: the use goes on and is metered.
 
 ## What a free project gets
 
-A project that has not been given paid sizes is a free project.
+A project is free while its organization has no payment account, or has one with no balance left, and while it is pulled to the Free plan or at its monthly cap ([Billing](/docs/getting-started/billing)).
 
-- **Sizes.** Its machines are of the `shared-256` size, the one free machine size, and it has one database at most, of the `free` size: a project holds one database of a free size at a time ([Databases](/docs/machines/databases#sizes)). Every other size is paid for and not open yet: opening a machine or a database of one, or moving one to it, is `403 size_not_available`. `palbase machines:sizes` and `palbase databases:sizes` list the sizes and which of them the environment may open now ([Machines](/docs/machines/overview#sizes)).
+- **Sizes.** Its machines are of the `shared-256` size, the one free machine size, and it has one database at most, of the `free` size: a project holds one database of a free size at a time ([Databases](/docs/machines/databases#sizes)). Every other size is paid for: opening a machine or a database of one, or moving one to it, is `403 size_not_available`. `palbase machines:sizes` and `palbase databases:sizes` list the sizes and which of them the environment may open now ([Machines](/docs/machines/overview#sizes)).
 - **Traffic.** It sends 5 GB a month at full speed: its machines' internet traffic and its response traffic together. Past it, until the month ends, its machines' traffic and answers and the files its storage hands out go at about 256 kbit/s; nothing is stopped, and the API's other answers are not slowed. A slowed project's downloads are paced, and one more than it may have under way at once is `429 rate_limited` with `Retry-After`. See [Reaching the internet](/docs/machines/overview#reaching-the-internet).
 - **A free database** is awake 400 hours a month at most. Past them it sleeps until the month ends, refusing connections, with its data kept; from then its next connection wakes it.
 
-A project given paid sizes is never slowed for its traffic, and its machines and databases may be of any size; a database of the `free` size keeps its 400 hours whoever holds it. What it uses is metered as every project's is.
+A project whose organization pays is never slowed for its traffic, and its machines and databases may be of any size; a database of the `free` size keeps its 400 hours whoever holds it. What it uses past the organization's free quotas is charged from the balance ([Billing](/docs/getting-started/billing)).
 
 ## Each module's own limits
 
@@ -1386,6 +1459,7 @@ A project given paid sizes is never slowed for its traffic, and its machines and
 
 ## Related
 
+- [Billing](/docs/getting-started/billing) — the plans, the balance and what is charged
 - [Logs](/docs/getting-started/logs) — every request, with its status
 - [Organizations](/docs/getting-started/organizations) — who sees the usage page, and who is mailed
 - [Machines](/docs/machines/overview) — sizes, sleep, and traffic to the internet
@@ -1557,9 +1631,9 @@ Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:r
 
 # CLI reference
 
-Every command of `palbase` 0.10.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.10.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-274 commands in 24 groups.
+287 commands in 24 groups.
 
 ## Global flags
 
@@ -1650,6 +1724,7 @@ palbase init [dir] [--db] [--print]
 ```
 
 Nothing already there is written over: a file init would write that exists stops it, naming the file.
+--db's table is typed in palbase/palbase-env.d.ts by the block palbase db:types writes of the schema: run db:types again when you change it.
 --print writes nothing: it prints the files as JSON ({ name, db, version, files: { `<path>`: `<text>` } }), for a program that seeds a repository with this release's starter (bunx `palbase@<version>` init --print `<name>` --db).
 Then: bun install, palbase use `<project>/<environment>`, palbase env:pull, bun dev.
 Its tests: bun test (here, no app); palbase test --users alice,bob --base-url http://localhost:8080 -- bun test ./tests (against the app you started, as test users made for the run); on the platform, palbase machines:update `<name>` --test-command "bun test ./tests" --test-users alice,bob runs them against each new build before it takes traffic.
@@ -2349,25 +2424,50 @@ palbase auth:test-users:list
 
 ### `palbase auth:test-users:create`
 
-Make test users for a suite: their passwords, and with --token an access token each, shown this once
+Make test users for a suite: their passwords, and with --token an access token each, shown this once; --template has the backend write the data a screen needs for each
 
 ```sh
-palbase auth:test-users:create [--count <n>] [--token]
+palbase auth:test-users:create [--count <n>] [--token] [--template <name> [--machine <name>]]
 ```
 
 A test user signs in as any user does; its tokens say test: true, so a backend can tell them apart. --token gives each an access token at once, for a test that calls the backend as that user.
+--template `<name>` has the backend write the data of its @TestUserTemplate({ name }) for each user — its seed for one account, in its own code (palbase/backend), run on the machine --machine names or the environment's only one, for test users alone. Each user is answered with the rows written, by table, or why its template was not (no_template, not_a_test_user, template_failed, template_timeout, machine_unavailable): the user is made all the same, and the command then ends with 1. At most 10 users at once with a template.
+palbase auth:test-users:template writes another template for a user made with one; palbase auth:test-users:delete has the template undone before the user is deleted.
 
 ```text
-      --count <n>  how many (default 1, at most 100)
-      --token      an access token for each, too
+      --count <n>        how many (default 1, at most 100; 10 with --template)
+      --token            an access token for each, too
+      --template <name>  a @TestUserTemplate of the backend's: its data written for each user
+      --machine <name>   the machine whose backend has the template (default: the environment's only one)
+```
+
+### `palbase auth:test-users:template`
+
+Have the backend write a @TestUserTemplate's data for a test user made with a template — the same one again answers what it wrote then
+
+```sh
+palbase auth:test-users:template <user-id> <template> [--machine <name>]
+```
+
+The user is one auth:test-users:create --template made on that machine: a test user is the machine's that made it. Asked again for a template it wrote, the platform answers what it wrote then, and the backend is not called.
+
+```text
+      --machine <name>  the machine whose backend has the template (default: the environment's only one)
 ```
 
 ### `palbase auth:test-users:delete`
 
-Delete a test user
+Delete a test user — one made with a template has the backend undo it first
 
 ```sh
-palbase auth:test-users:delete <user-id>
+palbase auth:test-users:delete <user-id> [--machine <name>]
+```
+
+A test user made with --template is deleted through the machine that made it: the backend's undo of each template runs first — a template with none leaves its data to user.deleted (what ownedByUser() owns goes with the user) — and an undo that fails keeps the user, for the delete to be asked again. Any other test user is deleted at once.
+Without --machine the environment's machines are asked which made the user; a token that does not list the machines deletes it at once, its templates left to user.deleted.
+
+```text
+      --machine <name>  the machine that made the user with a template (default: whichever did)
 ```
 
 ## `storage`
@@ -3027,6 +3127,29 @@ Remove a webhook endpoint: its events are no longer delivered there
 palbase webhooks:delete <id>
 ```
 
+### `palbase webhooks:deliveries:list`
+
+The deliveries the platform gave up on after its tries, still owed (--failed), or every one kept 30 days (--all)
+
+```sh
+palbase webhooks:deliveries:list [--failed] [--all]
+```
+
+```text
+      --failed  those it gave up on and still owes (the default)
+      --all     every one kept, those delivered again among them
+```
+
+### `palbase webhooks:deliveries:redeliver`
+
+Send a failed delivery again: the same event, its id and body, to the endpoint it failed at, within seconds
+
+```sh
+palbase webhooks:deliveries:redeliver <id>
+```
+
+As Stripe's Resend: the receiver takes an event more than once by its Palbase-Event-Id. An admin's; it is written to the organization's audit log.
+
 ## `stores`
 
 ### `palbase stores:apple`
@@ -3421,9 +3544,129 @@ Plan expiring a package's build in TestFlight (testers can no longer install it)
 palbase stores:expire <package id>
 ```
 
+### `palbase stores:listing:get`
+
+An iOS app's draft App Store page — categories, age rating, each language's text and screenshots — and its revision
+
+```sh
+palbase stores:listing:get <app id> [--out <palbase/store/listing.json>]
+```
+
+--out writes the draft to a file to edit, under palbase/; stores:listing:put saves the edit on the revision printed. A screenshot can be named there by its file under palbase/ (relative to the draft's file) instead of its SHA-256: listing:put uploads it first.
+Nothing of the draft is at Apple: stores:listing:plan compares it with App Store Connect, and the plan, once confirmed, writes it.
+
+```text
+      --out <file>  write the draft to this file, under palbase/
+```
+
+### `palbase stores:listing:put`
+
+Save an iOS app's draft App Store page, whole, on the revision it was edited from — its screenshot files uploaded first
+
+```sh
+palbase stores:listing:put <app id> --file <palbase/store/listing.json> --revision <n>
+```
+
+A screenshot is named by its SHA-256, or by a file — a path from the draft's own file, under palbase/ (nothing else is read): each file is uploaded first, and the draft is saved with its SHA-256 in its place. The file itself is left as it is.
+Of two people editing at once, the second is told — the draft moved past the revision they edited — never saved over. Nothing goes to Apple: stores:listing:plan says what the draft changes there.
+
+```text
+      --file <listing.json>  the draft, as stores:listing:get --out wrote it ('-' or none: stdin)
+      --revision <n>         the revision it was edited from, as stores:listing:get printed it (0: the first)
+```
+
+### `palbase stores:screenshots:upload`
+
+Upload screenshots for an iOS app's App Store page: each is kept by its SHA-256, which the draft names it by
+
+```sh
+palbase stores:screenshots:upload <app id> <file.png|file.jpg>…
+```
+
+Each is a PNG or JPEG of 10 MB at most, of a size the App Store takes: iPhone 6.9" (1320x2868, 1290x2796, 1260x2736), iPhone 6.5" (1242x2688, 1284x2778) or iPad 13" (2064x2752, 2048x2732), or turned. The same image again is the one kept.
+stores:listing:put uploads the files a draft names itself; this is for the SHA-256 alone.
+
+### `palbase stores:listing:plan`
+
+Plan writing an iOS app's draft page to App Store Connect: what changes, language by language; it runs when confirmed
+
+```sh
+palbase stores:listing:plan <app id>
+```
+
+The draft is compared with the page of the app's version that can change; a field the draft leaves empty, and a language it has not, are left as they are.
+
+### `palbase stores:version`
+
+An iOS app's App Store version as App Review will see it — its build, release, phased release, price, content rights, review contact — and what App Review would refuse it for
+
+```sh
+palbase stores:version <app id>
+```
+
+The demo account's password is never read out: only whether Apple holds one. watched is what the module last saw of the version sent to App Review (it reads it every few minutes).
+
+### `palbase stores:version:prepare`
+
+Prepare an iOS app's App Store version: its number, build, copyright, release, phased release, content rights, a free price, App Review's details
+
+```sh
+palbase stores:version:prepare <app id> [--version <x.y.z>] [--build <n>] [--copyright <text>] [--release manual|after_approval|scheduled] [--release-at <RFC 3339>] [--phased | --no-phased] [--third-party-content | --no-third-party-content] [--free] [--review-file <review.json>] [--demo-password-stdin]
+```
+
+Only what is given is written; --version makes the next version when the app has none that can change. The build is a TestFlight build of that version, by its number.
+--review-file holds App Review's details as stores:version --json shows them (its review): a field the file leaves out stays as it is. The demo account's password is read from stdin alone (--demo-password-stdin), never from the file or the command line; it goes to Apple, and is never printed or kept.
+
+```text
+      --version <x.y.z>            the version's number: makes it when the app has none that can change
+      --build <n>                  the TestFlight build App Review gets, by its build number
+      --copyright <text>           the copyright line (2026 Your Company)
+      --release <how>              how it goes out once approved: manual, after_approval or scheduled
+      --release-at <RFC 3339>      a scheduled release, not before then (alone, it is scheduled)
+      --phased                     release it in phases over seven days
+      --no-phased                  release it to everyone at once
+      --third-party-content        the content rights statement: the app shows, contains or reaches third-party content
+      --no-third-party-content     the content rights statement: it does not
+      --free                       make an app with no price free everywhere (a paid price is set in App Store Connect)
+      --review-file <review.json>  App Review's details: contact, demo account, notes ('-': stdin)
+      --demo-password-stdin        read the demo account's password from stdin (never a file or the command line)
+```
+
+### `palbase stores:version:submit`
+
+Plan sending an iOS app's prepared version to App Review — refused, with what is missing, until it has what App Review needs; it runs when confirmed
+
+```sh
+palbase stores:version:submit <app id>
+```
+
+### `palbase stores:version:withdraw`
+
+Plan taking the version out of App Review: it is edited again, and sent again from the start; it runs when confirmed
+
+```sh
+palbase stores:version:withdraw <app id>
+```
+
+### `palbase stores:version:release`
+
+Plan releasing an approved version that waits for its developer (a manual release) on the App Store, for good; it runs when confirmed
+
+```sh
+palbase stores:version:release <app id>
+```
+
+### `palbase stores:version:phased`
+
+Plan pausing, resuming or completing the version's phased release (complete: everyone gets it now); it runs when confirmed
+
+```sh
+palbase stores:version:phased <app id> <paused|active|complete>
+```
+
 ### `palbase stores:actions`
 
-The actions planned at Apple, newest first: what each does, and whether it ran
+The actions planned at Apple, newest first: what each does, and whether it ran (running: a page still being written)
 
 ```sh
 palbase stores:actions [--status planned|done|declined|failed] [--limit <n>]
@@ -3443,6 +3686,7 @@ palbase stores:actions:confirm <action id> --hash <hash>
 ```
 
 What it does is shown, then asked about — in every environment, as it cannot be undone at Apple. -y confirms without asking.
+An App Store page's plan is written after the answer (its screenshots take minutes): the command waits for it to be done or failed, 15 minutes at most; stopping the wait does not stop the writing.
 
 ```text
       --hash <hash>  the plan's hash, as it was shown when it was planned
@@ -5002,7 +5246,7 @@ Write the app's tables into palbase/palbase-env.d.ts as types — rows, inserts,
 palbase db:types [--entry <file>] [--file <path>]
 ```
 
-`Database.public.<table>` and `Database.<schema>.<table>` are typed from them with no import and no generic — the relations of a foreign key to another file's table too, which a schema's own type (TablesOf) cannot see: an app that declares Tables with TablesOf leaves that out once it has these.
+`Database.public.<table>` and `Database.<schema>.<table>` are typed from them with no import and no generic — the relations of a foreign key to another file's table too, which a schema's own type (TablesOf) cannot see: an app that declares Tables with TablesOf leaves that out once it has these. palbase init --db writes the block of its starter schema; run db:types again when a schema changes.
 No database is asked: the app is started in its types mode, which reads its schema files and writes nothing else. Only the block between the palbase:env markers is written; run it again when a schema changes.
 
 ```text
@@ -6763,23 +7007,15 @@ Why giving it back is safe: under read committed, Postgres' default, every state
 
 ## Where the types come from
 
-`Database.public.<table>` is typed by a declaration file, `palbase-env.d.ts`, that augments `palbase/backend/env`'s `Tables` (and `Schemas`, for every other schema). Palgres writes it from your schema files with `makeEnvDts`. Nothing in a release writes it for you — keep a script beside the app and run it after you change a schema file:
-
-```ts
-// scripts/palbase-env.ts
-import { writeFileSync } from "node:fs";
-import { makeEnvDts } from "palgres";
-import schema from "../src/db/public";
-
-// One entry per schema file the app passes to PalbaseFactory.create.
-writeFileSync(new URL("../src/palbase-env.d.ts", import.meta.url), makeEnvDts([schema]));
-```
+`Database.public.<table>` is typed by a declaration file, `palbase/palbase-env.d.ts`, that augments `palbase/backend/env`'s `Tables` (and `Schemas`, for every other schema). The CLI writes it from your schema files — each table's row, its insert, its unique keys and its relations both ways (`with`, `has`) — between its markers in that file; `palbase init --db` writes the first one. Run it again after you change a schema file, and commit the file:
 
 ```bash
-bun run scripts/palbase-env.ts
+palbase db:types
 ```
 
-Commit the file it writes. It lands in `src/`, which a tsconfig with `"include": ["src/**/*.ts"]` already covers; written anywhere else, add it to `include`. The header the generator writes says the same: `makeEnvDts` wrote it, and nothing writes it again on its own — this script is the only thing that regenerates the file.
+It reads the app's entry (`--entry <file>` when it is not the one the project names) and writes `palbase/palbase-env.d.ts` (`--file <path>` for another); the app's tsconfig must include the file. A schema that has not changed writes the same bytes, so a check in CI can run it and fail on a diff.
+
+A build that cannot run the CLI writes the same declarations with palgres' `makeEnvDts([schema])`.
 
 When you need a row type by name, import it:
 
@@ -18972,7 +19208,8 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `stores.delivery.requested` | A delivery to TestFlight was sent, or sent again. | `{ package_id, channel }` |
 | `stores.delivery.changed` | A delivery moved: `queued`, `signing`, `uploading`, `processing`, `compliance`, `ready` or `failed`. | `{ package_id, channel, status, asc_build_id, error_code, error }` |
 | `stores.group.changed` | A tester group was made, renamed, deleted, its testers set, or a build given to it. | `{ change, group_id, app_id, name, testers, package_id }` |
-| `stores.action.changed` | A planned action (Beta App Review, export compliance, expiring a build) was done, declined or failed. | `{ action_id, kind, package_id, status, summary }` |
+| `stores.action.changed` | A planned action (Beta App Review, export compliance, expiring a build, an App Store page or version step) was done, declined or failed. | `{ action_id, kind, package_id, app_id, status, summary }` |
+| `stores.version.changed` | An app's App Store version came to a new state: sent to App Review, in review, approved, rejected, withdrawn or released. `result` is App Review's answer, `approved` or `rejected`, or `null`. | `{ app_id, bundle_id, name, version, asc_version_id, previous_state, state, result }` |
 | `database.created` / `database.updated` / `database.deleted` / `database.undeleted` / `database.purged` / `database.password_changed` / `database.restoring` | A database's life. | `{ name, size }` |
 | `purchases.*` | A purchase, a renewal, a refund, an entitlement or credits changing — each one is in [Purchases › Entitlements](/docs/purchases/entitlements#events). | the event's own |
 | `ai.response.started` | A chat's turn began: a member's message, the server's, the chat's goal, or the late messages of the turn before opened it. | `{ response_id, status: "running", model, metadata, chat_id, user_id, message_metadata, goal_id, goal_turn }` |
@@ -19107,6 +19344,14 @@ console.log(saved.data.password_min_length, saved.headers.get("etag"));
 ```
 
 Every field is checked against the values that will be in force together, so a maximum password length below the minimum, or a refresh token shorter-lived than the access token, is refused (`400`).
+
+### New users
+
+`signups_enabled` (default `true`) lets your apps create accounts. Off, every way a client opens one answers `403 signups_closed`: a sign-up with a password, a passkey sign-up, a guest, a phone's first code and a provider's first sign-in. People who have an account sign in as before, and your server still creates users with the secret key (`POST /admin/users`, imports, test users): it is how a closed app lets someone in.
+
+```sh
+palbase auth:settings:set signups_enabled=false
+```
 
 ### Passwords and email
 
@@ -20755,7 +21000,7 @@ palbase purchases:stripe:install -E staging
 
 **3. Open Palbase's install page.** It names the Palbase project and environment the account will be connected to, then sends you to Stripe. The link works once, for 30 minutes.
 
-**4. Pick the Stripe account and accept.** Stripe lists the accounts you can install apps on and shows what the App may do: write products, prices, customers, Checkout Sessions, subscriptions and customer portal sessions; read invoices, payment intents, charges, refunds, disputes and events. Accept, and Stripe sends you back to Palbase, which connects the account and says so.
+**4. Pick the Stripe account and accept.** Stripe lists the accounts you can install apps on and shows what the App may do: write products, prices, customers, Checkout Sessions, subscriptions, customer portal sessions, coupons and promotion codes; read invoices, payment intents, charges, refunds, disputes and events. Coupons carry your offers' discounts to the web, and promotion codes your coupon codes. Accept, and Stripe sends you back to Palbase, which connects the account and says so.
 
 **5. Check it.** Studio shows the account as active, connected through Palbase's Stripe App:
 
@@ -20769,7 +21014,7 @@ Nothing is made on your account for Stripe's events: they come to Palbase throug
 
 ## B. With a restricted key
 
-In Studio, **Purchases › Stores** and its Stripe account panel, choose **Use a restricted key instead**, or run `palbase purchases:stripe:grant`. Make a restricted key in the Stripe Dashboard (**Developers › API keys › Create restricted key**) with **Write** on Products, Prices, Customers, Checkout Sessions, Customer portal, Subscriptions and Webhook Endpoints, and **Read** on Invoices, Payment Intents, Charges, Disputes, Events and Account; open the page Palbase gives you and paste it there. A key that cannot read its account is refused with `422 stripe_permission_missing`, and so is one missing a permission Palbase checks for — the answer names it. The key goes from that page straight to Palbase, never through Studio. A secret key that can do anything is refused.
+In Studio, **Purchases › Stores** and its Stripe account panel, choose **Use a restricted key instead**, or run `palbase purchases:stripe:grant`. Make a restricted key in the Stripe Dashboard (**Developers › API keys › Create restricted key**) with **Write** on Products, Prices, Customers, Checkout Sessions, Customer portal, Subscriptions, Coupons, Promotion Codes and Webhook Endpoints, and **Read** on Invoices, Payment Intents, Charges, Disputes, Events and Account; open the page Palbase gives you and paste it there. Without Coupons and Promotion Codes the key still connects, but your offers' web discounts and your coupon codes cannot reach the account. A key that cannot read its account is refused with `422 stripe_permission_missing`, and so is one missing a permission Palbase checks for — the answer names it. The key goes from that page straight to Palbase, never through Studio. A secret key that can do anything is refused.
 
 ## Disconnecting
 
@@ -22612,7 +22857,7 @@ What stops a delivery, by `error_code`, is on [TestFlight](/docs/distribution/te
 
 ## Actions
 
-What changes something at Apple for good is planned first and runs only when a person confirms it: sending a build to Beta App Review, answering a build's export compliance question, and expiring a build. A plan holds a summary of exactly what it does and a hash of it.
+What changes something at Apple for good is planned first and runs only when a person confirms it: sending a build to Beta App Review, answering a build's export compliance question, expiring a build, and on the [App Store](/docs/distribution/app-store) writing an app's page, sending its version to App Review, withdrawing it, releasing it and changing its phased release. A plan holds a summary of exactly what it does and a hash of it.
 
 ```sh
 palbase stores:beta-review <package id>        # plans it, prints its id and hash
@@ -22634,6 +22879,7 @@ A confirmation names the hash of the plan that was shown, runs it once, and only
 | Groups | An iOS app's groups of testers: make, rename, delete, set their testers |
 | Actions | What waits for a person's yes, and what was done, declined or failed |
 | TestFlight | An iOS app's test information for Beta App Review, and what testers sent back |
+| App Store | An iOS app's App Store page (each language's text, its categories and screenshots), planned and confirmed, and the version App Review gets: what is missing, **Send to App Review**, **Withdraw from App Review**, **Release** and the phased release |
 
 ## Events
 
@@ -22649,6 +22895,7 @@ Every change emits a `stores.*` event to the environment's [webhooks](/docs/serv
 | `stores.delivery.changed` | A delivery moved: `queued`, `signing`, `uploading`, `processing`, `compliance`, `ready` or `failed` |
 | `stores.group.changed` | A group was made, renamed or deleted, its testers set, or a build given to it |
 | `stores.action.changed` | An action was planned, done, declined or failed |
+| `stores.version.changed` | An app's App Store version came to a new state: sent to App Review, in review, approved, rejected, withdrawn, released |
 
 ```ts
 // src/modules/releases/release-events.ts
@@ -22680,6 +22927,7 @@ The module's API is the environment's, at its address under `/stores`, with the 
 ## Related
 
 - [TestFlight](/docs/distribution/testflight): the Apple account, signing, groups, Beta App Review
+- [App Store](/docs/distribution/app-store): the App Store page, the version, App Review and the release
 - [Google Play](/docs/distribution/google-play): the Play connection, the upload key, internal testing
 - [Test Apple Purchases](/docs/purchases/testing-apple): sandbox testers and purchases in TestFlight
 - [CLI reference: `stores`](/docs/cli/reference#stores)
@@ -22879,6 +23127,212 @@ The general ones (`build_changed`, `build_gone`, `step_timed_out`, `gave_up`) ar
 
 
 
+<!-- ===== distribution/app-store ===== -->
+
+# App Store
+
+An iOS app's App Store page and the version App Review gets are managed from the environment, with your own Apple account. You keep the page as a draft, language by language, with its screenshots. Palbase plans what changes at App Store Connect, and writes it only once you confirm the plan. You prepare the version (its build, release, review details), send it to App Review, and release it. Each of those steps is a plan you confirm too.
+
+You need an iOS app [linked to the App Store](/docs/distribution/testflight#link-the-app), with its App Store Connect record, and the environment's [App Store Connect key](/docs/distribution/testflight#connect-app-store-connect) with the **App Manager** role or above. Studio shows all of it under **App Distribution › App Store**.
+
+## The page
+
+The draft is the environment's: what you want the page to be. Nothing in it is at Apple until a plan of it is confirmed.
+
+```sh
+palbase stores:listing:get 4f6c2d10-… --out palbase/store/listing.json -E main
+```
+
+```json
+{
+  "primary_category": "PRODUCTIVITY",
+  "secondary_category": "UTILITIES",
+  "locales": {
+    "en-US": {
+      "name": "Shop",
+      "subtitle": "Groceries in a tap",
+      "description": "Shop keeps your list and orders from the store near you.",
+      "keywords": "groceries,list,shopping",
+      "promotional_text": "Same-day delivery is here.",
+      "whats_new": "A faster checkout.",
+      "privacy_policy_url": "https://shop.example.com/privacy",
+      "support_url": "https://shop.example.com/help",
+      "marketing_url": "https://shop.example.com",
+      "screenshots": { "iphone_6_9": ["screens/home.png", "screens/cart.png"] }
+    }
+  }
+}
+```
+
+Edit the file, then save it on the revision `stores:listing:get` printed:
+
+```sh
+palbase stores:listing:put 4f6c2d10-… --file palbase/store/listing.json --revision 3 -E main
+```
+
+A language is App Store Connect's code (`en-US`, `tr`, `de-DE`). A field you leave empty is not written, and a language the draft does not have is left as App Store Connect holds it.
+
+| Field | What it is |
+|---|---|
+| `name` | The app's name in the language, 2 to 30 characters |
+| `subtitle` | Under the name, 30 characters at most |
+| `description` | What the app does, 4000 characters at most |
+| `keywords` | Comma-separated search words, 100 bytes at most |
+| `promotional_text` | Above the description, 170 characters at most. It changes without a new version. |
+| `whats_new` | An update's notes. The app's first version has none. |
+| `privacy_policy_url`, `support_url`, `marketing_url` | http(s) addresses |
+| `primary_category`, `secondary_category` | App Store categories: `PRODUCTIVITY`, `UTILITIES`, `GAMES` … |
+
+Two people can edit the page at once. The second save is refused (`409 listing_moved`), never written over the first: read the page again, make your edit on it, and save with its revision.
+
+### Screenshots
+
+Each display takes up to 10 screenshots, PNG or JPEG, 10 MB at most, in the order the App Store shows them:
+
+| Display | Sizes (portrait, or turned) |
+|---|---|
+| `iphone_6_9` | 1320×2868, 1290×2796 or 1260×2736 |
+| `iphone_6_5` | 1242×2688 or 1284×2778 |
+| `ipad_13` | 2064×2752 or 2048×2732 |
+
+The draft names a screenshot by its SHA-256. `stores:listing:put` takes a file instead, a path from the draft's file under `palbase/`: it uploads each one first and saves its SHA-256 in its place. To upload without saving:
+
+```sh
+palbase stores:screenshots:upload 4f6c2d10-… screens/home.png screens/cart.png -E main
+```
+
+It prints each image's SHA-256 and the displays its size fits. An image of another size is refused (`422 screenshot_size`).
+
+### Plan and confirm
+
+```sh
+palbase stores:listing:plan 4f6c2d10-… -E main
+palbase stores:actions:confirm <action id> --hash <hash> -E main
+```
+
+The plan compares the saved draft with the page of the app's version that can still change, and lists each change: the categories, the age rating, each language's name, subtitle and privacy policy, its description, keywords and links, and each display's screenshots. When App Store Connect already holds the page, there is nothing to confirm.
+
+A confirmation is a person's, as every [action](/docs/distribution/overview#actions) is. The text is written while the confirmation answers. The screenshots are uploaded after it: the action is `running`, then `done` or `failed`. `palbase stores:actions` shows where it is, and Studio's page says when it ends. Planned again after a failure, it writes what is left.
+
+In Studio, **App Store** shows the page for each language, takes screenshots for each display, and saves the draft. **Plan the changes** lists the steps; **Confirm and write** writes them.
+
+## The version
+
+```sh
+palbase stores:version 4f6c2d10-… -E main
+```
+
+It shows the version App Review would get: its number, its state, its build, how it is released, its phased release, the price, the content rights statement and App Review's contact and demo account. The demo account's password is never shown: only whether Apple holds one.
+
+Prepare it:
+
+```sh
+palbase stores:version:prepare 4f6c2d10-… --version 1.3.0 --build 42 --copyright "2026 Acme" \
+  --release manual --phased --no-third-party-content --review-file review.json -E main
+```
+
+```json
+{
+  "contact_first_name": "Ada",
+  "contact_last_name": "Lovelace",
+  "contact_email": "ada@example.com",
+  "contact_phone": "+44 20 7946 0000",
+  "demo_account_required": true,
+  "demo_account_name": "reviewer@example.com",
+  "demo_account_password": "…",
+  "notes": "Sign in with the demo account, then add an item to the cart."
+}
+```
+
+| Flag | What it does |
+|---|---|
+| `--version` | The version's number. When the app has no version that can change, this makes the next one. |
+| `--build` | The TestFlight build App Review gets, by its build number. Its version is this version: [deliver it to TestFlight](/docs/distribution/testflight#send-it-to-testflight) first. |
+| `--release` | `manual` (you release it), `after_approval`, or `scheduled` with `--release-at` |
+| `--phased`, `--no-phased` | Release it over seven days, or to everyone at once |
+| `--third-party-content`, `--no-third-party-content` | Apple's content rights question |
+| `--free` | Makes an app with no price free in every country. A paid price is set in App Store Connect. |
+| `--review-file` | App Review's details. A field the file leaves out stays as it is. The password goes to Apple and is never printed or kept. |
+
+What you prepare is written to App Store Connect at once: it is no plan. Studio's **Version** panel holds the same form.
+
+### What is missing
+
+`stores:version` lists what App Review would refuse the version for, one line each, as App Store Connect holds it now: a processed build with its export compliance answer, the copyright, a primary category, the content rights statement, a price, the age rating, App Review's contact and demo account, and each language's name, description, keywords, privacy policy and support URLs, What's New and screenshots. A draft page you saved but did not write yet does not count: plan it and confirm it first. Sending the version is refused while the list is not empty (`409 version_incomplete`).
+
+App Privacy is not on the list. Its questions are answered in App Store Connect, and Palbase cannot read them: answer them there before you send the version.
+
+### Send it to App Review
+
+```sh
+palbase stores:version:submit 4f6c2d10-… -E main
+palbase stores:actions:confirm <action id> --hash <hash> -E main
+```
+
+Once the plan is confirmed, the version waits for review. Palbase reads its state every two minutes while App Review has it, and while it waits for its release. `stores:version` shows the state it saw last (`watched`) and since when.
+
+| Command | What it plans |
+|---|---|
+| `palbase stores:version:withdraw <app id>` | Takes the version out of App Review. You can edit it again, and you send it again from the start. |
+| `palbase stores:version:release <app id>` | Releases an approved version that waits for you (`PENDING_DEVELOPER_RELEASE`). A release cannot be taken back. |
+| `palbase stores:version:phased <app id> paused` | Pauses a phased release, for 30 days at most in all |
+| `palbase stores:version:phased <app id> active` | Resumes it |
+| `palbase stores:version:phased <app id> complete` | Gives the update to everyone now |
+
+Each waits for your confirmation, as sending it does. In Studio, the **Version** panel shows the steps the version can take now: **Send to App Review**, **Withdraw from App Review**, **Release**, and the phased release's. Each opens the plan for you to confirm, and closing it declines the plan.
+
+### Phased release
+
+A phased release gives an update to a growing share of the users who have automatic updates, a day each over seven days: 1%, 2%, 5%, 10%, 20%, 50%, then 100%. Anyone can download it from the App Store at once. It starts when the version is released. It applies to an update, never to the app's first version.
+
+## App Review's answer
+
+When App Review approves or rejects the version, the owners of the environment's organization get an email from Palbase. An approved version is released as you set it: one that waits for you is released from Studio's **App Store** page, or with `stores:version:release`. Apple gives no reason for a rejection over its API: read it in App Store Connect's **Resolution Center**, fix what it names, and send the version again.
+
+Every state the version comes to is the environment's `stores.version.changed` event: sent to App Review, in review, approved, rejected, withdrawn, released. It goes to the environment's [webhooks](/docs/server/webhooks) and to a backend's [`@On` handlers](/docs/backend/hooks):
+
+```ts
+// src/modules/releases/version-events.ts
+import { Log, On, type WebhookEvent } from "palbase/backend";
+
+interface VersionChanged {
+  app_id: string;
+  name: string;
+  version: string;
+  previous_state: string | null;
+  state: string;
+  result: "approved" | "rejected" | null;
+}
+
+export class VersionEvents {
+  @On("stores.version.changed")
+  changed(event: WebhookEvent<VersionChanged>): void {
+    const { name, version, state, result } = event.data;
+    if (result === "rejected") Log.warn("App Review rejected a version", { name, version, state });
+    if (state === "READY_FOR_DISTRIBUTION") Log.info("a version is on the App Store", { name, version });
+  }
+}
+```
+
+```ts
+// src/modules/releases/releases.module.ts
+import { Module } from "palbase/backend";
+import { VersionEvents } from "./version-events";
+
+@Module({ providers: [VersionEvents] })
+export class ReleasesModule {}
+```
+
+`result` is App Review's answer, set only in a state that is one: `approved` from `PENDING_DEVELOPER_RELEASE` on, `rejected` in `REJECTED`, `METADATA_REJECTED` or `INVALID_BINARY`.
+
+## Related
+
+- [App Distribution](/docs/distribution/overview): packages, deliveries, actions and events
+- [TestFlight](/docs/distribution/testflight): the Apple account, the build App Review gets, Beta App Review
+- [CLI reference: `stores`](/docs/cli/reference#stores)
+
+
+
 <!-- ===== distribution/google-play ===== -->
 
 # Google Play
@@ -23066,7 +23520,7 @@ A **shared** size has a fraction of a CPU as its ceiling and is **put to sleep w
 
 Sleeping has consequences for code: a machine that sleeps runs nothing while it sleeps. A timer, an in-memory cache or a background loop stops with it, and a request that wakes it pays the start-up. Work that must happen on a schedule is a [cron](#crons-and-tasks), and work to be done once, now or later, a [task](#crons-and-tasks): the platform wakes the machine for either.
 
-`shared-256` is the size every project may open. The others are sizes that are paid for: they are not open yet, and opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](/docs/getting-started/usage-and-limits)).
+`shared-256` is the size every project may open. The others are sizes that are paid for: open to a project whose organization pays ([Billing](/docs/getting-started/billing)); for another, opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](/docs/getting-started/usage-and-limits)).
 
 What a project's machines and databases reserve between them is held to the project's limit: a size or a number of copies that does not fit is refused with `409 machines_over_limit`.
 
@@ -23608,7 +24062,7 @@ A project has **3 databases** at most — a deleted one counts until it is purge
 | `dedicated-1x` | 1 vCPU of its own | 4 GiB | 25 GB | never |
 | `dedicated-2x` | 2 vCPU of its own | 8 GiB | 50 GB | never |
 
-`free` is the size every project may open. The others are sizes that are paid for: they are not open yet, and a project that has not been given them is refused one with `403 size_not_available`.
+`free` is the size every project may open. The others are sizes that are paid for: open to a project whose organization pays ([Billing](/docs/getting-started/billing)); another is refused one with `403 size_not_available`.
 
 A size that sleeps is put to sleep when it is idle and **woken by the next connection**, in about 10 seconds; the client's connection waits for it. A `free` database awake for its 400 hours sleeps until the month ends, and a client is told so; one asleep for a week is **archived**, and its next connection brings it back from its backup. The other sizes never sleep and live on a disk of their own.
 

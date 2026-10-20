@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.10.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.10.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-274 commands in 24 groups.
+287 commands in 24 groups.
 
 ## Global flags
 
@@ -95,6 +95,7 @@ palbase init [dir] [--db] [--print]
 ```
 
 Nothing already there is written over: a file init would write that exists stops it, naming the file.
+--db's table is typed in palbase/palbase-env.d.ts by the block palbase db:types writes of the schema: run db:types again when you change it.
 --print writes nothing: it prints the files as JSON ({ name, db, version, files: { `<path>`: `<text>` } }), for a program that seeds a repository with this release's starter (bunx `palbase@<version>` init --print `<name>` --db).
 Then: bun install, palbase use `<project>/<environment>`, palbase env:pull, bun dev.
 Its tests: bun test (here, no app); palbase test --users alice,bob --base-url http://localhost:8080 -- bun test ./tests (against the app you started, as test users made for the run); on the platform, palbase machines:update `<name>` --test-command "bun test ./tests" --test-users alice,bob runs them against each new build before it takes traffic.
@@ -794,25 +795,50 @@ palbase auth:test-users:list
 
 ### `palbase auth:test-users:create`
 
-Make test users for a suite: their passwords, and with --token an access token each, shown this once
+Make test users for a suite: their passwords, and with --token an access token each, shown this once; --template has the backend write the data a screen needs for each
 
 ```sh
-palbase auth:test-users:create [--count <n>] [--token]
+palbase auth:test-users:create [--count <n>] [--token] [--template <name> [--machine <name>]]
 ```
 
 A test user signs in as any user does; its tokens say test: true, so a backend can tell them apart. --token gives each an access token at once, for a test that calls the backend as that user.
+--template `<name>` has the backend write the data of its @TestUserTemplate({ name }) for each user — its seed for one account, in its own code (palbase/backend), run on the machine --machine names or the environment's only one, for test users alone. Each user is answered with the rows written, by table, or why its template was not (no_template, not_a_test_user, template_failed, template_timeout, machine_unavailable): the user is made all the same, and the command then ends with 1. At most 10 users at once with a template.
+palbase auth:test-users:template writes another template for a user made with one; palbase auth:test-users:delete has the template undone before the user is deleted.
 
 ```text
-      --count <n>  how many (default 1, at most 100)
-      --token      an access token for each, too
+      --count <n>        how many (default 1, at most 100; 10 with --template)
+      --token            an access token for each, too
+      --template <name>  a @TestUserTemplate of the backend's: its data written for each user
+      --machine <name>   the machine whose backend has the template (default: the environment's only one)
+```
+
+### `palbase auth:test-users:template`
+
+Have the backend write a @TestUserTemplate's data for a test user made with a template — the same one again answers what it wrote then
+
+```sh
+palbase auth:test-users:template <user-id> <template> [--machine <name>]
+```
+
+The user is one auth:test-users:create --template made on that machine: a test user is the machine's that made it. Asked again for a template it wrote, the platform answers what it wrote then, and the backend is not called.
+
+```text
+      --machine <name>  the machine whose backend has the template (default: the environment's only one)
 ```
 
 ### `palbase auth:test-users:delete`
 
-Delete a test user
+Delete a test user — one made with a template has the backend undo it first
 
 ```sh
-palbase auth:test-users:delete <user-id>
+palbase auth:test-users:delete <user-id> [--machine <name>]
+```
+
+A test user made with --template is deleted through the machine that made it: the backend's undo of each template runs first — a template with none leaves its data to user.deleted (what ownedByUser() owns goes with the user) — and an undo that fails keeps the user, for the delete to be asked again. Any other test user is deleted at once.
+Without --machine the environment's machines are asked which made the user; a token that does not list the machines deletes it at once, its templates left to user.deleted.
+
+```text
+      --machine <name>  the machine that made the user with a template (default: whichever did)
 ```
 
 ## `storage`
@@ -1472,6 +1498,29 @@ Remove a webhook endpoint: its events are no longer delivered there
 palbase webhooks:delete <id>
 ```
 
+### `palbase webhooks:deliveries:list`
+
+The deliveries the platform gave up on after its tries, still owed (--failed), or every one kept 30 days (--all)
+
+```sh
+palbase webhooks:deliveries:list [--failed] [--all]
+```
+
+```text
+      --failed  those it gave up on and still owes (the default)
+      --all     every one kept, those delivered again among them
+```
+
+### `palbase webhooks:deliveries:redeliver`
+
+Send a failed delivery again: the same event, its id and body, to the endpoint it failed at, within seconds
+
+```sh
+palbase webhooks:deliveries:redeliver <id>
+```
+
+As Stripe's Resend: the receiver takes an event more than once by its Palbase-Event-Id. An admin's; it is written to the organization's audit log.
+
 ## `stores`
 
 ### `palbase stores:apple`
@@ -1866,9 +1915,129 @@ Plan expiring a package's build in TestFlight (testers can no longer install it)
 palbase stores:expire <package id>
 ```
 
+### `palbase stores:listing:get`
+
+An iOS app's draft App Store page — categories, age rating, each language's text and screenshots — and its revision
+
+```sh
+palbase stores:listing:get <app id> [--out <palbase/store/listing.json>]
+```
+
+--out writes the draft to a file to edit, under palbase/; stores:listing:put saves the edit on the revision printed. A screenshot can be named there by its file under palbase/ (relative to the draft's file) instead of its SHA-256: listing:put uploads it first.
+Nothing of the draft is at Apple: stores:listing:plan compares it with App Store Connect, and the plan, once confirmed, writes it.
+
+```text
+      --out <file>  write the draft to this file, under palbase/
+```
+
+### `palbase stores:listing:put`
+
+Save an iOS app's draft App Store page, whole, on the revision it was edited from — its screenshot files uploaded first
+
+```sh
+palbase stores:listing:put <app id> --file <palbase/store/listing.json> --revision <n>
+```
+
+A screenshot is named by its SHA-256, or by a file — a path from the draft's own file, under palbase/ (nothing else is read): each file is uploaded first, and the draft is saved with its SHA-256 in its place. The file itself is left as it is.
+Of two people editing at once, the second is told — the draft moved past the revision they edited — never saved over. Nothing goes to Apple: stores:listing:plan says what the draft changes there.
+
+```text
+      --file <listing.json>  the draft, as stores:listing:get --out wrote it ('-' or none: stdin)
+      --revision <n>         the revision it was edited from, as stores:listing:get printed it (0: the first)
+```
+
+### `palbase stores:screenshots:upload`
+
+Upload screenshots for an iOS app's App Store page: each is kept by its SHA-256, which the draft names it by
+
+```sh
+palbase stores:screenshots:upload <app id> <file.png|file.jpg>…
+```
+
+Each is a PNG or JPEG of 10 MB at most, of a size the App Store takes: iPhone 6.9" (1320x2868, 1290x2796, 1260x2736), iPhone 6.5" (1242x2688, 1284x2778) or iPad 13" (2064x2752, 2048x2732), or turned. The same image again is the one kept.
+stores:listing:put uploads the files a draft names itself; this is for the SHA-256 alone.
+
+### `palbase stores:listing:plan`
+
+Plan writing an iOS app's draft page to App Store Connect: what changes, language by language; it runs when confirmed
+
+```sh
+palbase stores:listing:plan <app id>
+```
+
+The draft is compared with the page of the app's version that can change; a field the draft leaves empty, and a language it has not, are left as they are.
+
+### `palbase stores:version`
+
+An iOS app's App Store version as App Review will see it — its build, release, phased release, price, content rights, review contact — and what App Review would refuse it for
+
+```sh
+palbase stores:version <app id>
+```
+
+The demo account's password is never read out: only whether Apple holds one. watched is what the module last saw of the version sent to App Review (it reads it every few minutes).
+
+### `palbase stores:version:prepare`
+
+Prepare an iOS app's App Store version: its number, build, copyright, release, phased release, content rights, a free price, App Review's details
+
+```sh
+palbase stores:version:prepare <app id> [--version <x.y.z>] [--build <n>] [--copyright <text>] [--release manual|after_approval|scheduled] [--release-at <RFC 3339>] [--phased | --no-phased] [--third-party-content | --no-third-party-content] [--free] [--review-file <review.json>] [--demo-password-stdin]
+```
+
+Only what is given is written; --version makes the next version when the app has none that can change. The build is a TestFlight build of that version, by its number.
+--review-file holds App Review's details as stores:version --json shows them (its review): a field the file leaves out stays as it is. The demo account's password is read from stdin alone (--demo-password-stdin), never from the file or the command line; it goes to Apple, and is never printed or kept.
+
+```text
+      --version <x.y.z>            the version's number: makes it when the app has none that can change
+      --build <n>                  the TestFlight build App Review gets, by its build number
+      --copyright <text>           the copyright line (2026 Your Company)
+      --release <how>              how it goes out once approved: manual, after_approval or scheduled
+      --release-at <RFC 3339>      a scheduled release, not before then (alone, it is scheduled)
+      --phased                     release it in phases over seven days
+      --no-phased                  release it to everyone at once
+      --third-party-content        the content rights statement: the app shows, contains or reaches third-party content
+      --no-third-party-content     the content rights statement: it does not
+      --free                       make an app with no price free everywhere (a paid price is set in App Store Connect)
+      --review-file <review.json>  App Review's details: contact, demo account, notes ('-': stdin)
+      --demo-password-stdin        read the demo account's password from stdin (never a file or the command line)
+```
+
+### `palbase stores:version:submit`
+
+Plan sending an iOS app's prepared version to App Review — refused, with what is missing, until it has what App Review needs; it runs when confirmed
+
+```sh
+palbase stores:version:submit <app id>
+```
+
+### `palbase stores:version:withdraw`
+
+Plan taking the version out of App Review: it is edited again, and sent again from the start; it runs when confirmed
+
+```sh
+palbase stores:version:withdraw <app id>
+```
+
+### `palbase stores:version:release`
+
+Plan releasing an approved version that waits for its developer (a manual release) on the App Store, for good; it runs when confirmed
+
+```sh
+palbase stores:version:release <app id>
+```
+
+### `palbase stores:version:phased`
+
+Plan pausing, resuming or completing the version's phased release (complete: everyone gets it now); it runs when confirmed
+
+```sh
+palbase stores:version:phased <app id> <paused|active|complete>
+```
+
 ### `palbase stores:actions`
 
-The actions planned at Apple, newest first: what each does, and whether it ran
+The actions planned at Apple, newest first: what each does, and whether it ran (running: a page still being written)
 
 ```sh
 palbase stores:actions [--status planned|done|declined|failed] [--limit <n>]
@@ -1888,6 +2057,7 @@ palbase stores:actions:confirm <action id> --hash <hash>
 ```
 
 What it does is shown, then asked about — in every environment, as it cannot be undone at Apple. -y confirms without asking.
+An App Store page's plan is written after the answer (its screenshots take minutes): the command waits for it to be done or failed, 15 minutes at most; stopping the wait does not stop the writing.
 
 ```text
       --hash <hash>  the plan's hash, as it was shown when it was planned
@@ -3447,7 +3617,7 @@ Write the app's tables into palbase/palbase-env.d.ts as types — rows, inserts,
 palbase db:types [--entry <file>] [--file <path>]
 ```
 
-`Database.public.<table>` and `Database.<schema>.<table>` are typed from them with no import and no generic — the relations of a foreign key to another file's table too, which a schema's own type (TablesOf) cannot see: an app that declares Tables with TablesOf leaves that out once it has these.
+`Database.public.<table>` and `Database.<schema>.<table>` are typed from them with no import and no generic — the relations of a foreign key to another file's table too, which a schema's own type (TablesOf) cannot see: an app that declares Tables with TablesOf leaves that out once it has these. palbase init --db writes the block of its starter schema; run db:types again when a schema changes.
 No database is asked: the app is started in its types mode, which reads its schema files and writes nothing else. Only the block between the palbase:env markers is written; run it again when a schema changes.
 
 ```text
