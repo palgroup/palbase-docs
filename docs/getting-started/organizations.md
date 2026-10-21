@@ -40,7 +40,7 @@ palbase envs:create staging -P shop --from main    # opened with main's module s
 
 Each environment has its own address and keys ([Introduction](https://palbase.studio/docs/getting-started/introduction#the-keys)), and its own usage ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
 
-An admin deletes an environment under its **Settings › Danger zone**, or with `palbase envs:delete <slug>`; deleting a project (`palbase projects:delete <project>`) deletes every environment of it. An environment's users, files, flags, keys and secrets go with it, and its machines and databases are deleted too.
+An admin deletes an environment under its **Settings › Danger zone**, or with `palbase envs:delete <slug>`; deleting a project, under its **Settings › Delete project** or with `palbase projects:delete <project>`, deletes every environment of it. An environment's users, files, flags, keys and secrets go with it, and its machines and databases are deleted too.
 
 ## Members and invitations
 

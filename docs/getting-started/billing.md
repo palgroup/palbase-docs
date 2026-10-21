@@ -17,7 +17,7 @@ From then on the organization's projects may open every size of machine and data
 
 ## Top-ups
 
-- **Automatic**: when the balance comes under a threshold, the saved card is charged an amount, at most once an hour; on by default ($20 when under $5). A refund or a dispute turns it off. **Billing › Settings** changes both, sets a monthly cap on what it takes in a calendar month, or turns it off, and the balance is then the ceiling. A declined charge is tried again once a day for two days, and the owners and admins are emailed each time.
+- **Automatic**: when the balance comes under a threshold, the saved card is charged an amount, at most once an hour; on by default ($20 when under $5). A refund or a dispute turns it off. **Billing › Settings** changes both, sets a monthly cap on what it takes in a calendar month (the last top-up of a month is what is left of the cap, when that is at least $10), or turns it off, and the balance is then the ceiling. When the cap holds a top-up back, the owners and admins are emailed, once a month (again only if the cap is changed). A declined charge is tried again once a day for two days, and the owners and admins are emailed each time; its invoice is voided (**Invoices** shows it as declined), and each try is a new one.
 - **Now, from the card**: **Top up** on the Billing page.
 - **By bank transfer**: **Top up › Bank transfer** makes an invoice with bank details of the organization's own; the balance gets the amount when the transfer arrives.
 

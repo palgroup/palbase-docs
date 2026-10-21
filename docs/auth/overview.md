@@ -140,7 +140,7 @@ Those two, and [Have I Been Pwned](https://haveibeenpwned.com), are connected wi
 
 ### Security emails
 
-`security_notifications` lists the changes a user is emailed about: `password_changed`, `email_changed` (told to the old address), `identity_linked`, `identity_unlinked`, `mfa_factor_enrolled`, `mfa_factor_removed`, `passkey_added`, `passkey_removed`. None by default. Each is sent only to a confirmed address, in the user's language, with its own template (`auth.security_<kind>`). **Auth › Settings › Security notifications** turns each on and off.
+`security_notifications` lists the changes a user is emailed about: `password_changed`, `email_changed` (told to the old address), `identity_linked`, `identity_unlinked`, `mfa_factor_enrolled`, `mfa_factor_removed`, `passkey_added`, `passkey_removed`. A second factor or a passkey added or removed (`mfa_factor_enrolled`, `mfa_factor_removed`, `passkey_added`, `passkey_removed`) is mailed by default, in every project: a change to what a user signs in with that they did not make is how a stolen password shows. The others are off until the project turns them on. Each is sent only to a confirmed address, in the user's language, with its own template (`auth.security_<kind>`). **Auth › Settings › Security notifications** turns each on and off.
 
 ### The OpenID provider
 

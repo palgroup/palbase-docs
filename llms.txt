@@ -41,6 +41,7 @@
 - [Database](https://palbase.studio/docs/backend/database): Database — the request's own transaction: typed tables, raw SQL with $query, plans with $transaction, $atomic and $asService().
 - [Schema](https://palbase.studio/docs/backend/schema): Your Postgres schema in TypeScript with defineSchema, defineTable, column builders, indexes, foreign keys and raw units.
 - [Row-Level Security](https://palbase.studio/docs/backend/row-level-security): Policies in the schema DSL, auth.uid(), the anon and authenticated roles, and $asService() for what the service does.
+- [Field Encryption](https://palbase.studio/docs/backend/encryption): text().encrypted(): a column sealed by your app with the project's keys — equality through a lookup, rows encrypted beside the serving release, key rotation, Studio's mask, and palbase/server's fields for any other server.
 - [Schema changes](https://palbase.studio/docs/backend/migrations): There are no migration files: a release migrates beside the version that serves — start, rollout, complete — with renamedFrom, fillWith and ignored for the changes that need them.
 - [Storage](https://palbase.studio/docs/backend/storage): Palbase.storage — buckets, objects, public reads, signed URLs and image renditions, from your backend.
 - [Direct Uploads](https://palbase.studio/docs/backend/direct-uploads): Files straight to storage: signed upload URLs your backend grants, and @Upload routes — storage asks the route where a file goes, then runs it with the stored object.

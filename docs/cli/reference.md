@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.10.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.11.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-287 commands in 24 groups.
+291 commands in 25 groups.
 
 ## Global flags
 
@@ -1451,6 +1451,42 @@ A backend that reads the secrets at boot (palbase run, a machine) shows here as 
       --limit <n>    how many (default 30)
 ```
 
+## `fields`
+
+### `palbase fields:list`
+
+The keys the environment's encrypted database fields are sealed with — never the keys themselves
+
+```sh
+palbase fields:list
+```
+
+### `palbase fields:rotate`
+
+Make a new key for the environment's encrypted fields (an owner's or an admin's)
+
+```sh
+palbase fields:rotate
+```
+
+It comes into force in five minutes: by then every running backend has fetched it. New values are sealed with it from then on; a palbase/backend app seals its older values again with it, in the background.
+The older keys go on opening what they sealed.
+
+### `palbase fields:keys`
+
+Download the environment's field keys into a file (its owner's): what opens a dump of its database elsewhere
+
+```sh
+palbase fields:keys --out <file>
+```
+
+The file opens every encrypted field of the environment: keep it as you would the database's password. It is the shape palbase/server's Fields reads: new Fields({ fetch: async () => JSON.parse(readFileSync(file, 'utf8')) }).
+The download is in the secrets audit trail (secrets:audit).
+
+```text
+      --out <file>  where the keys go (made readable by you alone); never the screen
+```
+
 ## `webhooks`
 
 ### `palbase webhooks:list`
@@ -1957,6 +1993,17 @@ palbase stores:screenshots:upload <app id> <file.png|file.jpg>…
 Each is a PNG or JPEG of 10 MB at most, of a size the App Store takes: iPhone 6.9" (1320x2868, 1290x2796, 1260x2736), iPhone 6.5" (1242x2688, 1284x2778) or iPad 13" (2064x2752, 2048x2732), or turned. The same image again is the one kept.
 stores:listing:put uploads the files a draft names itself; this is for the SHA-256 alone.
 
+### `palbase stores:review-screenshot`
+
+Upload the screenshot App Review is shown of an in-app purchase: kept by its SHA-256, which the catalog names it by
+
+```sh
+palbase stores:review-screenshot <app id> <file.png|file.jpg>
+```
+
+A PNG or JPEG of 10 MB at most, at least 640x920 (or turned): the product as the app shows it.
+Name it in the catalog, channels.ios.review.screenshot = `"sha256:<hex>"`; the next plan (palbase purchases:catalog:plan) gives it to App Store Connect, and Apple then has what it needs of the product to review it.
+
 ### `palbase stores:listing:plan`
 
 Plan writing an iOS app's draft page to App Store Connect: what changes, language by language; it runs when confirmed
@@ -1982,25 +2029,27 @@ The demo account's password is never read out: only whether Apple holds one. wat
 Prepare an iOS app's App Store version: its number, build, copyright, release, phased release, content rights, a free price, App Review's details
 
 ```sh
-palbase stores:version:prepare <app id> [--version <x.y.z>] [--build <n>] [--copyright <text>] [--release manual|after_approval|scheduled] [--release-at <RFC 3339>] [--phased | --no-phased] [--third-party-content | --no-third-party-content] [--free] [--review-file <review.json>] [--demo-password-stdin]
+palbase stores:version:prepare <app id> [--version <x.y.z>] [--build <n>] [--copyright <text>] [--release manual|after_approval|scheduled] [--release-at <RFC 3339>] [--phased | --no-phased] [--third-party-content | --no-third-party-content] [--free] [--territories all] [--app-privacy published|unpublished] [--review-file <review.json>] [--demo-password-stdin]
 ```
 
 Only what is given is written; --version makes the next version when the app has none that can change. The build is a TestFlight build of that version, by its number.
 --review-file holds App Review's details as stores:version --json shows them (its review): a field the file leaves out stays as it is. The demo account's password is read from stdin alone (--demo-password-stdin), never from the file or the command line; it goes to Apple, and is never printed or kept.
 
 ```text
-      --version <x.y.z>            the version's number: makes it when the app has none that can change
-      --build <n>                  the TestFlight build App Review gets, by its build number
-      --copyright <text>           the copyright line (2026 Your Company)
-      --release <how>              how it goes out once approved: manual, after_approval or scheduled
-      --release-at <RFC 3339>      a scheduled release, not before then (alone, it is scheduled)
-      --phased                     release it in phases over seven days
-      --no-phased                  release it to everyone at once
-      --third-party-content        the content rights statement: the app shows, contains or reaches third-party content
-      --no-third-party-content     the content rights statement: it does not
-      --free                       make an app with no price free everywhere (a paid price is set in App Store Connect)
-      --review-file <review.json>  App Review's details: contact, demo account, notes ('-': stdin)
-      --demo-password-stdin        read the demo account's password from stdin (never a file or the command line)
+      --version <x.y.z>                      the version's number: makes it when the app has none that can change
+      --build <n>                            the TestFlight build App Review gets, by its build number
+      --copyright <text>                     the copyright line (2026 Your Company)
+      --release <how>                        how it goes out once approved: manual, after_approval or scheduled
+      --release-at <RFC 3339>                a scheduled release, not before then (alone, it is scheduled)
+      --phased                               release it in phases over seven days
+      --no-phased                            release it to everyone at once
+      --third-party-content                  the content rights statement: the app shows, contains or reaches third-party content
+      --no-third-party-content               the content rights statement: it does not
+      --free                                 make an app with no price free everywhere (a paid price is set in App Store Connect)
+      --territories <all>                    all: sell an app sold nowhere in every country and region (chosen ones are set in App Store Connect)
+      --app-privacy <published|unpublished>  say the app's privacy details were published in App Store Connect (Apple has no API for them): the missing list stops asking for them
+      --review-file <review.json>            App Review's details: contact, demo account, notes ('-': stdin)
+      --demo-password-stdin                  read the demo account's password from stdin (never a file or the command line)
 ```
 
 ### `palbase stores:version:submit`
@@ -2008,7 +2057,13 @@ Only what is given is written; --version makes the next version when the app has
 Plan sending an iOS app's prepared version to App Review — refused, with what is missing, until it has what App Review needs; it runs when confirmed
 
 ```sh
-palbase stores:version:submit <app id>
+palbase stores:version:submit <app id> [--with <product id>,…]
+```
+
+--with sends the app's in-app purchases and subscriptions with the version, by product id: a product's first review goes with an app version, as Apple requires, and each is READY_TO_SUBMIT at Apple (its text, price, availability and review screenshot complete) or nothing is planned.
+
+```text
+      --with <product id,…>  in-app purchases sent to App Review with the version, by product id
 ```
 
 ### `palbase stores:version:withdraw`
@@ -3502,6 +3557,7 @@ palbase db:copy --from <env> --to <env> [--db <name>] [--to-db <name>]
 ```
 
 The target is overwritten with the source: what it held of the same tables goes (pg_restore --clean).
+An encrypted field (.encrypted(), palbase/server's fields) is copied as •••, sealed with the target's keys: one environment's values never land readable in another.
 
 ```text
       --from <env>    the environment copied from (slug)

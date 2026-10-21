@@ -588,7 +588,7 @@ palbase envs:create staging -P shop --from main    # opened with main's module s
 
 Each environment has its own address and keys ([Introduction](/docs/getting-started/introduction#the-keys)), and its own usage ([Usage & Limits](/docs/getting-started/usage-and-limits)).
 
-An admin deletes an environment under its **Settings › Danger zone**, or with `palbase envs:delete <slug>`; deleting a project (`palbase projects:delete <project>`) deletes every environment of it. An environment's users, files, flags, keys and secrets go with it, and its machines and databases are deleted too.
+An admin deletes an environment under its **Settings › Danger zone**, or with `palbase envs:delete <slug>`; deleting a project, under its **Settings › Delete project** or with `palbase projects:delete <project>`, deletes every environment of it. An environment's users, files, flags, keys and secrets go with it, and its machines and databases are deleted too.
 
 ## Members and invitations
 
@@ -1299,7 +1299,7 @@ From then on the organization's projects may open every size of machine and data
 
 ## Top-ups
 
-- **Automatic**: when the balance comes under a threshold, the saved card is charged an amount, at most once an hour; on by default ($20 when under $5). A refund or a dispute turns it off. **Billing › Settings** changes both, sets a monthly cap on what it takes in a calendar month, or turns it off, and the balance is then the ceiling. A declined charge is tried again once a day for two days, and the owners and admins are emailed each time.
+- **Automatic**: when the balance comes under a threshold, the saved card is charged an amount, at most once an hour; on by default ($20 when under $5). A refund or a dispute turns it off. **Billing › Settings** changes both, sets a monthly cap on what it takes in a calendar month (the last top-up of a month is what is left of the cap, when that is at least $10), or turns it off, and the balance is then the ceiling. When the cap holds a top-up back, the owners and admins are emailed, once a month (again only if the cap is changed). A declined charge is tried again once a day for two days, and the owners and admins are emailed each time; its invoice is voided (**Invoices** shows it as declined), and each try is a new one.
 - **Now, from the card**: **Top up** on the Billing page.
 - **By bank transfer**: **Top up › Bank transfer** makes an invoice with bank details of the organization's own; the balance gets the amount when the transfer arrives.
 
@@ -1631,9 +1631,9 @@ Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:r
 
 # CLI reference
 
-Every command of `palbase` 0.10.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.11.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-287 commands in 24 groups.
+291 commands in 25 groups.
 
 ## Global flags
 
@@ -3080,6 +3080,42 @@ A backend that reads the secrets at boot (palbase run, a machine) shows here as 
       --limit <n>    how many (default 30)
 ```
 
+## `fields`
+
+### `palbase fields:list`
+
+The keys the environment's encrypted database fields are sealed with — never the keys themselves
+
+```sh
+palbase fields:list
+```
+
+### `palbase fields:rotate`
+
+Make a new key for the environment's encrypted fields (an owner's or an admin's)
+
+```sh
+palbase fields:rotate
+```
+
+It comes into force in five minutes: by then every running backend has fetched it. New values are sealed with it from then on; a palbase/backend app seals its older values again with it, in the background.
+The older keys go on opening what they sealed.
+
+### `palbase fields:keys`
+
+Download the environment's field keys into a file (its owner's): what opens a dump of its database elsewhere
+
+```sh
+palbase fields:keys --out <file>
+```
+
+The file opens every encrypted field of the environment: keep it as you would the database's password. It is the shape palbase/server's Fields reads: new Fields({ fetch: async () => JSON.parse(readFileSync(file, 'utf8')) }).
+The download is in the secrets audit trail (secrets:audit).
+
+```text
+      --out <file>  where the keys go (made readable by you alone); never the screen
+```
+
 ## `webhooks`
 
 ### `palbase webhooks:list`
@@ -3586,6 +3622,17 @@ palbase stores:screenshots:upload <app id> <file.png|file.jpg>…
 Each is a PNG or JPEG of 10 MB at most, of a size the App Store takes: iPhone 6.9" (1320x2868, 1290x2796, 1260x2736), iPhone 6.5" (1242x2688, 1284x2778) or iPad 13" (2064x2752, 2048x2732), or turned. The same image again is the one kept.
 stores:listing:put uploads the files a draft names itself; this is for the SHA-256 alone.
 
+### `palbase stores:review-screenshot`
+
+Upload the screenshot App Review is shown of an in-app purchase: kept by its SHA-256, which the catalog names it by
+
+```sh
+palbase stores:review-screenshot <app id> <file.png|file.jpg>
+```
+
+A PNG or JPEG of 10 MB at most, at least 640x920 (or turned): the product as the app shows it.
+Name it in the catalog, channels.ios.review.screenshot = `"sha256:<hex>"`; the next plan (palbase purchases:catalog:plan) gives it to App Store Connect, and Apple then has what it needs of the product to review it.
+
 ### `palbase stores:listing:plan`
 
 Plan writing an iOS app's draft page to App Store Connect: what changes, language by language; it runs when confirmed
@@ -3611,25 +3658,27 @@ The demo account's password is never read out: only whether Apple holds one. wat
 Prepare an iOS app's App Store version: its number, build, copyright, release, phased release, content rights, a free price, App Review's details
 
 ```sh
-palbase stores:version:prepare <app id> [--version <x.y.z>] [--build <n>] [--copyright <text>] [--release manual|after_approval|scheduled] [--release-at <RFC 3339>] [--phased | --no-phased] [--third-party-content | --no-third-party-content] [--free] [--review-file <review.json>] [--demo-password-stdin]
+palbase stores:version:prepare <app id> [--version <x.y.z>] [--build <n>] [--copyright <text>] [--release manual|after_approval|scheduled] [--release-at <RFC 3339>] [--phased | --no-phased] [--third-party-content | --no-third-party-content] [--free] [--territories all] [--app-privacy published|unpublished] [--review-file <review.json>] [--demo-password-stdin]
 ```
 
 Only what is given is written; --version makes the next version when the app has none that can change. The build is a TestFlight build of that version, by its number.
 --review-file holds App Review's details as stores:version --json shows them (its review): a field the file leaves out stays as it is. The demo account's password is read from stdin alone (--demo-password-stdin), never from the file or the command line; it goes to Apple, and is never printed or kept.
 
 ```text
-      --version <x.y.z>            the version's number: makes it when the app has none that can change
-      --build <n>                  the TestFlight build App Review gets, by its build number
-      --copyright <text>           the copyright line (2026 Your Company)
-      --release <how>              how it goes out once approved: manual, after_approval or scheduled
-      --release-at <RFC 3339>      a scheduled release, not before then (alone, it is scheduled)
-      --phased                     release it in phases over seven days
-      --no-phased                  release it to everyone at once
-      --third-party-content        the content rights statement: the app shows, contains or reaches third-party content
-      --no-third-party-content     the content rights statement: it does not
-      --free                       make an app with no price free everywhere (a paid price is set in App Store Connect)
-      --review-file <review.json>  App Review's details: contact, demo account, notes ('-': stdin)
-      --demo-password-stdin        read the demo account's password from stdin (never a file or the command line)
+      --version <x.y.z>                      the version's number: makes it when the app has none that can change
+      --build <n>                            the TestFlight build App Review gets, by its build number
+      --copyright <text>                     the copyright line (2026 Your Company)
+      --release <how>                        how it goes out once approved: manual, after_approval or scheduled
+      --release-at <RFC 3339>                a scheduled release, not before then (alone, it is scheduled)
+      --phased                               release it in phases over seven days
+      --no-phased                            release it to everyone at once
+      --third-party-content                  the content rights statement: the app shows, contains or reaches third-party content
+      --no-third-party-content               the content rights statement: it does not
+      --free                                 make an app with no price free everywhere (a paid price is set in App Store Connect)
+      --territories <all>                    all: sell an app sold nowhere in every country and region (chosen ones are set in App Store Connect)
+      --app-privacy <published|unpublished>  say the app's privacy details were published in App Store Connect (Apple has no API for them): the missing list stops asking for them
+      --review-file <review.json>            App Review's details: contact, demo account, notes ('-': stdin)
+      --demo-password-stdin                  read the demo account's password from stdin (never a file or the command line)
 ```
 
 ### `palbase stores:version:submit`
@@ -3637,7 +3686,13 @@ Only what is given is written; --version makes the next version when the app has
 Plan sending an iOS app's prepared version to App Review — refused, with what is missing, until it has what App Review needs; it runs when confirmed
 
 ```sh
-palbase stores:version:submit <app id>
+palbase stores:version:submit <app id> [--with <product id>,…]
+```
+
+--with sends the app's in-app purchases and subscriptions with the version, by product id: a product's first review goes with an app version, as Apple requires, and each is READY_TO_SUBMIT at Apple (its text, price, availability and review screenshot complete) or nothing is planned.
+
+```text
+      --with <product id,…>  in-app purchases sent to App Review with the version, by product id
 ```
 
 ### `palbase stores:version:withdraw`
@@ -5131,6 +5186,7 @@ palbase db:copy --from <env> --to <env> [--db <name>] [--to-db <name>]
 ```
 
 The target is overwritten with the source: what it held of the same tables goes (pg_restore --clean).
+An encrypted field (.encrypted(), palbase/server's fields) is copied as •••, sealed with the target's keys: one environment's values never land readable in another.
 
 ```text
       --from <env>    the environment copied from (slug)
@@ -8219,6 +8275,184 @@ Edit `policies` in the schema file, commit and push to the machine's branch. The
 - [Database](/docs/backend/database) — the request's transaction, `$query`, and `$asService()`
 - [Authentication](/docs/backend/authentication) — who the caller is, and routes with `auth: false`
 - [Schema changes](/docs/backend/migrations) — how a release applies a policy change
+
+
+
+<!-- ===== backend/encryption ===== -->
+
+# Field Encryption
+
+A column marked `.encrypted()` is sealed by your app before it is written and opened when it is read, with the project's own field keys. The database, its backups and a dump of it hold ciphertext; your code reads and writes the plain value, as with any other column. It is on every plan, at no cost.
+
+It protects a field from whoever reaches the database without the app: a leaked dump or backup, a stolen database password, a read-only SQL injection. It does not protect it from your app itself — the app holds the keys while it runs.
+
+## Quick example
+
+```ts
+// db/public.ts
+import { defineSchema, defineTable, text, uuid } from "palbase/backend";
+
+export const patients = defineTable("patients", {
+  columns: {
+    id: uuid().primaryKey().defaultRandom(),
+    name: text(),
+    // Found by equality, and kept unique: { lookup: true } keeps a keyed hash beside it.
+    national_id: text().encrypted({ lookup: true }).unique(),
+    // Read and written whole, never searched.
+    notes: text().encrypted().nullable(),
+  },
+});
+
+export default defineSchema("public", { tables: [patients] });
+```
+
+```ts
+// src/modules/patients/patients.service.ts
+import { Database, Injectable } from "palbase/backend";
+
+@Injectable()
+export class PatientsService {
+  async admit(name: string, nationalId: string) {
+    return Database.public.patients.insert({ name, national_id: nationalId, notes: "allergy: penicillin" });
+  }
+
+  async byNationalId(nationalId: string) {
+    return Database.public.patients.findUnique({ where: { national_id: nationalId } });
+  }
+}
+```
+
+What the database holds:
+
+```text
+ name |                       national_id                       |       national_id_lookup
+------+---------------------------------------------------------+------------------------------
+ Ayşe | pbe1.k1.MzMzMzMzMzMzMzMztbNidvqiRRyDjN1Zkdx-38ei7bu3V…   | pbl1.cypF9YEDilHu_qYJy15Snch…
+```
+
+## What an encrypted column is asked
+
+The database holds the column's ciphertext, not its value, so it can compare nothing there. An encrypted column takes text; what a query may ask of it is fixed by its type:
+
+| | `.encrypted()` | `.encrypted({ lookup: true })` |
+|---|---|---|
+| Read and write the value | yes | yes |
+| `isNull`, `null` | yes | yes |
+| Equality: `{ col: v }`, `in`, `neq`, `findUnique` | — | yes, through the lookup |
+| `.unique()`, `onConflict` | — | yes, kept on the lookup |
+| `orderBy`, `gt`/`lt`, `contains`/`startsWith`, `search`, `min`/`max`, `groupBy`, an index | — | — |
+
+What is refused is a compile error in a typed query, and an error naming the column when the query is built otherwise. The lookup is a keyed hash (HMAC-SHA256) of the value, kept in `<column>_lookup`, which your code never names; equal values have equal lookups, so a lookup tells which rows hold the same value — keep it off a column whose few possible values that would give away.
+
+An encrypted column is not a default, a primary key, a foreign key, a generated column or a search column, and has no codec: `defineTable` refuses each, naming the column.
+
+## Keys
+
+Each environment has its own field keys, kept by the platform's secrets module and derived from the environment's data key, which the platform's key-encryption key (Azure Key Vault) wraps. Your app reads them with its secret key when it starts and every minute after; a schema without an encrypted column never reads them. The secrets audit trail (`palbase secrets:audit`) has each app key's first read in the hour, and every download by a developer.
+
+A value is bound to its column — `table.column`, or `schema.table.column` outside public: moved to another column, or into another environment, it does not open, and a value changed in the database is refused when read, as is a plain value where an encrypted one belongs.
+
+## Encrypting a column that holds rows
+
+Add `.encrypted()` to the column and deploy. The release migrates beside the version that serves, as every [schema change](/docs/backend/migrations) does:
+
+- While both versions run, the column keeps the form the old version reads — plain — and the new version reads either form.
+- Once the old version is gone, the release seals every row, in batches, and from then on a plain value in the column is refused.
+
+Taking `.encrypted()` off goes the same way the other way round. An encrypted column, or its table, is not renamed while it holds rows: its values are bound to its name.
+
+## Rotating the keys
+
+```bash
+palbase fields:rotate
+```
+
+The new key comes into force five minutes later — every running app has fetched it by then. New values are sealed with it from then on, and a `palbase/backend` app seals the older values again with it in the background. The older keys go on opening what they sealed. An owner or an admin rotates; `palbase fields:list` shows the keys and which is in force.
+
+## In Studio
+
+The database's **Tables** screen shows an encrypted value masked. An owner or an admin of the organization opens one with **Show**: the secrets module opens it — the keys never reach Studio — and records who opened which column in the audit trail. A member sees the mask alone.
+
+## Copying, dumping and leaving
+
+- `palbase db:copy --from production --to staging` copies every encrypted value as `•••`, sealed with the target's keys: one environment's values never land readable in another.
+- A dump (`palbase db:dump`) holds ciphertext. The environment's owner downloads the keys that open it — `palbase fields:keys --out keys.json` writes them into a file readable by its owner alone, and the download is in the audit trail. Keep the file as you keep the database's password.
+
+## Without palbase/backend
+
+A server with another way to its database — NestJS with TypeORM or Prisma, plain SQL — seals and opens a column itself with `palbase/server`, in the same format: a column one app writes, the other reads.
+
+```ts
+// src/patients/fields.ts
+import { createServer } from "palbase/server";
+
+const palbase = createServer({ url: process.env.PALBASE_URL!, secretKey: process.env.PALBASE_SECRET_KEY! });
+
+/** Awaited at startup: after it, the calls below are synchronous. */
+export const fieldsLoaded = palbase.fields.load();
+
+/** What an INSERT writes: the sealed value, and the lookup it is found by. */
+export function sealNationalId(value: string) {
+  return {
+    national_id: palbase.fields.encrypt("patients.national_id", value),
+    national_id_lookup: palbase.fields.lookup("patients.national_id", value),
+  };
+}
+
+export const nationalIdLookup = (value: string) => palbase.fields.lookup("patients.national_id", value);
+export const openNationalId = (sealed: string) => palbase.fields.decrypt("patients.national_id", sealed);
+```
+
+```ts
+// src/patients/patients.repository.ts
+import { nationalIdLookup, openNationalId, sealNationalId } from "./fields";
+
+/** Your Postgres client (pg's Pool, postgres.js), down to the one call used here. */
+export interface Db {
+  query(text: string, values: unknown[]): Promise<{ rows: { national_id: string }[] }>;
+}
+
+export async function admit(db: Db, id: string, name: string, nationalId: string): Promise<void> {
+  const sealed = sealNationalId(nationalId);
+  await db.query("INSERT INTO patients (id, name, national_id, national_id_lookup) VALUES ($1, $2, $3, $4)", [id, name, sealed.national_id, sealed.national_id_lookup]);
+}
+
+export async function nationalIdOf(db: Db, wanted: string): Promise<string | undefined> {
+  const { rows } = await db.query("SELECT national_id FROM patients WHERE national_id_lookup = $1", [nationalIdLookup(wanted)]);
+  return rows[0] && openNationalId(rows[0].national_id);
+}
+```
+
+The first argument is the column's address. A TypeORM column transformer is the same two calls:
+
+<!-- fragment: a property shown out of its TypeORM entity -->
+
+```ts
+@Column({ transformer: { to: (v: string) => palbase.fields.encrypt("patients.national_id", v), from: (v: string) => palbase.fields.decrypt("patients.national_id", v) } })
+national_id!: string;
+```
+
+`palbase.fields` needs Node's crypto: Node, Bun or Deno.
+
+## Tests
+
+`palbase/server/testing`'s `testFields()` gives keys of no project, held in the test's process. Pass them where the project's would go — `createRequestDatabase(sql, identity, { schemas, fields })` from `palbase/backend/engine`, or palgres' `createDatabase({ …, fields })` — for a test that runs an encrypted schema against a database of its own:
+
+```ts
+// test/fields.test.ts
+import { expect, it } from "bun:test";
+import { testFields } from "palbase/server/testing";
+
+it("opens what it seals, at the same column alone", async () => {
+  const fields = await testFields();
+  const sealed = fields.encrypt("patients.national_id", "10000000146");
+  expect(sealed.startsWith("pbe1.")).toBe(true);
+  expect(fields.decrypt("patients.national_id", sealed)).toBe("10000000146");
+  expect(() => fields.decrypt("patients.phone", sealed)).toThrow();
+});
+```
+
+`palbase/backend/test`'s in-memory database keeps an encrypted column as a plain one, and does not refuse what the engine refuses on it.
 
 
 
@@ -19422,7 +19656,7 @@ Those two, and [Have I Been Pwned](https://haveibeenpwned.com), are connected wi
 
 ### Security emails
 
-`security_notifications` lists the changes a user is emailed about: `password_changed`, `email_changed` (told to the old address), `identity_linked`, `identity_unlinked`, `mfa_factor_enrolled`, `mfa_factor_removed`, `passkey_added`, `passkey_removed`. None by default. Each is sent only to a confirmed address, in the user's language, with its own template (`auth.security_<kind>`). **Auth › Settings › Security notifications** turns each on and off.
+`security_notifications` lists the changes a user is emailed about: `password_changed`, `email_changed` (told to the old address), `identity_linked`, `identity_unlinked`, `mfa_factor_enrolled`, `mfa_factor_removed`, `passkey_added`, `passkey_removed`. A second factor or a passkey added or removed (`mfa_factor_enrolled`, `mfa_factor_removed`, `passkey_added`, `passkey_removed`) is mailed by default, in every project: a change to what a user signs in with that they did not make is how a stolen password shows. The others are off until the project turns them on. Each is sent only to a confirmed address, in the user's language, with its own template (`auth.security_<kind>`). **Auth › Settings › Security notifications** turns each on and off.
 
 ### The OpenID provider
 
@@ -21605,7 +21839,7 @@ export async function takeBestOffer(): Promise<string | null> {
 
 A paywall's package sold with an offer the customer may take shows the offer's price as `{{offer_price}}`, and its purchase button buys with it.
 
-**In the App Store**, a promotional offer is bought under Apple's signature for this customer, which the environment makes with the In-App Purchase key when the app asks — the app holds no key. Apple gives a promotional offer only to a customer who subscribes, or subscribed, in the group: anyone else's purchase fails as `ineligibleForOffer`. In Xcode, the StoreKit configuration's own Subscription Offers Key signs it ([Test Apple Purchases](/docs/purchases/testing-apple)). **On Google Play**, the Android SDK buys a plan with its introductory offer when Play says the user may take it. **On the web**, the checkout carries the offer's coupon.
+**In the App Store**, a promotional offer is bought under Apple's signature for this customer, which the environment makes with the In-App Purchase key when the app asks — the app holds no key. The signature names one of the customer's own App Store transactions, so it buys the offer for their Apple account alone: passed to someone else, it buys nothing. Apple gives a promotional offer only to a customer who subscribes, or subscribed, in the group: anyone else's purchase fails as `ineligibleForOffer`, and a customer none of whose subscriptions the environment knows is signed none (`no_app_store_purchase`) — the app reports the customer's StoreKit transactions of the group first. In Xcode, the StoreKit configuration's own Subscription Offers Key signs it ([Test Apple Purchases](/docs/purchases/testing-apple)). **On Google Play**, the Android SDK buys a plan with its introductory offer when Play says the user may take it. **On the web**, the checkout carries the offer's coupon.
 
 A grant is claimed with an account: a guest is refused (`403 account_required`) unless a coupon opened the offer to it. An offer taken once is not taken again (`409 offer_taken`); one that is not the customer's to take now is `403 offer_not_open`. Taking one emits `purchases.offer.redeemed`.
 
