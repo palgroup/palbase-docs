@@ -97,7 +97,7 @@ func buyFirst() async {
 
 A purchase needs someone signed in (`session_required`); a guest from `signInAnonymously()` is someone, and what a guest buys stays theirs when they become an account. StoreKit's failures throw `PurchasesError`, one sentence each, with a `code`: `.cancelled`, `.productUnavailable`, `.purchaseNotAllowed`, `.notAvailableInStorefront`, `.ineligibleForOffer`, `.invalidOffer`, `.networkError`, `.systemError`, `.unverifiedTransaction` (never reported, never finished) and others. The environment's refusals throw `PalbaseError`.
 
-A restore moves a purchase to this customer only when StoreKit signed its transaction for this device. When one stays where it was, the rest is still applied, and `restore()` throws `PalbaseError` with `restore_not_this_device`, `restore_account_owned` (a guest restoring an account's: sign in to that account) or `restore_limit`.
+On an Apple ID shared with another of the app's accounts, a purchase made here moves the subscription to this customer, who paid; one that would move it a fourth time in 30 days leaves it where it is, and `purchase(_:)` throws `PalbaseError` with `restore_limit`. A restore moves a purchase to this customer only when StoreKit signed its transaction for this device. When one stays where it was, the rest is still applied, and `restore()` throws `PalbaseError` with `restore_not_this_device`, `restore_account_owned` (a guest restoring an account's: sign in to that account) or `restore_limit`.
 
 ## The paywall
 

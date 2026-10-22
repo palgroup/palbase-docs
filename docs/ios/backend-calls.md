@@ -86,6 +86,7 @@ A backend the environment does not name is not a build error: each of its calls 
 | "Not now" | A read (`GET`, `QUERY`) answered `429`, `502`, `503` or `504`, or never answered, is sent again after the server's `Retry-After`. A write is sent again only when the backend keeps its idempotency key (its contract declares the header); otherwise a write that reached the backend before its answer was lost could be done twice. |
 | Languages | `Accept-Language`: the device's, or what `pb.setPreferredLanguages(_:)` named. A backend's `t()` reads it ([Translations](https://palbase.studio/docs/backend/translations)). |
 | Redirects | Never followed: the user's token stays with the backend's own address. |
+| Encrypted fields | A field the route marks `encrypted()` is sealed before the call leaves the device, and one it answers through `encrypt()` is opened when the answer arrives: the client `palbase apps:sync` wrote holds the project's id and signing key for it ([Encrypted Requests](https://palbase.studio/docs/backend/request-encryption)). A call sent again is the same sealed request. |
 
 A path parameter is sent as exactly one path segment, percent-encoded. A value that would not stay one however a server reads it (empty, `.` or `..`, or one that hides them between slashes, `a/../b`) is refused before anything is sent, as `.encode`.
 

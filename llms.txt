@@ -42,6 +42,7 @@
 - [Schema](https://palbase.studio/docs/backend/schema): Your Postgres schema in TypeScript with defineSchema, defineTable, column builders, indexes, foreign keys and raw units.
 - [Row-Level Security](https://palbase.studio/docs/backend/row-level-security): Policies in the schema DSL, auth.uid(), the anon and authenticated roles, and $asService() for what the service does.
 - [Field Encryption](https://palbase.studio/docs/backend/encryption): text().encrypted(): a column sealed by your app with the project's keys — equality through a lookup, rows encrypted beside the serving release, key rotation, Studio's mask, and palbase/server's fields for any other server.
+- [Encrypted Requests](https://palbase.studio/docs/backend/request-encryption): encrypted() and encrypt(): a field the app seals before the request leaves the device and opens in the answer — keys and rotation, the errors, machines:call and Try it, and palbase/server's transit for any other server.
 - [Schema changes](https://palbase.studio/docs/backend/migrations): There are no migration files: a release migrates beside the version that serves — start, rollout, complete — with renamedFrom, fillWith and ignored for the changes that need them.
 - [Storage](https://palbase.studio/docs/backend/storage): Palbase.storage — buckets, objects, public reads, signed URLs and image renditions, from your backend.
 - [Direct Uploads](https://palbase.studio/docs/backend/direct-uploads): Files straight to storage: signed upload URLs your backend grants, and @Upload routes — storage asks the route where a file goes, then runs it with the stored object.
@@ -153,6 +154,7 @@
 - [TestFlight](https://palbase.studio/docs/distribution/testflight): An iOS app's builds to TestFlight with your own Apple account: connecting an App Store Connect key, the unsigned .ipa and its entitlements, signing, groups and testers, Beta App Review and export compliance.
 - [App Store](https://palbase.studio/docs/distribution/app-store): An iOS app's App Store page and the version App Review gets: the draft page and its screenshots, planned and confirmed; preparing the version, what is missing, sending it to App Review, releasing it, the phased release, and App Review's answer.
 - [Google Play](https://palbase.studio/docs/distribution/google-play): An Android app's builds to Google Play's internal testing: the service account Play Console invites, the upload key Palbase signs with, the .aab and its version code, and the first release made in Play Console.
+- [App Health](https://palbase.studio/docs/distribution/health): Each linked app in its store: the App Store Connect webhook Palbase makes and the key role it needs, the events it tells and their source, testers' crashes and screenshots, the App Store's crash data and Play's vitals, and Play's releases read every 10 minutes.
 
 ## Machines & Databases
 

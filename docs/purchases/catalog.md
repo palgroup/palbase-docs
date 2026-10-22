@@ -102,9 +102,11 @@ The CLI shows what will be written and asks first, in every environment (`-y` co
 | The App Store | A subscription group for each group, a subscription or an in-app purchase for each plan, with its text, price and introductory offer — written to App Store Connect with the environment's [App Store Connect API key](https://palbase.studio/docs/purchases/app-store#connect-the-app-store). | The price is the App Store's price point nearest to it in the currency's storefront; Apple prices the other storefronts. A product id, once made, is never free again. |
 | Google Play | A subscription for each subscription product, with a base plan for each plan, and a one-time product for each other product — written for the app [Google Play purchases](https://palbase.studio/docs/purchases/google-play) are connected for. | Google converts the price to every region. A product id, once made, stays Google's. |
 
-The plan's hash is its Stripe part's; with no Stripe account connected, its App Store part's; with neither, its Google Play part's — a plan with a Google Play part alone is confirmed in Studio. A plan is written only as it was shown: once the catalog is saved again, an older plan goes **stale** and is refused, and you plan again.
+The plan's hash is its Stripe part's; with no Stripe account connected, its App Store part's; with neither, its Google Play part's. A plan is written only as it was shown: once the catalog is saved again, an older plan goes **stale** and is refused, and you plan again.
 
-The Stripe part is written as you confirm: the plan is **applied**, with what the account holds now, or **failed**, with what Stripe said — a new plan picks up where it stopped. The App Store and Google Play parts are written after the answer: the plan in Studio shows what App Store Connect and Google Play hold once they have answered, and `palbase purchases:doctor` says when App Store Connect took its part. From the confirmation on, a purchase of what the plan sells maps to the catalog's product and plan. Each store's answer emits `purchases.catalog.applied`.
+A plan writes only what changed since a store last took the catalog: a product it already has gets an update step with its new text, price or review details, and a product that did not change has no step. The App Store gives a subscription its new price from the day after tomorrow (UTC) on, in every storefront — App Store Connect schedules a price change a day or two ahead — and its subscribers keep the price they pay; an in-app purchase gets its new price at once; Google Play gives a base plan its new price for new subscribers. A language a store has that the catalog does not is left there. When a store did not answer a confirmed plan written — it stopped part way, or has not answered yet — what it holds of that plan's products is not known: the next plan writes each of them again, all of it, whatever changed.
+
+The Stripe part is written as you confirm: the plan is **applied**, with what the account holds now, or **failed**, with what Stripe said — a new plan picks up where it stopped. The App Store and Google Play parts are written after the answer: the plan in Studio, and `palbase purchases:catalog:plan <plan id>`, show what App Store Connect and Google Play hold once they have answered — each product's state, its price, and a subscription's new price with the day it starts — and `palbase purchases:doctor` says when App Store Connect took its part. From the confirmation on, a purchase of what the plan sells maps to the catalog's product and plan. Each store's answer emits `purchases.catalog.applied`.
 
 | Status | Means |
 |---|---|
@@ -124,6 +126,25 @@ The Stripe part is written as you confirm: the plan is **applied**, with what th
 | Stripe | The price's lookup key `palbase:<ref>:<product>.<plan>`. The ref keeps two environments that share a Stripe account apart. |
 
 `<product>.<plan>` is 40 characters at most.
+
+### Products a store already sells
+
+A product you made in App Store Connect or the Play Console, by hand or with another tool, joins the catalog by its id: give its plan the store's id under `store_ids`, and the plan **links** it — nothing is made or changed at the store.
+
+```json
+"channels": {
+  "ios": { "store_ids": { "monthly": { "product": "com.acme.app.pro.monthly" } } },
+  "android": { "store_ids": { "monthly": { "product": "pro_sub", "base_plan": "monthly-1" } } }
+}
+```
+
+In Studio, a product's **iOS** and **Android** tabs hold these ids under **Sold at App Store Connect already** and **Sold at the Play Console already**. On Google Play a subscription's plans are base plans of one product: map every plan of it, to the same product. Once the plan is confirmed, the purchases made before the catalog knew the product open what the catalog gives, and their buyers hear `purchases.entitlement.changed`. A store id stays once a plan linked it: a catalog that leaves it out is refused (`store_id_kept`), because the next plan would make a second product at the store.
+
+### What a customer bought stays
+
+A product, a plan, an entitlement or a credit that someone holds cannot leave the catalog, and changing a key is leaving it: the save is refused (`product_has_buyers`, `plan_has_buyers`, `entitlement_has_holders`, `credit_has_holders`, `limit_has_holders`). A product a confirmed plan wrote to a store stays too (`product_at_store`): the store keeps selling it, to an older build of your app or from its own resubscribe button. To stop selling one, retire it: `"retired": true` on the product or on a plan — in Studio, the product's **On sale** switch, or a plan's **Off sale** box. A retired product is not offered, not sold on the web, not given an offer, and no plan writes it to a store, while everyone who bought it keeps what it gives. Renaming it keeps their access; it is the key that counts.
+
+What a store never changes of a product it sells stays as it was made: its type, its subscription group and a plan's period (`store_terms_fixed`). Retire it and make a new one instead.
 
 ## The document
 
@@ -155,6 +176,7 @@ A limit's `window` is `calendar_month` or `calendar_day` — from midnight in th
 | `credits` | The credits it gives: per purchase for a consumable, per period for a subscription — `{ "currency", "amount" }`, and for a subscription `rollover`: `none` (a period's credits end with it) or `all` (they stay). Credits bought never end. |
 | `quota` | How much of each limit it gives in each window: `[{ "limit", "max" }]`. A customer holding several products gets the largest. |
 | `group`, `tier` | A subscription's group — the subscriptions a customer moves between — and its level in it, 1 or more, higher is more. The App Store sells every subscription in a group. |
+| `retired` | Off sale: [what a customer bought stays](#what-a-customer-bought-stays). A plan can be retired on its own. |
 
 ### A plan
 
@@ -174,9 +196,22 @@ A limit's `window` is `calendar_month` or `calendar_day` — from midnight in th
 | `prices` | any | Its own price for a plan, by the plan's key: a web price without the stores' commission. |
 | `family_shareable` | `ios` | Family Sharing for the purchase. |
 | `review` | `ios` | What App Review sees: a `note` and the `screenshot` of the product in the app. |
+| `store_ids` | `ios`, `android` | The store's own ids of the plans, by plan key: [products a store already sells](#products-a-store-already-sells). |
 | `tax_code` | `web` | Stripe's tax code for the product. |
 
-The App Store reviews every product with a screenshot and a note: without them the catalog warns (`review_missing`). The note is written to App Store Connect with the product; the screenshot is not yet — the plan's App Store part says so, and you add it in App Store Connect.
+### Review screenshots
+
+The App Store reviews every product with a screenshot and a note: without them the catalog warns (`review_missing`). Upload the screenshot, a PNG or JPEG at one of the App Store's screenshot sizes (1290x2796 for a 6.9-inch iPhone, 2064x2752 for a 13-inch iPad, or turned) — Apple fails any other size — and name it by the SHA-256 the command prints:
+
+```sh
+palbase stores:review-screenshot <app id> pro-paywall.png -E main
+```
+
+```json
+"ios": { "review": { "screenshot": "sha256:9f86d081…", "note": "Settings → Pro" } }
+```
+
+In Studio, the product's **iOS** tab uploads it (**Review screenshot › Upload**) and names it for you. The next plan gives both to App Store Connect, and the product is then `READY_TO_SUBMIT`: it goes to App Review [with a version](https://palbase.studio/docs/distribution/app-store#send-it-to-app-review). A changed screenshot replaces Apple's.
 
 ## The stores' rules
 

@@ -70,7 +70,12 @@ When `products()` returns fewer products than the catalog sells on iOS, its `dia
 
 **It verifies it.** A transaction counts only as the App Store signed it, for the connected app, in the sandbox or production. A subscription's state is never taken from the device: it is read from Apple with the environment's key. One sent again applies nothing twice.
 
-**It gives it to a customer.** A purchase nobody has is the customer's its `appAccountToken` names, or the reporting customer's; one another customer has stays theirs. A restore moves a purchase to the restoring customer only from the device StoreKit signed it for, never from an account to a guest, and at most 3 times in 30 days; a restore that leaves one where it was is refused with `403 restore_not_this_device`, `403 restore_account_owned` or `409 restore_limit`, after the rest of it is applied. A move emits `purchases.ownership.transferred`.
+**It gives it to a customer.** A purchase nobody has is the customer's its `appAccountToken` names, or the reporting customer's; one another customer has stays theirs, unless one of two things moves it:
+
+- **A new purchase on it** — a switch of plan, a resubscription, an offer bought — whose `appAccountToken` names another customer moves it to them, whoever reports it, the app or Apple's notification. On an Apple ID shared among the app's accounts (a family's iPhone), the subscription follows who paid, and so does the offer it was bought with. A purchase with no token, a renewal, and a transaction reported again or late move nothing.
+- **A restore** moves a purchase to the restoring customer only from the device StoreKit signed it for, and never from an account to a guest.
+
+A purchase moves at most 3 times in 30 days, restores and new purchases counted together. A restore, or a customer's own new purchase, that leaves a purchase where it was is refused with `403 restore_not_this_device`, `403 restore_account_owned` or `409 restore_limit`, after the rest of it is applied. A move emits `purchases.ownership.transferred`, whose `via` is `purchase` or `restore`.
 
 **It follows Apple.** A notification about a purchase applies what Apple signed — the transaction, the renewal info, the subscription's status — and the newest by Apple's time is the state. A refund, a revoked Family Sharing purchase or a chargeback turns the entitlement off and takes back the credits it gave (`purchases.refund.changed`). A subscription the App Store could not renew keeps its access through Apple's grace period, with `billing_issue` on the entitlement.
 

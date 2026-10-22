@@ -75,7 +75,12 @@ A guest may restore purchases, but never takes an account's (`403 restore_accoun
 
 ## Restores and moved purchases
 
-A store purchase stays the customer's it was bought by. **Restore purchases** — the customer's own action in the app — moves the store account's purchases to whoever restores, so a purchase made while signed in to another of the app's accounts follows the person: in the App Store only from the device StoreKit signed it for, never from an account to a guest, and one purchase at most 3 times in 30 days. Each move emits `purchases.ownership.transferred`. See [App Store](https://palbase.studio/docs/purchases/app-store#what-the-environment-does-with-a-transaction) and [Google Play](https://palbase.studio/docs/purchases/google-play#what-the-environment-does-with-a-purchase).
+A store purchase stays the customer's it was bought by. Two things move it:
+
+- **A new purchase on it by another customer.** When the app's accounts share one store account (a family's iPhone), a subscription follows who paid: in the App Store, a new purchase on it (a switch of plan, a resubscription, an offer bought) made with another customer's account token moves it to that customer, with the offer it was bought with. On Google Play every new purchase is a purchase of its own, so it is its buyer's from the start.
+- **Restore purchases**, the customer's own action in the app, moves the store account's purchases to whoever restores, so a purchase made while signed in to another of the app's accounts follows the person. In the App Store this works only from the device StoreKit signed the purchase for, and never moves a purchase from an account to a guest.
+
+One purchase moves at most 3 times in 30 days, the two counted together. Each move emits `purchases.ownership.transferred`. The project's backend reads a customer's moves, newest first, with what they have (`GET /purchases/customers/{customer_id}`, its `transfers`: who had the purchase, who has it since, how and when), and Studio shows them on the customer's page under **Purchases › Customers**. The customer's own apps never read them: `GET /purchases/me` names no other customer. See [App Store](https://palbase.studio/docs/purchases/app-store#what-the-environment-does-with-a-transaction) and [Google Play](https://palbase.studio/docs/purchases/google-play#what-the-environment-does-with-a-purchase).
 
 ## When a user is deleted
 

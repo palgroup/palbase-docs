@@ -221,7 +221,7 @@ export class PurchaseEvents {
 | `purchases.purchase.completed` | A purchase new to the ledger: a subscription's start or a one-time product, in any store. | `{ customer_id, chain_id, product, plan, store, is_sandbox }` |
 | `purchases.subscription.changed` | A subscription `started`, `renewed`, was `canceled` or `uncanceled`, had a `billing_issue` or `recovered`, `expired`, or moved to another product (`product_changed`). | `{ customer_id, chain_id, change, product, plan, store, state, expires_at, will_renew, is_sandbox }` |
 | `purchases.refund.changed` | A store took a payment back — a `refund`, a `chargeback`, Family Sharing ended (`family`) — or reversed that; its credits are taken back, or given back. | `{ customer_id, chain_id, transaction_id, kind, share_milli, reversed }` |
-| `purchases.ownership.transferred` | A purchase moved to another customer by a restore. | `{ chain_id, from_customer_id, to_customer_id, product, store, via }` |
+| `purchases.ownership.transferred` | A purchase moved to another customer: a restore, or another customer's new purchase on a store account they share (`via`). | `{ chain_id, from_customer_id, to_customer_id, product, store, via }` |
 | `purchases.credits.low`, `purchases.credits.depleted` | A balance fell under its low mark, or to nothing. | `{ customer_id, currency, balance, available, debt, low_at }` |
 | `purchases.quota.threshold`, `purchases.quota.exhausted` | A window was used to 80%, or to the end. | `{ customer_id, limit, used, max, percent, resets_at, window_id }` |
 | `purchases.offer.redeemed` | A customer took an offer. | `{ customer_id, offer, kind, store, product, plan, chain_id, coupon, entitlement }` |

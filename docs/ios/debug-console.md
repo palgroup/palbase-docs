@@ -58,6 +58,8 @@ func checkout(items: Int) async throws {
 }
 ```
 
+A backend call's [encrypted field](https://palbase.studio/docs/backend/request-encryption) is recorded as it went, sealed (`pbt1.…`); **Reveal** beside it in the body shows its value. The values are kept in memory alone, only while the console is on for the user and recording, and are gone when the console is cleared, another user signs in or the console is turned off.
+
 `label` is the category the console filters by. Levels are `.trace`, `.debug`, `.info`, `.notice`, `.warning`, `.error` and `.critical`. The SDK does not swizzle `URLSession`: traffic it did not make is recorded only through these calls.
 
 ## Where it is kept

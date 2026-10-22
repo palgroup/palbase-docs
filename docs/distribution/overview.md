@@ -114,6 +114,7 @@ A confirmation names the hash of the plan that was shown, runs it once, and only
 | Groups | An iOS app's groups of testers: make, rename, delete, set their testers |
 | Actions | What waits for a person's yes, and what was done, declined or failed |
 | TestFlight | An iOS app's test information for Beta App Review, and what testers sent back |
+| Health | An iOS app's App Store Connect webhook (**Ping**, **Make again**), testers' crashes and screenshots, and the App Store's crash data; an Android app's Play vitals ([App Health](https://palbase.studio/docs/distribution/health)) |
 | App Store | An iOS app's App Store page (each language's text, its categories and screenshots), planned and confirmed, and the version App Review gets: what is missing, **Send to App Review**, **Withdraw from App Review**, **Release** and the phased release |
 
 ## Events
@@ -130,7 +131,9 @@ Every change emits a `stores.*` event to the environment's [webhooks](https://pa
 | `stores.delivery.changed` | A delivery moved: `queued`, `signing`, `uploading`, `processing`, `compliance`, `ready` or `failed` |
 | `stores.group.changed` | A group was made, renamed or deleted, its testers set, or a build given to it |
 | `stores.action.changed` | An action was planned, done, declined or failed |
-| `stores.version.changed` | An app's App Store version came to a new state: sent to App Review, in review, approved, rejected, withdrawn, released |
+| `stores.version.changed` | An app's App Store version came to a new state: sent to App Review, in review, approved, rejected, withdrawn, released. `source` says who told it: `apple_webhook`, `poll` or `action` |
+
+What the stores tell of an app — its App Store Connect webhook, its build uploads, Beta App Review, testers' feedback, its in-app purchases' review, its Play releases and its crash data — is on [App Health](https://palbase.studio/docs/distribution/health#the-events).
 
 ```ts
 // src/modules/releases/release-events.ts
@@ -164,5 +167,6 @@ The module's API is the environment's, at its address under `/stores`, with the 
 - [TestFlight](https://palbase.studio/docs/distribution/testflight): the Apple account, signing, groups, Beta App Review
 - [App Store](https://palbase.studio/docs/distribution/app-store): the App Store page, the version, App Review and the release
 - [Google Play](https://palbase.studio/docs/distribution/google-play): the Play connection, the upload key, internal testing
+- [App Health](https://palbase.studio/docs/distribution/health): the App Store Connect webhook, testers' crashes, the stores' crash data and their events
 - [Test Apple Purchases](https://palbase.studio/docs/purchases/testing-apple): sandbox testers and purchases in TestFlight
 - [CLI reference: `stores`](https://palbase.studio/docs/cli/reference#stores)

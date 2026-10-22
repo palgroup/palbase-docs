@@ -43,6 +43,23 @@ For each environment, an admin can, on the Billing page or from the API:
 
 Nothing is owed. What is paid for stops: machines and databases of a paid size stop (`402 machine_not_paid` while it lasts), and the projects are held to the free quotas, as on the Free plan; what is within them goes on. Usage measured in the few minutes before it stopped is taken from the next top-up; what the projects use after it is not charged. While the balance is out, the organization's projects share one free quota, as the account's bill does. A top-up brings everything back by itself.
 
+## From the terminal
+
+The CLI does what the Billing page does, as you or with an admin's [access token](https://palbase.studio/docs/getting-started/access-tokens) in CI — save opening the payment account and the first top-up, which saves the card on Stripe's page:
+
+```bash
+palbase billing                                   # the plan, the balance, the card, the automatic top-up, this month, each environment's place
+palbase billing:charges --period 2026-10 --csv    # the month's charges by environment and item, as the page downloads them
+palbase billing:invoices                          # the top-ups' invoices
+palbase billing:ledger --limit 50                 # every change of the balance, newest first
+palbase billing:settings --auto-topup yes --threshold 10 --amount 50 --monthly-cap 200
+palbase billing:env shop/staging --cap 25         # an environment's monthly cap; --free yes|no, --frozen yes|no
+palbase billing:topup 20                          # from the saved card, $10 to $10,000; it asks first, -y does not
+palbase billing:bank-transfer 500                 # an invoice to pay by bank transfer
+```
+
+The organization is `--org`'s, else the one of the environment chosen for the directory. Amounts are in US dollars, to the cent. A member reads the plan and the environments; the money is an owner's or an admin's.
+
 ## The API
 
 What Studio's Billing page does, an admin's [access token](https://palbase.studio/docs/getting-started/access-tokens) does too — save opening the payment account and paying on Stripe's page, which are a person's. The calls are on Studio's API, under the organization:

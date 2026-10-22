@@ -199,19 +199,7 @@ export const support = Palbase.ai.agent("support", (ctx) => ({
 }));
 ```
 
-```ts
-// src/modules/support/support.setup.ts
-import { Injectable, Palbase } from "palbase/backend";
-import { support } from "./support.agent";
-
-@Injectable()
-export class SupportSetup {
-  // The project's agent "support" is this backend's: each of its turns asks the machine for its definition.
-  async onStart(): Promise<void> {
-    await Palbase.ai.agents.put(support);
-  }
-}
-```
+The agent is your build's: the build writes it into its contract (`x-palbase-agents`, with its tools in `x-palbase-ai-tools`), and the platform reads it from the build your machine serves. Nothing is registered at start. It is changed in the code and shipped with a deploy. Studio lists it as defined in code, with its tools and what its last turn was defined as, and offers no edit. `Palbase.ai.agent(name, define, { description, machine })` says what the agent is for and, when one code runs as several machines, which of them declares it.
 
 | Field | What it is |
 |---|---|
@@ -222,7 +210,33 @@ export class SupportSetup {
 | `maxToolCalls` | The turn's tool calls, 1 to 10 000. Past it the agent is told it has no tools left, and answers. |
 | `thinking` | `visible` shows the model's reasoning in the chat's stream as `thinking` parts. `hidden` does not ask for it. When the model's provider will not give it, the turn says so once: a `thinking` part with `unavailable: true`, the `model` and the provider's `reason`. One cause is an OpenAI organization not verified for reasoning summaries; Anthropic's models (`strong`) show theirs. |
 
-An agent need not be the backend's: `agents.put("helper", { instructions, model, tools })` names a definition the platform keeps, and `chats.create({ definition })` gives one chat a definition of its own.
+### Agents the project keeps
+
+An agent can also be made in Studio (**AI › Agents**), with the CLI (`palbase ai:agents:create`) or with the API, without a deploy. It is changed as a **draft**: the draft is tried (Studio's **Try**) and **published** as a version that never changes. Chats and one-shot answers by its name talk to the version published; `"helper@3"` stays on version 3. An older version is published again with `rollback`.
+
+```ts
+import { Palbase } from "palbase/backend";
+
+await Palbase.ai.agents.saveDraft("helper", { instructions: "Answer in one sentence.", model: "fast" });
+await Palbase.ai.agents.publish("helper");
+const answer = await Palbase.ai.ask("What does the return policy say?", { agent: "helper" });
+```
+
+| Call | What it does |
+|---|---|
+| `agents.list()`, `agents.get(name)` | The project's agents: those its build declares (`source: "code"`) and those it keeps (`source: "platform"`). |
+| `agents.saveDraft(name, definition, { revision })` | Saves the draft. A draft saved since the `revision` you read is refused (`409 draft_changed`), so a change made meanwhile is not lost. |
+| `agents.publish(name, { revision })` | Publishes the draft as the next version. |
+| `agents.rollback(name, version)`, `agents.versions(name)` | Publishes an older version again, and lists the versions. |
+| `agents.delete(name)`, `agents.tools()` | Deletes the agent with its versions, and lists the tools an agent can be given. |
+
+A kept agent is given the same tools a backend's is. A backend or client tool named by its name alone (`{ source: "backend", name: "lookup_order" }`) is your build's: what it does, what it takes and whether it waits for a person's yes are filled in from the build at every turn, so the agent follows your code.
+
+`output` is the shape of the agent's one-shot answers, a JSON Schema of an object: `generate({ agent: "classify" })` returns a document of it, and a call's own `schema` replaces it for that call. `description` says what the agent is for.
+
+**One name is one agent's.** The platform refuses a kept agent by a name your build declares (`409 agent_defined_in_code`), and a build that declares a name the project keeps fails its deploy, the version before it serving on. `chats.create({ definition })` gives one chat a definition of its own, with no name kept.
+
+**An agent from a description.** Studio's **Create with AI**, or `palbase ai:agents:generate "helps customers who ask where their order is"`, writes a draft: its instructions, model and tools, chosen from the project's own tools. Palbase pays for the model that writes it. A person writes 20 drafts an hour in a project.
 
 ## Chats
 
@@ -277,6 +291,8 @@ export class SupportController {
 A chat can be talked to out loud. The app opens a WebRTC peer connection, sends its offer to `POST /ai/chats/{id}/voice`, and sets the answer it gets back; the audio then goes between the app and the platform's voice provider, whose key never leaves the platform. The voice speaks as the chat's agent, with its instructions.
 
 A voice is its member's: the user who starts it, or the member your server starts it for (`as`). They and your server read it (`GET …/voice/{voiceId}`: live or closed, how many seconds, why it ended), tell it (`…/commands`: `speak`, `tell`, `know`, `instruct`, your server's alone) and close it (`DELETE`); no other member does (`403 not_your_voice`). A member starts at most 5 voices an hour, the ones your server starts for them counted with their own (`429 too_many_voices`). One voice talks in a chat at a time: a member's new voice ends the one they left open, and another member's live voice is refused (`409 voice_active`). A voice closes when its member is taken out of the chat (`member_removed`) or the chat is deleted (`chat_deleted`).
+
+Your server can give the voice, with its start, how it speaks (`instructions`, after the chat's agent's own) and what it knows as the talk opens (`context`). Both are your server's alone, as `know` and `instruct` are (`403 server_only` from an app), and are at most 48 KiB together. Given with the start, the voice speaks with them from its first second. Told after the start, piece by piece, the voice talks without them until the last piece is in, which for a long opening is many seconds.
 
 `speak` says its `text` exactly and nothing else, with no words of the voice's own before or after it. It waits until the voice finishes what it is saying, so a speak never cuts into the voice's answer, and speaks are said one at a time in the order they came. With `interrupt: true` it cuts what the voice is saying and is said at once. `tell` gives the voice something to say in its own words, `know` gives it something to keep in mind, and `instruct` changes how it behaves. Up to 16 speaks can wait at a time. Past that, a speak is refused with `429 voice_busy`.
 
@@ -429,10 +445,9 @@ export class SupportGateway {
 import { Module } from "palbase/backend";
 import { SupportController } from "./support.controller";
 import { SupportGateway } from "./support.gateway";
-import { SupportSetup } from "./support.setup";
 
 // The agent and its tools are values, declared as their files load: the controller's import brings them.
-@Module({ controllers: [SupportController], providers: [SupportGateway, SupportSetup] })
+@Module({ controllers: [SupportController], providers: [SupportGateway] })
 export class SupportModule {}
 ```
 

@@ -92,7 +92,8 @@ A call goes to the address the environment names for the machine, with:
 - the signed-in user's access token, when someone is signed in. When the session is bound to the device ([Auth](https://palbase.studio/docs/android/auth#how-the-session-is-kept)), the request also carries a proof signed by the device's key. When no one is signed in, the call goes without a token, and the route decides whether it needs one;
 - no API key: a machine asks for none;
 - `Accept-Language`, the user's languages, which the backend's translations read;
-- an `Idempotency-Key` on every write.
+- an `Idempotency-Key` on every write;
+- a field the route marks `encrypted()` sealed, and one it answers through `encrypt()` opened when the answer arrives: the client `palbase apps:sync` wrote holds the project's id and signing key for it ([Encrypted Requests](https://palbase.studio/docs/backend/request-encryption)). A call sent again is the same sealed request.
 
 A call refused with a `401` about the token is refreshed once and sent again, for the same user. A read is sent again when the answer says "not now" (`429`, `502`, `503`, `504`) or the request never got an answer, as the project's calls are ([Errors and retries](https://palbase.studio/docs/android/overview#errors-and-retries)). A write is sent again only when the backend's contract says the route keeps its idempotency key, and always with the same key. Any other write is sent once, because one that reached the backend before its answer was lost would be done twice. No redirect is followed.
 

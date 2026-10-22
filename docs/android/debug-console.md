@@ -45,6 +45,8 @@ Recording runs from launch whether or not the console is on, and stays on the de
 | The app's own OkHttp traffic | `pb.debug.client(appClient, label)` returns a client that records and measures each request like the SDK's own, keeping `appClient`'s settings and connection pool. `pb.debug.interceptor(label)` goes in a client built by hand, and records without the phases. |
 | Anything else | `pb.debug.record(method, url, requestHeaders, requestBody, statusCode, responseHeaders, responseBody, error, durationMs, label)`: an exchange the SDK did not make, masked on the way in like a captured one. |
 
+A backend call's [encrypted field](https://palbase.studio/docs/backend/request-encryption) is recorded as it went, sealed (`pbt1.…`); **Reveal** beside it in the body shows its value. The values are kept in memory alone, only while the console is on for the user and recording, and are gone when the console is cleared, another user signs in or the console is turned off.
+
 `PBLogLevel` is `TRACE`, `DEBUG`, `INFO`, `NOTICE`, `WARNING`, `ERROR` or `CRITICAL`.
 
 ```kotlin

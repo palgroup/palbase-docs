@@ -293,6 +293,10 @@ Every refusal of a `palbase/backend` app is the platform's envelope, whatever th
 | 503 | `service_unavailable`, `database_unavailable`, `auth_unavailable` | Something the route needs did not answer. `Retry-After` says when to come back. |
 | 500 | `internal_error` | The handler threw something that is not a refusal. The details are in the machine's logs under the `request_id`. |
 
+## Encrypted fields
+
+A field your route marks `encrypted()` — or answers through `encrypt()` — the module seals before the call leaves the browser and opens when its answer arrives: the network panel shows `pbt1.…`, your code the value, and the calls are written as any other. The module holds the project's id and signing key for it, which `palbase apps:sync` writes. What can be marked, the keys and their rotation, and the errors are in [Encrypted Requests](https://palbase.studio/docs/backend/request-encryption).
+
 ## Cross-origin calls
 
 A machine's address is not your app's origin, so the browser sends a preflight before each call that carries a token or a JSON body. A `palbase/backend` app answers it for the origins of the project's web apps by itself: those you give with `palbase apps:env:set <app> --origin`. Name any others in `PalbaseFactory.create(…, { cors })`:

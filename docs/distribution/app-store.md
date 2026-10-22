@@ -123,15 +123,21 @@ palbase stores:version:prepare 4f6c2d10-… --version 1.3.0 --build 42 --copyrig
 | `--phased`, `--no-phased` | Release it over seven days, or to everyone at once |
 | `--third-party-content`, `--no-third-party-content` | Apple's content rights question |
 | `--free` | Makes an app with no price free in every country. A paid price is set in App Store Connect. |
+| `--territories all` | Sells an app that is sold nowhere in every country and region, and in those Apple opens later. An app sold somewhere keeps its countries: choose them in App Store Connect. |
+| `--app-privacy published` | Says you published the app's privacy details in App Store Connect. Apple has no API for them, so the missing list asks until you say so. `unpublished` takes it back. |
 | `--review-file` | App Review's details. A field the file leaves out stays as it is. The password goes to Apple and is never printed or kept. |
 
-What you prepare is written to App Store Connect at once: it is no plan. Studio's **Version** panel holds the same form.
+What you prepare is written to App Store Connect at once: it is no plan. Studio's **Version** panel holds the same form, with **Sell the app in every country and region** and the **App Privacy** switch.
 
 ### What is missing
 
 `stores:version` lists what App Review would refuse the version for, one line each, as App Store Connect holds it now: a processed build with its export compliance answer, the copyright, a primary category, the content rights statement, a price, the age rating, App Review's contact and demo account, and each language's name, description, keywords, privacy policy and support URLs, What's New and screenshots. A draft page you saved but did not write yet does not count: plan it and confirm it first. Sending the version is refused while the list is not empty (`409 version_incomplete`).
 
-App Privacy is not on the list. Its questions are answered in App Store Connect, and Palbase cannot read them: answer them there before you send the version.
+The list also names what is not the version's own:
+
+- **The countries the app is sold in**, when it is sold in none. `--territories all` sells it everywhere.
+- **iPad screenshots**, when the version's build runs on the iPad (its `UIDeviceFamily`, read from the package you uploaded).
+- **App Privacy.** Its questions are answered in App Store Connect, and Apple has no API for them. Answer them there, then run `stores:version:prepare <app id> --app-privacy published`. If Apple still refuses the version for App Privacy, the line comes back.
 
 ### Send it to App Review
 
@@ -139,6 +145,14 @@ App Privacy is not on the list. Its questions are answered in App Store Connect,
 palbase stores:version:submit 4f6c2d10-… -E main
 palbase stores:actions:confirm <action id> --hash <hash> -E main
 ```
+
+An app's first in-app purchases and subscriptions go to App Review with a version, as Apple requires. Name them by their product ids:
+
+```sh
+palbase stores:version:submit 4f6c2d10-… --with com.acme.app.pro.monthly,com.acme.app.coins -E main
+```
+
+In Studio, **Send with the version** lists the catalog's App Store products above **Send to App Review**: tick the ones to send. Each is sent only if Apple holds it as `READY_TO_SUBMIT`: its text, price, availability and [review screenshot](https://palbase.studio/docs/purchases/catalog#review-screenshots) are complete. A subscription's group goes with it until Apple has approved the group. The plan names them, and when you confirm it, Palbase checks that they are still what was planned. The action's result shows each one's state at Apple (`WAITING_FOR_REVIEW`), and withdrawing the version withdraws them too. Apple takes a withdrawal in a few seconds: the withdrawal's result says it is under way, and `stores:version` shows the version's state once Apple has it.
 
 Once the plan is confirmed, the version waits for review. Palbase reads its state every two minutes while App Review has it, and while it waits for its release. `stores:version` shows the state it saw last (`watched`) and since when.
 

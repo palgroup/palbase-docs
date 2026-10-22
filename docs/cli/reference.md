@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.11.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.14.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-291 commands in 25 groups.
+340 commands in 29 groups.
 
 ## Global flags
 
@@ -158,6 +158,32 @@ The test users are deleted when the command ends, however it ends — Ctrl-C too
       --users <names>   the test users to make for the run, comma-separated
       --base-url <url>  where the app under test answers (http://localhost:8080)
       --secrets <set>   the project's secrets the app reads at boot: development (default) or production
+```
+
+### `palbase billing`
+
+An organization's plan, balance, card, automatic top-up and this month — each environment's place in the bill and what it came to
+
+```sh
+palbase billing [--org <org>]
+```
+
+A member reads the plan and the environments; the money (balance, amounts) is an owner's or an admin's.
+
+```text
+      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
+```
+
+### `palbase journeys`
+
+The environment's journeys: each one's key, name, status, way in, and when it was published
+
+```sh
+palbase journeys [--status draft|live|stopped]
+```
+
+```text
+      --status <status>  draft, live or stopped alone
 ```
 
 ## `env`
@@ -341,6 +367,113 @@ palbase tokens:revoke <name|id>
 
 ```text
       --org <org>  the organization (name or id)
+```
+
+## `billing`
+
+### `palbase billing:charges`
+
+A month's charges, by environment and item, gross — then the organization's, its free quota taken once — as a table or as CSV
+
+```sh
+palbase billing:charges [--period <YYYY-MM>] [--csv] [--org <org>]
+```
+
+--csv prints the CSV Studio downloads: what an organization bills its own customers by.
+
+```text
+      --org <org>         the organization (name or id; the one of the environment chosen here, or your only one)
+      --period <YYYY-MM>  the month (this one by default)
+      --csv               print the charges as CSV
+```
+
+### `palbase billing:invoices`
+
+The invoices of an organization's top-ups: Stripe makes one of each, and emails it
+
+```sh
+palbase billing:invoices [--org <org>]
+```
+
+```text
+      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
+```
+
+### `palbase billing:ledger`
+
+Every change of an organization's balance, newest first: top-ups, usage taken, refunds, what expired
+
+```sh
+palbase billing:ledger [--limit <n>] [--org <org>]
+```
+
+```text
+      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
+      --limit <n>  how many at most (default 50)
+```
+
+### `palbase billing:settings`
+
+An organization's automatic top-up — on or off, under what balance, by how much, at most how much a month — and when it is told the balance runs low
+
+```sh
+palbase billing:settings [--auto-topup yes|no] [--threshold <usd>] [--amount <usd>] [--monthly-cap <usd>|none] [--low-balance-days <n>] [--org <org>]
+```
+
+A month's cap takes what is left of it, and nothing once it is spent: the owners are emailed once a month when it holds a top-up back.
+
+```text
+      --org <org>               the organization (name or id; the one of the environment chosen here, or your only one)
+      --auto-topup <yes|no>     take a top-up from the saved card when the balance is under the threshold
+      --threshold <usd>         the balance under which it is taken
+      --amount <usd>            how much it takes ($10 at least)
+      --monthly-cap <usd|none>  at most this much a calendar month; none for no cap
+      --low-balance-days <n>    email the owners when the balance lasts fewer than n days of spend (1 to 60)
+```
+
+### `palbase billing:env`
+
+An environment's place in its organization's bill: a monthly cap, pulled to the Free plan, frozen
+
+```sh
+palbase billing:env <project/env | ref> [--cap <usd>|none] [--free yes|no] [--frozen yes|no] [-y]
+```
+
+At its cap the environment is Free until the month ends; the others go on. Frozen, its requests are refused and its machines and databases stopped, its data kept; only what it stores is charged.
+Freezing asks first; -y does not.
+
+```text
+      --cap <usd|none>   at most this much a month; none for no cap
+      --free <yes|no>    on the Free plan: charged nothing, held to the free quotas
+      --frozen <yes|no>  frozen: its requests refused, its machines and databases stopped, its data kept
+```
+
+### `palbase billing:topup`
+
+Put money on an organization's balance from its saved card, now: $10 to $10,000, the tax on top, an invoice made of it
+
+```sh
+palbase billing:topup <usd> [-y] [--org <org>]
+```
+
+It takes the money: it asks first, and -y does not. With no card saved yet, the first top-up is on Stripe's page, in Studio.
+
+```text
+      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
+```
+
+### `palbase billing:bank-transfer`
+
+An invoice of a top-up to pay by bank transfer, to the organization's own bank details: credited as the money arrives
+
+```sh
+palbase billing:bank-transfer <usd> [--org <org>]
+```
+
+Stripe emails the invoice with the bank details; nothing is taken until the transfer arrives.
+
+```text
+      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
 ```
 
 ## `projects`
@@ -1443,9 +1576,10 @@ palbase secrets:audit [--name <NAME>] [--dev | --prod] [--limit <n>]
 ```
 
 A backend that reads the secrets at boot (palbase run, a machine) shows here as a read, with the key it read with: palbase keys:list names the key.
+An encrypted column's values opened through Palbase (Studio's table, a secret key) are recorded under the column's address: --name patients.tc lists who opened them, and when.
 
 ```text
-      --name <NAME>  only this secret's
+      --name <NAME>  only this secret's, or an encrypted field's opens (table.column)
       --dev          only the development secrets
       --prod         only the production secrets
       --limit <n>    how many (default 30)
@@ -1485,6 +1619,39 @@ The download is in the secrets audit trail (secrets:audit).
 
 ```text
       --out <file>  where the keys go (made readable by you alone); never the screen
+```
+
+## `transit`
+
+### `palbase transit:list`
+
+The keys the encrypted fields of a request to the environment's backend are sealed to — their public halves alone
+
+```sh
+palbase transit:list
+```
+
+### `palbase transit:rotate`
+
+Make a new key for the encrypted fields of requests to the backend (an owner's or an admin's)
+
+```sh
+palbase transit:rotate [--retire-previous]
+```
+
+Apps seal to it from their next fetch of the project's keys (within the hour), or at once with --retire-previous: every older key is retired with it — what to do when one may have been taken — and an app that seals to a retired one is told so, fetches the keys again and sends its call once more.
+No app needs a new build: an app holds the project's signing key, not its keys.
+
+```text
+      --retire-previous  retire every older key at once
+```
+
+### `palbase transit:retire`
+
+Retire a transit key that is not the one in use: no request sealed to it opens from then on
+
+```sh
+palbase transit:retire <key>
 ```
 
 ## `webhooks`
@@ -1556,6 +1723,267 @@ palbase webhooks:deliveries:redeliver <id>
 ```
 
 As Stripe's Resend: the receiver takes an event more than once by its Palbase-Event-Id. An admin's; it is written to the organization's audit log.
+
+## `ai`
+
+### `palbase ai:usage`
+
+The environment's uses of models, newest first: what each was, what it cost, and whose key it went out with
+
+```sh
+palbase ai:usage [--kind text|embedding|image] [--metadata key=value]… [--limit <n>] [--cursor <cursor>]
+```
+
+```text
+      --kind <kind>           only uses of this kind: text, embedding or image
+      --metadata <key=value>  only uses carrying this label (repeat for several): a product's spend, a task's
+      --limit <n>             at most this many (1–500, default 50)
+      --cursor <cursor>       the next page, as the last one said it
+```
+
+### `palbase ai:models`
+
+The models the environment may name — every text model with its rungs, window and price, and the embedding and picture models
+
+```sh
+palbase ai:models
+```
+
+### `palbase ai:providers:list`
+
+The providers the environment calls with its own key (never the keys): its calls go out with them instead of the platform's
+
+```sh
+palbase ai:providers:list
+```
+
+### `palbase ai:providers:set`
+
+Call a provider with the environment's own key: the key is piped in or typed unseen, never shown or put on the command line
+
+```sh
+palbase ai:providers:set <provider> [--key-stdin] < key.txt
+```
+
+Without --key-stdin the key is asked for at the terminal, and not echoed as it is typed or pasted.
+
+```text
+      --key-stdin  read the key from stdin (a pipe, a file)
+```
+
+### `palbase ai:providers:remove`
+
+Forget the environment's own key for a provider: its calls go out with the platform's again
+
+```sh
+palbase ai:providers:remove <provider>
+```
+
+### `palbase ai:settings:get`
+
+What the environment allows its chats: whether the app's users talk to the agents, how often, and how much history is kept
+
+```sh
+palbase ai:settings:get
+```
+
+### `palbase ai:settings:set`
+
+Change what the environment allows its chats: a setting left out is left as it is
+
+```sh
+palbase ai:settings:set [--clients on|off] [--messages-per-minute <n>] [--history-limit <bytes>|none]
+```
+
+```text
+      --clients <on|off>            the app's users talk to the agents of their chats with their own session
+      --messages-per-minute <n>     how many messages one user sends a minute (1–600)
+      --history-limit <bytes|none>  the chat history kept at most, in bytes; none: the plan's
+```
+
+### `palbase ai:agents:list`
+
+The environment's agents: its backend's (its build's contract names them) and those it keeps, a draft and published versions
+
+```sh
+palbase ai:agents:list
+```
+
+### `palbase ai:agents:show`
+
+One agent: where it stands and what it is — a kept one's published version (or its draft, or a version), a backend's last turn
+
+```sh
+palbase ai:agents:show <name> [--draft | --version <n>]
+```
+
+```text
+      --draft        the draft, as the next publish makes a version of it
+      --version <n>  that version, as it was published
+```
+
+### `palbase ai:agents:create`
+
+Save the draft of an agent the environment keeps — a new one's, or a change of one's — and publish it with --publish
+
+```sh
+palbase ai:agents:create <name> [--from <file.json>] [--instructions <text>] [--description <text>] [--model <model>] [--tool <source:name>]… [--output-schema <file.json>] [--revision <n>] [--publish]
+```
+
+Its chats talk to the version published: a draft changes nothing until it is published (ai:agents:publish, or --publish here).
+A change of an agent it keeps is made on its draft: each flag given replaces its field, and the rest stays.
+--from is the whole definition as JSON ({ "instructions", "model", "tools": [{ "source", "name" }], "subagents", "output", … }) — or what ai:agents:generate --json printed; each flag given replaces its field.
+--tool is source:name: `backend:<ai.tool>` (`backend:<machine>/<ai.tool>` for another machine's), `client:<ai.clientTool>`, `https:<endpoint>`, `mcp:<server>`, platform:web.search|web.fetch|workspace.fetch_archive (palbase ai:tools lists them). Given, the tools are those; a backend or client tool goes by its name alone, and the platform takes what it does from the build that declares it.
+--revision is the draft's revision as it was read (ai:agents:show): when another was saved since, the save is refused (draft_changed) and nothing is lost.
+
+```text
+      --from <file.json>           the definition, as JSON
+      --instructions <text>        what the agent is told to do
+      --description <text>         what it is for, in a sentence or two
+      --model <model>              a role (fast, default, strong) or a model of ai:models
+      --tool <source:name>         a tool it is given (repeat for several)
+      --output-schema <file.json>  the JSON Schema of its one-shot answers
+      --revision <n>               the draft's revision the change is made on
+      --publish                    publish the draft as the next version once it is saved
+```
+
+### `palbase ai:agents:publish`
+
+Make the draft of an agent the next version, the one its chats talk to from their next turn
+
+```sh
+palbase ai:agents:publish <name> [--revision <n>]
+```
+
+```text
+      --revision <n>  the draft as it was read: refused when another was saved since
+```
+
+### `palbase ai:agents:rollback`
+
+Make a version an agent had the one its chats talk to again — and its draft that version
+
+```sh
+palbase ai:agents:rollback <name> <version>
+```
+
+### `palbase ai:agents:versions`
+
+The versions an agent the environment keeps was published as, newest first, and the one its chats talk to
+
+```sh
+palbase ai:agents:versions <name> [--limit <n>] [--cursor <cursor>]
+```
+
+```text
+      --limit <n>        at most this many (1–100, default 20)
+      --cursor <cursor>  the next page, as the last one said it
+```
+
+### `palbase ai:agents:generate`
+
+Write an agent from a description — instructions, a model, the environment's tools that fit — and save it as a draft with --save
+
+```sh
+palbase ai:agents:generate "<description>" [--name <name>] [--save] [--publish]
+```
+
+Nothing is kept unless --save (or --publish) says so: the definition is printed, for ai:agents:create --from.
+It is written as you — your sign-in, or PALBASE_TOKEN — 20 an hour; the platform pays for it.
+
+```text
+      --name <name>  the name it is to have (left out: one is suggested)
+      --save         save it as the draft of an agent of that name
+      --publish      save it and publish it as the next version
+```
+
+### `palbase ai:agents:remove`
+
+Forget an agent the environment keeps, its versions with it: its chats stay, and are refused a message until one of its name is there again
+
+```sh
+palbase ai:agents:remove <name>
+```
+
+### `palbase ai:tools`
+
+The tools an agent may be given: the backend's (its build's contract), the environment's endpoints, and the platform's
+
+```sh
+palbase ai:tools
+```
+
+### `palbase ai:chats:list`
+
+The environment's chats, newest first — every one, or a member's
+
+```sh
+palbase ai:chats:list [--member <user id>] [--limit <n>] [--cursor <cursor>]
+```
+
+```text
+      --member <user id>  only the chats this user is in
+      --limit <n>         at most this many (1–100, default 100)
+      --cursor <cursor>   the next page, as the last one said it
+```
+
+### `palbase ai:chats:show`
+
+One chat: its agent and members, and what they wrote, newest last — with what each turn cost (--cost)
+
+```sh
+palbase ai:chats:show <chat id> [--limit <n>] [--cost]
+```
+
+```text
+      --limit <n>  its last this many messages (1–100, default 50)
+      --cost       what each turn a message started cost, its subagents counted
+```
+
+### `palbase ai:chats:remove`
+
+Delete a chat: a turn still running is stopped, and its history no longer counts
+
+```sh
+palbase ai:chats:remove <chat id>
+```
+
+### `palbase ai:endpoints:list`
+
+The environment's HTTPS tools and MCP servers an agent may be given by name (their signing secrets are never said again)
+
+```sh
+palbase ai:endpoints:list
+```
+
+### `palbase ai:endpoints:remove`
+
+Forget an HTTPS tool or an MCP server: an agent that names it is given it no more
+
+```sh
+palbase ai:endpoints:remove <name>
+```
+
+### `palbase ai:repos:list`
+
+The repositories a chat's workspace works in, by name, and the machine that gives their tokens
+
+```sh
+palbase ai:repos:list [--limit <n>] [--cursor <cursor>]
+```
+
+```text
+      --limit <n>        at most this many (1–1000, default 100)
+      --cursor <cursor>  the next page, as the last one said it
+```
+
+### `palbase ai:repos:remove`
+
+Forget a repository: a chat's workspace checks it out no more
+
+```sh
+palbase ai:repos:remove <name>
+```
 
 ## `stores`
 
@@ -1714,6 +2142,44 @@ An app's TestFlight feedback: testers' screenshots and crashes
 ```sh
 palbase stores:feedback <app id>
 ```
+
+### `palbase stores:feedback:get`
+
+One of an app's TestFlight feedback: the device, the build, and a crash's log
+
+```sh
+palbase stores:feedback:get <app id> <crash|screenshot> <feedback id>
+```
+
+A crash's log is cut at 32 KiB: the exception and the crashed thread come first. A screenshot's images are Apple's links, which expire.
+
+### `palbase stores:webhook`
+
+An iOS app's App Store Connect webhook: whether Apple tells Palbase each change at once, and its last delivery
+
+```sh
+palbase stores:webhook <app id> [--make] [--ping]
+```
+
+Palbase makes the webhook when the app is linked (the key's role must be Admin or App Manager), and tries again every day while it is not on; meanwhile it reads Apple every few minutes.
+--make points it at the environment again with a new secret; --ping asks Apple to send it a ping and waits for it to arrive.
+
+```text
+      --make  make it again: a new secret, pointed at the environment
+      --ping  ask Apple to send it a ping, and wait for it to arrive
+```
+
+### `palbase stores:vitals`
+
+An app's health as its store has it: crashes, terminations and hangs, crash and ANR rates by version
+
+```sh
+palbase stores:vitals <app id>
+```
+
+An iOS app: the crashes testers sent from TestFlight, its App Store versions' terminations, hangs and launches, and App Store crashes by day (the App Crashes report, an Admin key's).
+An Android app: Play's Android vitals — each version code's crash and ANR rates over seven days, its errors, and what Play flagged.
+A new day of it is the environment's stores.vitals.changed event.
 
 ### `palbase stores:packages`
 
@@ -2001,7 +2467,7 @@ Upload the screenshot App Review is shown of an in-app purchase: kept by its SHA
 palbase stores:review-screenshot <app id> <file.png|file.jpg>
 ```
 
-A PNG or JPEG of 10 MB at most, at least 640x920 (or turned): the product as the app shows it.
+A PNG or JPEG of 10 MB at most, at an App Store screenshot size — iPhone 6.9" 1320x2868, 1290x2796 or 1260x2736; iPhone 6.5" 1242x2688 or 1284x2778; iPad 13" 2064x2752 or 2048x2732 (or turned): App Review takes an in-app purchase's screenshot at no other.
 Name it in the catalog, channels.ios.review.screenshot = `"sha256:<hex>"`; the next plan (palbase purchases:catalog:plan) gives it to App Store Connect, and Apple then has what it needs of the product to review it.
 
 ### `palbase stores:listing:plan`
@@ -2176,10 +2642,11 @@ palbase purchases:catalog:validate --file <catalog.json>
 Plan bringing the stores to the catalog's newest revision, store by store, before anything is written
 
 ```sh
-palbase purchases:catalog:plan
+palbase purchases:catalog:plan [<plan id>]
 ```
 
 A plan is confirmed with its Stripe part's hash (purchases:catalog:confirm) — with no Stripe account connected, its App Store part's; the App Store and Google Play parts are written by the stores module once their accounts are connected.
+With a plan's id it makes none: it shows that plan, and once confirmed what each store answered — the state of every product written, and a price that changes on a later day.
 
 ### `palbase purchases:catalog:confirm`
 
@@ -2876,6 +3343,118 @@ The App Store's link fee is what Apple takes of a web purchase bought through a 
       --app-store-link-days <n>       for how many days after the link a purchase owes it (7)
 ```
 
+## `journeys`
+
+### `palbase journeys:get`
+
+A journey's definition, as JSON: to edit and push again (a draft), or to push under a new key (a published one)
+
+```sh
+palbase journeys:get <key>
+```
+
+### `palbase journeys:validate`
+
+Check a journey file without saving it: every problem, at its path, with what to do about it
+
+```sh
+palbase journeys:validate <file|->
+```
+
+### `palbase journeys:push`
+
+Save a journey file as a draft — new, or the draft's new version — and, with --publish, publish it
+
+```sh
+palbase journeys:push <file|-> [--key <key>] [--publish]
+```
+
+The key is --key, else the file's name (winback.json is winback).
+A published journey does not change: push the file under a new key with --publish, then stop the old one (journeys:stop).
+
+```text
+      --key <key>  the journey's key (default: the file's name)
+      --publish    publish it once saved: people enter from then on
+```
+
+### `palbase journeys:publish`
+
+Publish a draft: people enter it from now on, and it no longer changes
+
+```sh
+palbase journeys:publish <key>
+```
+
+### `palbase journeys:simulate`
+
+Walk a made-up person through a journey — a file, or a key — as it would run: each step, when, what it would do, how it ends; nothing is sent
+
+```sh
+palbase journeys:simulate <file|key> [--user <id>] [--property name=value]… [--audience <id>]… [--timezone <zone>] [--event name@PT2H]… [--start <time>]
+```
+
+The person enters at --start (now unless it says) and does each --event a while after entering: --event purchases.purchase.completed@P1D.
+Their --property values are what branches read, --audience the audiences they are in, --timezone where a wait until a time of day is.
+
+```text
+      --user <id>              the person's id (it picks their way at a split)
+      --property <name=value>  a property of theirs
+      --audience <id>          an audience they are in
+      --timezone <zone>        their IANA time zone (Europe/Istanbul)
+      --event <name@while>     an event of theirs, a while after entering (PT2H, P1D)
+      --start <time>           when they enter (RFC 3339); now unless it says
+```
+
+### `palbase journeys:stats`
+
+What came of a journey: who entered, how their runs ended, who is in it now, its goal's conversions, each step's outcomes
+
+```sh
+palbase journeys:stats <key>
+```
+
+### `palbase journeys:runs`
+
+A journey's people: each run's state, the step it is at, how it ended, and the steps it took
+
+```sh
+palbase journeys:runs <key> [--user <id>] [--state held|active|waiting|ended] [--limit <n>]
+```
+
+```text
+      --user <id>      one person's runs
+      --state <state>  held, active, waiting or ended
+      --limit <n>      how many, newest first (default 50, at most 200)
+```
+
+### `palbase journeys:stop`
+
+Stop a live journey for good: no one enters it, the runs in it end, its report stays
+
+```sh
+palbase journeys:stop <key>
+```
+
+### `palbase journeys:copy`
+
+Copy a journey's definition into a new draft: how a published journey is changed
+
+```sh
+palbase journeys:copy <key> <new-key> [--name <name>]
+```
+
+```text
+      --name <name>  the copy's name (default: the journey's)
+```
+
+### `palbase journeys:delete`
+
+Delete a journey with its runs and its report; the people in a live one leave it at once
+
+```sh
+palbase journeys:delete <key>
+```
+
 ## `apps`
 
 ### `palbase apps:list`
@@ -3072,6 +3651,23 @@ The environment's machines: size, state, the version serving, address
 
 ```sh
 palbase machines:list
+```
+
+### `palbase machines:call`
+
+Call a route of a machine's backend as its apps do: the fields its contract marks encrypted sealed, its answer's opened
+
+```sh
+palbase machines:call <machine> <METHOD> <path> [--data <json>] [--token <access token>]
+```
+
+palbase machines:call api POST /patients --data '{"name":"Ada","tc":"10000000146"}'
+The route is found in the machine's contract; a field it marks encrypted (palbase/backend's encrypted() and encrypt()) goes sealed to the project's key in use and comes back opened, as the app's generated client does.
+--token is a user's access token, for a route that takes one; without it the call is nobody's.
+
+```text
+      --data <json>    the request's body, as JSON
+      --token <token>  a user's access token: the call is theirs
 ```
 
 ### `palbase machines:get`
