@@ -148,7 +148,9 @@ Those two, and [Have I Been Pwned](https://haveibeenpwned.com), are connected wi
 
 ### App Attest
 
-`app_attest_mode` is `off` (the default), `monitor` or `enforce`, and `monitor` and `enforce` need an iOS app registered with the environment (`palbase apps:env:set`). Auth verifies an iOS device's App Attest key when the app enrols it (`POST /auth/devices/attest/ios`), and a request's App Attest assertion when a server asks it to (`POST /admin/attest/devices/assert`, with the secret key). It answers the mode at `GET /admin/attest/devices/attest-policy`. The mode does not, by itself, make the auth module refuse a call.
+`app_attest_mode` is `off` (the default), `monitor` or `enforce`: the switch of the backend routes marked `attest: true` ([Device attestation](https://palbase.studio/docs/backend/authentication#device-attestation)), read by the environment's machines every 30 seconds. `monitor` and `enforce` need an iOS or Android app registered with the environment (`palbase apps:env:set`).
+
+Auth enrols a device when the app proves it: an iOS device's App Attest key (`POST /auth/devices/attest/ios`), or an Android device's Keystore key, whose attestation chain must end in one of Google's hardware attestation roots with no certificate on Google's revocation list, the key in the phone's secure hardware, the phone locked with a verified boot, and the app the registered package signed with a registered certificate (`POST /auth/devices/attest/android`). Both take the challenge of `POST /auth/devices/challenge` and need no session. Auth verifies a request's proof when a server asks it to (`POST /admin/attest/devices/assert`, with the secret key), and answers the mode at `GET /admin/attest/devices/attest-policy` and the last hours' counts at `GET /admin/attest/devices/observations`. Palbase's iOS and Android SDKs do the enrolment and the proofs by themselves.
 
 ## Signing keys
 

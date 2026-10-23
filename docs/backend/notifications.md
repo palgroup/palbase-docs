@@ -337,6 +337,10 @@ export class InviteMail {
 }
 ```
 
+## Journeys
+
+A journey sends a person messages over time after something they did — a welcome over their first week, a win-back after they stopped buying — with waits, branches and A/B splits between them: [Journeys](https://palbase.studio/docs/backend/journeys).
+
 ## Related
 
 - [Webhooks](https://palbase.studio/docs/server/webhooks) — `notification.sent`, `notification.failed`, `notification.received`, `notification.uninstalled`
@@ -344,21 +348,3 @@ export class InviteMail {
 - [Server SDK Overview](https://palbase.studio/docs/server/overview) — calls, refusals, retries and `Idempotency-Key`
 - [Secrets](https://palbase.studio/docs/backend/secrets) — the values your own code reads (a provider's credentials are kept by notify, sealed)
 - [Test Users](https://palbase.studio/docs/backend/test-users) — users to send to while you try a flow
-
-## Journeys from the CLI
-
-A journey is kept as a file and handled with the CLI: saved as a draft, published, then followed. A published journey
-does not change — push its file under a new key, publish it, and stop the old one.
-
-```bash
-palbase journeys:validate winback.json             # every problem, at its path, with what to do about it
-palbase journeys:simulate winback.json --event purchases.purchase.completed@P1D   # walk a made-up person through it; nothing is sent
-palbase journeys:push winback.json --publish       # save it as a draft (key: the file's name) and publish it
-palbase journeys                                   # the environment's journeys: key, name, status, way in
-palbase journeys:stats winback                     # who entered, how their runs ended, the goal's conversions
-palbase journeys:runs winback                      # each person's run: its state, the step it is at
-palbase journeys:stop winback                      # no one enters it any more, the runs in it end
-```
-
-`journeys:get` prints a journey's definition to edit and push again, `journeys:copy` copies one into a new draft, and
-`journeys:delete` deletes one with its runs and its report.

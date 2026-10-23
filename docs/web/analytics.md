@@ -84,6 +84,7 @@ The client makes these calls for you. They are the analytics module's, with the 
 - **`properties`** and **`traits`**: 100 at most, 8 KiB each as JSON, 32 KiB in all.
 - **`timestamp`** and **`sent_at`**: unix milliseconds on the device's clock. The difference between `sent_at` and the server's clock is the device clock's error, and it is taken off `timestamp`. An event queued offline keeps its own `timestamp` and gets a fresh `sent_at` when it goes out.
 - **`identify`'s `anonymous_id`**: the id the user had before signing in. Their anonymous history goes with them, and if they are deleted, it goes too.
+- **`user_id`** (capture and batch): your server, with its secret key, says whose an event is — something a user did that your backend saw (a document approved, an order shipped). The event is that user's, as if their app had sent it signed in: on their timeline (source `server`), in their funnels, and acted on by their [journeys](https://palbase.studio/docs/backend/journeys#from-your-backend). `distinct_id` may be left out then. An app's event is its signed-in user's: one that names `user_id` is refused (`400 invalid_user_id`).
 
 The headers say what the server cannot tell from the body:
 

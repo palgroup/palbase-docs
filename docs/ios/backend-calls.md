@@ -125,11 +125,24 @@ A code the route's contract declares is a case of its own (`NotesCreateError.for
 | `.validation(ValidationFailure)` | `400`, the input failed the route's schema: `fields`, each a `field` and its `message`. |
 | `.rateLimited(RateLimitInfo)` | `429`, the route's limit: `retryAfter` in seconds. |
 | `.unauthorized(AuthFailure)` | `401`, after the client already refreshed the token once. |
+| `.stepUpRequired(StepUpFailure)` | `401 insufficient_user_authentication`: the route asks for a stronger sign-in (`acrValues`, e.g. `["aal2"]`; `maxAge`). The session is fine and is not refreshed: step the user up with their second factor, then call again. |
+| `.appAttestRequired(AuthFailure)` | `401 app_attest_required` the device's proof could not settle: the SDK enrolled, proved and sent the call again, and the backend still refused ([Device attestation](#device-attestation)). |
+| `.attestationUnavailable(AttestationFailure)` | The route asks for the device's proof and this device cannot give one now: `reason` says why (`unsupported_device`, a Simulator or hardware without App Attest; `enrolment_rate_limited` with `retryAfter`; `app_attest_not_configured`, no iOS app registered). Nothing more is sent. |
 | `.network(TransportFailure)` | No answer: no network, the connection lost, a timeout. |
 | `.transport(TransportFailure)` | Not sent: a backend the environment does not name. |
 | `.decode(CodecFailure)`, `.encode(CodecFailure)` | The answer is not the type the contract declares; the input could not be encoded, or a path parameter is not one segment. |
 
 `code`, `statusCode`, `requestId` and `failure` (the envelope, whichever case it is) are on every `BackendError`. The `requestId` is the line to look for in the machine's logs ([Builds, Logs & Rollback](https://palbase.studio/docs/machines/builds)).
+
+## Device attestation
+
+A route the backend marks `attest: true` is called only by your app on a genuine iPhone or iPad ([Device attestation](https://palbase.studio/docs/backend/authentication#device-attestation)). The SDK proves each call by itself with Apple's App Attest:
+
+- once per install it makes an App Attest key and enrols it: auth checks Apple's attestation of it for your registered app (team and bundle);
+- each call to the backend then carries an assertion over the call's method, path, body and a short-lived challenge, with the key's counter, so a captured call cannot be sent again or changed;
+- a `401 app_attest_required` is answered by itself: enrol if needed, prove, send once more.
+
+What only you set: Xcode's **App Attest** capability on the app target. It writes `com.apple.developer.devicecheck.appattest-environment` = `development`, Apple's sandbox, for a build run from Xcode; a TestFlight or App Store build uses Apple's production environment whatever the value says, so one entitlements file serves Debug and Release. `palbase apps:sync` reminds you when an environment's backend has an attested route. A Simulator cannot attest: under enforce its calls end in `.attestationUnavailable`.
 
 ## Files
 

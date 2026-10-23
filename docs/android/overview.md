@@ -62,7 +62,8 @@ dependencies {
 | `palbase-flags` | The project's flags, kept current | `pb.flags` ([Flags](https://palbase.studio/docs/android/flags)) |
 | `palbase-analytics` | Events, screens, timings and diagnostics, each behind its consent | `pb.analytics(startingConsent)` ([Analytics](https://palbase.studio/docs/android/analytics)) |
 | `palbase-realtime` | Channels: broadcasts and a shared state | `pb.realtime` ([Realtime](https://palbase.studio/docs/android/realtime)) |
-| `palbase-notify` | This device's push token for the user, their preferences and topics | `pb.notify` ([Notifications](https://palbase.studio/docs/android/notifications)) |
+| `palbase-notify` | This device's push token for the user, their preferences and topics, the inbox, in-app messages | `pb.notify` ([Notifications](https://palbase.studio/docs/android/notifications)) |
+| `palbase-notify-ui` | The inbox and in-app messages, drawn in Compose | `InboxView`, `PalbaseInAppMessages` ([Notifications](https://palbase.studio/docs/android/notifications#the-inbox)) |
 | `palbase-storage` | Files through URLs your backend signed, and public buckets | `pb.storage` ([Storage](https://palbase.studio/docs/android/storage)) |
 | `palbase-purchases` | What the customer has, in any store, and buying on Google Play (Play Billing 9) | `pb.purchases` ([Purchases](https://palbase.studio/docs/android/purchases)) |
 | `palbase-palbe` | Your backends' generated clients, their gateways and chats | `pb.<name>` ([Calling Your Backend](https://palbase.studio/docs/android/backend-calls), [Gateways](https://palbase.studio/docs/android/gateways)) |

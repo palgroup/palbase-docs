@@ -98,11 +98,11 @@ Apple's CDN caches its file: an iOS device sees a change in a day or so. Android
 | Platform | What the environment does with it |
 |---|---|
 | iOS | Accepts App Attest keys from the app and its watch app (an App Clip attests as its app). Matches an App Store purchase, and a purchase made in Xcode with its StoreKit file, to the registered bundle. The app's settings name the keychain group its sign-in is kept in: `<App ID prefix>.<bundle>.palbase`. |
-| Android | Accepts a passkey ceremony from the app as signed with one of its certificates. Reads a Google Play purchase the app reports from Play under its package. |
+| Android | Accepts a passkey ceremony from the app as signed with one of its certificates, and a device's attested key from the app as signed with one of them ([Device attestation](https://palbase.studio/docs/backend/authentication#device-attestation)). Reads a Google Play purchase the app reports from Play under its package. |
 | Web | Accepts a passkey ceremony from its `https` origins. Starts every [machine](https://palbase.studio/docs/machines/overview) of the environment with its origins, and a `palbase/backend` app answers their browsers' cross-origin requests by itself ([Calling Your Backend](https://palbase.studio/docs/web/backend-calls)); a change rolls the machines out again with the new list. Adds its redirects to the addresses an auth email's link may return to ([Web Auth](https://palbase.studio/docs/web/auth#where-email-links-land)). |
 | Every platform | A web checkout's `success_url` and `cancel_url` return to a web app's origin, or to an iOS or Android app's own scheme: its bundle or its package. |
 
-While App Attest is in `monitor` or `enforce` in an environment, its last iOS app cannot leave it, by `apps:env:unset` or `apps:delete`: a gate with no app would refuse every client. Turn App Attest off there first (`palbase auth:settings:set app_attest_mode=off -E <env>`).
+While App Attest is in `monitor` or `enforce` in an environment, its last iOS or Android app cannot leave it, by `apps:env:unset` or `apps:delete`: a gate with no app would refuse every client. Turn App Attest off there first (`palbase auth:settings:set app_attest_mode=off -E <env>`).
 
 ## Deleting and restoring an app
 

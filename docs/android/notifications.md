@@ -116,6 +116,59 @@ pb.notify.unfollow("release-notes")
 
 A write sets some of the user's preferences and answers all of them. A category the user never set is on, and `transactional` is always on: it is not theirs to turn off. A topic's followers get what the server sends to it with `to: { topic }`.
 
+## The inbox
+
+The signed-in person's inbox holds the messages your backend put there and the copies of pushes it chose to keep, the same on every device of theirs: read on one, it is read on each; deleted, it is gone from each. A message stays its days (90 unless the project said) and an inbox keeps its newest 250.
+
+`InboxView` (`studio.palbase:palbase-notify-ui`) draws it ready, in Compose:
+
+```kotlin
+import studio.palbase.notify.ui.InboxView
+
+@Composable
+fun InboxScreen() {
+    var unread by remember { mutableLongStateOf(0L) }
+    Scaffold(topBar = { TopAppBar(title = { Text(if (unread > 0) "Inbox ($unread)" else "Inbox") }) }) { pad ->
+        InboxView(pb, Modifier.padding(pad).fillMaxSize(), onUnread = { unread = it }, empty = "No messages yet")
+    }
+}
+```
+
+`InboxView(client, modifier, locale, onOpen, onCustom, onUnread, empty, deleteLabel, onOffer, onOfferError)` takes the language to write it in (the person's chosen one unless given), what a tap on a message's link does (the system opens it unless given), a designed card's own buttons, the unread count as it changes, what an empty inbox says, and a designed card's offer button (the purchases module takes the offer unless given, once the app uses `pb.purchases`).
+
+An app that draws its own uses `pb.notify.inbox`:
+
+| Method | What it does |
+|---|---|
+| `list(limit, cursor, locale)` | A page, newest first: `items`, `nextCursor` and `unread`. Each `Inbox.Item` has its id, title, body, image, deep link, category, data, designed card, and when it was made, ends and was read. |
+| `unread()` | How many are unread: what a badge shows. |
+| `markRead(ids)`, `markAllRead()` | Marks messages read, on every device of the person's. |
+| `remove(id)` | Deletes a message, from every device. |
+
+## In-app messages
+
+The project's in-app campaigns (a modal, a banner or a whole screen, designed in Studio) are shown over the app once started. `PalbaseInAppMessages` around the app's root starts them and draws them in Compose:
+
+```kotlin
+import studio.palbase.notify.ui.InAppHandlers
+import studio.palbase.notify.ui.PalbaseInAppMessages
+
+setContent {
+    PalbaseInAppMessages(pb, InAppHandlers(
+        onDeepLink = { url -> startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
+        onShowPaywall = { placement -> showPaywall(placement) },
+    )) {
+        AppNavigation()
+    }
+}
+```
+
+The person's campaigns are asked for as each session of theirs starts (the launch, a return after half an hour away, a sign-in or out). An event the app records with `pb.analytics` (its captures and screens), or names with `pb.notify.inApp.trigger(event, properties)`, shows the first campaign it triggers, the highest priority first, that its caps let: the project's (in a session, in a day, the least time between two) and the campaign's own. Triggers are matched on the device, so no event leaves it for them, and a message is shown whatever the person chose of analytics; a campaign to an audience reaches only people who allowed personalization. A [journey](https://palbase.studio/docs/backend/journeys)'s in-app step opens one of these campaigns for its person, shown the next time it is triggered.
+
+`InAppHandlers` says what the app does with a message's buttons: `onDeepLink`, `onShowPaywall` (a placement's paywall), `onCustom` (the app's own code: a name and a value), `onRequestPush` (the push ask) and `onOffer` (one of the catalog's offers; the purchases module takes it unless given, once the app uses it). A button whose action the app does not take is not drawn.
+
+An app that draws its own calls `pb.notify.inApp.start { presentation -> … }`, which hands it each `InAppPresentation` to show (its `definition`, its `variables`) and `null` when what is shown must go. The app tells back `clicked(action)`, `dismissed()` or `closed()`. `stop()` stops them, and `refresh()` asks for the person's campaigns again.
+
 ## Related
 
 - [Notifications in your backend](https://palbase.studio/docs/backend/notifications): sending push, email, SMS and WhatsApp

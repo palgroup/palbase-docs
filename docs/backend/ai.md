@@ -62,6 +62,20 @@ export class RepliesController {
 
 `usage()` lists the project's uses of models and what each cost. Each use carries its labels (`metadata`): the caller's, and for a chat's turn, the chat's labels and the chat. `usage({ metadata: { product: "p1" } })` lists only the uses that carry those labels, such as a product's spend or a task's. This works after the chat is deleted too. `connectProvider(provider, key)` sends the project's calls to a provider with the project's own key from then on.
 
+## What it costs
+
+The models answer with Palbase's own provider keys, unless the project connected a key of its own for the model's provider (`connectProvider`, or Studio's **AI › Models & keys**). A call under the project's own key is billed to it by the provider, and Palbase charges nothing for it.
+
+- **Each month brings $1.00 of Palbase's models free.** A Free project has its own dollar; an organization with a payment account has one dollar for all its projects, taken off its bill ([Billing](https://palbase.studio/docs/getting-started/billing)).
+- **Past it**, a Pay as you go organization pays from its balance, at the provider's price and 10%. A Free project, or one whose organization's balance ran out, is refused (`402 ai_payment_required`) until the month ends (UTC) or the organization has a balance: a top-up serves it again within a minute.
+- **A monthly budget.** An owner or an admin of the organization may set the most a project spends on Palbase's models in a month, in Studio's **AI › Settings** or with the CLI. Past it, calls to them are refused (`402 ai_budget_reached`) until the month ends or the budget is raised, and the organization's owners are emailed, once a month and budget. The project's key and its environment tokens cannot set it: what spends the money does not raise its own limit.
+- A Free project's dollar and a budget hold as each use ends: a response is admitted with what the project has left, and one that would cost more, or is still running when it is reached, stops there with the error `ai_limit_reached` (a project with less than a cent left is at its limit: `402`). Responses running at once may each spend what was left, so the month may pass the limit by a little.
+- **Pay as you go.** A paying project's responses are held, the same way, to what its organization can still pay: its balance and what is left of its free dollar, all its projects together. When less than a cent is left, calls are `402 ai_payment_required` until a top-up; usage of the last moments before it ran out is taken from the next top-up.
+- **Voice.** A voice session's model runs for as long as the session is open: a project with no payment account opens one on Palbase's models no more (`402 ai_payment_required`), one needs a dollar left of its budget and of what its organization can pay to open, and an open one is closed (`ai_limit_reached`) when the project's free dollar, budget or balance runs out. On the project's own OpenAI key it runs regardless.
+- **A call cut before its answer** (a turn stopped, a stream given up): its provider says what its tokens were only at the end. A reasoning model's hidden thinking, which the provider bills as output, is then estimated from how long it thought at the model's measured speed, rounded down, and the use is marked `estimated` (Studio: **Estimate**).
+
+`GET /ai/spend` says the month's spend at what it is billed, what is left of a Free project's dollar, the budget, and whether Palbase's models serve the project now (and if not, why). Studio shows the same on **AI › Models & keys**.
+
 ## Tools
 
 An agent is given tools from five sources:
@@ -461,6 +475,9 @@ In the app, the member joins `SupportGateway` with the chat's id, and the handle
 | 403 | `not_a_member` | `as` names a user who is not a member of the chat. |
 | 403 | `not_your_turn` | `as` decides or answers a turn another member began. |
 | 404 | `attachment_not_found` | A message attaches a file that is not there, or one its writer may not attach. |
+| 402 | `ai_payment_required` | The project used this month's free AI and its organization has no payment account with a balance, and it has no key of its own for the model's provider ([What it costs](#what-it-costs)). |
+| 402 | `ai_budget_reached` | The project's monthly AI budget is spent, and it has no key of its own for the model's provider. |
+| 403 | `forbidden` | A key or a token named `monthly_budget_usd` in the settings: an owner or an admin sets it, in Studio or with the CLI. |
 | 409 | `history_full` | The project keeps as much chat history as it may. Delete chats to write again. |
 | 409 | `no_workspace` | A message carries `files` into a chat that works in no workspace. |
 | 409 | `attachment_changed` | A file changed while it was attached. Send the message again. |
@@ -469,6 +486,7 @@ In the app, the member joins `SupportGateway` with the chat's id, and the handle
 | 413 | `attachment_too_large` | A message's picture is over 5 MiB, or its file over 15 MiB. |
 | 415 | `unsupported_image` | A message's picture is not a png, jpeg, webp or gif by its bytes. |
 | 429 | `too_many_messages` | The member sent as many messages this minute as the project allows. `Retry-After` says when to write again. |
+| 503 | `billing_unavailable` | Palbase could not check the project's use of its models just now. `Retry-After` says when to try again. |
 
 Each arrives as a `PalbaseError` with its `status` and `code`, its message said in words the caller can act on. A gateway turns the ones a member can act on into a `GatewayRefusal` with the same code, as `asMember` does above.
 

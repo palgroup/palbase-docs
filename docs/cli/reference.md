@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.14.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.16.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-340 commands in 29 groups.
+341 commands in 29 groups.
 
 ## Global flags
 
@@ -1741,6 +1741,17 @@ palbase ai:usage [--kind text|embedding|image] [--metadata key=value]… [--limi
       --cursor <cursor>       the next page, as the last one said it
 ```
 
+### `palbase ai:spend`
+
+What Palbase's models cost the environment this month: the free dollar and what is left of it, the monthly budget, and whether they serve it now — and if not, why
+
+```sh
+palbase ai:spend
+```
+
+Palbase's models are the platform's provider keys. A month brings a dollar of them free: a Free environment's own, a paying account's once for all its projects. Past it a Free environment uses its own provider keys (ai:providers:set); a Pay as you go one pays from the account's balance, at the provider's price and 10%.
+Its own provider keys always serve it, and are not counted here: their provider bills them.
+
 ### `palbase ai:models`
 
 The models the environment may name — every text model with its rungs, window and price, and the embedding and picture models
@@ -1781,7 +1792,7 @@ palbase ai:providers:remove <provider>
 
 ### `palbase ai:settings:get`
 
-What the environment allows its chats: whether the app's users talk to the agents, how often, and how much history is kept
+What the environment allows its chats — whether the app's users talk to the agents, how often, how much history is kept — and its monthly AI budget
 
 ```sh
 palbase ai:settings:get
@@ -1789,16 +1800,20 @@ palbase ai:settings:get
 
 ### `palbase ai:settings:set`
 
-Change what the environment allows its chats: a setting left out is left as it is
+Change what the environment allows its chats, and its monthly AI budget: a setting left out is left as it is
 
 ```sh
-palbase ai:settings:set [--clients on|off] [--messages-per-minute <n>] [--history-limit <bytes>|none]
+palbase ai:settings:set [--clients on|off] [--messages-per-minute <n>] [--history-limit <bytes>|none] [--monthly-budget <usd>|none]
 ```
+
+--monthly-budget is the most the environment spends a month on Palbase's models (the platform's provider keys), at what it is billed: past it a call they would serve is refused (ai_budget_reached) until the month turns (UTC) or the budget is raised, and the organization's owners are emailed once. Its own provider keys are not counted: their provider bills them. palbase ai:spend says what is spent.
+Only an owner or an admin of the organization sets it, as themselves: a member's change of it is refused, and so is a key's or a token's — what spends the money does not raise its own limit.
 
 ```text
       --clients <on|off>            the app's users talk to the agents of their chats with their own session
       --messages-per-minute <n>     how many messages one user sends a minute (1–600)
       --history-limit <bytes|none>  the chat history kept at most, in bytes; none: the plan's
+      --monthly-budget <usd|none>   the most spent a month on Palbase's models, in US dollars (0.01–1000000, cents at most); none: no budget
 ```
 
 ### `palbase ai:agents:list`
@@ -2177,7 +2192,7 @@ An app's health as its store has it: crashes, terminations and hangs, crash and 
 palbase stores:vitals <app id>
 ```
 
-An iOS app: the crashes testers sent from TestFlight, its App Store versions' terminations, hangs and launches, and App Store crashes by day (the App Crashes report, an Admin key's).
+An iOS app: the crashes testers sent from TestFlight, what TestFlight counted of its newest builds (installs, sessions, crashes, feedback), its App Store versions' terminations, hangs and launches, and App Store crashes by day (the App Crashes report, an Admin key's).
 An Android app: Play's Android vitals — each version code's crash and ANR rates over seven days, its errors, and what Play flagged.
 A new day of it is the environment's stores.vitals.changed event.
 

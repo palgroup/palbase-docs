@@ -49,6 +49,7 @@
 - [Secrets](https://palbase.studio/docs/backend/secrets): The project's secrets: the set a machine is started with, and Palbase.secrets for values read while it runs.
 - [Flags](https://palbase.studio/docs/backend/flags): Palbase.flags — define flags, give single users their own values, and read what a user sees, from your backend.
 - [Notifications](https://palbase.studio/docs/backend/notifications): Palbase.notify — email, push, SMS and WhatsApp, templates, topics, each user's preferences, when a message goes (their own hour, quiet hours, the marketing cap), audiences, İYS and stop texts.
+- [Journeys](https://palbase.studio/docs/backend/journeys): Messages, waits, branches and A/B splits a person goes through after what they did: the definition, Studio's flow editor and templates, a try on a test user, publishing, the report and journey.* events.
 - [Realtime](https://palbase.studio/docs/backend/realtime): Palbase.realtime — broadcast to a channel's subscribers and write its shared state from your backend.
 - [Gateways](https://palbase.studio/docs/backend/gateways): @Gateway — a realtime channel of the app: who may join, typed events, members' messages and their acks, the channel's moments, durable gateways that keep what they send, and pipes.
 - [Channels](https://palbase.studio/docs/backend/channels): The realtime module's own channel declaration, for a backend that is not a palbase/backend app: who may join, publish and write state.

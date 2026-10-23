@@ -91,6 +91,10 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `notification.sent` / `notification.failed` | A message ended sent, or failed. | `{ message_id, channel, rail, template, … }` |
 | `notification.received` | A user sent a WhatsApp message to the project's number. | the message |
 | `notification.uninstalled` | A push service said no app holds a device's token any more: the app was taken off the phone. The device is forgotten. | `{ platform, provider, device_id, installation_id, user_id }` |
+| `journey.entered` / `journey.converted` | A person entered a journey, or their run reached its goal. A try on a test user's events carry `test: true` ([Journeys](https://palbase.studio/docs/backend/journeys#events)). | `{ journey, journey_id, run_id, user_id, test }` |
+| `journey.step` | A person's run took a step. | `{ journey, journey_id, run_id, user_id, step, kind, outcome, test }` |
+| `journey.event` | A journey's `event` step told the project's backend. | `{ journey, journey_id, run_id, user_id, step, name, data, test }` |
+| `journey.ended` | A person's run ended: `completed`, `converted`, `exited`, `stopped`. | `{ journey, journey_id, run_id, user_id, reason, test }` |
 | `audience.entered` / `audience.exited` | A person came to be in an analytics audience, or left it. | `{ audience_id, audience_name, person_id, user_id }` |
 | `machine.created` / `machine.updated` / `machine.deleted` | A machine was opened, changed, or taken away. | `{ name, source, size, replicas, port, version }` |
 | `stores.apple.changed` | The Apple account was connected, checked (and Apple's answer changed) or disconnected. The key is never in the event. | `{ change, issuer_id, key_id, status, capabilities }` |

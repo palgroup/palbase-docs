@@ -97,7 +97,7 @@ palbase transit:rotate --retire-previous  # a new key, and every older one refus
 palbase transit:retire t1                 # refuse one older key
 ```
 
-A key thought exposed is rotated with `--retire-previous`. Your backend refuses a retired key within a minute, and an app that sealed to it is told so: it fetches the list again and sends the call once more, sealed to the new key — the user sees nothing. An app fetches the list again every hour in any case. The secrets audit trail (`palbase secrets:audit`) has every rotation and retirement.
+A key thought exposed is rotated with `--retire-previous`. A request sealed to a retired key is refused at once, before it reaches your backend (which also refuses it on its own once it next fetches the keys, within a minute), and an app that sealed to it is told so: it fetches the list again and sends the call once more, sealed to the new key — the user sees nothing. An app fetches the list again every hour in any case. The secrets audit trail (`palbase secrets:audit`) has every rotation and retirement.
 
 ## Errors
 

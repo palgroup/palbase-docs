@@ -78,6 +78,7 @@ export class CatalogController {
 | `false` | Anyone may call. A valid token still makes the caller a user (`@OptionalUser()`, and the database's identity). |
 | `{ required?: boolean }` | The same as `true` or `false`; `required` defaults to `true`. |
 | `{ verifiedEmail: true }` | A signed-in user whose token says `email_verified: true`, or `403 email_not_verified`. |
+| `{ aal: "aal2" }` | A user who signed in with a second factor (a passkey that verified its user, an authenticator or SMS code, a step-up), or `401 insufficient_user_authentication`. `"aal3"` asks more; `"aal1"` is a sign-in of any kind. Implies a signed-in user: with `required: false` the app stops at boot. |
 
 `role` and `permission` fields are refused when the app boots. Its token carries no application roles, and Palbase does not check them against a database, so the boot stops with an error naming the route, saying the role check has no database to run against and that the role is to be checked in the service. How to check one is [below](#roles).
 
@@ -89,7 +90,24 @@ export class CatalogController {
 | `Authorization` that is not `Bearer <token>` | `401 invalid_token` | handled, user `null` |
 | a token that does not verify | `401 invalid_token`, `data.reason` says why | handled, user `null` |
 | a valid token | handled, `@User()` is the user | handled, `@OptionalUser()` is the user |
+| a valid token below the route's `aal` | `401 insufficient_user_authentication` | — |
 | tokens cannot be checked right now | `503 auth_unavailable`, `Retry-After: 1` | handled, user `null` |
+
+`insufficient_user_authentication` is RFC 9470's step-up challenge: `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values="urn:nist:800-63:aal2"` and `data.acr_values: "aal2"`. The session is fine: the app steps the user up (their second factor) and calls again. Palbase's clients name it apart from a signed-out caller: `stepUpRequired` on iOS, `StepUpRequired` on Android, `kind: "stepUpRequired"` on the web; none refreshes or ends the session for it.
+
+```ts
+// src/modules/admin/approvals.controller.ts
+import { Controller, Param, Post, User, type UserT } from "palbase/backend";
+
+@Controller("/admin")
+export class ApprovalsController {
+  // Approving needs the admin's second factor, whatever their session.
+  @Post("/approvals/{id}", { auth: { aal: "aal2" } })
+  approve(@User() user: UserT, @Param("id") id: string) {
+    return { approvedBy: user.id, id, how: user.amr };
+  }
+}
+```
 
 `data.reason` on an `invalid_token` refusal is one of `malformed`, `algorithm`, `unknown_key`, `signature`, `issuer`, `audience`, `project`, `expired`, `not_yet_valid`, `not_a_user`, `bound`, `not_a_session` or `session_ended`. A client that gets `expired` refreshes its session and calls again. `palbase/web` does that by itself for the project's modules. See [Calling Your Backend](https://palbase.studio/docs/web/backend-calls).
 
@@ -129,8 +147,43 @@ When the key set cannot be read and none is held, or a session's standing cannot
 | `metadata` | `Record<string, unknown>` | The token's `custom_claims` |
 | `sessionId` | `string \| null` | The session the token belongs to |
 | `test` | `boolean` | A [test user](https://palbase.studio/docs/backend/test-users) of the project |
+| `acr` | `"aal1" \| "aal2" \| "aal3" \| null` | How the user signed in (the token's `acr`): `aal2` with a second factor. `null` where no token says it: an upload's or a gateway's caller, whom the platform names |
+| `amr` | `string[]` | The methods the sign-in used (the token's `amr`: `pwd`, `otp`, `hwk`, …) |
+| `authTime` | `number \| null` | When the user signed in or last stepped up, in Unix seconds (the token's `auth_time`) |
 
 The object is marked as request data: the user writes their own metadata, so the database takes values from it but never treats it as a filter's structure. See [Request Validation](https://palbase.studio/docs/backend/validation).
+
+## Device attestation
+
+A route marked `attest: true` is called only by your own app, on a genuine device: Palbase's [iOS](https://palbase.studio/docs/ios/backend-calls#device-attestation) and [Android](https://palbase.studio/docs/android/backend-calls#device-attestation) SDKs attach a proof to the call by themselves. On iOS the proof is Apple's App Attest; on Android a key in the phone's secure hardware that Google's attestation vouches for: a locked, verified phone running your app as you signed it. A script, an emulator, a modified app or a call replayed with another body has none that verifies.
+
+```ts
+// src/modules/location/location.controller.ts
+import { Body, Controller, Post, z } from "palbase/backend";
+
+const Report = z.object({ lat: z.number(), lng: z.number() });
+
+@Controller("/location", { auth: false })
+export class LocationController {
+  // A report made up with curl, or sent from a Simulator, does not get in.
+  @Post("/report", { attest: true })
+  report(@Body(Report) report: z.infer<typeof Report>) {
+    return { received: report };
+  }
+}
+```
+
+`attest: true` goes on a route or on a `@Controller(path, { attest: true })`, where a route's `attest: false` leaves it out. Whether it is asked is the environment's switch, not the code's: **App Attest mode** in Studio's Authentication settings (Device trust), or `palbase auth:settings:set app_attest_mode=<mode> -E <env>`. A change applies within 30 seconds, with no deploy (the app reads it every 25).
+
+| Mode | What an attested route does |
+|---|---|
+| `off` (the default) | Nothing: every call is handled. |
+| `monitor` | Every call's proof is verified, and nobody is refused. Studio's Device trust shows the last 24 hours: proofs verified, proofs refused, devices that cannot attest, clients without attestation support. |
+| `enforce` | A call without a proof that verifies is answered `401 app_attest_required`. |
+
+The refusal carries `data.reason` (`app_attest_required`: no proof; `assertion_invalid`; `assertion_stale`: another call used the device's counter first; `device_unknown`: the device is not enrolled) and `data.challenge`, also in the `X-Palbase-Attest-Challenge` header: the SDK enrols the device when it must, proves the call with that challenge and sends it once more. Every answer of an attested route carries the next challenge in the same header, so a device's next call needs no extra round trip. When the proof cannot be checked (auth is not reachable, or the environment's mode was never read since the machine started) the route answers `503 attest_unavailable` with `Retry-After: 1`.
+
+The environment's iOS and Android apps are its registered apps (`palbase apps:env:set`): an iOS app's App Attest key is taken for its bundle and team, an Android app's key for its package and the signing certificates registered with it (Play's app signing key and your upload key; not a debug key, whose build anyone with the phone can drive to sign requests). An Android enrolment is checked again on every call: a certificate of its chain revoked since, or a signing certificate taken off the app, stops it, and after 30 days the phone enrols again. Calls an app makes at once may reach the backend in any order: each is taken once. A browser cannot attest: under `enforce`, a web app's calls to an attested route are refused. So are calls from older app versions that predate attestation; set the app's minimum version before turning `enforce` on.
 
 ## Roles
 

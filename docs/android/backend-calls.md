@@ -119,13 +119,25 @@ The contract's errors are what the route throws, as the backend's build reads th
 | `Validation(fields, …)` | A `400` that names fields: each `FieldError(field, message)`. |
 | `Unauthorized(…)` | A `401` after the refresh did not mend it. |
 | `RateLimited(retryAfter, …)` | A `429`, with the seconds to wait. |
-| `IntegrityRequired(code, …)` | A `401` that asks for a proof of the device's integrity first (`play_integrity_required`, …). |
+| `IntegrityRequired(code, …)` | A `401 app_attest_required` the device's proof could not settle: the SDK enrolled, proved and sent the call again, and the backend still refused ([Device attestation](#device-attestation)). |
+| `AttestationUnavailable(reason, …)` | The route asks for the device's proof and this device cannot give one: an emulator or a key that is not in secure hardware (`hardware_key_unavailable`, `software_key`), an unlocked bootloader (`device_not_locked`), the keystore not answering now (`keystore_unavailable`, asked again later). Nothing more is sent. |
+| `StepUpRequired(acrValues, maxAge, …)` | A `401 insufficient_user_authentication`: the route asks for a stronger sign-in (`acrValues`, e.g. `urn:nist:800-63:aal2`). The session is fine and is not refreshed: step the user up with their second factor, then call again. |
 | `Network(ioCause)` | No answer: no network, the host unreachable. |
 | `Decoding(decodeCause)` | A 2xx whose body is not what the contract declares. |
 | `Encoding(encodeCause)` | The request could not be written; it was not sent. |
 | `NotConfigured` | The environment names no such backend: run `palbase apps:sync`. |
 
 `Http`, `Validation`, `Unauthorized` and `RateLimited` have the answer behind them in `envelope`: the status, the code, the message and the request id, whatever they were classified as. A generated error matches its cases against it, so a route that declares a `401` or a `429` of its own still gets its typed case.
+
+## Device attestation
+
+A route the backend marks `attest: true` is called only by your app on a genuine phone ([Device attestation](https://palbase.studio/docs/backend/authentication#device-attestation)). The SDK proves each call by itself:
+
+- once per install, it makes a key in the phone's secure hardware and enrols it: auth checks the key's attestation chain against Google's roots and revocation list, that the phone is locked with a verified boot, and that the app is your registered package signed with one of its registered certificates;
+- each call to the backend then carries a signature with that key over the call's method, path, body and a short-lived challenge, and a counter, so a captured call cannot be sent again or changed;
+- a `401 app_attest_required` is answered by itself: enrol if needed, prove, send once more.
+
+What only you set: the SHA-256 of the certificates your releases are signed with, registered with the app (`palbase apps:env:set <app> --sha256 play_signing=AB:CD:…`; Play's app signing key and your upload key). Do not register a debug key where attestation is enforced: a debug build can be driven over adb to sign requests. An emulator cannot attest: under enforce its calls end in `AttestationUnavailable`.
 
 ## Uploads
 

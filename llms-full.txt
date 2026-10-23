@@ -1286,7 +1286,7 @@ It stops working when it expires, when it is revoked (`DELETE /v1/environments/{
 
 An organization is billed for its projects' use by the calendar month (UTC). It is on one of two plans:
 
-- **Free**: no card. Every item has a free quota each month; a person with no payment account opens at most 2 projects of 2 environments each, and machines and databases are of the free sizes.
+- **Free**: no card. Every item has a free quota each month; a person with no payment account opens at most 2 projects of 2 environments each — one deleted counts until the month is out, so deleting and opening again brings no new month of free quotas; a Free project is opened by a person, not an organization's access token — and machines and databases are of the free sizes.
 - **Pay as you go**: the organization opens a payment account and loads a balance ahead, in US dollars. Its projects use the free quota once for the whole organization; what they use past it is priced and taken from the balance as it is used, every few minutes. There is no monthly fee and no bill afterwards.
 
 The prices, the free quotas and the terms are on the [billing terms](https://palbase.studio/legal/billing) page.
@@ -1299,23 +1299,29 @@ From then on the organization's projects may open every size of machine and data
 
 ## Top-ups
 
-- **Automatic**: when the balance comes under a threshold, the saved card is charged an amount, at most once an hour; on by default ($20 when under $5). A refund or a dispute turns it off. **Billing › Settings** changes both, sets a monthly cap on what it takes in a calendar month (the last top-up of a month is what is left of the cap, when that is at least $10), or turns it off, and the balance is then the ceiling. When the cap holds a top-up back, the owners and admins are emailed, once a month (again only if the cap is changed). A declined charge is tried again once a day for two days, and the owners and admins are emailed each time; its invoice is voided (**Invoices** shows it as declined), and each try is a new one.
-- **Now, from the card**: **Top up** on the Billing page.
+- **Automatic**: when the balance comes under a threshold, the default card is charged an amount, at most once an hour; on by default ($20 when under $5). A refund or a dispute turns it off. **Billing › Automatic top-up** changes both, sets a monthly cap on what it takes in a calendar month (the last top-up of a month is what is left of the cap, when that is at least $10), or turns it off, and the balance is then the ceiling. When the cap holds a top-up back, the owners and admins are emailed, once a month (again only if the cap is changed). When the default card declines, the same invoice is paid from the organization's other cards in turn — it is paid once at most. When every card declines, it is tried again once a day for two days, and the owners and admins are emailed each time; its invoice is voided (**Invoices** shows it as declined), and each try is a new one.
+- **Now**: **Top up** on the Billing page — a usual amount or any other, from any saved card, or another card on Stripe's page (it is saved for next time).
 - **By bank transfer**: **Top up › Bank transfer** makes an invoice with bank details of the organization's own; the balance gets the amount when the transfer arrives.
 
-A top-up can be spent for 12 months; what is left of it then expires.
+A top-up can be spent for 12 months; what is left of it then expires. **Billing › Credits** lists each top-up and bonus with what is left of it and when it expires; the one closest to expiring is spent first.
+
+## Cards and billing details
+
+**Billing › Payment** lists the organization's cards. **Add card** saves one on Stripe's page — nothing is charged — and makes it the default unless you say otherwise; any other card can be made the default or removed. The default card is removed only when it is the last one, and the automatic top-up turns off with it.
+
+**Edit billing details** sets the name, address and tax number (a VAT number in the EU) the next invoices are made out to. The address is checked for tax at once: one that cannot be placed is refused, and nothing changes.
 
 ## What is charged
 
-**Billing** shows the month: the balance, what each environment used of each item and what it would cost on its own (gross), and the organization's charge for each item, its free quota taken once. **Download CSV** gives the same, a line per environment and item, for an organization that bills its own customers per project.
+**Usage** shows the month: what each environment used of each item and what it would cost on its own (gross), and the organization's charge for each item, its free quota taken once. Any member reads what was used; the amounts are an owner's or an admin's. **Download CSV** gives the same, a line per environment and item, for an organization that bills its own customers per project.
 
-Palbase AI's models, on Palbase's own provider keys, are their provider's price and 10%. Requests, push notifications, and email, SMS and WhatsApp sent through the project's own provider are not charged.
+Palbase AI's models, on Palbase's own provider keys, are their provider's price and 10%, and each month brings $1.00 of them free, once for the organization's projects. A project may have a monthly AI budget of its own ([AI](/docs/backend/ai#what-it-costs)). A call under the project's own provider key is the provider's to bill. Requests, push notifications, and email, SMS and WhatsApp sent through the project's own provider are not charged.
 
-The owners and admins are emailed when the balance comes under the days of spend they choose (3 by default, in **Settings**), and when it runs out.
+The owners and admins are emailed when the balance comes under the days of spend they choose (3 by default, in **Automatic top-up**), and when it runs out.
 
 ## Each environment's place in the bill
 
-For each environment, an admin can, on the Billing page or from the API:
+For each environment, an admin can, on the Usage page (**Change**) or from the API:
 
 - set a **monthly cap**: at it, the environment is Free until the month ends, while the others go on;
 - pull it to the **Free plan**: it is charged nothing and held to the free quotas;
@@ -1323,7 +1329,7 @@ For each environment, an admin can, on the Billing page or from the API:
 
 ## When the balance runs out
 
-Nothing is owed. What is paid for stops: machines and databases of a paid size stop (`402 machine_not_paid` while it lasts), and the projects are held to the free quotas, as on the Free plan; what is within them goes on. Usage measured in the few minutes before it stopped is taken from the next top-up; what the projects use after it is not charged. While the balance is out, the organization's projects share one free quota, as the account's bill does. A top-up brings everything back by itself.
+Nothing is owed. What is paid for stops: machines and databases of a paid size stop (`402 machine_not_paid` while it lasts), Palbase's AI models past the month's free dollar are refused (`402 ai_payment_required`; a project's own provider key goes on), and the projects are held to the free quotas, as on the Free plan; what is within them goes on. Usage measured in the few minutes before it stopped is taken from the next top-up; what the projects use after it is not charged. While the balance is out, the organization's projects share one free quota, as the account's bill does. A top-up brings everything back by itself.
 
 ## From the terminal
 
@@ -1350,12 +1356,16 @@ What Studio's Billing page does, an admin's [access token](/docs/getting-started
 |---|---|
 | `GET /v1/orgs/{id}/billing` | The plan, the balance, the settings, and each environment's place in the bill |
 | `PATCH /v1/orgs/{id}/billing` | Automatic top-up (`auto_topup`, `auto_threshold_micros`, `auto_amount_micros`, `monthly_cap_micros`) and `low_balance_days` |
-| `POST /v1/orgs/{id}/billing/topups` | A top-up from the saved card: `{ "amount_micros": 20000000 }` |
+| `POST /v1/orgs/{id}/billing/topups` | A top-up from the default card, or the one named: `{ "amount_micros": 20000000, "payment_method": "pm_…" }` |
+| `GET /v1/orgs/{id}/billing/cards` | The cards, the default first |
+| `PUT /v1/orgs/{id}/billing/cards/{card}/default` | Makes a card the default |
+| `DELETE /v1/orgs/{id}/billing/cards/{card}` | Removes a card; the default only when it is the last |
+| `GET` / `PUT /v1/orgs/{id}/billing/customer` | The name, `address` and `tax_id` (`{ "type": "eu_vat", "value": "…" }`, or `null`) the invoices are made out to |
 | `POST /v1/orgs/{id}/billing/bank-transfers` | An invoice to pay by bank transfer |
 | `GET /v1/orgs/{id}/billing/charges?period=2026-10` | The month's charges, by environment and item |
 | `GET /v1/orgs/{id}/billing/charges.csv?period=2026-10` | The same, as CSV |
 | `GET /v1/orgs/{id}/billing/invoices` | The top-ups' invoices |
-| `GET /v1/orgs/{id}/billing/ledger` | Every change of the balance |
+| `GET /v1/orgs/{id}/billing/ledger` | Every change of the balance; `?kind=topup,bonus` for the credits alone |
 | `PATCH /v1/orgs/{id}/billing/environments/{ref}` | An environment's `cap_micros` (`null`: none), `free`, `frozen` |
 
 Amounts are in micro-dollars (1,000,000 is $1), in whole cents. A member reads the plan and what was used; amounts and money are an admin's.
@@ -1460,6 +1470,7 @@ A project is free while its organization has no payment account, or has one with
 - **Sizes.** Its machines are of the `shared-256` size, the one free machine size, and it has one database at most, of the `free` size: a project holds one database of a free size at a time ([Databases](/docs/machines/databases#sizes)). Every other size is paid for: opening a machine or a database of one, or moving one to it, is `403 size_not_available`. `palbase machines:sizes` and `palbase databases:sizes` list the sizes and which of them the environment may open now ([Machines](/docs/machines/overview#sizes)).
 - **Traffic.** It sends 5 GB a month at full speed: its machines' internet traffic and its response traffic together. Past it, until the month ends, its machines' traffic and answers and the files its storage hands out go at about 256 kbit/s; nothing is stopped, and the API's other answers are not slowed. A slowed project's downloads are paced, and one more than it may have under way at once is `429 rate_limited` with `Retry-After`. See [Reaching the internet](/docs/machines/overview#reaching-the-internet).
 - **A free database** is awake 400 hours a month at most. Past them it sleeps until the month ends, refusing connections, with its data kept; from then its next connection wakes it.
+- **AI.** $1.00 of Palbase's models a month, at the provider's price and 10%. Past it, until the month ends, a call to them is `402 ai_payment_required`; a call under the project's own provider key goes on ([AI](/docs/backend/ai#what-it-costs)).
 
 A project whose organization pays is never slowed for its traffic, and its machines and databases may be of any size; a database of the `free` size keeps its 400 hours whoever holds it. What it uses past the organization's free quotas is charged from the balance ([Billing](/docs/getting-started/billing)).
 
@@ -1648,9 +1659,9 @@ Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:r
 
 # CLI reference
 
-Every command of `palbase` 0.14.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.16.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-340 commands in 29 groups.
+341 commands in 29 groups.
 
 ## Global flags
 
@@ -3387,6 +3398,17 @@ palbase ai:usage [--kind text|embedding|image] [--metadata key=value]… [--limi
       --cursor <cursor>       the next page, as the last one said it
 ```
 
+### `palbase ai:spend`
+
+What Palbase's models cost the environment this month: the free dollar and what is left of it, the monthly budget, and whether they serve it now — and if not, why
+
+```sh
+palbase ai:spend
+```
+
+Palbase's models are the platform's provider keys. A month brings a dollar of them free: a Free environment's own, a paying account's once for all its projects. Past it a Free environment uses its own provider keys (ai:providers:set); a Pay as you go one pays from the account's balance, at the provider's price and 10%.
+Its own provider keys always serve it, and are not counted here: their provider bills them.
+
 ### `palbase ai:models`
 
 The models the environment may name — every text model with its rungs, window and price, and the embedding and picture models
@@ -3427,7 +3449,7 @@ palbase ai:providers:remove <provider>
 
 ### `palbase ai:settings:get`
 
-What the environment allows its chats: whether the app's users talk to the agents, how often, and how much history is kept
+What the environment allows its chats — whether the app's users talk to the agents, how often, how much history is kept — and its monthly AI budget
 
 ```sh
 palbase ai:settings:get
@@ -3435,16 +3457,20 @@ palbase ai:settings:get
 
 ### `palbase ai:settings:set`
 
-Change what the environment allows its chats: a setting left out is left as it is
+Change what the environment allows its chats, and its monthly AI budget: a setting left out is left as it is
 
 ```sh
-palbase ai:settings:set [--clients on|off] [--messages-per-minute <n>] [--history-limit <bytes>|none]
+palbase ai:settings:set [--clients on|off] [--messages-per-minute <n>] [--history-limit <bytes>|none] [--monthly-budget <usd>|none]
 ```
+
+--monthly-budget is the most the environment spends a month on Palbase's models (the platform's provider keys), at what it is billed: past it a call they would serve is refused (ai_budget_reached) until the month turns (UTC) or the budget is raised, and the organization's owners are emailed once. Its own provider keys are not counted: their provider bills them. palbase ai:spend says what is spent.
+Only an owner or an admin of the organization sets it, as themselves: a member's change of it is refused, and so is a key's or a token's — what spends the money does not raise its own limit.
 
 ```text
       --clients <on|off>            the app's users talk to the agents of their chats with their own session
       --messages-per-minute <n>     how many messages one user sends a minute (1–600)
       --history-limit <bytes|none>  the chat history kept at most, in bytes; none: the plan's
+      --monthly-budget <usd|none>   the most spent a month on Palbase's models, in US dollars (0.01–1000000, cents at most); none: no budget
 ```
 
 ### `palbase ai:agents:list`
@@ -3823,7 +3849,7 @@ An app's health as its store has it: crashes, terminations and hangs, crash and 
 palbase stores:vitals <app id>
 ```
 
-An iOS app: the crashes testers sent from TestFlight, its App Store versions' terminations, hangs and launches, and App Store crashes by day (the App Crashes report, an Admin key's).
+An iOS app: the crashes testers sent from TestFlight, what TestFlight counted of its newest builds (installs, sessions, crashes, feedback), its App Store versions' terminations, hangs and launches, and App Store crashes by day (the App Crashes report, an Admin key's).
 An Android app: Play's Android vitals — each version code's crash and ANR rates over seven days, its errors, and what Play flagged.
 A new day of it is the environment's stores.vitals.changed event.
 
@@ -7185,6 +7211,7 @@ export class CatalogController {
 | `false` | Anyone may call. A valid token still makes the caller a user (`@OptionalUser()`, and the database's identity). |
 | `{ required?: boolean }` | The same as `true` or `false`; `required` defaults to `true`. |
 | `{ verifiedEmail: true }` | A signed-in user whose token says `email_verified: true`, or `403 email_not_verified`. |
+| `{ aal: "aal2" }` | A user who signed in with a second factor (a passkey that verified its user, an authenticator or SMS code, a step-up), or `401 insufficient_user_authentication`. `"aal3"` asks more; `"aal1"` is a sign-in of any kind. Implies a signed-in user: with `required: false` the app stops at boot. |
 
 `role` and `permission` fields are refused when the app boots. Its token carries no application roles, and Palbase does not check them against a database, so the boot stops with an error naming the route, saying the role check has no database to run against and that the role is to be checked in the service. How to check one is [below](#roles).
 
@@ -7196,7 +7223,24 @@ export class CatalogController {
 | `Authorization` that is not `Bearer <token>` | `401 invalid_token` | handled, user `null` |
 | a token that does not verify | `401 invalid_token`, `data.reason` says why | handled, user `null` |
 | a valid token | handled, `@User()` is the user | handled, `@OptionalUser()` is the user |
+| a valid token below the route's `aal` | `401 insufficient_user_authentication` | — |
 | tokens cannot be checked right now | `503 auth_unavailable`, `Retry-After: 1` | handled, user `null` |
+
+`insufficient_user_authentication` is RFC 9470's step-up challenge: `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values="urn:nist:800-63:aal2"` and `data.acr_values: "aal2"`. The session is fine: the app steps the user up (their second factor) and calls again. Palbase's clients name it apart from a signed-out caller: `stepUpRequired` on iOS, `StepUpRequired` on Android, `kind: "stepUpRequired"` on the web; none refreshes or ends the session for it.
+
+```ts
+// src/modules/admin/approvals.controller.ts
+import { Controller, Param, Post, User, type UserT } from "palbase/backend";
+
+@Controller("/admin")
+export class ApprovalsController {
+  // Approving needs the admin's second factor, whatever their session.
+  @Post("/approvals/{id}", { auth: { aal: "aal2" } })
+  approve(@User() user: UserT, @Param("id") id: string) {
+    return { approvedBy: user.id, id, how: user.amr };
+  }
+}
+```
 
 `data.reason` on an `invalid_token` refusal is one of `malformed`, `algorithm`, `unknown_key`, `signature`, `issuer`, `audience`, `project`, `expired`, `not_yet_valid`, `not_a_user`, `bound`, `not_a_session` or `session_ended`. A client that gets `expired` refreshes its session and calls again. `palbase/web` does that by itself for the project's modules. See [Calling Your Backend](/docs/web/backend-calls).
 
@@ -7236,8 +7280,43 @@ When the key set cannot be read and none is held, or a session's standing cannot
 | `metadata` | `Record<string, unknown>` | The token's `custom_claims` |
 | `sessionId` | `string \| null` | The session the token belongs to |
 | `test` | `boolean` | A [test user](/docs/backend/test-users) of the project |
+| `acr` | `"aal1" \| "aal2" \| "aal3" \| null` | How the user signed in (the token's `acr`): `aal2` with a second factor. `null` where no token says it: an upload's or a gateway's caller, whom the platform names |
+| `amr` | `string[]` | The methods the sign-in used (the token's `amr`: `pwd`, `otp`, `hwk`, …) |
+| `authTime` | `number \| null` | When the user signed in or last stepped up, in Unix seconds (the token's `auth_time`) |
 
 The object is marked as request data: the user writes their own metadata, so the database takes values from it but never treats it as a filter's structure. See [Request Validation](/docs/backend/validation).
+
+## Device attestation
+
+A route marked `attest: true` is called only by your own app, on a genuine device: Palbase's [iOS](/docs/ios/backend-calls#device-attestation) and [Android](/docs/android/backend-calls#device-attestation) SDKs attach a proof to the call by themselves. On iOS the proof is Apple's App Attest; on Android a key in the phone's secure hardware that Google's attestation vouches for: a locked, verified phone running your app as you signed it. A script, an emulator, a modified app or a call replayed with another body has none that verifies.
+
+```ts
+// src/modules/location/location.controller.ts
+import { Body, Controller, Post, z } from "palbase/backend";
+
+const Report = z.object({ lat: z.number(), lng: z.number() });
+
+@Controller("/location", { auth: false })
+export class LocationController {
+  // A report made up with curl, or sent from a Simulator, does not get in.
+  @Post("/report", { attest: true })
+  report(@Body(Report) report: z.infer<typeof Report>) {
+    return { received: report };
+  }
+}
+```
+
+`attest: true` goes on a route or on a `@Controller(path, { attest: true })`, where a route's `attest: false` leaves it out. Whether it is asked is the environment's switch, not the code's: **App Attest mode** in Studio's Authentication settings (Device trust), or `palbase auth:settings:set app_attest_mode=<mode> -E <env>`. A change applies within 30 seconds, with no deploy (the app reads it every 25).
+
+| Mode | What an attested route does |
+|---|---|
+| `off` (the default) | Nothing: every call is handled. |
+| `monitor` | Every call's proof is verified, and nobody is refused. Studio's Device trust shows the last 24 hours: proofs verified, proofs refused, devices that cannot attest, clients without attestation support. |
+| `enforce` | A call without a proof that verifies is answered `401 app_attest_required`. |
+
+The refusal carries `data.reason` (`app_attest_required`: no proof; `assertion_invalid`; `assertion_stale`: another call used the device's counter first; `device_unknown`: the device is not enrolled) and `data.challenge`, also in the `X-Palbase-Attest-Challenge` header: the SDK enrols the device when it must, proves the call with that challenge and sends it once more. Every answer of an attested route carries the next challenge in the same header, so a device's next call needs no extra round trip. When the proof cannot be checked (auth is not reachable, or the environment's mode was never read since the machine started) the route answers `503 attest_unavailable` with `Retry-After: 1`.
+
+The environment's iOS and Android apps are its registered apps (`palbase apps:env:set`): an iOS app's App Attest key is taken for its bundle and team, an Android app's key for its package and the signing certificates registered with it (Play's app signing key and your upload key; not a debug key, whose build anyone with the phone can drive to sign requests). An Android enrolment is checked again on every call: a certificate of its chain revoked since, or a signing certificate taken off the app, stops it, and after 30 days the phone enrols again. Calls an app makes at once may reach the backend in any order: each is taken once. A browser cannot attest: under `enforce`, a web app's calls to an attested route are refused. So are calls from older app versions that predate attestation; set the app's minimum version before turning `enforce` on.
 
 ## Roles
 
@@ -9168,7 +9247,7 @@ palbase transit:rotate --retire-previous  # a new key, and every older one refus
 palbase transit:retire t1                 # refuse one older key
 ```
 
-A key thought exposed is rotated with `--retire-previous`. Your backend refuses a retired key within a minute, and an app that sealed to it is told so: it fetches the list again and sends the call once more, sealed to the new key — the user sees nothing. An app fetches the list again every hour in any case. The secrets audit trail (`palbase secrets:audit`) has every rotation and retirement.
+A key thought exposed is rotated with `--retire-previous`. A request sealed to a retired key is refused at once, before it reaches your backend (which also refuses it on its own once it next fetches the keys, within a minute), and an app that sealed to it is told so: it fetches the list again and sends the call once more, sealed to the new key — the user sees nothing. An app fetches the list again every hour in any case. The secrets audit trail (`palbase secrets:audit`) has every rotation and retirement.
 
 ## Errors
 
@@ -10720,6 +10799,10 @@ export class InviteMail {
 }
 ```
 
+## Journeys
+
+A journey sends a person messages over time after something they did — a welcome over their first week, a win-back after they stopped buying — with waits, branches and A/B splits between them: [Journeys](/docs/backend/journeys).
+
 ## Related
 
 - [Webhooks](/docs/server/webhooks) — `notification.sent`, `notification.failed`, `notification.received`, `notification.uninstalled`
@@ -10728,10 +10811,150 @@ export class InviteMail {
 - [Secrets](/docs/backend/secrets) — the values your own code reads (a provider's credentials are kept by notify, sealed)
 - [Test Users](/docs/backend/test-users) — users to send to while you try a flow
 
-## Journeys from the CLI
 
-A journey is kept as a file and handled with the CLI: saved as a draft, published, then followed. A published journey
-does not change — push its file under a new key, publish it, and stop the old one.
+
+<!-- ===== backend/journeys ===== -->
+
+# Journeys
+
+A journey takes each person who does something — signs up, stops opening the app, buys, joins an audience — through the steps you set: messages, waits, branches, A/B splits, coupons and grants. It is built in Studio's **Journeys** or kept as a JSON file and handled with the CLI, tried on a test user, published, and then reported on: who entered, what each step came to, how many reached its goal.
+
+Journeys are the project's server's: their API takes the secret key (or a member's session in Studio), never the publishable key.
+
+## Quick example
+
+A journey that welcomes a new user, checks a day later whether they finished setting up, and A/B tests the reminder for those who did not:
+
+```json
+{
+  "name": "Onboarding",
+  "entry": { "event": { "name": "sign_up" } },
+  "goal": { "event": { "name": "onboarding_completed" }, "within": "P7D" },
+  "start": "welcome",
+  "steps": {
+    "welcome": { "inbox": { "title": { "en": "Welcome aboard" }, "body": { "en": "Here is how to get the most out of the app." } }, "next": "wait_1d" },
+    "wait_1d": { "wait": { "for": "P1D" }, "next": "finished" },
+    "finished": { "branch": { "if": { "event": { "name": "onboarding_completed" } }, "then": "end", "else": "tip" } },
+    "tip": { "split": [{ "name": "push", "weight": 50, "next": "tip_push" }, { "name": "inbox", "weight": 50, "next": "tip_inbox" }] },
+    "tip_push": { "push": { "title": { "en": "One step left" }, "body": { "en": "Finish setting up in under a minute." } }, "next": "end" },
+    "tip_inbox": { "inbox": { "title": { "en": "One step left" }, "body": { "en": "It is all in one place." } }, "next": "end" }
+  }
+}
+```
+
+```bash
+palbase journeys:validate onboarding.json            # every problem, at its path, with what to do about it
+palbase journeys:push onboarding.json --publish      # save it as a draft (key: the file's name) and publish it
+palbase journeys:stats onboarding                    # who entered, each step, the goal's conversions, each A/B way
+```
+
+## A journey
+
+A definition has who enters (`entry`), the steps by id with the first one (`start`), what the journey is for (`goal`), what takes a person out early (`exit`) and whether a person enters again (`reentry`). Each step does one thing and names the step after it in `next`; `end`, or no `next`, ends the person's run. A person is in a journey once at a time.
+
+| Who enters (`entry`, one of) | |
+|---|---|
+| `event: { name, where }` | A person who does the event — an app's own (`sign_up`), or a module's: `purchases.purchase.completed`, `purchases.coupon.redeemed`, `audience.entered` — with the properties `where` names, each equal. |
+| `audience: "<id>"` | A person who comes to be in an analytics audience. |
+| `inactive: { event, for }` | A person who has not done the event for a while (1 hour to 90 days): the moment it passes since their last one. `$session_start` is someone who has not opened the app. |
+| `members_of: "<id>"` | An audience's members, once, as the journey is published. |
+
+`goal: { event, within }` — a run that sees the event within `within` of entering (30 days unless it says, 90 at most) ends **converted**; a run that completed before it is counted converted too. `exit: { events, audience_left }` takes a person out when they do one of the events or leave the audience. `reentry.mode` is `once` (the default: never again), `always` (each time, once their run ended) or `after` (once `after` has passed since they last entered). Whatever it says, a person enters one journey 20 times a day at most, so a journey whose own steps cause its entry event does not loop.
+
+Durations are ISO 8601: `PT30M`, `PT2H`, `P2D`, `P1W`.
+
+## Steps
+
+| Step | What it does |
+|---|---|
+| `push` | A push to the person's devices: `title` and `body` by locale (`en`, `tr`, `pt-BR`), or one of the project's push `template`s; `deep_link`, `image`, `data`, `category`; `inbox: true` keeps a copy in their inbox. |
+| `inbox` | A message in the person's inbox: `title` and `body` by locale, `deep_link`, `image`, `expires_in_days`. |
+| `email` | An email from one of the project's email templates, with its `variables`. |
+| `in_app` | One of the project's in-app campaigns made for journeys, shown the next time it is triggered in their app (waiting up to `days`, 7 unless it says). |
+| `coupon` | Gives the person their code of one of the project's coupons; `{{coupon}}` in the messages after it is that code. |
+| `offer` | Gives the person one of the catalog's grant offers: an entitlement for a while. |
+| `set` | Writes properties of the person's (analytics' people): 1 to 20. |
+| `event` | Tells your backend: a `journey.event` with the step's `name` and `data` — a webhook, or an `@On`. |
+| `wait` | Holds the person: `for` a while (1 minute to 90 days), `until` a time of day where they are (`"09:00"`, in their `$timezone`), or until they do an `event`, at most `timeout` — then `next`, or `timeout_next` when it timed out. |
+| `branch` | Sends the person to `then` when `if` holds of them, else to `else`. A condition asks a `property` of theirs (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`, `exists`, `missing`), whether they are in an `audience`, whether they did an `event` (since entering, or `within` a while), or `all`, `any` or `not` of others. |
+| `split` | An A/B split: 2 to 5 ways whose `weight`s add up to 100. Each person takes one way by chance — the same one every time — and the report counts each way's conversions. |
+
+A message step is sent by the project's send rules ([Notifications › When a message goes](/docs/backend/notifications#when-a-message-goes)): quiet hours, the marketing cap and what the person allowed. A message they did not allow is skipped and the run goes on. A journey has 100 steps at most, every one reachable from `start`, and no way back to a step already taken but through a wait.
+
+## From your backend
+
+A step your backend sees — a document approved, a first upload — moves a journey when your server tells it as the user's event: `POST /analytics/capture` with the secret key and `user_id`. It enters them into a journey of that event, takes them past a wait for it, counts toward a goal, and answers a branch that asks whether they did it, as an event their app sent would.
+
+```bash
+curl -s -X POST "https://<ref>.palbase.studio/analytics/capture" \
+  -H "apikey: $PALBASE_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"event": "crew_verified", "user_id": "usr_123", "properties": {"airline": "TK"}}'
+```
+
+## In Studio
+
+**Journeys** lists the environment's journeys with their status and who enters. **New journey** starts one from a template — *Onboarding*, *Win back* (a customer who has not bought for 30 days) or *Didn't come back* (a user who has not opened the app for a week) — or from a blank page.
+
+A journey's page draws it top to bottom: who enters at the top, each step under the one before, a branch's or a split's ways side by side until they meet, the goal at the bottom. A step opens its form in the side panel; the **+** between two steps adds one there. The module checks the draft a moment after each change, and each problem shows under the field it is about (`steps.welcome.inbox.title.en` under the welcome step's English title) and in the problems list, which takes you to it. **JSON** shows the definition the CLI pushes; a change there is the flow. **Preview** walks a made-up person through what is on screen — their properties, audiences, time zone and what they do after entering — and shows each step they would take and when; nothing is sent.
+
+## Trying a journey on a test user
+
+`POST /journeys/{key}/test` with `{ "user_id": "…" }` runs the saved journey — a draft too — for one of the project's [test users](/docs/backend/test-users) from its first step. Its messages really go to that user, each wait is a minute long, and the try is counted in no report and no month's people; its `journey.*` events carry `test: true`. Studio's **Try on a test user** does the same, and follows the run beside what landed in the person's inbox. A user who is not a test user is refused (`422 not_a_test_user`), and so is a stopped journey (`409 journey_stopped`). A new try of the same journey ends that user's try still running.
+
+## Publishing, stopping and copying
+
+`POST /journeys/{key}/publish` makes a draft live: people enter it from then on (a `members_of` journey enrolls the audience's members now). A live journey does not change (`409 journey_published`): copy it into a new draft (`POST /journeys/{key}/copy` with `{ "key": "…", "name": "…" }`), publish that, and stop the old one. `POST /journeys/{key}/stop` lets no one in any more and ends the runs in it; its report stays. `DELETE /journeys/{key}` deletes a journey with its runs and its report.
+
+A project keeps 500 journeys and runs 50 at once. An organization on the Free plan runs 2 at once (`402 live_journeys_limit`); with a payment method, the people who enter journeys are billed by the month ([Billing](/docs/getting-started/billing)): the first 1,000 people a month are free, then $2 for each 1,000 more.
+
+## The report
+
+`GET /journeys/{key}/stats` answers who entered (`entered`), how many reached the goal (`converted`), who is in it now (`in_progress`: `active`, `waiting`, `held`), how the runs ended (`ended`: `completed`, `converted`, `exited`, `stopped`, `failed`, `erased`), each step's outcomes from the start (`steps[].outcomes`: `sent`, `skipped`, `waited`, `then`, `else`, a split's way …) and, for a split, each way's conversions (`steps[].converted`). `GET /journeys/{key}/runs` pages each person's run — its state, the step it is at, each step it took and what came of it — filtered by `user_id` or `state`; `GET /journeys/people/{user_id}` is one person's runs in every journey. Studio's **Report** shows the same.
+
+People who enter while the organization's monthly people are used up are held (`held`) until it has them again.
+
+## Events
+
+Each run tells the project's backend as it goes — a [webhook](/docs/server/webhooks#the-events), or an `@On`:
+
+| Type | Sent when |
+|---|---|
+| `journey.entered` | A person entered a journey. |
+| `journey.step` | A person's run took a step. |
+| `journey.event` | A journey's `event` step told the project's backend. |
+| `journey.converted` | A person's run reached the journey's goal. |
+| `journey.ended` | A person's run ended: completed, converted, exited, stopped. |
+
+## The API
+
+| Call | What it does |
+|---|---|
+| `GET /journeys` | The project's journeys, newest first: `status`, `limit`, `cursor`. |
+| `POST /journeys` | A new draft: `{ key, definition }`. |
+| `GET /journeys/{key}` | A journey whole, with its definition. |
+| `PUT /journeys/{key}` | A draft's definition, written whole: `{ definition }`. |
+| `DELETE /journeys/{key}` | Deletes it with its runs and its report. |
+| `POST /journeys/validate` | Every problem of a definition, each at its path: `{ definition }` → `{ valid, problems }`. Nothing is kept. |
+| `POST /journeys/simulate` | A made-up person's way through a journey — the project's (`key`) or one not saved (`definition`) — with each step and when. Nothing is sent. |
+| `POST /journeys/{key}/test` | Tries the saved journey on a test user: `{ user_id }`. |
+| `POST /journeys/{key}/publish` | Makes a draft live. |
+| `POST /journeys/{key}/stop` | Stops a live journey. |
+| `POST /journeys/{key}/copy` | Copies a journey into a new draft. |
+| `GET /journeys/{key}/stats` | Its report. |
+| `GET /journeys/{key}/runs` | Each person's run. |
+| `GET /journeys/people/{user_id}` | One person's runs in every journey. |
+
+```bash
+curl -s -X POST "https://<ref>.palbase.studio/journeys/onboarding/test" \
+  -H "apikey: $PALBASE_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "usr_test_1"}'
+```
+
+## From the CLI
+
+A journey is kept as a file and handled with the CLI: saved as a draft, published, then followed.
 
 ```bash
 palbase journeys:validate winback.json             # every problem, at its path, with what to do about it
@@ -10743,8 +10966,14 @@ palbase journeys:runs winback                      # each person's run: its stat
 palbase journeys:stop winback                      # no one enters it any more, the runs in it end
 ```
 
-`journeys:get` prints a journey's definition to edit and push again, `journeys:copy` copies one into a new draft, and
-`journeys:delete` deletes one with its runs and its report.
+`journeys:get` prints a journey's definition to edit and push again, `journeys:copy` copies one into a new draft, `journeys:publish` publishes a draft, and `journeys:delete` deletes one with its runs and its report. Every command is in the [CLI reference](/docs/cli/reference#journeys).
+
+## Related
+
+- [Notifications](/docs/backend/notifications) — the send rules a journey's messages keep to, push templates and inboxes
+- [Analytics › Audiences](/docs/web/analytics#audiences) — the audiences a journey enters people from, and asks about
+- [Test Users](/docs/backend/test-users) — the users a journey is tried on
+- [Webhooks](/docs/server/webhooks) — `journey.entered`, `journey.step`, `journey.event`, `journey.converted`, `journey.ended`
 
 
 
@@ -11411,6 +11640,20 @@ export class RepliesController {
 
 `usage()` lists the project's uses of models and what each cost. Each use carries its labels (`metadata`): the caller's, and for a chat's turn, the chat's labels and the chat. `usage({ metadata: { product: "p1" } })` lists only the uses that carry those labels, such as a product's spend or a task's. This works after the chat is deleted too. `connectProvider(provider, key)` sends the project's calls to a provider with the project's own key from then on.
 
+## What it costs
+
+The models answer with Palbase's own provider keys, unless the project connected a key of its own for the model's provider (`connectProvider`, or Studio's **AI › Models & keys**). A call under the project's own key is billed to it by the provider, and Palbase charges nothing for it.
+
+- **Each month brings $1.00 of Palbase's models free.** A Free project has its own dollar; an organization with a payment account has one dollar for all its projects, taken off its bill ([Billing](/docs/getting-started/billing)).
+- **Past it**, a Pay as you go organization pays from its balance, at the provider's price and 10%. A Free project, or one whose organization's balance ran out, is refused (`402 ai_payment_required`) until the month ends (UTC) or the organization has a balance: a top-up serves it again within a minute.
+- **A monthly budget.** An owner or an admin of the organization may set the most a project spends on Palbase's models in a month, in Studio's **AI › Settings** or with the CLI. Past it, calls to them are refused (`402 ai_budget_reached`) until the month ends or the budget is raised, and the organization's owners are emailed, once a month and budget. The project's key and its environment tokens cannot set it: what spends the money does not raise its own limit.
+- A Free project's dollar and a budget hold as each use ends: a response is admitted with what the project has left, and one that would cost more, or is still running when it is reached, stops there with the error `ai_limit_reached` (a project with less than a cent left is at its limit: `402`). Responses running at once may each spend what was left, so the month may pass the limit by a little.
+- **Pay as you go.** A paying project's responses are held, the same way, to what its organization can still pay: its balance and what is left of its free dollar, all its projects together. When less than a cent is left, calls are `402 ai_payment_required` until a top-up; usage of the last moments before it ran out is taken from the next top-up.
+- **Voice.** A voice session's model runs for as long as the session is open: a project with no payment account opens one on Palbase's models no more (`402 ai_payment_required`), one needs a dollar left of its budget and of what its organization can pay to open, and an open one is closed (`ai_limit_reached`) when the project's free dollar, budget or balance runs out. On the project's own OpenAI key it runs regardless.
+- **A call cut before its answer** (a turn stopped, a stream given up): its provider says what its tokens were only at the end. A reasoning model's hidden thinking, which the provider bills as output, is then estimated from how long it thought at the model's measured speed, rounded down, and the use is marked `estimated` (Studio: **Estimate**).
+
+`GET /ai/spend` says the month's spend at what it is billed, what is left of a Free project's dollar, the budget, and whether Palbase's models serve the project now (and if not, why). Studio shows the same on **AI › Models & keys**.
+
 ## Tools
 
 An agent is given tools from five sources:
@@ -11810,6 +12053,9 @@ In the app, the member joins `SupportGateway` with the chat's id, and the handle
 | 403 | `not_a_member` | `as` names a user who is not a member of the chat. |
 | 403 | `not_your_turn` | `as` decides or answers a turn another member began. |
 | 404 | `attachment_not_found` | A message attaches a file that is not there, or one its writer may not attach. |
+| 402 | `ai_payment_required` | The project used this month's free AI and its organization has no payment account with a balance, and it has no key of its own for the model's provider ([What it costs](#what-it-costs)). |
+| 402 | `ai_budget_reached` | The project's monthly AI budget is spent, and it has no key of its own for the model's provider. |
+| 403 | `forbidden` | A key or a token named `monthly_budget_usd` in the settings: an owner or an admin sets it, in Studio or with the CLI. |
 | 409 | `history_full` | The project keeps as much chat history as it may. Delete chats to write again. |
 | 409 | `no_workspace` | A message carries `files` into a chat that works in no workspace. |
 | 409 | `attachment_changed` | A file changed while it was attached. Send the message again. |
@@ -11818,6 +12064,7 @@ In the app, the member joins `SupportGateway` with the chat's id, and the handle
 | 413 | `attachment_too_large` | A message's picture is over 5 MiB, or its file over 15 MiB. |
 | 415 | `unsupported_image` | A message's picture is not a png, jpeg, webp or gif by its bytes. |
 | 429 | `too_many_messages` | The member sent as many messages this minute as the project allows. `Retry-After` says when to write again. |
+| 503 | `billing_unavailable` | Palbase could not check the project's use of its models just now. `Retry-After` says when to try again. |
 
 Each arrives as a `PalbaseError` with its `status` and `code`, its message said in words the caller can act on. A gateway turns the ones a member can act on into a `GatewayRefusal` with the same code, as `asMember` does above.
 
@@ -15584,6 +15831,7 @@ The client makes these calls for you. They are the analytics module's, with the 
 - **`properties`** and **`traits`**: 100 at most, 8 KiB each as JSON, 32 KiB in all.
 - **`timestamp`** and **`sent_at`**: unix milliseconds on the device's clock. The difference between `sent_at` and the server's clock is the device clock's error, and it is taken off `timestamp`. An event queued offline keeps its own `timestamp` and gets a fresh `sent_at` when it goes out.
 - **`identify`'s `anonymous_id`**: the id the user had before signing in. Their anonymous history goes with them, and if they are deleted, it goes too.
+- **`user_id`** (capture and batch): your server, with its secret key, says whose an event is — something a user did that your backend saw (a document approved, an order shipped). The event is that user's, as if their app had sent it signed in: on their timeline (source `server`), in their funnels, and acted on by their [journeys](/docs/backend/journeys#from-your-backend). `distinct_id` may be left out then. An app's event is its signed-in user's: one that names `user_id` is refused (`400 invalid_user_id`).
 
 The headers say what the server cannot tell from the body:
 
@@ -16947,11 +17195,24 @@ A code the route's contract declares is a case of its own (`NotesCreateError.for
 | `.validation(ValidationFailure)` | `400`, the input failed the route's schema: `fields`, each a `field` and its `message`. |
 | `.rateLimited(RateLimitInfo)` | `429`, the route's limit: `retryAfter` in seconds. |
 | `.unauthorized(AuthFailure)` | `401`, after the client already refreshed the token once. |
+| `.stepUpRequired(StepUpFailure)` | `401 insufficient_user_authentication`: the route asks for a stronger sign-in (`acrValues`, e.g. `["aal2"]`; `maxAge`). The session is fine and is not refreshed: step the user up with their second factor, then call again. |
+| `.appAttestRequired(AuthFailure)` | `401 app_attest_required` the device's proof could not settle: the SDK enrolled, proved and sent the call again, and the backend still refused ([Device attestation](#device-attestation)). |
+| `.attestationUnavailable(AttestationFailure)` | The route asks for the device's proof and this device cannot give one now: `reason` says why (`unsupported_device`, a Simulator or hardware without App Attest; `enrolment_rate_limited` with `retryAfter`; `app_attest_not_configured`, no iOS app registered). Nothing more is sent. |
 | `.network(TransportFailure)` | No answer: no network, the connection lost, a timeout. |
 | `.transport(TransportFailure)` | Not sent: a backend the environment does not name. |
 | `.decode(CodecFailure)`, `.encode(CodecFailure)` | The answer is not the type the contract declares; the input could not be encoded, or a path parameter is not one segment. |
 
 `code`, `statusCode`, `requestId` and `failure` (the envelope, whichever case it is) are on every `BackendError`. The `requestId` is the line to look for in the machine's logs ([Builds, Logs & Rollback](/docs/machines/builds)).
+
+## Device attestation
+
+A route the backend marks `attest: true` is called only by your app on a genuine iPhone or iPad ([Device attestation](/docs/backend/authentication#device-attestation)). The SDK proves each call by itself with Apple's App Attest:
+
+- once per install it makes an App Attest key and enrols it: auth checks Apple's attestation of it for your registered app (team and bundle);
+- each call to the backend then carries an assertion over the call's method, path, body and a short-lived challenge, with the key's counter, so a captured call cannot be sent again or changed;
+- a `401 app_attest_required` is answered by itself: enrol if needed, prove, send once more.
+
+What only you set: Xcode's **App Attest** capability on the app target. It writes `com.apple.developer.devicecheck.appattest-environment` = `development`, Apple's sandbox, for a build run from Xcode; a TestFlight or App Store build uses Apple's production environment whatever the value says, so one entitlements file serves Debug and Release. `palbase apps:sync` reminds you when an environment's backend has an attested route. A Simulator cannot attest: under enforce its calls end in `.attestationUnavailable`.
 
 ## Files
 
@@ -18327,7 +18588,8 @@ dependencies {
 | `palbase-flags` | The project's flags, kept current | `pb.flags` ([Flags](/docs/android/flags)) |
 | `palbase-analytics` | Events, screens, timings and diagnostics, each behind its consent | `pb.analytics(startingConsent)` ([Analytics](/docs/android/analytics)) |
 | `palbase-realtime` | Channels: broadcasts and a shared state | `pb.realtime` ([Realtime](/docs/android/realtime)) |
-| `palbase-notify` | This device's push token for the user, their preferences and topics | `pb.notify` ([Notifications](/docs/android/notifications)) |
+| `palbase-notify` | This device's push token for the user, their preferences and topics, the inbox, in-app messages | `pb.notify` ([Notifications](/docs/android/notifications)) |
+| `palbase-notify-ui` | The inbox and in-app messages, drawn in Compose | `InboxView`, `PalbaseInAppMessages` ([Notifications](/docs/android/notifications#the-inbox)) |
 | `palbase-storage` | Files through URLs your backend signed, and public buckets | `pb.storage` ([Storage](/docs/android/storage)) |
 | `palbase-purchases` | What the customer has, in any store, and buying on Google Play (Play Billing 9) | `pb.purchases` ([Purchases](/docs/android/purchases)) |
 | `palbase-palbe` | Your backends' generated clients, their gateways and chats | `pb.<name>` ([Calling Your Backend](/docs/android/backend-calls), [Gateways](/docs/android/gateways)) |
@@ -18899,13 +19161,25 @@ The contract's errors are what the route throws, as the backend's build reads th
 | `Validation(fields, …)` | A `400` that names fields: each `FieldError(field, message)`. |
 | `Unauthorized(…)` | A `401` after the refresh did not mend it. |
 | `RateLimited(retryAfter, …)` | A `429`, with the seconds to wait. |
-| `IntegrityRequired(code, …)` | A `401` that asks for a proof of the device's integrity first (`play_integrity_required`, …). |
+| `IntegrityRequired(code, …)` | A `401 app_attest_required` the device's proof could not settle: the SDK enrolled, proved and sent the call again, and the backend still refused ([Device attestation](#device-attestation)). |
+| `AttestationUnavailable(reason, …)` | The route asks for the device's proof and this device cannot give one: an emulator or a key that is not in secure hardware (`hardware_key_unavailable`, `software_key`), an unlocked bootloader (`device_not_locked`), the keystore not answering now (`keystore_unavailable`, asked again later). Nothing more is sent. |
+| `StepUpRequired(acrValues, maxAge, …)` | A `401 insufficient_user_authentication`: the route asks for a stronger sign-in (`acrValues`, e.g. `urn:nist:800-63:aal2`). The session is fine and is not refreshed: step the user up with their second factor, then call again. |
 | `Network(ioCause)` | No answer: no network, the host unreachable. |
 | `Decoding(decodeCause)` | A 2xx whose body is not what the contract declares. |
 | `Encoding(encodeCause)` | The request could not be written; it was not sent. |
 | `NotConfigured` | The environment names no such backend: run `palbase apps:sync`. |
 
 `Http`, `Validation`, `Unauthorized` and `RateLimited` have the answer behind them in `envelope`: the status, the code, the message and the request id, whatever they were classified as. A generated error matches its cases against it, so a route that declares a `401` or a `429` of its own still gets its typed case.
+
+## Device attestation
+
+A route the backend marks `attest: true` is called only by your app on a genuine phone ([Device attestation](/docs/backend/authentication#device-attestation)). The SDK proves each call by itself:
+
+- once per install, it makes a key in the phone's secure hardware and enrols it: auth checks the key's attestation chain against Google's roots and revocation list, that the phone is locked with a verified boot, and that the app is your registered package signed with one of its registered certificates;
+- each call to the backend then carries a signature with that key over the call's method, path, body and a short-lived challenge, and a counter, so a captured call cannot be sent again or changed;
+- a `401 app_attest_required` is answered by itself: enrol if needed, prove, send once more.
+
+What only you set: the SHA-256 of the certificates your releases are signed with, registered with the app (`palbase apps:env:set <app> --sha256 play_signing=AB:CD:…`; Play's app signing key and your upload key). Do not register a debug key where attestation is enforced: a debug build can be driven over adb to sign requests. An emulator cannot attest: under enforce its calls end in `AttestationUnavailable`.
 
 ## Uploads
 
@@ -19592,6 +19866,59 @@ pb.notify.unfollow("release-notes")
 
 A write sets some of the user's preferences and answers all of them. A category the user never set is on, and `transactional` is always on: it is not theirs to turn off. A topic's followers get what the server sends to it with `to: { topic }`.
 
+## The inbox
+
+The signed-in person's inbox holds the messages your backend put there and the copies of pushes it chose to keep, the same on every device of theirs: read on one, it is read on each; deleted, it is gone from each. A message stays its days (90 unless the project said) and an inbox keeps its newest 250.
+
+`InboxView` (`studio.palbase:palbase-notify-ui`) draws it ready, in Compose:
+
+```kotlin
+import studio.palbase.notify.ui.InboxView
+
+@Composable
+fun InboxScreen() {
+    var unread by remember { mutableLongStateOf(0L) }
+    Scaffold(topBar = { TopAppBar(title = { Text(if (unread > 0) "Inbox ($unread)" else "Inbox") }) }) { pad ->
+        InboxView(pb, Modifier.padding(pad).fillMaxSize(), onUnread = { unread = it }, empty = "No messages yet")
+    }
+}
+```
+
+`InboxView(client, modifier, locale, onOpen, onCustom, onUnread, empty, deleteLabel, onOffer, onOfferError)` takes the language to write it in (the person's chosen one unless given), what a tap on a message's link does (the system opens it unless given), a designed card's own buttons, the unread count as it changes, what an empty inbox says, and a designed card's offer button (the purchases module takes the offer unless given, once the app uses `pb.purchases`).
+
+An app that draws its own uses `pb.notify.inbox`:
+
+| Method | What it does |
+|---|---|
+| `list(limit, cursor, locale)` | A page, newest first: `items`, `nextCursor` and `unread`. Each `Inbox.Item` has its id, title, body, image, deep link, category, data, designed card, and when it was made, ends and was read. |
+| `unread()` | How many are unread: what a badge shows. |
+| `markRead(ids)`, `markAllRead()` | Marks messages read, on every device of the person's. |
+| `remove(id)` | Deletes a message, from every device. |
+
+## In-app messages
+
+The project's in-app campaigns (a modal, a banner or a whole screen, designed in Studio) are shown over the app once started. `PalbaseInAppMessages` around the app's root starts them and draws them in Compose:
+
+```kotlin
+import studio.palbase.notify.ui.InAppHandlers
+import studio.palbase.notify.ui.PalbaseInAppMessages
+
+setContent {
+    PalbaseInAppMessages(pb, InAppHandlers(
+        onDeepLink = { url -> startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
+        onShowPaywall = { placement -> showPaywall(placement) },
+    )) {
+        AppNavigation()
+    }
+}
+```
+
+The person's campaigns are asked for as each session of theirs starts (the launch, a return after half an hour away, a sign-in or out). An event the app records with `pb.analytics` (its captures and screens), or names with `pb.notify.inApp.trigger(event, properties)`, shows the first campaign it triggers, the highest priority first, that its caps let: the project's (in a session, in a day, the least time between two) and the campaign's own. Triggers are matched on the device, so no event leaves it for them, and a message is shown whatever the person chose of analytics; a campaign to an audience reaches only people who allowed personalization. A [journey](/docs/backend/journeys)'s in-app step opens one of these campaigns for its person, shown the next time it is triggered.
+
+`InAppHandlers` says what the app does with a message's buttons: `onDeepLink`, `onShowPaywall` (a placement's paywall), `onCustom` (the app's own code: a name and a value), `onRequestPush` (the push ask) and `onOffer` (one of the catalog's offers; the purchases module takes it unless given, once the app uses it). A button whose action the app does not take is not drawn.
+
+An app that draws its own calls `pb.notify.inApp.start { presentation -> … }`, which hands it each `InAppPresentation` to show (its `definition`, its `variables`) and `null` when what is shown must go. The app tells back `clicked(action)`, `dismissed()` or `closed()`. `stop()` stops them, and `refresh()` asks for the person's campaigns again.
+
 ## Related
 
 - [Notifications in your backend](/docs/backend/notifications): sending push, email, SMS and WhatsApp
@@ -20263,6 +20590,10 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `notification.sent` / `notification.failed` | A message ended sent, or failed. | `{ message_id, channel, rail, template, … }` |
 | `notification.received` | A user sent a WhatsApp message to the project's number. | the message |
 | `notification.uninstalled` | A push service said no app holds a device's token any more: the app was taken off the phone. The device is forgotten. | `{ platform, provider, device_id, installation_id, user_id }` |
+| `journey.entered` / `journey.converted` | A person entered a journey, or their run reached its goal. A try on a test user's events carry `test: true` ([Journeys](/docs/backend/journeys#events)). | `{ journey, journey_id, run_id, user_id, test }` |
+| `journey.step` | A person's run took a step. | `{ journey, journey_id, run_id, user_id, step, kind, outcome, test }` |
+| `journey.event` | A journey's `event` step told the project's backend. | `{ journey, journey_id, run_id, user_id, step, name, data, test }` |
+| `journey.ended` | A person's run ended: `completed`, `converted`, `exited`, `stopped`. | `{ journey, journey_id, run_id, user_id, reason, test }` |
 | `audience.entered` / `audience.exited` | A person came to be in an analytics audience, or left it. | `{ audience_id, audience_name, person_id, user_id }` |
 | `machine.created` / `machine.updated` / `machine.deleted` | A machine was opened, changed, or taken away. | `{ name, source, size, replicas, port, version }` |
 | `stores.apple.changed` | The Apple account was connected, checked (and Apple's answer changed) or disconnected. The key is never in the event. | `{ change, issuer_id, key_id, status, capabilities }` |
@@ -20495,7 +20826,9 @@ Those two, and [Have I Been Pwned](https://haveibeenpwned.com), are connected wi
 
 ### App Attest
 
-`app_attest_mode` is `off` (the default), `monitor` or `enforce`, and `monitor` and `enforce` need an iOS app registered with the environment (`palbase apps:env:set`). Auth verifies an iOS device's App Attest key when the app enrols it (`POST /auth/devices/attest/ios`), and a request's App Attest assertion when a server asks it to (`POST /admin/attest/devices/assert`, with the secret key). It answers the mode at `GET /admin/attest/devices/attest-policy`. The mode does not, by itself, make the auth module refuse a call.
+`app_attest_mode` is `off` (the default), `monitor` or `enforce`: the switch of the backend routes marked `attest: true` ([Device attestation](/docs/backend/authentication#device-attestation)), read by the environment's machines every 30 seconds. `monitor` and `enforce` need an iOS or Android app registered with the environment (`palbase apps:env:set`).
+
+Auth enrols a device when the app proves it: an iOS device's App Attest key (`POST /auth/devices/attest/ios`), or an Android device's Keystore key, whose attestation chain must end in one of Google's hardware attestation roots with no certificate on Google's revocation list, the key in the phone's secure hardware, the phone locked with a verified boot, and the app the registered package signed with a registered certificate (`POST /auth/devices/attest/android`). Both take the challenge of `POST /auth/devices/challenge` and need no session. Auth verifies a request's proof when a server asks it to (`POST /admin/attest/devices/assert`, with the secret key), and answers the mode at `GET /admin/attest/devices/attest-policy` and the last hours' counts at `GET /admin/attest/devices/observations`. Palbase's iOS and Android SDKs do the enrolment and the proofs by themselves.
 
 ## Signing keys
 
@@ -23675,11 +24008,11 @@ Apple's CDN caches its file: an iOS device sees a change in a day or so. Android
 | Platform | What the environment does with it |
 |---|---|
 | iOS | Accepts App Attest keys from the app and its watch app (an App Clip attests as its app). Matches an App Store purchase, and a purchase made in Xcode with its StoreKit file, to the registered bundle. The app's settings name the keychain group its sign-in is kept in: `<App ID prefix>.<bundle>.palbase`. |
-| Android | Accepts a passkey ceremony from the app as signed with one of its certificates. Reads a Google Play purchase the app reports from Play under its package. |
+| Android | Accepts a passkey ceremony from the app as signed with one of its certificates, and a device's attested key from the app as signed with one of them ([Device attestation](/docs/backend/authentication#device-attestation)). Reads a Google Play purchase the app reports from Play under its package. |
 | Web | Accepts a passkey ceremony from its `https` origins. Starts every [machine](/docs/machines/overview) of the environment with its origins, and a `palbase/backend` app answers their browsers' cross-origin requests by itself ([Calling Your Backend](/docs/web/backend-calls)); a change rolls the machines out again with the new list. Adds its redirects to the addresses an auth email's link may return to ([Web Auth](/docs/web/auth#where-email-links-land)). |
 | Every platform | A web checkout's `success_url` and `cancel_url` return to a web app's origin, or to an iOS or Android app's own scheme: its bundle or its package. |
 
-While App Attest is in `monitor` or `enforce` in an environment, its last iOS app cannot leave it, by `apps:env:unset` or `apps:delete`: a gate with no app would refuse every client. Turn App Attest off there first (`palbase auth:settings:set app_attest_mode=off -E <env>`).
+While App Attest is in `monitor` or `enforce` in an environment, its last iOS or Android app cannot leave it, by `apps:env:unset` or `apps:delete`: a gate with no app would refuse every client. Turn App Attest off there first (`palbase auth:settings:set app_attest_mode=off -E <env>`).
 
 ## Deleting and restoring an app
 
