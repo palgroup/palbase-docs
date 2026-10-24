@@ -96,7 +96,7 @@ A chat that works in a workspace gives its agent the workspace's own tools as we
 |---|---|
 | `palai.workspace.file`, `str_replace_based_edit_tool` | Read, write and edit a file. |
 | `palai.workspace.glob`, `palai.workspace.grep` | Find files by name, and lines by pattern. |
-| `palai.workspace.shell`, `palai.workspace.background_status`, `palai.workspace.background_kill` | Run a command (with no network), keep one running in the background, read it and stop it. `xcodebuild`, `xcrun`, `swift` and `simuse` run on the platform's Mac, and what they write under `artifacts/` and `scratch/` comes back into the workspace. |
+| `palai.workspace.shell`, `palai.workspace.background_status`, `palai.workspace.background_kill` | Run a command — it reaches the internet over HTTP, HTTPS, SSH and git (a package install, a clone, Palbase's own docs), never a private address or a mail server — keep one running in the background, read it and stop it. `xcodebuild`, `xcrun`, `swift` and `simuse` run on the platform's Mac, and what they write under `artifacts/` and `scratch/` comes back into the workspace. |
 | `palai.workspace.fetch_archive` | Download an archive from a URL and unpack it into the workspace. |
 | `palai.workspace.commit`, `palai.publish.push` | Commit, as the member the turn is for, and push to the chat's branch. |
 | `palai.artifact.publish`, `palai.artifact.open`, `palai.artifact.read`, `palai.artifact.list` | Publish a file as the turn's output, and read the ones published. |

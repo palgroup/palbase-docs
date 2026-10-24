@@ -4,9 +4,26 @@
 
 A **customer** is a user of the project — a guest included — and the customer's id is the user's id. There is nothing to create: a user becomes a customer when something is theirs, a purchase, a grant or credits, or when their app first reads what they have. What they have is the same answer in every app and on your server, whatever store they bought in ([Entitlements, Credits & Limits](https://palbase.studio/docs/purchases/entitlements#what-a-customer-has)).
 
+## Finding a customer
+
+A person writing in rarely has their user id. In Studio, **Purchases › Customers**, find them by what they do have:
+
+- their user id;
+- an id their store gave a purchase: Apple's original transaction id or any transaction id from their receipt, a Google Play order id (`GPA.…`, a renewal's `..0` or not), a Stripe subscription, payment intent, invoice or customer id;
+- the email a buyer with no account gave at checkout on the web, written whole (case and spaces around it do not matter). The address itself is not kept: an HMAC of it under the project's key is, so it is found by the whole address and by nothing less. A purchase whose link no one has redeemed yet is found too, as no one's.
+
+One customer found opens them; several are listed. From a terminal:
+
+```sh
+palbase purchases:customers 2000000873521946 -E production
+palbase purchases:customers buyer@example.com -E production
+```
+
+From your server, `GET /purchases/customers?q=…` answers the same list (`customer_id`, `matched_by`, the store and product of the purchase found).
+
 ## Looking a customer up
 
-In Studio, **Purchases › Customers**, look a user up by their id: their entitlements and where each is managed, their subscriptions, one-time purchases, credits and quota, test purchases marked. From a terminal:
+Their record shows their entitlements and where each is managed, their subscriptions, one-time purchases, credits and quota, test purchases marked. From a terminal:
 
 ```sh
 palbase purchases:customer:get 3f6c2a1e-8d4b-4c1a-9b7e-2a5d8c0f1b3e -E production
@@ -30,6 +47,16 @@ export async function describe(userId: string): Promise<string[]> {
 
 A guest merged into an account reads as the account. A user never seen here reads as a customer with nothing, and the read writes nothing.
 
+## What happened to them
+
+Their **History**, the newest first, a page at a time: each payment and renewal, a refund (and its kind: refund, chargeback, family sharing), the subscription's renewal turned off or back on, a failed charge, its end, the grants given and taken back, the credits given, taken back, expired and forgiven, and the purchases that moved to or from them — each with when, who did it (`store`, `customer`, the developer whose Studio or CLI call it was as `developer:…`, or the key as `key:…`) and why. Credits spent are the credits' own entries (**Credits** on the record, or `GET …/credits/entries`).
+
+```sh
+palbase purchases:customer:history <user id> -E production
+```
+
+`GET /purchases/customers/{customer_id}/history` answers it to your server; `next_cursor`, sent back as `cursor`, is the next page.
+
 ## Giving an entitlement
 
 Support gives one of the catalog's entitlements — for a promotion, a support case, a tester — for a while or for life, saying why:
@@ -38,13 +65,16 @@ Support gives one of the catalog's entitlements — for a promotion, a support c
 palbase purchases:customer:grant <user id> pro --reason "Ticket 4821: billing mix-up" --for 30d -E production
 ```
 
-The reason is the record (500 characters at most). Without `--for` or `--until` the grant is for life. Nothing is charged in any store, and a customer not seen before is made. It prints the grant's id, which ends it:
+The reason is the record (500 characters at most). Without `--for` or `--until` the grant is for life. Nothing is charged in any store, and a customer not seen before is made. Every grant a customer was given — active, ended and revoked, with who gave it, why, and who revoked it — is listed with its id, which ends it:
 
 ```sh
+palbase purchases:customer:grants <user id> -E production
 palbase purchases:customer:revoke <user id> <grant id> -E production
 ```
 
-What the customer bought is not touched: the entitlement stays on while a purchase still gives it. Studio's **Purchases › Customers** gives and revokes grants too; from a server they are `grantEntitlement` and `revokeGrant`. A grant shows as `store: "promotional"`, `period_type: "promotional"`; turning the entitlement on or off emits `purchases.entitlement.changed`.
+What the customer bought is not touched: the entitlement stays on while a purchase still gives it. Studio's **Purchases › Customers** lists, gives and revokes grants too — **Revoke** on a grant of the list; from a server they are `GET /purchases/customers/{customer_id}/grants`, `grantEntitlement` and `revokeGrant`.
+
+In Studio every member of the project reads a customer, their history and their grants; giving or revoking a grant and giving credits is an admin's or the owner's. A grant shows as `store: "promotional"`, `period_type: "promotional"`; turning the entitlement on or off emits `purchases.entitlement.changed`.
 
 Credits and quota are given the same way, saying why — [Entitlements, Credits & Limits › Giving credits](https://palbase.studio/docs/purchases/entitlements#giving-credits).
 

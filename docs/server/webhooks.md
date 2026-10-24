@@ -91,6 +91,7 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `notification.sent` / `notification.failed` | A message ended sent, or failed. | `{ message_id, channel, rail, template, … }` |
 | `notification.received` | A user sent a WhatsApp message to the project's number. | the message |
 | `notification.uninstalled` | A push service said no app holds a device's token any more: the app was taken off the phone. The device is forgotten. | `{ platform, provider, device_id, installation_id, user_id }` |
+| `notification.push_failing` | A push provider started failing for its own fault — its APNs key refused, a topic the key may not send to: every push through it fails until its setting is fixed ([Apple (APNs)](https://palbase.studio/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)). At most once a day a provider. | `{ project_id, channel, provider, error, failing_since }` |
 | `journey.entered` / `journey.converted` | A person entered a journey, or their run reached its goal. A try on a test user's events carry `test: true` ([Journeys](https://palbase.studio/docs/backend/journeys#events)). | `{ journey, journey_id, run_id, user_id, test }` |
 | `journey.step` | A person's run took a step. | `{ journey, journey_id, run_id, user_id, step, kind, outcome, test }` |
 | `journey.event` | A journey's `event` step told the project's backend. | `{ journey, journey_id, run_id, user_id, step, name, data, test }` |

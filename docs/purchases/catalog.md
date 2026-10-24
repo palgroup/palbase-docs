@@ -78,7 +78,20 @@ palbase purchases:catalog:get -E production   # prints production's revision
 palbase purchases:catalog:put --file catalog.json --revision 7 -E production
 ```
 
-A saved revision emits `purchases.catalog.changed`. See [`purchases:catalog:get`](https://palbase.studio/docs/cli/reference#palbase-purchasescatalogget), [`purchases:catalog:put`](https://palbase.studio/docs/cli/reference#palbase-purchasescatalogput) and [`purchases:catalog:validate`](https://palbase.studio/docs/cli/reference#palbase-purchasescatalogvalidate).
+## Revisions, and putting one back
+
+Every revision is kept. **Purchases › Catalog › Revisions** lists them, the newest first — who saved each, when, what it defines, and when a confirmed plan of it was written to the stores — and opens any of them. **Put this revision back** saves an older revision's catalog as the next revision, the way an edit is saved: on the revision on screen (`If-Match`; `412 catalog_changed` when someone saved since), checked against the catalog's rules today (an older revision may break one added since: `422 invalid_catalog`, every problem listed), and keeping what customers bought. Nothing is written to a store until a plan of the new revision is made and confirmed, as for any edit.
+
+```sh
+palbase purchases:catalog:revisions -E production
+palbase purchases:catalog:revision 4 --out catalog-4.json -E production
+palbase purchases:catalog:restore 4 -E production   # saved as the next revision
+palbase purchases:catalog:plan -E production        # then the stores
+```
+
+From a server: `GET /purchases/catalog/revisions` (`next_cursor`, sent back as `cursor`, is the next page), `GET /purchases/catalog/revisions/{revision}` and `POST /purchases/catalog/revisions/{revision}/restore` with `If-Match`.
+
+A saved revision emits `purchases.catalog.changed`; one put back says which it came from (`restored_from`). See [`purchases:catalog:get`](https://palbase.studio/docs/cli/reference#palbase-purchasescatalogget), [`purchases:catalog:put`](https://palbase.studio/docs/cli/reference#palbase-purchasescatalogput) and [`purchases:catalog:validate`](https://palbase.studio/docs/cli/reference#palbase-purchasescatalogvalidate).
 
 ## Bringing the stores to the catalog
 

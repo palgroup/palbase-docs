@@ -172,7 +172,7 @@ A phased release gives an update to a growing share of the users who have automa
 
 ## App Review's answer
 
-When App Review approves or rejects the version, the owners of the environment's organization get an email from Palbase. An approved version is released as you set it: one that waits for you is released from Studio's **App Store** page, or with `stores:version:release`. Apple gives no reason for a rejection over its API: read it in App Store Connect's **Resolution Center**, fix what it names, and send the version again.
+When App Review approves or rejects the version, the owners of the environment's organization get an email from Palbase. An approved version is released as you set it: one that waits for you is released from Studio's **App Store** page, or with `stores:version:release`. Apple gives no reason for a rejection over its API. With an [Apple ID signed in](#an-apple-id) for the environment, Palbase reads it for you: the Resolution Center's message, the guidelines it names and its attachments. Without one, read it in App Store Connect's **Resolution Center**. Fix what it names, and send the version again.
 
 Every state the version comes to is the environment's `stores.version.changed` event: sent to App Review, in review, approved, rejected, withdrawn, released. It goes to the environment's [webhooks](https://palbase.studio/docs/server/webhooks) and to a backend's [`@On` handlers](https://palbase.studio/docs/backend/hooks):
 
@@ -209,6 +209,60 @@ export class ReleasesModule {}
 ```
 
 `result` is App Review's answer, set only in a state that is one: `approved` from `PENDING_DEVELOPER_RELEASE` on, `rejected` in `REJECTED`, `METADATA_REJECTED` or `INVALID_BINARY`.
+
+## An Apple ID
+
+Apple's API leaves some of App Store Connect to a person on its website: App Review's messages in the Resolution Center and the answer to them, the App Privacy details, and making an app's record. Sign in with an Apple ID of your team, and Palbase does them with the session App Store Connect's own pages use, as fastlane does. It is optional; the [App Store Connect key](https://palbase.studio/docs/distribution/testflight#connect-app-store-connect) does everything else.
+
+An Apple ID is signed in to the environment's team: the team of its App Store Connect key or, with no key yet, the team its iOS apps are in. When the Apple ID is in that team, Palbase chooses it for you; when it is in other teams alone, the sign-in is refused with `422 apple_team_mismatch`, naming the Apple ID's teams and the environment's, and nothing is kept.
+
+You sign in once for the whole organization. An environment with no session of its own is lent one that another environment of its organization signed in to the same team — staging and production of a project, or two projects of one company account, sign in once — for a person who is an owner or an admin of the environment it was signed in for: Studio, and the CLI with your sign-in. `GET /stores/apple/session` says so with `shared_from`. A secret key, or an environment's token, reaches its own environment's session alone. Signing out, by such a person, signs it out for every environment that uses it. Each keeps its session until Apple ends it.
+
+Sign in from Studio, under **App Distribution › Apple ID**, or ask for the link yourself with `POST /stores/apple/session/grants` and open its `connect_url`. Studio asks for a one-time link and opens Palbase's own sign-in page. You type the password there, and the page seals it to a key only the environment's stores module opens: nothing on its way reads it. The module hands it to Apple and keeps it nowhere: Palbase keeps only the session Apple gives back, sealed with the environment's own key.
+
+From a terminal, `palbase stores:apple:connect --apple-id you@example.com` reads the password there, seals it the same way, then asks for Apple's code, and for the team when the Apple ID is in more than one of the environment's (`--team` names it). With `--print-link` it prints the one-time link instead, for a browser to open. `palbase stores:apple` shows the session, `stores:apple:check --apple-id` asks Apple about it again, and `stores:apple:disconnect --apple-id` signs it out.
+
+A client of your own signs in the same way. The link's answer carries `seal_key`, the environment's X25519 public key. Seal the password to it with HPKE (RFC 9180, base mode, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-128-GCM), its info `palbase/stores/apple-id/password/1`, a NUL byte, then the link's `grant`, and post `{"grant", "apple_id", "password_sealed"}` to `POST /stores/connect/apple-id`, where `password_sealed` is the base64url of the encapsulated key and the ciphertext. A password in the clear is refused. Then you type the code Apple sends to your devices and, if the Apple ID is in more than one team, choose the one the environment's apps are in. A link takes three passwords and three codes, and an environment six passwords an hour, so that Apple does not lock the Apple ID. Signing an Apple ID in, and out, is an owner's or an admin's.
+
+Apple ends a session after a few weeks, and when the Apple ID's password changes. Palbase checks it every six hours. When it has ended, the person who signed it in gets an email (the organization's owners, if they are no longer an owner or an admin), the environment gets the `stores.apple.session.expired` event, and what needs the Apple ID answers `409 apple_id_expired` until someone signs in again. Studio's **Apple ID** panel, or `GET /stores/apple/session`, shows whose it is, its team and whether Apple still takes it; **Sign out**, or `DELETE /stores/apple/session`, signs it out, at Apple too.
+
+### Keys, made for you
+
+With an Apple ID signed in, Palbase makes the keys the environment lacks at Apple and connects them, so no one downloads a `.p8` and carries it over:
+
+- **The App Store Connect API key**: Admin, every app. Connected as one you upload would be, and asked of Apple's API first. Disconnecting it (`DELETE /stores/apple`) revokes it at Apple.
+- **APNs keys**: two, one for production and one for the sandbox, each scoped to the environment's iOS apps of the Apple ID's team (Apple makes a key scoped to apps for one environment; an app of another team is none of its). The notify module takes them as the environment's APNs provider: each environment's pushes are signed with its own key.
+- **The In-App Purchase key**: for one of the environment's iOS apps (name it when there is more than one). The purchases module connects it, and asks the App Store Server API with it first.
+
+In Studio, **App Distribution › Apple ID** lists them under **Keys**, what the environment lacks ticked: **Make and connect** makes them, with one confirmation. Over the API, `POST /stores/apple/keys` makes one kind a request: `{"kind": "asc" | "apns" | "iap", "bundle"}`; `GET /stores/apple/keys` lists them and where each stands (`waiting` for its module, `taken`, `refused`, `revoked`).
+
+A key the environment connected itself is kept: making one is refused with `409 key_connected`, and the module that has one of its own refuses the one made, which is revoked at Apple at once. Each key's `.p8` is read from Apple once, sealed with the environment's key, and handed to its module over Palbase's internal network; once taken, the stores module drops its copy. `DELETE /stores/apple/keys/{key_id}`, or **Revoke** beside it in Studio, revokes an APNs or In-App Purchase key Palbase made.
+
+Apple makes keys for an Admin or the Account Holder of the team: an Apple ID of another role is told `409 apple_role_insufficient`. Making and revoking keys is an owner's or an admin's of the environment, never an environment's token's (`403 token_out_of_scope`): a key outlives it. The App Store Connect key is made with the Admin role, as the key you would connect yourself is: it reaches the team's users too, so revoke it if you stop using Palbase for the app.
+
+### App Review's messages
+
+`GET /stores/apps/{app_id}/review` is the app's Resolution Center: each thread with its messages as plain text, the guidelines each rejection names, its attachments and the answer not sent yet. An attachment is read with `GET /stores/apps/{app_id}/review/threads/{thread_id}/attachments/{attachment_id}`. You answer with a draft, `PUT /stores/apps/{app_id}/review/threads/{thread_id}/draft`, which App Store Connect keeps as its website's, then send it with `POST /stores/apps/{app_id}/review/threads/{thread_id}/draft/send`. From a terminal: `palbase stores:app-review <app id>`, and `stores:app-review:answer` writes the draft (`--send` sends it).
+
+While a version of the app is in App Review, or was rejected in the last 30 days, Palbase reads its Resolution Center every ten minutes. Each message it has not told yet is the environment's `stores.review.message` event, with its text, the guidelines (`reasons`) and the attachments. Your own answer is not told back.
+
+### App Privacy
+
+`GET /stores/apps/{app_id}/privacy` is the app's privacy details as App Store Connect has them. `PUT` writes them, in Apple's words, one line per kind of data and purpose, or `DATA_NOT_COLLECTED` alone. The lines it lacks are made and the ones not asked for removed, and `"publish": true` publishes them. Once published, the version's missing list stops asking for App Privacy. From a terminal: `palbase stores:privacy <app id>`, and `stores:privacy:set <app id> --file usages.json --publish` with the lines as a list.
+
+```json
+{
+  "usages": [
+    { "category": "USER_ID", "purpose": "APP_FUNCTIONALITY", "data_protection": "DATA_LINKED_TO_YOU" },
+    { "category": "PURCHASE_HISTORY", "purpose": "APP_FUNCTIONALITY", "data_protection": "DATA_LINKED_TO_YOU" }
+  ],
+  "publish": true
+}
+```
+
+### The app's record
+
+An app [linked to the App Store](https://palbase.studio/docs/distribution/testflight#link-the-app) without its App Store Connect record gets one with `POST /stores/apps/{app_id}/record` and its App Store name (`{"name": "Shop"}`): Palbase makes the record and links the app to it. The team's first app also needs `company_name`, the seller's name. `DELETE` removes the record, as App Store Connect's **Remove App** does: Apple takes it for an app never approved. Each is the environment's `stores.app.changed` event (`record_made`, `record_removed`). From a terminal: `palbase stores:apps:record <app id> --name Shop`, and `stores:apps:record:remove <app id>`.
 
 ## Related
 

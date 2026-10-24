@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.16.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.18.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-341 commands in 29 groups.
+354 commands in 30 groups.
 
 ## Global flags
 
@@ -222,11 +222,11 @@ palbase env:tokens:create [--scope <scope>[,<scope>]] [--minutes <n>] [--name <n
 ```
 
 It does in this environment what your role does — as your own CLI would — but never makes or shows a standing credential (a key, a token), changes people or roles, or deletes a project or an environment; nothing beyond this environment.
---scope narrows it to: machines:read, machines:logs, apps:sync, auth:test-users — machines:read reads the machines, their builds, crons and queues; machines:logs their logs; apps:sync what palbase apps:sync reads; auth:test-users makes and deletes test users.
+--scope narrows it to: machines:read, machines:logs, apps:sync, auth:test-users, support — machines:read reads the machines, their builds, crons and queues; machines:logs their logs; apps:sync what palbase apps:sync reads; auth:test-users makes and deletes test users; support asks Palbase's support line (palbase support:ask).
 Give it to the program as PALBASE_TOKEN: the CLI acts in this environment alone with it. It ends after --minutes (default 60, at most 240), and with what minted it.
 
 ```text
-      --scope <scope>  narrow it to: machines:read, machines:logs, apps:sync, auth:test-users (comma-separated, or given again); none: your role
+      --scope <scope>  narrow it to: machines:read, machines:logs, apps:sync, auth:test-users, support (comma-separated, or given again); none: your role
       --minutes <n>    how long it lives (default 60, at most 240)
       --name <name>    what it is for, as the environment lists it
 ```
@@ -2000,11 +2000,30 @@ Forget a repository: a chat's workspace checks it out no more
 palbase ai:repos:remove <name>
 ```
 
+## `support`
+
+### `palbase support:ask`
+
+Ask Palbase's support line about Palbase: answered from its documentation and what this environment shows; what Palbase lacks is logged, and you are mailed when Palbase closes it
+
+```sh
+palbase support:ask "<question>" [--no-context]
+```
+
+It is answered by a model Palbase pays for, from Palbase's documentation and — unless --no-context — this environment's machines, their last builds and a failed build's log, read with your sign-in or PALBASE_TOKEN (what it cannot read is left out).
+Keys, tokens and passwords in what is sent are masked before anything reads them.
+When the answer finds something Palbase lacks, it is logged under the case it names, and you are mailed when it is closed (asked with an environment token, the owners of its organization are).
+A person asks 30 questions an hour, a project's people 60. An environment token narrowed to the support scope asks too.
+
+```text
+      --no-context  send the question alone, nothing of this environment's machines
+```
+
 ## `stores`
 
 ### `palbase stores:apple`
 
-The environment's Apple account: whether one is connected, what Apple last said of its key, what the key reaches
+The environment's Apple account and Apple ID: whether each is connected, what Apple last said of them, what the key reaches
 
 ```sh
 palbase stores:apple
@@ -2012,16 +2031,19 @@ palbase stores:apple
 
 ### `palbase stores:apple:connect`
 
-Connect an App Store Connect API key: it goes from this computer straight to the environment, never through Studio
+Connect an App Store Connect API key, or sign an Apple ID in: either goes from this computer straight to the environment, never through Studio
 
 ```sh
-palbase stores:apple:connect --key-file <AuthKey_KEYID.p8> --issuer-id <issuer id> [--key-id <KEYID>] | --print-link
+palbase stores:apple:connect --key-file <AuthKey_KEYID.p8> --issuer-id <issuer id> [--key-id <KEYID>] | --apple-id <email> [--team <team>] | [--apple-id <email>] --print-link
 ```
 
 App Store Connect → Users and Access → Integrations → App Store Connect API makes the key and shows the Issuer ID; stores:apple then says what its role reaches.
 Studio is asked for a one-time grant alone; the key is posted with it to the environment's own address. --print-link prints a link that takes the key in a browser instead.
+--apple-id signs an Apple ID in, for what Apple's API does not do: App Review's messages and the answer to them, App Privacy, making an app record. Its password is read here and handed to Apple through the environment, never kept; then Apple's code, and the team when the Apple ID is in more than one. An owner's or an admin's.
 
 ```text
+      --apple-id <email>             sign this Apple ID in instead of connecting a key
+      --team <team>                  the Apple ID's team, by name or id, when it is in more than one
       --key-file <AuthKey_KEYID.p8>  the .p8 file Apple gave when the key was made
       --key-id <KEYID>               the key's id (default: from the file's name)
       --issuer-id <issuer id>        the account's issuer id
@@ -2030,18 +2052,26 @@ Studio is asked for a one-time grant alone; the key is posted with it to the env
 
 ### `palbase stores:apple:check`
 
-Ask Apple about the connected key again: after the account holder accepted its agreements, or its role changed
+Ask Apple about the connected key again (after the account holder accepted its agreements, or its role changed), or with --apple-id about the Apple ID
 
 ```sh
 palbase stores:apple:check
 ```
 
+```text
+      --apple-id  check the Apple ID's session instead: whether Apple still takes it, its team and roles
+```
+
 ### `palbase stores:apple:disconnect`
 
-Take the environment's Apple key away (Apple keeps its apps and builds)
+Take the environment's Apple key away (Apple keeps its apps and builds), or with --apple-id sign its Apple ID out
 
 ```sh
 palbase stores:apple:disconnect
+```
+
+```text
+      --apple-id  sign the Apple ID out, at Apple too, and forget its session; the key stays
 ```
 
 ### `palbase stores:google`
@@ -2134,6 +2164,29 @@ palbase stores:apps:link <app id> [--name <name in the store>]
 
 ```text
       --name <name>  its name in the store (default: the bundle id or package)
+```
+
+### `palbase stores:apps:record`
+
+Make a linked iOS app's App Store Connect record with the Apple ID — Apple's API leaves it to a person on the website — and link the app to it
+
+```sh
+palbase stores:apps:record <app id> --name <App Store name> [--sku <sku>] [--locale <en-US>] [--company <seller name>]
+```
+
+```text
+      --name <name>      its App Store name (30 characters at most)
+      --sku <sku>        the record's own id in the team (default: the bundle id)
+      --locale <locale>  its store page's first language (default: en-US)
+      --company <name>   the seller's name, which a team's first app sets
+```
+
+### `palbase stores:apps:record:remove`
+
+Remove a linked iOS app's App Store Connect record with the Apple ID, as App Store Connect's Remove App does (an app never approved)
+
+```sh
+palbase stores:apps:record:remove <app id>
 ```
 
 ### `palbase stores:apps:upload-key`
@@ -2571,6 +2624,54 @@ Plan pausing, resuming or completing the version's phased release (complete: eve
 palbase stores:version:phased <app id> <paused|active|complete>
 ```
 
+### `palbase stores:app-review`
+
+An iOS app's Resolution Center, read with the Apple ID: App Review's messages, the guidelines a rejection names, its attachments, the answer not sent yet
+
+```sh
+palbase stores:app-review <app id>
+```
+
+Apple's API gives no reason for a rejection: the Apple ID signed in for the environment reads it (stores:apple:connect --apple-id). The five threads written to last.
+
+### `palbase stores:app-review:answer`
+
+Write the answer to an App Review thread, as App Store Connect's draft; --send sends it
+
+```sh
+palbase stores:app-review:answer <app id> <thread id> [--file <answer.txt>] [--send]
+```
+
+The answer is read from --file, or piped in. Without --send it stays a draft, which App Store Connect's website shows too; with --send it goes to App Review.
+
+```text
+      --file <answer.txt>  the answer (default: stdin)
+      --send               send it to App Review once written
+```
+
+### `palbase stores:privacy`
+
+An iOS app's App Privacy details as App Store Connect has them, read with the Apple ID
+
+```sh
+palbase stores:privacy <app id>
+```
+
+### `palbase stores:privacy:set`
+
+Write an iOS app's App Privacy details at Apple with the Apple ID, and publish them with --publish
+
+```sh
+palbase stores:privacy:set <app id> --file <usages.json> [--publish]
+```
+
+The file is the details' lines in Apple's words: [{"category":"USER_ID","purpose":"APP_FUNCTIONALITY","data_protection":"DATA_LINKED_TO_YOU"}], or [{"data_protection":"DATA_NOT_COLLECTED"}] alone. What Apple has and the file lacks is removed; what the file has and Apple lacks is made.
+
+```text
+      --file <usages.json>  the lines (default: stdin)
+      --publish             publish them once written
+```
+
 ### `palbase stores:actions`
 
 The actions planned at Apple, newest first: what each does, and whether it ran (running: a page still being written)
@@ -2685,6 +2786,57 @@ Decline a plan: its Stripe part is never written
 palbase purchases:catalog:decline <plan id>
 ```
 
+### `palbase purchases:catalog:revisions`
+
+Every revision the catalog was saved as, the newest first: who saved it, when, and when a plan of it was written to the stores
+
+```sh
+palbase purchases:catalog:revisions [--limit <n>] [--cursor <next>]
+```
+
+purchases:catalog:revision `<n>` reads one; purchases:catalog:restore `<n>` puts it back as the next revision.
+
+```text
+      --limit <n>      revisions a page (default 50, at most 200)
+      --cursor <next>  the next page, as the last one printed it
+```
+
+### `palbase purchases:catalog:revision`
+
+The catalog as it was saved at a revision
+
+```sh
+palbase purchases:catalog:revision <revision> [--out <catalog.json>]
+```
+
+--out writes that revision's catalog to a file, as catalog:get --out writes the newest.
+
+```text
+      --out <catalog.json>  write the revision's catalog to this file
+```
+
+### `palbase purchases:catalog:restore`
+
+Put an older revision of the catalog back, as its next revision; nothing is written to a store
+
+```sh
+palbase purchases:catalog:restore <revision>
+```
+
+It is saved as an edit is: checked against today's rules, what customers bought kept in it — a revision that breaks one is refused with every problem.
+The stores are brought to it by a plan, confirmed: palbase purchases:catalog:plan.
+
+### `palbase purchases:customers`
+
+Find customers by what a person writing in has: their id, an id their store gave a purchase, or the email they bought with on the web
+
+```sh
+palbase purchases:customers <query>
+```
+
+The query is a customer's id; Apple's original transaction id or any transaction id; a Google order id (GPA.…, a renewal's ..N or not); Stripe's subscription, payment intent, invoice or customer id; or an email address.
+An email finds a buyer who had no account at checkout, matched whole (case aside): the address is never kept, an HMAC of it is.
+
 ### `palbase purchases:customer:get`
 
 What a customer has, whatever store they bought in: entitlements, subscriptions, purchases, credits and limits
@@ -2694,6 +2846,31 @@ palbase purchases:customer:get <customer id>
 ```
 
 The customer is the user's id; a guest merged into an account answers as the account.
+
+### `palbase purchases:customer:history`
+
+What happened to a customer, the newest first: payments, refunds, cancellations, grants, credits, moves — with who did each, and why
+
+```sh
+palbase purchases:customer:history <customer id> [--limit <n>] [--cursor <next>]
+```
+
+Credits spent are the credits' own entries; here are the credits given, taken back, expired and forgiven.
+
+```text
+      --limit <n>      events a page (default 50, at most 200)
+      --cursor <next>  the next page, as the last one printed it
+```
+
+### `palbase purchases:customer:grants`
+
+The entitlements given a customer — active, ended and revoked — with each grant's id, reason and who gave it
+
+```sh
+palbase purchases:customer:grants <customer id>
+```
+
+End one: palbase purchases:customer:revoke `<customer id>` `<grant id>`.
 
 ### `palbase purchases:customer:grant`
 

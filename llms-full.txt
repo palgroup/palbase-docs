@@ -1273,6 +1273,7 @@ Test users, and the sign-ins made for them, are open: they are test fixtures, an
 | `machines:logs` | A machine's logs and its builds' logs |
 | `apps:sync` | What `palbase apps:sync` reads: the project's apps as they are in this environment, their client settings, the machines' contracts |
 | `auth:test-users` | The environment's test users: made with their sign-ins, listed, deleted. Not other users |
+| `support` | A question to Palbase's support line (`palbase support:ask`, `POST /ai/support-questions`): an agent asks Palbase what it cannot find out, not the person it works for |
 
 ### When it stops working
 
@@ -1388,7 +1389,7 @@ An environment is held to limits of three kinds, and each one says so in its ans
 
 - **Rates**, per second: a call over one is refused for that second (`429` with `Retry-After: 1`).
 - **Limits on the month**: a limit set on one of the environment's metrics refuses that use, or only counts it, until the month ends.
-- **What a free project gets**: its traffic is slowed past 5 GB, and a free database sleeps past its 400 hours. Neither stops the project or loses its data.
+- **What a free project gets**: its traffic is slowed past 5 GB, its chat messages past a million a month or 1 GiB kept, and a free database sleeps past its 400 hours. None of them stops the project or loses its data.
 
 ## Where usage is shown
 
@@ -1415,6 +1416,8 @@ Every member of the organization reads it ([Organizations](/docs/getting-started
 | `cache.bytes`, `cache.egress` | **Cache memory**, the month's largest, and **Cache reads**, a part of response traffic ([Cache](/docs/backend/cache)) |
 | `realtime.messages` | **Realtime messages**: each one delivered — a broadcast to ten subscribers is ten |
 | `realtime.connections` | Realtime connections open at once, the month's largest |
+| `messaging.messages` | **Chat messages**: each message the project's people, or its server, sent in its conversations; one sent again with the same client id is one |
+| `messaging.bytes` | **Chat message storage**: what the project's messages weigh where they are kept — each one's sealed text and 768 bytes for its row and indexes — the month's largest |
 | `flags.reads` | The flag reads clients made, answered in full or not modified |
 | `analytics.events` | **Analytics events**: captures, identifies, aliases, screens and page views (setting a person's properties is not counted) |
 | `analytics.perf`, `analytics.traces`, `analytics.console` | Performance samples kept, request traces taken, console records kept ([Analytics](/docs/analytics/overview)) |
@@ -1458,6 +1461,7 @@ When a limit that refuses is reached, that use is refused until the month ends, 
 | Stored data | Writing to storage: `429 quota_exceeded`. Reads go on |
 | Realtime messages or connections | A new socket: `429 quota_exceeded`, with `Retry-After: 3600` (an hour, not the month's end); and a server's broadcast: `429 quota_exceeded` |
 | Flag reads | Reading the flags: `429 quota_exceeded` |
+| Chat messages, or what they weigh | Sending a message, a person's or the server's: `429 quota_exceeded` |
 | Analytics events, samples, traces or console records | Sending that kind: `429 quota_exceeded` |
 | Machine hours | The machines: they are stopped, dedicated sizes too, and a request to one, a new machine, a cron or a task is `429 quota_exceeded` |
 
@@ -1469,6 +1473,7 @@ A project is free while its organization has no payment account, or has one with
 
 - **Sizes.** Its machines are of the `shared-256` size, the one free machine size, and it has one database at most, of the `free` size: a project holds one database of a free size at a time ([Databases](/docs/machines/databases#sizes)). Every other size is paid for: opening a machine or a database of one, or moving one to it, is `403 size_not_available`. `palbase machines:sizes` and `palbase databases:sizes` list the sizes and which of them the environment may open now ([Machines](/docs/machines/overview#sizes)).
 - **Traffic.** It sends 5 GB a month at full speed: its machines' internet traffic and its response traffic together. Past it, until the month ends, its machines' traffic and answers and the files its storage hands out go at about 256 kbit/s; nothing is stopped, and the API's other answers are not slowed. A slowed project's downloads are paced, and one more than it may have under way at once is `429 rate_limited` with `Retry-After`. See [Reaching the internet](/docs/machines/overview#reaching-the-internet).
+- **Chat messages.** 1 million messages a month, and 1 GiB of them kept. Past either, until the month ends, the project's messages go at about one a second, all its people and its server together: a send waits its turn, 10 seconds at the most, and one whose turn is further off is `429 slowed` with `Retry-After` — the SDKs keep it in their outbox and send it again. No message is lost, and reading, syncing and everything else go on at full speed. What is kept counts at its month's largest, so a project that keeps more than 1 GiB is slowed again early each month: remove old messages, or set the project's retention ([Messaging](/docs/messaging/overview#the-projects-settings)), to stay under it.
 - **A free database** is awake 400 hours a month at most. Past them it sleeps until the month ends, refusing connections, with its data kept; from then its next connection wakes it.
 - **AI.** $1.00 of Palbase's models a month, at the provider's price and 10%. Past it, until the month ends, a call to them is `402 ai_payment_required`; a call under the project's own provider key goes on ([AI](/docs/backend/ai#what-it-costs)).
 
@@ -1636,7 +1641,17 @@ palbase env:tokens:create --minutes 120 --name coding-agent
 palbase env:tokens:create --scope machines:read,machines:logs   # only read machines and their logs
 ```
 
-Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:read`, `machines:logs`, `apps:sync` or `auth:test-users`. `palbase env:tokens:list` lists the live ones and `palbase env:tokens:revoke <id>` ends one at its next request. The docs an agent reads are at `/llms.txt`, with every page in one file at `/llms-full.txt`.
+Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:read`, `machines:logs`, `apps:sync`, `auth:test-users` or `support`. `palbase env:tokens:list` lists the live ones and `palbase env:tokens:revoke <id>` ends one at its next request. The docs an agent reads are at `/llms.txt`, with every page in one file at `/llms-full.txt`.
+
+## Asking Palbase
+
+What the docs do not answer — a command or call that fails with nothing to act on, a page that is wrong or missing, something Palbase seems not to do — goes to Palbase's support line:
+
+```sh
+palbase support:ask "machines:deploy fails with build_failed and the log ends at npm ci — what is wrong?"
+```
+
+The answer comes from these docs and from what the environment shows you: its machines, their last builds and the end of a failed build's log, read with your own sign-in or token and sent with the question. When the answer is that Palbase lacks something, the CLI prints a case number: Palbase has it, and you are told by email when Palbase closes it. Keys, tokens and passwords in a question are masked before anyone reads it. An agent asks with an environment token that has the `support` scope. A person asks 30 questions an hour, a project 60.
 
 ## What the commands cover
 
@@ -1652,6 +1667,7 @@ Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:r
 | [`github`](/docs/cli/reference#github), [`machines`](/docs/cli/reference#machines) | Connecting GitHub, machines, their builds, logs, crons and tasks ([Machines](/docs/machines/overview)) |
 | [`databases`](/docs/cli/reference#databases), [`db`](/docs/cli/reference#db) | Databases, their backups, connection addresses, `psql`, dumps and schema plans ([Databases](/docs/machines/databases)) |
 | [`config`](/docs/cli/reference#config), [`types`](/docs/cli/reference#types) | Comparing and copying module settings between environments, and the environment's names as TypeScript types |
+| [`support`](/docs/cli/reference#support) | A question to Palbase's support line ([Asking Palbase](#asking-palbase)) |
 
 
 
@@ -1659,9 +1675,9 @@ Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:r
 
 # CLI reference
 
-Every command of `palbase` 0.16.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.18.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-341 commands in 29 groups.
+354 commands in 30 groups.
 
 ## Global flags
 
@@ -1879,11 +1895,11 @@ palbase env:tokens:create [--scope <scope>[,<scope>]] [--minutes <n>] [--name <n
 ```
 
 It does in this environment what your role does — as your own CLI would — but never makes or shows a standing credential (a key, a token), changes people or roles, or deletes a project or an environment; nothing beyond this environment.
---scope narrows it to: machines:read, machines:logs, apps:sync, auth:test-users — machines:read reads the machines, their builds, crons and queues; machines:logs their logs; apps:sync what palbase apps:sync reads; auth:test-users makes and deletes test users.
+--scope narrows it to: machines:read, machines:logs, apps:sync, auth:test-users, support — machines:read reads the machines, their builds, crons and queues; machines:logs their logs; apps:sync what palbase apps:sync reads; auth:test-users makes and deletes test users; support asks Palbase's support line (palbase support:ask).
 Give it to the program as PALBASE_TOKEN: the CLI acts in this environment alone with it. It ends after --minutes (default 60, at most 240), and with what minted it.
 
 ```text
-      --scope <scope>  narrow it to: machines:read, machines:logs, apps:sync, auth:test-users (comma-separated, or given again); none: your role
+      --scope <scope>  narrow it to: machines:read, machines:logs, apps:sync, auth:test-users, support (comma-separated, or given again); none: your role
       --minutes <n>    how long it lives (default 60, at most 240)
       --name <name>    what it is for, as the environment lists it
 ```
@@ -3657,11 +3673,30 @@ Forget a repository: a chat's workspace checks it out no more
 palbase ai:repos:remove <name>
 ```
 
+## `support`
+
+### `palbase support:ask`
+
+Ask Palbase's support line about Palbase: answered from its documentation and what this environment shows; what Palbase lacks is logged, and you are mailed when Palbase closes it
+
+```sh
+palbase support:ask "<question>" [--no-context]
+```
+
+It is answered by a model Palbase pays for, from Palbase's documentation and — unless --no-context — this environment's machines, their last builds and a failed build's log, read with your sign-in or PALBASE_TOKEN (what it cannot read is left out).
+Keys, tokens and passwords in what is sent are masked before anything reads them.
+When the answer finds something Palbase lacks, it is logged under the case it names, and you are mailed when it is closed (asked with an environment token, the owners of its organization are).
+A person asks 30 questions an hour, a project's people 60. An environment token narrowed to the support scope asks too.
+
+```text
+      --no-context  send the question alone, nothing of this environment's machines
+```
+
 ## `stores`
 
 ### `palbase stores:apple`
 
-The environment's Apple account: whether one is connected, what Apple last said of its key, what the key reaches
+The environment's Apple account and Apple ID: whether each is connected, what Apple last said of them, what the key reaches
 
 ```sh
 palbase stores:apple
@@ -3669,16 +3704,19 @@ palbase stores:apple
 
 ### `palbase stores:apple:connect`
 
-Connect an App Store Connect API key: it goes from this computer straight to the environment, never through Studio
+Connect an App Store Connect API key, or sign an Apple ID in: either goes from this computer straight to the environment, never through Studio
 
 ```sh
-palbase stores:apple:connect --key-file <AuthKey_KEYID.p8> --issuer-id <issuer id> [--key-id <KEYID>] | --print-link
+palbase stores:apple:connect --key-file <AuthKey_KEYID.p8> --issuer-id <issuer id> [--key-id <KEYID>] | --apple-id <email> [--team <team>] | [--apple-id <email>] --print-link
 ```
 
 App Store Connect → Users and Access → Integrations → App Store Connect API makes the key and shows the Issuer ID; stores:apple then says what its role reaches.
 Studio is asked for a one-time grant alone; the key is posted with it to the environment's own address. --print-link prints a link that takes the key in a browser instead.
+--apple-id signs an Apple ID in, for what Apple's API does not do: App Review's messages and the answer to them, App Privacy, making an app record. Its password is read here and handed to Apple through the environment, never kept; then Apple's code, and the team when the Apple ID is in more than one. An owner's or an admin's.
 
 ```text
+      --apple-id <email>             sign this Apple ID in instead of connecting a key
+      --team <team>                  the Apple ID's team, by name or id, when it is in more than one
       --key-file <AuthKey_KEYID.p8>  the .p8 file Apple gave when the key was made
       --key-id <KEYID>               the key's id (default: from the file's name)
       --issuer-id <issuer id>        the account's issuer id
@@ -3687,18 +3725,26 @@ Studio is asked for a one-time grant alone; the key is posted with it to the env
 
 ### `palbase stores:apple:check`
 
-Ask Apple about the connected key again: after the account holder accepted its agreements, or its role changed
+Ask Apple about the connected key again (after the account holder accepted its agreements, or its role changed), or with --apple-id about the Apple ID
 
 ```sh
 palbase stores:apple:check
 ```
 
+```text
+      --apple-id  check the Apple ID's session instead: whether Apple still takes it, its team and roles
+```
+
 ### `palbase stores:apple:disconnect`
 
-Take the environment's Apple key away (Apple keeps its apps and builds)
+Take the environment's Apple key away (Apple keeps its apps and builds), or with --apple-id sign its Apple ID out
 
 ```sh
 palbase stores:apple:disconnect
+```
+
+```text
+      --apple-id  sign the Apple ID out, at Apple too, and forget its session; the key stays
 ```
 
 ### `palbase stores:google`
@@ -3791,6 +3837,29 @@ palbase stores:apps:link <app id> [--name <name in the store>]
 
 ```text
       --name <name>  its name in the store (default: the bundle id or package)
+```
+
+### `palbase stores:apps:record`
+
+Make a linked iOS app's App Store Connect record with the Apple ID — Apple's API leaves it to a person on the website — and link the app to it
+
+```sh
+palbase stores:apps:record <app id> --name <App Store name> [--sku <sku>] [--locale <en-US>] [--company <seller name>]
+```
+
+```text
+      --name <name>      its App Store name (30 characters at most)
+      --sku <sku>        the record's own id in the team (default: the bundle id)
+      --locale <locale>  its store page's first language (default: en-US)
+      --company <name>   the seller's name, which a team's first app sets
+```
+
+### `palbase stores:apps:record:remove`
+
+Remove a linked iOS app's App Store Connect record with the Apple ID, as App Store Connect's Remove App does (an app never approved)
+
+```sh
+palbase stores:apps:record:remove <app id>
 ```
 
 ### `palbase stores:apps:upload-key`
@@ -4228,6 +4297,54 @@ Plan pausing, resuming or completing the version's phased release (complete: eve
 palbase stores:version:phased <app id> <paused|active|complete>
 ```
 
+### `palbase stores:app-review`
+
+An iOS app's Resolution Center, read with the Apple ID: App Review's messages, the guidelines a rejection names, its attachments, the answer not sent yet
+
+```sh
+palbase stores:app-review <app id>
+```
+
+Apple's API gives no reason for a rejection: the Apple ID signed in for the environment reads it (stores:apple:connect --apple-id). The five threads written to last.
+
+### `palbase stores:app-review:answer`
+
+Write the answer to an App Review thread, as App Store Connect's draft; --send sends it
+
+```sh
+palbase stores:app-review:answer <app id> <thread id> [--file <answer.txt>] [--send]
+```
+
+The answer is read from --file, or piped in. Without --send it stays a draft, which App Store Connect's website shows too; with --send it goes to App Review.
+
+```text
+      --file <answer.txt>  the answer (default: stdin)
+      --send               send it to App Review once written
+```
+
+### `palbase stores:privacy`
+
+An iOS app's App Privacy details as App Store Connect has them, read with the Apple ID
+
+```sh
+palbase stores:privacy <app id>
+```
+
+### `palbase stores:privacy:set`
+
+Write an iOS app's App Privacy details at Apple with the Apple ID, and publish them with --publish
+
+```sh
+palbase stores:privacy:set <app id> --file <usages.json> [--publish]
+```
+
+The file is the details' lines in Apple's words: [{"category":"USER_ID","purpose":"APP_FUNCTIONALITY","data_protection":"DATA_LINKED_TO_YOU"}], or [{"data_protection":"DATA_NOT_COLLECTED"}] alone. What Apple has and the file lacks is removed; what the file has and Apple lacks is made.
+
+```text
+      --file <usages.json>  the lines (default: stdin)
+      --publish             publish them once written
+```
+
 ### `palbase stores:actions`
 
 The actions planned at Apple, newest first: what each does, and whether it ran (running: a page still being written)
@@ -4342,6 +4459,57 @@ Decline a plan: its Stripe part is never written
 palbase purchases:catalog:decline <plan id>
 ```
 
+### `palbase purchases:catalog:revisions`
+
+Every revision the catalog was saved as, the newest first: who saved it, when, and when a plan of it was written to the stores
+
+```sh
+palbase purchases:catalog:revisions [--limit <n>] [--cursor <next>]
+```
+
+purchases:catalog:revision `<n>` reads one; purchases:catalog:restore `<n>` puts it back as the next revision.
+
+```text
+      --limit <n>      revisions a page (default 50, at most 200)
+      --cursor <next>  the next page, as the last one printed it
+```
+
+### `palbase purchases:catalog:revision`
+
+The catalog as it was saved at a revision
+
+```sh
+palbase purchases:catalog:revision <revision> [--out <catalog.json>]
+```
+
+--out writes that revision's catalog to a file, as catalog:get --out writes the newest.
+
+```text
+      --out <catalog.json>  write the revision's catalog to this file
+```
+
+### `palbase purchases:catalog:restore`
+
+Put an older revision of the catalog back, as its next revision; nothing is written to a store
+
+```sh
+palbase purchases:catalog:restore <revision>
+```
+
+It is saved as an edit is: checked against today's rules, what customers bought kept in it — a revision that breaks one is refused with every problem.
+The stores are brought to it by a plan, confirmed: palbase purchases:catalog:plan.
+
+### `palbase purchases:customers`
+
+Find customers by what a person writing in has: their id, an id their store gave a purchase, or the email they bought with on the web
+
+```sh
+palbase purchases:customers <query>
+```
+
+The query is a customer's id; Apple's original transaction id or any transaction id; a Google order id (GPA.…, a renewal's ..N or not); Stripe's subscription, payment intent, invoice or customer id; or an email address.
+An email finds a buyer who had no account at checkout, matched whole (case aside): the address is never kept, an HMAC of it is.
+
 ### `palbase purchases:customer:get`
 
 What a customer has, whatever store they bought in: entitlements, subscriptions, purchases, credits and limits
@@ -4351,6 +4519,31 @@ palbase purchases:customer:get <customer id>
 ```
 
 The customer is the user's id; a guest merged into an account answers as the account.
+
+### `palbase purchases:customer:history`
+
+What happened to a customer, the newest first: payments, refunds, cancellations, grants, credits, moves — with who did each, and why
+
+```sh
+palbase purchases:customer:history <customer id> [--limit <n>] [--cursor <next>]
+```
+
+Credits spent are the credits' own entries; here are the credits given, taken back, expired and forgiven.
+
+```text
+      --limit <n>      events a page (default 50, at most 200)
+      --cursor <next>  the next page, as the last one printed it
+```
+
+### `palbase purchases:customer:grants`
+
+The entitlements given a customer — active, ended and revoked — with each grant's id, reason and who gave it
+
+```sh
+palbase purchases:customer:grants <customer id>
+```
+
+End one: palbase purchases:customer:revoke `<customer id>` `<grant id>`.
 
 ### `palbase purchases:customer:grant`
 
@@ -10514,6 +10707,18 @@ palbase notify:send email ada@example.com --template welcome --var name=Ada
 palbase notify:messages --limit 20                             # what was sent, and what became of it
 ```
 
+**Apple (APNs).** The credential is a team-scoped APNs key — `{ "private_key": "-----BEGIN PRIVATE KEY-----…", "team_id": "…", "key_id": "…" }`, the `.p8` from Apple's Certificates, Identifiers & Profiles → Keys with Apple Push Notifications service on — and one key serves every app of the team, in both of Apple's environments. As it is saved, notify asks Apple about it, with a token no device holds, for each iOS app registered in the environment: a key Apple refuses (another team's, a revoked one, one not allowed for the app) is refused with `400 invalid_credentials`, saying Apple's answer; Apple not answering is `502 apns_unreachable`, and nothing is saved.
+
+```sh
+palbase notify:providers:set push apns < apns.json   # {"private_key": "…", "team_id": "ABCDE12345", "key_id": "3PSQ7G27A3"}
+```
+
+With an [Apple ID signed in](/docs/distribution/app-store#keys-made-for-you), Palbase makes the APNs keys for you instead: one for production and one for the sandbox, each scoped to the environment's iOS apps, and notify takes them as its provider — `key_id` signs production's pushes, `sandbox_key_id` (with `sandbox_private_key`) the sandbox's, and `made_by` is `"palbase"`. A key you set yourself is never replaced so.
+
+A push to an iOS device goes **to the bundle of the app it was registered from** — the app whose publishable key registered it ([Client Apps](/docs/apps/overview)) — and **through the APNs environment its token is for**, which the iOS SDK says: `sandbox` for an app run from Xcode or signed for development, `production` for TestFlight, the App Store and ad hoc. So one environment reaches the development build (`com.example.app.dev`, sandbox), its TestFlight build (`com.example.app.dev`, production) and the App Store app (`com.example.app`, production), each app registered in it with its own key. A device that did not say (an older SDK) is tried in production when the key says `is_production`, else sandbox, then — Apple calling the token bad — the other; a key made for one environment alone, asked in the other, is asked in its own. The environment that reached a device is kept. A device whose app is not known (registered before its app was) goes to the environment's one iOS app, or to the key's optional `bundle_id`. Each push's delivery says where it went: `route` — `production com.example.app`.
+
+**A provider that stops working** — an APNs key revoked, one not allowed for an app — fails every push alike. notify keeps it failing (`GET /notify/providers`: `failing_since`, `last_error`), Studio's **Notifications › Providers** shows it, and the organization's owners get an email — at most one a day a provider — as `notification.push_failing` (`{ project_id, channel, provider, error, failing_since }`) goes to your webhook. A push to the app it failed for that goes through, or the provider saved anew, ends it: a key that reaches one of your apps and not another stays failing for the other.
+
 Templates (`notify:templates:*`), topics (`notify:topics:*`) and the message settings (`notify:settings:*`) have their commands too; every one is in the [CLI reference](/docs/cli/reference#notify).
 
 ## Email
@@ -10584,7 +10789,7 @@ export class ChatPush {
 
 A push is one message per user, delivered to **every device of theirs** — an Expo token through Expo, a VoIP token through APNs, an iOS token through APNs if the project has it (else FCM), Android through FCM, a browser through its own push service (Web Push, below). `to: { topic }` sends one message to a topic's followers instead. Fields beyond the title and body: `data` (4 KiB for the app), `deep_link`, `image` (https), `badge`, `sound`, `silent`, `content_available`, `mutable_content`, `collapse_key`, `ttl`, `priority`, and `push_type: "voip"` for a call ring to `ios_voip` devices.
 
-**Devices are the app's to register**, and the iOS and Android SDKs do it for you: `POST /notify/devices` with the token its push SDK gave it (`device_id`, `platform` — `android`, `ios`, `ios_voip` or `web` — `token`, and the install's `installation_id`). With no one signed in, the publishable key alone registers it as the install's, proven with the install's secret (`X-Palbase-Installation-Secret`): a push that names the install — `to: { installation_ids }` — reaches it, so an app reaches people who never signed up. When someone signs in, their registration takes the device and it is theirs; signed out, the app registers it as the install's again. A user's device is the session's it was registered in: when the session ends — the user signed out or ended it from another device, its refresh token was revoked, an admin revoked it — the device is forgotten, and no push of theirs reaches it. A token another device held moves to this one. Your backend reads a user's devices (never their tokens) with `listUserDevices({ path: { user_id } })`.
+**Devices are the app's to register**, and the iOS and Android SDKs do it for you: `POST /notify/devices` with the token its push SDK gave it (`device_id`, `platform` — `android`, `ios`, `ios_voip` or `web` — `token`, the install's `installation_id`, and an iOS token's `apns_environment`: `sandbox` or `production`). With no one signed in, the publishable key alone registers it as the install's, proven with the install's secret (`X-Palbase-Installation-Secret`): a push that names the install — `to: { installation_ids }` — reaches it, so an app reaches people who never signed up. When someone signs in, their registration takes the device and it is theirs; signed out, the app registers it as the install's again. A user's device is the session's it was registered in: when the session ends — the user signed out or ended it from another device, its refresh token was revoked, an admin revoked it — the device is forgotten, and no push of theirs reaches it. A token another device held moves to this one. Your backend reads a user's devices (never their tokens) with `listUserDevices({ path: { user_id } })`.
 
 **An app taken off a phone** shows when its next push goes: APNs answers `410`, FCM `UNREGISTERED`. The device is forgotten, and `notification.uninstalled` (`{ platform, provider, device_id, installation_id, user_id }`) goes into the person's timeline and to your webhook — the uninstall you can count and reach back for by other means.
 
@@ -10805,7 +11010,7 @@ A journey sends a person messages over time after something they did — a welco
 
 ## Related
 
-- [Webhooks](/docs/server/webhooks) — `notification.sent`, `notification.failed`, `notification.received`, `notification.uninstalled`
+- [Webhooks](/docs/server/webhooks) — `notification.sent`, `notification.failed`, `notification.received`, `notification.uninstalled`, `notification.push_failing`
 - [Analytics](/docs/web/analytics#audiences) — the audiences a push can go to, and each person's consent
 - [Server SDK Overview](/docs/server/overview) — calls, refusals, retries and `Idempotency-Key`
 - [Secrets](/docs/backend/secrets) — the values your own code reads (a provider's credentials are kept by notify, sealed)
@@ -11674,7 +11879,7 @@ A chat that works in a workspace gives its agent the workspace's own tools as we
 |---|---|
 | `palai.workspace.file`, `str_replace_based_edit_tool` | Read, write and edit a file. |
 | `palai.workspace.glob`, `palai.workspace.grep` | Find files by name, and lines by pattern. |
-| `palai.workspace.shell`, `palai.workspace.background_status`, `palai.workspace.background_kill` | Run a command (with no network), keep one running in the background, read it and stop it. `xcodebuild`, `xcrun`, `swift` and `simuse` run on the platform's Mac, and what they write under `artifacts/` and `scratch/` comes back into the workspace. |
+| `palai.workspace.shell`, `palai.workspace.background_status`, `palai.workspace.background_kill` | Run a command — it reaches the internet over HTTP, HTTPS, SSH and git (a package install, a clone, Palbase's own docs), never a private address or a mail server — keep one running in the background, read it and stop it. `xcodebuild`, `xcrun`, `swift` and `simuse` run on the platform's Mac, and what they write under `artifacts/` and `scratch/` comes back into the workspace. |
 | `palai.workspace.fetch_archive` | Download an archive from a URL and unpack it into the workspace. |
 | `palai.workspace.commit`, `palai.publish.push` | Commit, as the member the turn is for, and push to the chat's branch. |
 | `palai.artifact.publish`, `palai.artifact.open`, `palai.artifact.read`, `palai.artifact.list` | Publish a file as the turn's output, and read the ones published. |
@@ -15289,6 +15494,145 @@ The project holds its clients to limits the platform sets and the project may lo
 
 
 
+<!-- ===== web/messaging ===== -->
+
+# Messaging
+
+`pb.messaging` is the signed-in person's conversations in the browser: their list, each conversation's timeline and its threads, kept in IndexedDB between visits and current over the project's socket. An app subscribes to what it draws and writes; it opens no socket, appends nothing and syncs nothing itself. What the module is — history, encryption, files, timers, moderation, prices — is [Messaging](/docs/messaging/overview).
+
+## Quick example
+
+```ts
+// src/lib/palbase.ts
+import { createClient } from "palbase/web";
+
+export const pb = createClient({
+  url: "https://k3xq81w4m.palbase.studio",
+  publishableKey: "pb_k3xq81w4m_cZ8yX7wV6uT5",
+  // What the browser keeps of the person's conversations when they sign out: dropped unless true.
+  messaging: { keepOnSignOut: false },
+});
+```
+
+```ts
+// src/inbox.ts
+import { pb } from "./lib/palbase";
+
+// The person's conversations, the latest first: drawn from the device at once, then kept current.
+const list = pb.messaging.conversations();
+const stopList = list.subscribe(() => {
+  const { items, unread, synced } = list.state;
+  console.log(`${unread} unread in ${items.length} conversations`, synced ? "" : "(catching up)");
+});
+
+// The direct conversation with someone: the one there is, or a new one (it shows to them with its first message).
+const chat = await pb.messaging.direct("usr_01a1684c796e7394aa8ec75d893a8fe2");
+const stopChat = chat.subscribe(() => {
+  for (const entry of chat.state.entries) {
+    if (entry.kind === "message") console.log(entry.message.sender_id, entry.message.text);
+    else console.log("sending…", entry.item.request.text, entry.item.state);
+  }
+});
+
+// Drawn at once, sent now or when the network is back — once.
+await chat.send("Hi!");
+await chat.markRead();
+
+stopChat();
+stopList();
+```
+
+## Conversations
+
+| Call | What it is |
+|---|---|
+| `conversations()` | The person's conversations, the latest first: `items`, `unread` across them, and `synced` once the device's copy caught up |
+| `conversation(id)` | One conversation: `conversation`, `entries` (its timeline, the oldest first, then what is on its way), `members`, `typing`, `hasEarlier` |
+| `direct(userId)` | The direct conversation with someone |
+| `group({ title, memberIds, description, photo, settings })` | A new group, the person its owner; `notAdded` names whom the project's hook kept out |
+| `thread(conversationId, rootId)` | A message's thread: `root`, `entries`, `thread` (its count, its last answer, who answered, its unread count) |
+| `threads()` | The threads the person follows |
+| `scheduled()` | The person's messages for later |
+
+Each view (`conversations()`, `conversation(id)`, `thread(…)`, `scheduled()`) is an `Observed`: `state` now and `subscribe(listener)`, which returns the call that stops it. It reads the device's copy while subscribed and as long as the person stays the same; when another person signs in, it reads theirs. `loadEarlier()` reads the page before the oldest message drawn.
+
+```ts
+// src/team.ts
+import { pb } from "./lib/palbase";
+
+const team = await pb.messaging.group({ title: "Design", memberIds: ["usr_01a1684c796e7394aa8ec75d893a8fe2"] });
+const view = team.conversation;
+view.subscribe(() => console.log(view.state.members.length, "members,", view.state.typing.length, "typing"));
+if (view.state.hasEarlier) await view.loadEarlier();
+await pb.messaging.update(view.id, { title: "Design team" });
+```
+
+## Writing
+
+`send(conversationId, input)` — or a view's own `send(input)` — takes text or what a message carries:
+
+```ts
+// src/compose.ts
+import { pb } from "./lib/palbase";
+
+const conversationId = "0199f0c2-6a3e-7b1d-9f4e-2d1c8b7a6e50";
+const input = document.querySelector<HTMLInputElement>("input[type=file]")!;
+const photo = input.files![0];
+
+// Answers a message inline, mentions someone, carries a file encrypted on this device before it is uploaded.
+await pb.messaging.send(conversationId, {
+  text: "Here it is, @bob",
+  replyTo: "0199f0c2-7c11-7e2f-8a3b-4c5d6e7f8091",
+  files: [{ data: photo, contentType: photo.type, name: photo.name }],
+});
+
+// In a thread, shown in the conversation too; gone a day after everyone read it.
+await pb.messaging.send(conversationId, { text: "Agreed", threadId: "0199f0c2-7c11-7e2f-8a3b-4c5d6e7f8091", alsoInConversation: true, expiresIn: 86_400, expiresFrom: "read" });
+
+// Seen once: its photo opens for ten seconds, once.
+await pb.messaging.send(conversationId, { files: [{ data: photo, contentType: photo.type }], viewOnce: { limit: 1, seconds: 10 } });
+
+// Sent tomorrow at nine by the server, the browser closed or not: scheduled() lists it until then.
+const nine = new Date();
+nine.setDate(nine.getDate() + 1);
+nine.setHours(9, 0, 0, 0);
+await pb.messaging.send(conversationId, { text: "Good morning", sendAt: nine });
+```
+
+A message waits in the outbox while the browser is offline or the server is away and goes once it can, once; an entry of kind `pending` is one on its way. `edit`, `remove` (for `everyone` or `me`), `react` and `unreact`, `markRead`, `typing`, `cancelScheduled` and `editScheduled` change what was said. `open(message, attachmentId)` downloads a file and decrypts it in the browser; a message seen once gives its files by `viewOnce(message)` alone, and the app holds them — the device keeps none.
+
+## A message while the app is open
+
+A push for a message is not shown as the browser's notification while a page of the app is in front: the service worker leaves it to the page. `onIncoming` tells the page a new message from someone else as it arrives, so it draws its own banner — skip the conversation already on the screen:
+
+```ts
+// src/banner.ts
+import type { Message } from "palbase/web";
+import { pb } from "./lib/palbase";
+
+let open: string | null = null; // the conversation on the screen
+
+const stop = pb.messaging.onIncoming((message: Message) => {
+  if (message.conversation_id === open) return;
+  console.log("banner:", message.sender_id, message.text ?? "sent a file");
+});
+stop();
+```
+
+## The person
+
+`me()` and `updateMe({ name, image, read_receipts, show_last_seen, default_timer_seconds })` are the person's own profile and settings; `profiles(userIds)` others' names and pictures. `block(userId)`, `unblock(userId)` and `report({ … })` are theirs to use. `notifications(conversationId, { notify_level, muted_until })` mutes a conversation, or keeps only its mentions.
+
+## Vanish mode and screenshots
+
+A direct conversation in vanish mode (`update(id, { settings: { vanish: true } })`) drops what the person read when they leave it: call `close(conversationId)` as its screen goes. A browser cannot know of a screenshot; the phone apps tell the others ([Messaging](/docs/messaging/overview#screenshots)).
+
+## Signing out
+
+When the person signs out, what the browser kept of their conversations is dropped and nothing of theirs is followed — unless `keepOnSignOut` is true, when it is theirs again the next time they sign in here, and no one else who signs in reads it. `storage` replaces where it is kept (IndexedDB, unless given).
+
+
+
 <!-- ===== web/gateways ===== -->
 
 # Gateways
@@ -17563,6 +17907,142 @@ The project holds its clients to limits the platform sets and the project may lo
 
 
 
+<!-- ===== ios/messaging ===== -->
+
+# Messaging
+
+`pb.messaging` is the signed-in person's conversations on iOS: their list, each conversation's timeline and its threads, as `@Observable` objects SwiftUI draws, kept in the app's SQLite between launches and current over the project's socket. The app writes; it opens no socket, appends nothing and syncs nothing itself. With the notification service extension, a message that arrives while the app is closed is already on the phone when it opens. What the module is — history, encryption, timers, moderation, prices — is [Messaging](/docs/messaging/overview).
+
+## Install
+
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.7.0 or later:
+
+- the app's target: `Palbase` and `PalbaseMessaging`;
+- the notification service extension's target (below): `PalbaseMessagingNotificationService`.
+
+## Quick example
+
+```swift
+import Palbase
+import PalbaseMessaging
+import SwiftUI
+
+struct Inbox: View {
+    let pb: PalbaseClient
+    // The person's conversations, the latest first: drawn from the phone at once, then kept current.
+    @State private var list: ConversationList?
+
+    var body: some View {
+        List(list?.items ?? [], id: \.id) { conversation in
+            NavigationLink(conversation.title ?? "Chat") { Chat(view: pb.messaging.conversation(conversation.id)) }
+        }
+        .navigationTitle("Chats (\(list?.unread ?? 0))")
+        .task { list = pb.messaging.conversations() }
+    }
+}
+
+struct Chat: View {
+    let view: ConversationView
+    @State private var text = ""
+
+    var body: some View {
+        VStack {
+            List(view.entries) { entry in
+                switch entry {
+                case .message(let m): Text(m.text ?? "a file")
+                case .pending(let item): Text(item.request.text ?? "a file").foregroundStyle(.secondary) // on its way
+                }
+            }
+            TextField("Message", text: $text)
+                .onSubmit {
+                    let words = text
+                    text = ""
+                    // Drawn at once, sent now or when the network is back — once.
+                    Task { _ = try? await view.send(words) }
+                }
+        }
+        .onAppear { view.onScreen(true) }
+        .onDisappear { view.onScreen(false) }
+        .task { try? await view.markRead() }
+    }
+}
+```
+
+`pb.messaging.direct(with: userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message); `group(title:memberIds:)` makes a group. `ConversationView` has `entries`, `members`, `typing`, `hasEarlier` and `loadEarlier()`; `thread(_:)` is a message's thread, `scheduled()` the person's messages for later.
+
+## Writing
+
+`send(_:_:)` takes text, or `SendOptions`: `replyTo`, `threadId` and `alsoInConversation`, `mentions`, `files` (encrypted on the phone before they are uploaded), `expiresIn` with `expiresFrom`, `viewOnce`, and `sendAt` for a message the server sends later. A message waits in the outbox while the phone is offline and goes once it can, once. `edit`, `remove`, `react`, `unreact`, `markRead`, `typing`, `cancelScheduled` and `editScheduled` change what was said; `open(_:attachment:)` downloads and decrypts a file, and a message seen once gives its files by `viewOnce(_:)` alone — held by the app, never by the phone's copy.
+
+## A message while the app is open
+
+A message's push is not drawn as the system's banner while the app is in front: the message is synced, and `incoming()` gives it to the app to draw its own banner. Answer the system with what `Messaging.foregroundPresentation` says:
+
+```swift
+import Palbase
+import PalbaseMessaging
+import UIKit
+import UserNotifications
+
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    let pb = PalbaseClient(try! PalbaseConfiguration.environment.with(appGroup: "group.com.example.chat"))
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Task { try? await pb.notify.register(apnsToken: deviceToken) }
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        pb.notify.willPresent(notification)
+        // A message's push: none (the app draws its own); any other push: as the app wants.
+        completionHandler(Messaging.foregroundPresentation(for: notification, of: pb) ?? [.banner, .sound])
+    }
+}
+```
+
+`incoming()` gives each message someone else wrote that is new to the phone once, whether the socket or the push brought it first — never what a sync or a page read, the person's own messages, or a muted conversation's. `onScreen` is true for the conversation on the screen:
+
+```swift
+.task {
+    for await m in pb.messaging.incoming() where !m.onScreen {
+        banner = m // m.message, m.conversation: draw it; a tap opens pb.messaging.conversation(m.message.conversationId)
+    }
+}
+```
+
+## Messages that arrive while the app is closed
+
+The `PalbaseMessagingNotificationService` extension shows a message's push and, while it does, brings that conversation's new messages into the phone's copy: open the app without a network and they are there.
+
+1. **Add the extension.** *File › New › Target › Notification Service Extension*; give it `PalbaseMessagingNotificationService`, and replace its `NotificationService.swift`:
+
+   ```swift
+   import PalbaseMessagingNotificationService
+
+   // Swift 6 asks a subclass to restate its base's @unchecked Sendable.
+   final class NotificationService: PalbaseMessagingNotificationService, @unchecked Sendable {}
+   ```
+
+2. **Share the copy and the session.** In *Signing & Capabilities*, give the app and the extension the same:
+   - **App Groups**: one group, such as `group.<bundle id>` — where the conversations are kept;
+   - **Keychain Sharing**: `<bundle id>.palbase`, the `keychain_group` `palbase apps:sync` writes to the environment's file — where the extension reads the session, and writes it back when it renews it.
+
+   The app alone has **Push Notifications**.
+
+3. **Give the app the group** (above): `PalbaseConfiguration.environment.with(appGroup: "group.<bundle id>")`, so it reads what the extension wrote. The extension reads the app's configuration from the shared keychain: the app must have been opened once.
+
+The extension's `Info.plist` is Xcode's: `NSExtensionPointIdentifier` `com.apple.usernotifications.service`, `NSExtensionPrincipalClass` `$(PRODUCT_MODULE_NAME).NotificationService`. iOS gives an extension about 30 seconds, enough for a conversation's new messages. A muted conversation sends no push: its messages come when the app opens.
+
+## Screenshots
+
+iOS cannot stop a screenshot. A conversation's screen says it is shown (`onScreen(true)` as it appears, `onScreen(false)` as it goes): when a screenshot is taken while it shows a conversation in vanish mode or a message seen once, the others are told. A conversation in vanish mode drops what the person read when they leave it: call `close()` as its screen goes.
+
+## Signing out
+
+When the person signs out, what the phone kept of their conversations is dropped, unless `pb.messaging.keepOnSignOut` is true — then it is theirs again when they sign back in. Kept or not, no one else who signs in on the phone reads it.
+
+
+
 <!-- ===== ios/flags ===== -->
 
 # Flags
@@ -17904,7 +18384,7 @@ The app's extensions read the same choices through the keychain group the app sh
 
 ## Push
 
-The app needs the **Push Notifications** capability, and the project needs a push provider: its APNs key, or Firebase Cloud Messaging ([Notifications](/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)).
+The app needs the **Push Notifications** capability, and the project needs a push provider: its APNs key, or Firebase Cloud Messaging ([Notifications](/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)). Each build of the app registered in the environment — the development app, its TestFlight build, the App Store app — is pushed to its own bundle, through the APNs environment its token is for: the SDK reads it from the build's provisioning profile (`sandbox` from Xcode and the simulator, `production` from TestFlight and the App Store) and says it as it registers the token ([Apple (APNs)](/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)).
 
 ```swift
 import Palbase
@@ -19540,6 +20020,124 @@ The project holds its clients to limits the platform sets and the project may lo
 
 
 
+<!-- ===== android/messaging ===== -->
+
+# Messaging
+
+`pb.messaging` is the signed-in person's conversations on Android: their list, each conversation's timeline and its threads as `StateFlow`s Compose collects, kept in the app's own SQLite between launches and current over the project's socket. The app writes; it opens no socket, appends nothing and syncs nothing itself. A message's push brings its conversation onto the phone even while the app is closed. What the module is — history, encryption, timers, moderation, prices — is [Messaging](/docs/messaging/overview).
+
+## Install
+
+Palbase's packages come from its own repository; let the `studio.palbase` group come from there alone:
+
+```kotlin
+// settings.gradle.kts
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        exclusiveContent {
+            forRepository { maven("https://palgroup.github.io/palbase-android/") }
+            filter { includeGroup("studio.palbase") }
+        }
+    }
+}
+```
+
+```kotlin
+// app/build.gradle.kts
+dependencies {
+    implementation(platform("studio.palbase:palbase-bom:0.7.0"))
+    implementation("studio.palbase:palbase")
+    implementation("studio.palbase:palbase-notify")     // pushes: the FCM token, and the service that draws them
+    implementation("studio.palbase:palbase-messaging")  // pb.messaging
+}
+```
+
+## Quick example
+
+```kotlin
+@Composable
+fun Inbox(pb: PalbaseClient, open: (String) -> Unit) {
+    // The person's conversations, the latest first: drawn from the phone at once, then kept current.
+    val list by remember { pb.messaging.conversations() }.state.collectAsState()
+    Text("${list.unread} unread")
+    LazyColumn {
+        items(list.items, key = { it.id }) { c -> Text(c.title ?: "Chat", Modifier.clickable { open(c.id) }) }
+    }
+}
+
+@Composable
+fun Chat(pb: PalbaseClient, id: String) {
+    val chat = remember(id) { pb.messaging.conversation(id) }
+    val state by chat.state.collectAsState() // entries: its messages and those on their way; members; typing
+    val scope = rememberCoroutineScope()
+    var text by remember { mutableStateOf("") }
+    LazyColumn { items(state.entries) { e -> Text(e.toString()) } }
+    TextField(text, { text = it })
+    Button(onClick = {
+        val words = text
+        text = ""
+        scope.launch { chat.send(words) } // drawn at once; with no network, sent once it is back
+    }) { Text("Send") }
+}
+```
+
+`pb.messaging.direct(userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message). A message waits in the outbox while the phone is offline and goes once it can, once. Files are encrypted on the phone (AES-256-GCM) before they are uploaded; `pb.messaging.open(message, attachment)` downloads and decrypts one, and a message seen once gives its files by `pb.messaging.viewOnce(message)` alone.
+
+## Pushes
+
+The app uses its own Firebase project:
+
+- put `app/google-services.json` in the app and apply the `com.google.gms.google-services` plugin;
+- connect the same Firebase project to the Palbase project as its FCM push provider ([Notifications](/docs/android/notifications));
+- touch `pb.notify` at launch: the installation's token is registered — the installation's while no one is signed in, the person's once someone is;
+- on Android 13 and later, the app asks for `POST_NOTIFICATIONS` (the permission is in the module's manifest; asking is the app's).
+
+`palbase-notify` brings its FCM service with its manifest: nothing more to declare. The project sends data messages, and the SDK draws them.
+
+## Messages that arrive while the app is closed
+
+Nothing to set up. While the app is closed or in the background, a message's push is drawn, and the same push reads its conversation into the phone's copy: open the app with no network and it is there.
+
+## A message while the app is open
+
+While the app is in front, a message's push is not drawn in the tray: its conversation is synced, and `pb.messaging.incoming` — a `SharedFlow<Message>` — gives the app each message someone else wrote that is new to the phone, once, whether the socket or the push brought it first. A sync, a page read, the person's own messages, system messages and removed ones never come through it. Skip the conversation on the screen:
+
+```kotlin
+var banner by remember { mutableStateOf<Message?>(null) }
+LaunchedEffect(Unit) {
+    pb.messaging.incoming.collect { m -> if (m.conversationId != openConversationId) banner = m }
+}
+banner?.let { m -> IncomingBanner(m) { banner = null; openConversationId = m.conversationId } }
+```
+
+## Screenshots
+
+While a photo or a video seen once is shown, keep the window out of screenshots and recordings (`FLAG_SECURE`): they come out black.
+
+```kotlin
+DisposableEffect(Unit) {
+    val release = pb.messaging.protectViewOnce(activity)
+    onDispose { release() }
+}
+```
+
+In vanish mode, a screenshot taken while the conversation is open is told to the others (Android 14 and later; `DETECT_SCREEN_CAPTURE` is in the module's manifest):
+
+```kotlin
+DisposableEffect(id) {
+    val stop = pb.messaging.watchScreenshots(activity, id)
+    onDispose { stop() }
+}
+```
+
+## Signing out
+
+The phone's copy is kept in the app's own SQLite, in files not backed up. When the person signs out it is dropped, unless `pb.messaging.keepOnSignOut = true` — then it is theirs again when they come back. Whoever signs in next never reads it; and unless copies are kept, the person who signs in drops any other's left there.
+
+
+
 <!-- ===== android/flags ===== -->
 
 # Flags
@@ -20590,6 +21188,7 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `notification.sent` / `notification.failed` | A message ended sent, or failed. | `{ message_id, channel, rail, template, … }` |
 | `notification.received` | A user sent a WhatsApp message to the project's number. | the message |
 | `notification.uninstalled` | A push service said no app holds a device's token any more: the app was taken off the phone. The device is forgotten. | `{ platform, provider, device_id, installation_id, user_id }` |
+| `notification.push_failing` | A push provider started failing for its own fault — its APNs key refused, a topic the key may not send to: every push through it fails until its setting is fixed ([Apple (APNs)](/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)). At most once a day a provider. | `{ project_id, channel, provider, error, failing_since }` |
 | `journey.entered` / `journey.converted` | A person entered a journey, or their run reached its goal. A try on a test user's events carry `test: true` ([Journeys](/docs/backend/journeys#events)). | `{ journey, journey_id, run_id, user_id, test }` |
 | `journey.step` | A person's run took a step. | `{ journey, journey_id, run_id, user_id, step, kind, outcome, test }` |
 | `journey.event` | A journey's `event` step told the project's backend. | `{ journey, journey_id, run_id, user_id, step, name, data, test }` |
@@ -21806,7 +22405,20 @@ palbase purchases:catalog:get -E production   # prints production's revision
 palbase purchases:catalog:put --file catalog.json --revision 7 -E production
 ```
 
-A saved revision emits `purchases.catalog.changed`. See [`purchases:catalog:get`](/docs/cli/reference#palbase-purchasescatalogget), [`purchases:catalog:put`](/docs/cli/reference#palbase-purchasescatalogput) and [`purchases:catalog:validate`](/docs/cli/reference#palbase-purchasescatalogvalidate).
+## Revisions, and putting one back
+
+Every revision is kept. **Purchases › Catalog › Revisions** lists them, the newest first — who saved each, when, what it defines, and when a confirmed plan of it was written to the stores — and opens any of them. **Put this revision back** saves an older revision's catalog as the next revision, the way an edit is saved: on the revision on screen (`If-Match`; `412 catalog_changed` when someone saved since), checked against the catalog's rules today (an older revision may break one added since: `422 invalid_catalog`, every problem listed), and keeping what customers bought. Nothing is written to a store until a plan of the new revision is made and confirmed, as for any edit.
+
+```sh
+palbase purchases:catalog:revisions -E production
+palbase purchases:catalog:revision 4 --out catalog-4.json -E production
+palbase purchases:catalog:restore 4 -E production   # saved as the next revision
+palbase purchases:catalog:plan -E production        # then the stores
+```
+
+From a server: `GET /purchases/catalog/revisions` (`next_cursor`, sent back as `cursor`, is the next page), `GET /purchases/catalog/revisions/{revision}` and `POST /purchases/catalog/revisions/{revision}/restore` with `If-Match`.
+
+A saved revision emits `purchases.catalog.changed`; one put back says which it came from (`restored_from`). See [`purchases:catalog:get`](/docs/cli/reference#palbase-purchasescatalogget), [`purchases:catalog:put`](/docs/cli/reference#palbase-purchasescatalogput) and [`purchases:catalog:validate`](/docs/cli/reference#palbase-purchasescatalogvalidate).
 
 ## Bringing the stores to the catalog
 
@@ -23317,6 +23929,19 @@ export async function countRequest(userId: string, requestId: string): Promise<v
 
 Past the window's `max`, a limit with `overflow` takes credits instead (`per_unit` of them a unit), and one without is refused: `409 limit_reached`. A hold counts in the window it was made in, even when it is committed after the window ends.
 
+The refusal says what would give the customer more, for the app to offer: `upgrades` lists the entitlements whose products give more of the limit than the customer has now, the smallest step up first — empty when no product gives more.
+
+```json
+{
+  "error": "limit_reached",
+  "error_description": "the customer used this window's limit",
+  "status": 409,
+  "request_id": "req_…",
+  "limit": "ai_requests",
+  "upgrades": [{ "entitlement": "pro", "name": "Pro", "product": "pro", "max": 500 }]
+}
+```
+
 `setCustomerLimit` gives one customer their own `max` — more for a customer support looks after, less for one who abuses it — until `expires_at` or `clearCustomerLimit`; `grantLimit` gives more units in the window it is in now. Each says why (`reason`).
 
 A window used to 80% emits `purchases.quota.threshold`, and used to the end `purchases.quota.exhausted`, each once a window.
@@ -23374,9 +23999,26 @@ The customer's own apps hear of their changes on their realtime channel and read
 
 A **customer** is a user of the project — a guest included — and the customer's id is the user's id. There is nothing to create: a user becomes a customer when something is theirs, a purchase, a grant or credits, or when their app first reads what they have. What they have is the same answer in every app and on your server, whatever store they bought in ([Entitlements, Credits & Limits](/docs/purchases/entitlements#what-a-customer-has)).
 
+## Finding a customer
+
+A person writing in rarely has their user id. In Studio, **Purchases › Customers**, find them by what they do have:
+
+- their user id;
+- an id their store gave a purchase: Apple's original transaction id or any transaction id from their receipt, a Google Play order id (`GPA.…`, a renewal's `..0` or not), a Stripe subscription, payment intent, invoice or customer id;
+- the email a buyer with no account gave at checkout on the web, written whole (case and spaces around it do not matter). The address itself is not kept: an HMAC of it under the project's key is, so it is found by the whole address and by nothing less. A purchase whose link no one has redeemed yet is found too, as no one's.
+
+One customer found opens them; several are listed. From a terminal:
+
+```sh
+palbase purchases:customers 2000000873521946 -E production
+palbase purchases:customers buyer@example.com -E production
+```
+
+From your server, `GET /purchases/customers?q=…` answers the same list (`customer_id`, `matched_by`, the store and product of the purchase found).
+
 ## Looking a customer up
 
-In Studio, **Purchases › Customers**, look a user up by their id: their entitlements and where each is managed, their subscriptions, one-time purchases, credits and quota, test purchases marked. From a terminal:
+Their record shows their entitlements and where each is managed, their subscriptions, one-time purchases, credits and quota, test purchases marked. From a terminal:
 
 ```sh
 palbase purchases:customer:get 3f6c2a1e-8d4b-4c1a-9b7e-2a5d8c0f1b3e -E production
@@ -23400,6 +24042,16 @@ export async function describe(userId: string): Promise<string[]> {
 
 A guest merged into an account reads as the account. A user never seen here reads as a customer with nothing, and the read writes nothing.
 
+## What happened to them
+
+Their **History**, the newest first, a page at a time: each payment and renewal, a refund (and its kind: refund, chargeback, family sharing), the subscription's renewal turned off or back on, a failed charge, its end, the grants given and taken back, the credits given, taken back, expired and forgiven, and the purchases that moved to or from them — each with when, who did it (`store`, `customer`, the developer whose Studio or CLI call it was as `developer:…`, or the key as `key:…`) and why. Credits spent are the credits' own entries (**Credits** on the record, or `GET …/credits/entries`).
+
+```sh
+palbase purchases:customer:history <user id> -E production
+```
+
+`GET /purchases/customers/{customer_id}/history` answers it to your server; `next_cursor`, sent back as `cursor`, is the next page.
+
 ## Giving an entitlement
 
 Support gives one of the catalog's entitlements — for a promotion, a support case, a tester — for a while or for life, saying why:
@@ -23408,13 +24060,16 @@ Support gives one of the catalog's entitlements — for a promotion, a support c
 palbase purchases:customer:grant <user id> pro --reason "Ticket 4821: billing mix-up" --for 30d -E production
 ```
 
-The reason is the record (500 characters at most). Without `--for` or `--until` the grant is for life. Nothing is charged in any store, and a customer not seen before is made. It prints the grant's id, which ends it:
+The reason is the record (500 characters at most). Without `--for` or `--until` the grant is for life. Nothing is charged in any store, and a customer not seen before is made. Every grant a customer was given — active, ended and revoked, with who gave it, why, and who revoked it — is listed with its id, which ends it:
 
 ```sh
+palbase purchases:customer:grants <user id> -E production
 palbase purchases:customer:revoke <user id> <grant id> -E production
 ```
 
-What the customer bought is not touched: the entitlement stays on while a purchase still gives it. Studio's **Purchases › Customers** gives and revokes grants too; from a server they are `grantEntitlement` and `revokeGrant`. A grant shows as `store: "promotional"`, `period_type: "promotional"`; turning the entitlement on or off emits `purchases.entitlement.changed`.
+What the customer bought is not touched: the entitlement stays on while a purchase still gives it. Studio's **Purchases › Customers** lists, gives and revokes grants too — **Revoke** on a grant of the list; from a server they are `GET /purchases/customers/{customer_id}/grants`, `grantEntitlement` and `revokeGrant`.
+
+In Studio every member of the project reads a customer, their history and their grants; giving or revoking a grant and giving credits is an admin's or the owner's. A grant shows as `store: "promotional"`, `period_type: "promotional"`; turning the entitlement on or off emits `purchases.entitlement.changed`.
 
 Credits and quota are given the same way, saying why — [Entitlements, Credits & Limits › Giving credits](/docs/purchases/entitlements#giving-credits).
 
@@ -23579,6 +24234,98 @@ Without flags, the command prints the settings. They are the purchases module's 
 - [Customers](/docs/purchases/customers): one customer's purchases
 - [Paywalls](/docs/purchases/paywalls): a placement's and an experiment's own results
 - CLI: [`purchases:charts:get`](/docs/cli/reference#palbase-purchaseschartsget), [`purchases:charts:settings`](/docs/cli/reference#palbase-purchaseschartssettings)
+
+
+
+<!-- ===== messaging/overview ===== -->
+
+# Messaging
+
+Messaging is chat between a project's people: direct conversations and groups, with answers, threads, reactions, mentions, files, messages for later, messages that go after a while, photos seen once and vanish mode. It is a module every project has, like auth: there is no server to run. The web, iOS and Android clients keep each person's conversations on the device, current over the project's socket, so an app draws them and writes — sending, syncing and catching up are the client's.
+
+- **Web**: `pb.messaging` ([Web Messaging](/docs/web/messaging))
+- **iOS**: the `PalbaseMessaging` product ([iOS Messaging](/docs/ios/messaging))
+- **Android**: `studio.palbase:palbase-messaging` ([Android Messaging](/docs/android/messaging))
+
+## A person's history is their account's
+
+What a person said and read is kept by the project, not by a phone. Signing out, deleting the app or opening it on a new phone loses nothing: when they sign in again, every conversation comes back from the server.
+
+- **On the device.** Each client keeps a copy of the signed-in person's conversations so the app opens on them at once, without the network. When the person signs out, the copy is dropped, unless the app asks to keep it (`keepOnSignOut`). Kept or not, it is that person's alone: whoever signs in next on the same device never reads it — and, unless copies are kept, a person who signs in drops any another left there.
+- **Written offline.** A message written without the network is drawn at once and waits in the device's outbox; it goes once the network is back — once, however often the app retries (each message carries its own `client_message_id`).
+- **The socket drops.** What came meanwhile is read from the server's record of what changed for the person (`GET /messaging/sync`) as the socket comes back: nothing is missed.
+
+## Kept encrypted
+
+Every conversation has a key of its own, kept wrapped by the project's key: its messages' words, its title and its files' keys are stored sealed, and a copy of the database or a backup holds none of them in the clear. A file is encrypted on the device, with a key of its own, before it is uploaded: storage holds only what it cannot read. This is not end-to-end encryption: Palbase opens a conversation's messages to deliver them, and your server reads them with the secret key — each read recorded (below).
+
+## What people do
+
+- **Direct conversations and groups.** The direct conversation of two people is one, whoever opens it (`POST /messaging/conversations/direct`); a group has up to 1,000 members, an owner, admins, and policies for who writes, who adds people and who changes it.
+- **Answers and threads.** A message answers another inline, or in its thread: one level deep, with its count of answers, its last one and who answered, each thread's unread count, and the threads a person follows (`GET /messaging/threads`). A thread's answer may be shown in the conversation too.
+- **Changing what was said.** A message is edited within 15 minutes, and removed for everyone by its writer within 48 hours (by a group's admin at any time), or for oneself.
+- **Reactions**, several a person to a message; **mentions**; **read receipts** and **typing**; **presence** (online, last seen).
+- **Files**: pictures, videos, voice notes and any file, encrypted on the device.
+- **For later.** A message scheduled for a time is sent then by the server, the writer's phone off or not; until then only its writer sees it, and may change or take it back. A scheduled message carries text alone.
+- **Messages that go.** A conversation's timer (a day, a week, 90 days or any number of days) makes each new message go after it; a message of its own goes after its seconds, counted from when it was sent or from when everyone it was for read it. When a message's time is up it goes from the server and from every device.
+- **Seen once.** A photo or a video sent to be seen once (or twice) opens for its seconds and is gone: its file's key is dropped on the server, and the app holds the opened bytes, never the device's copy.
+- **Vanish mode** (a direct conversation's): a message read goes once its reader leaves the conversation.
+- **Muting** a conversation, or its mentions alone: a muted one sends no push.
+- **Blocking** a person: what they send does not reach whoever blocked them (to their writer it looks sent). **Reporting** a conversation, a person or messages: the report is the project's ([Moderation](#moderation)).
+
+A person may hide their read receipts (`PATCH /messaging/me`, `read_receipts: false`): in direct conversations they then show no one what they read and see no one's; in groups receipts are always shown.
+
+## Screenshots
+
+A browser does not say when someone takes a screenshot, and a phone cannot always stop one:
+
+| | A photo or video seen once | Vanish mode |
+|---|---|---|
+| **Android** | The screen is kept out of screenshots and recordings (`FLAG_SECURE`): they come out black | Taken, and the others are told |
+| **iOS** | Taken (iOS cannot stop one), and the others are told | Taken, and the others are told |
+| **Web** | Not known | Not known |
+
+"Told" is a line in the conversation, as WhatsApp's and Instagram's (`POST /messaging/conversations/{conversation_id}/screenshot`). No app can stop a second phone's camera.
+
+## Pushes and the app in front
+
+A message to someone who is not in the app reaches them as a push, through the project's notifications ([Notifications](/docs/backend/notifications)): set up an APNs key and Firebase for the apps first. The push says who wrote and what (`push_preview: false` for "a new message" alone), the app's badge is the person's unread count, and a conversation's messages group together.
+
+While the app is in front, a message's push is not drawn as the system's banner: the client tells the app instead (web `onIncoming`, iOS `incoming()`, Android `incoming`), and the app draws its own banner — none for the conversation already on the screen.
+
+On iOS and Android, the push also brings the message into the device's copy while the app is closed: open it with no network and it is there. On iOS this is the `PalbaseMessagingNotificationService` extension and an App Group ([iOS Messaging](/docs/ios/messaging#messages-that-arrive-while-the-app-is-closed)); on Android, the push itself ([Android Messaging](/docs/android/messaging#messages-that-arrive-while-the-app-is-closed)).
+
+## Your server
+
+With the secret key, your server makes conversations for people, adds and removes them, says something in a conversation (a booking's confirmation, a support agent), removes a message, and reads what was said — for moderation, support or an export (`GET /messaging/admin/conversations/{conversation_id}/messages`). Each read of people's messages is recorded, and `GET /messaging/admin/access-log` lists them.
+
+**Who may write to whom** is everyone, unless the project's hook says otherwise: set `hook` in the settings and the project's endpoint is asked, signed as a webhook is, before a direct conversation is opened or someone is added to a group — `messaging.can_message`, answering whether they may. When it does not answer, `on_error` says what happens: deny (the default; the app tries again) or allow.
+
+## Moderation
+
+A report reaches the project as the `messaging.report.created` event, with what it carries: the reported messages, readable by the project. `GET /messaging/admin/reports` lists them and `POST /messaging/admin/reports/{report_id}/resolve` resolves one.
+
+## The project's settings
+
+`GET /messaging/settings` and `PUT /messaging/settings`, with the secret key:
+
+| Setting | What it does |
+|---|---|
+| `retention_days` | Messages older are removed; none (the default): kept for good |
+| `push_preview` | Pushes say what a message says (the default), or only that one came |
+| `deleted_user_messages` | A deleted user's messages: `keep` (the default), their writer shown as a deleted user with nothing personal kept, or `delete` |
+| `hook` | Who may write to whom (above); none: anyone to anyone |
+
+## What it costs
+
+| | Free each month | Past it |
+|---|---|---|
+| Messages sent | 1 million | $5.25 a million |
+| What the messages weigh where they are kept | 1 GiB | $1.05 a GiB-month |
+
+A message weighs its sealed text and 768 bytes for its row and indexes: a GiB holds over a million short messages. Its files are the project's storage, its deliveries to people's sockets realtime messages, and its pushes push notifications — each on the bill as they are ([Usage & Limits](/docs/getting-started/usage-and-limits)). A message sent again with the same `client_message_id` is one.
+
+A free project past either is slowed, never stopped: its messages go at about one a second, all its people together. A send waits its turn, 10 seconds at the most; one that would wait longer is `429 slowed` with `Retry-After`, and the clients keep it in their outbox and send it again. Reading, syncing and everything else go on at full speed.
 
 
 
@@ -24333,13 +25080,16 @@ Every change emits a `stores.*` event to the environment's [webhooks](/docs/serv
 |---|---|
 | `stores.apple.changed` | The Apple account was connected, checked (and Apple's answer changed) or disconnected. Never the key. |
 | `stores.google.changed` | The Play connection was made, checked (and Play's answer changed) or disconnected |
-| `stores.app.changed` | An app was linked to its store |
+| `stores.app.changed` | An app was linked to its store, or its App Store Connect record made or removed with the [Apple ID](/docs/distribution/app-store#an-apple-id) |
 | `stores.package.changed` | A package was made, or its build arrived |
 | `stores.delivery.requested` | A delivery was sent, or sent again |
 | `stores.delivery.changed` | A delivery moved: `queued`, `signing`, `uploading`, `processing`, `compliance`, `ready` or `failed` |
 | `stores.group.changed` | A group was made, renamed or deleted, its testers set, or a build given to it |
 | `stores.action.changed` | An action was planned, done, declined or failed |
 | `stores.version.changed` | An app's App Store version came to a new state: sent to App Review, in review, approved, rejected, withdrawn, released. `source` says who told it: `apple_webhook`, `poll` or `action` |
+| `stores.apple.session.changed` | An [Apple ID](/docs/distribution/app-store#an-apple-id) was signed in, or signed out. Never the session. |
+| `stores.apple.session.expired` | Apple ended the Apple ID's session: sign in again |
+| `stores.review.message` | App Review wrote in the app's Resolution Center: the text, the guidelines it names, its attachments (with an Apple ID signed in) |
 
 What the stores tell of an app — its App Store Connect webhook, its build uploads, Beta App Review, testers' feedback, its in-app purchases' review, its Play releases and its crash data — is on [App Health](/docs/distribution/health#the-events).
 
@@ -24748,7 +25498,7 @@ A phased release gives an update to a growing share of the users who have automa
 
 ## App Review's answer
 
-When App Review approves or rejects the version, the owners of the environment's organization get an email from Palbase. An approved version is released as you set it: one that waits for you is released from Studio's **App Store** page, or with `stores:version:release`. Apple gives no reason for a rejection over its API: read it in App Store Connect's **Resolution Center**, fix what it names, and send the version again.
+When App Review approves or rejects the version, the owners of the environment's organization get an email from Palbase. An approved version is released as you set it: one that waits for you is released from Studio's **App Store** page, or with `stores:version:release`. Apple gives no reason for a rejection over its API. With an [Apple ID signed in](#an-apple-id) for the environment, Palbase reads it for you: the Resolution Center's message, the guidelines it names and its attachments. Without one, read it in App Store Connect's **Resolution Center**. Fix what it names, and send the version again.
 
 Every state the version comes to is the environment's `stores.version.changed` event: sent to App Review, in review, approved, rejected, withdrawn, released. It goes to the environment's [webhooks](/docs/server/webhooks) and to a backend's [`@On` handlers](/docs/backend/hooks):
 
@@ -24785,6 +25535,60 @@ export class ReleasesModule {}
 ```
 
 `result` is App Review's answer, set only in a state that is one: `approved` from `PENDING_DEVELOPER_RELEASE` on, `rejected` in `REJECTED`, `METADATA_REJECTED` or `INVALID_BINARY`.
+
+## An Apple ID
+
+Apple's API leaves some of App Store Connect to a person on its website: App Review's messages in the Resolution Center and the answer to them, the App Privacy details, and making an app's record. Sign in with an Apple ID of your team, and Palbase does them with the session App Store Connect's own pages use, as fastlane does. It is optional; the [App Store Connect key](/docs/distribution/testflight#connect-app-store-connect) does everything else.
+
+An Apple ID is signed in to the environment's team: the team of its App Store Connect key or, with no key yet, the team its iOS apps are in. When the Apple ID is in that team, Palbase chooses it for you; when it is in other teams alone, the sign-in is refused with `422 apple_team_mismatch`, naming the Apple ID's teams and the environment's, and nothing is kept.
+
+You sign in once for the whole organization. An environment with no session of its own is lent one that another environment of its organization signed in to the same team — staging and production of a project, or two projects of one company account, sign in once — for a person who is an owner or an admin of the environment it was signed in for: Studio, and the CLI with your sign-in. `GET /stores/apple/session` says so with `shared_from`. A secret key, or an environment's token, reaches its own environment's session alone. Signing out, by such a person, signs it out for every environment that uses it. Each keeps its session until Apple ends it.
+
+Sign in from Studio, under **App Distribution › Apple ID**, or ask for the link yourself with `POST /stores/apple/session/grants` and open its `connect_url`. Studio asks for a one-time link and opens Palbase's own sign-in page. You type the password there, and the page seals it to a key only the environment's stores module opens: nothing on its way reads it. The module hands it to Apple and keeps it nowhere: Palbase keeps only the session Apple gives back, sealed with the environment's own key.
+
+From a terminal, `palbase stores:apple:connect --apple-id you@example.com` reads the password there, seals it the same way, then asks for Apple's code, and for the team when the Apple ID is in more than one of the environment's (`--team` names it). With `--print-link` it prints the one-time link instead, for a browser to open. `palbase stores:apple` shows the session, `stores:apple:check --apple-id` asks Apple about it again, and `stores:apple:disconnect --apple-id` signs it out.
+
+A client of your own signs in the same way. The link's answer carries `seal_key`, the environment's X25519 public key. Seal the password to it with HPKE (RFC 9180, base mode, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-128-GCM), its info `palbase/stores/apple-id/password/1`, a NUL byte, then the link's `grant`, and post `{"grant", "apple_id", "password_sealed"}` to `POST /stores/connect/apple-id`, where `password_sealed` is the base64url of the encapsulated key and the ciphertext. A password in the clear is refused. Then you type the code Apple sends to your devices and, if the Apple ID is in more than one team, choose the one the environment's apps are in. A link takes three passwords and three codes, and an environment six passwords an hour, so that Apple does not lock the Apple ID. Signing an Apple ID in, and out, is an owner's or an admin's.
+
+Apple ends a session after a few weeks, and when the Apple ID's password changes. Palbase checks it every six hours. When it has ended, the person who signed it in gets an email (the organization's owners, if they are no longer an owner or an admin), the environment gets the `stores.apple.session.expired` event, and what needs the Apple ID answers `409 apple_id_expired` until someone signs in again. Studio's **Apple ID** panel, or `GET /stores/apple/session`, shows whose it is, its team and whether Apple still takes it; **Sign out**, or `DELETE /stores/apple/session`, signs it out, at Apple too.
+
+### Keys, made for you
+
+With an Apple ID signed in, Palbase makes the keys the environment lacks at Apple and connects them, so no one downloads a `.p8` and carries it over:
+
+- **The App Store Connect API key**: Admin, every app. Connected as one you upload would be, and asked of Apple's API first. Disconnecting it (`DELETE /stores/apple`) revokes it at Apple.
+- **APNs keys**: two, one for production and one for the sandbox, each scoped to the environment's iOS apps of the Apple ID's team (Apple makes a key scoped to apps for one environment; an app of another team is none of its). The notify module takes them as the environment's APNs provider: each environment's pushes are signed with its own key.
+- **The In-App Purchase key**: for one of the environment's iOS apps (name it when there is more than one). The purchases module connects it, and asks the App Store Server API with it first.
+
+In Studio, **App Distribution › Apple ID** lists them under **Keys**, what the environment lacks ticked: **Make and connect** makes them, with one confirmation. Over the API, `POST /stores/apple/keys` makes one kind a request: `{"kind": "asc" | "apns" | "iap", "bundle"}`; `GET /stores/apple/keys` lists them and where each stands (`waiting` for its module, `taken`, `refused`, `revoked`).
+
+A key the environment connected itself is kept: making one is refused with `409 key_connected`, and the module that has one of its own refuses the one made, which is revoked at Apple at once. Each key's `.p8` is read from Apple once, sealed with the environment's key, and handed to its module over Palbase's internal network; once taken, the stores module drops its copy. `DELETE /stores/apple/keys/{key_id}`, or **Revoke** beside it in Studio, revokes an APNs or In-App Purchase key Palbase made.
+
+Apple makes keys for an Admin or the Account Holder of the team: an Apple ID of another role is told `409 apple_role_insufficient`. Making and revoking keys is an owner's or an admin's of the environment, never an environment's token's (`403 token_out_of_scope`): a key outlives it. The App Store Connect key is made with the Admin role, as the key you would connect yourself is: it reaches the team's users too, so revoke it if you stop using Palbase for the app.
+
+### App Review's messages
+
+`GET /stores/apps/{app_id}/review` is the app's Resolution Center: each thread with its messages as plain text, the guidelines each rejection names, its attachments and the answer not sent yet. An attachment is read with `GET /stores/apps/{app_id}/review/threads/{thread_id}/attachments/{attachment_id}`. You answer with a draft, `PUT /stores/apps/{app_id}/review/threads/{thread_id}/draft`, which App Store Connect keeps as its website's, then send it with `POST /stores/apps/{app_id}/review/threads/{thread_id}/draft/send`. From a terminal: `palbase stores:app-review <app id>`, and `stores:app-review:answer` writes the draft (`--send` sends it).
+
+While a version of the app is in App Review, or was rejected in the last 30 days, Palbase reads its Resolution Center every ten minutes. Each message it has not told yet is the environment's `stores.review.message` event, with its text, the guidelines (`reasons`) and the attachments. Your own answer is not told back.
+
+### App Privacy
+
+`GET /stores/apps/{app_id}/privacy` is the app's privacy details as App Store Connect has them. `PUT` writes them, in Apple's words, one line per kind of data and purpose, or `DATA_NOT_COLLECTED` alone. The lines it lacks are made and the ones not asked for removed, and `"publish": true` publishes them. Once published, the version's missing list stops asking for App Privacy. From a terminal: `palbase stores:privacy <app id>`, and `stores:privacy:set <app id> --file usages.json --publish` with the lines as a list.
+
+```json
+{
+  "usages": [
+    { "category": "USER_ID", "purpose": "APP_FUNCTIONALITY", "data_protection": "DATA_LINKED_TO_YOU" },
+    { "category": "PURCHASE_HISTORY", "purpose": "APP_FUNCTIONALITY", "data_protection": "DATA_LINKED_TO_YOU" }
+  ],
+  "publish": true
+}
+```
+
+### The app's record
+
+An app [linked to the App Store](/docs/distribution/testflight#link-the-app) without its App Store Connect record gets one with `POST /stores/apps/{app_id}/record` and its App Store name (`{"name": "Shop"}`): Palbase makes the record and links the app to it. The team's first app also needs `company_name`, the seller's name. `DELETE` removes the record, as App Store Connect's **Remove App** does: Apple takes it for an app never approved. Each is the environment's `stores.app.changed` event (`record_made`, `record_removed`). From a terminal: `palbase stores:apps:record <app id> --name Shop`, and `stores:apps:record:remove <app id>`.
 
 ## Related
 

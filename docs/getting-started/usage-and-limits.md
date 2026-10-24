@@ -8,7 +8,7 @@ An environment is held to limits of three kinds, and each one says so in its ans
 
 - **Rates**, per second: a call over one is refused for that second (`429` with `Retry-After: 1`).
 - **Limits on the month**: a limit set on one of the environment's metrics refuses that use, or only counts it, until the month ends.
-- **What a free project gets**: its traffic is slowed past 5 GB, and a free database sleeps past its 400 hours. Neither stops the project or loses its data.
+- **What a free project gets**: its traffic is slowed past 5 GB, its chat messages past a million a month or 1 GiB kept, and a free database sleeps past its 400 hours. None of them stops the project or loses its data.
 
 ## Where usage is shown
 
@@ -35,6 +35,8 @@ Every member of the organization reads it ([Organizations](https://palbase.studi
 | `cache.bytes`, `cache.egress` | **Cache memory**, the month's largest, and **Cache reads**, a part of response traffic ([Cache](https://palbase.studio/docs/backend/cache)) |
 | `realtime.messages` | **Realtime messages**: each one delivered — a broadcast to ten subscribers is ten |
 | `realtime.connections` | Realtime connections open at once, the month's largest |
+| `messaging.messages` | **Chat messages**: each message the project's people, or its server, sent in its conversations; one sent again with the same client id is one |
+| `messaging.bytes` | **Chat message storage**: what the project's messages weigh where they are kept — each one's sealed text and 768 bytes for its row and indexes — the month's largest |
 | `flags.reads` | The flag reads clients made, answered in full or not modified |
 | `analytics.events` | **Analytics events**: captures, identifies, aliases, screens and page views (setting a person's properties is not counted) |
 | `analytics.perf`, `analytics.traces`, `analytics.console` | Performance samples kept, request traces taken, console records kept ([Analytics](https://palbase.studio/docs/analytics/overview)) |
@@ -78,6 +80,7 @@ When a limit that refuses is reached, that use is refused until the month ends, 
 | Stored data | Writing to storage: `429 quota_exceeded`. Reads go on |
 | Realtime messages or connections | A new socket: `429 quota_exceeded`, with `Retry-After: 3600` (an hour, not the month's end); and a server's broadcast: `429 quota_exceeded` |
 | Flag reads | Reading the flags: `429 quota_exceeded` |
+| Chat messages, or what they weigh | Sending a message, a person's or the server's: `429 quota_exceeded` |
 | Analytics events, samples, traces or console records | Sending that kind: `429 quota_exceeded` |
 | Machine hours | The machines: they are stopped, dedicated sizes too, and a request to one, a new machine, a cron or a task is `429 quota_exceeded` |
 
@@ -89,6 +92,7 @@ A project is free while its organization has no payment account, or has one with
 
 - **Sizes.** Its machines are of the `shared-256` size, the one free machine size, and it has one database at most, of the `free` size: a project holds one database of a free size at a time ([Databases](https://palbase.studio/docs/machines/databases#sizes)). Every other size is paid for: opening a machine or a database of one, or moving one to it, is `403 size_not_available`. `palbase machines:sizes` and `palbase databases:sizes` list the sizes and which of them the environment may open now ([Machines](https://palbase.studio/docs/machines/overview#sizes)).
 - **Traffic.** It sends 5 GB a month at full speed: its machines' internet traffic and its response traffic together. Past it, until the month ends, its machines' traffic and answers and the files its storage hands out go at about 256 kbit/s; nothing is stopped, and the API's other answers are not slowed. A slowed project's downloads are paced, and one more than it may have under way at once is `429 rate_limited` with `Retry-After`. See [Reaching the internet](https://palbase.studio/docs/machines/overview#reaching-the-internet).
+- **Chat messages.** 1 million messages a month, and 1 GiB of them kept. Past either, until the month ends, the project's messages go at about one a second, all its people and its server together: a send waits its turn, 10 seconds at the most, and one whose turn is further off is `429 slowed` with `Retry-After` — the SDKs keep it in their outbox and send it again. No message is lost, and reading, syncing and everything else go on at full speed. What is kept counts at its month's largest, so a project that keeps more than 1 GiB is slowed again early each month: remove old messages, or set the project's retention ([Messaging](https://palbase.studio/docs/messaging/overview#the-projects-settings)), to stay under it.
 - **A free database** is awake 400 hours a month at most. Past them it sleeps until the month ends, refusing connections, with its data kept; from then its next connection wakes it.
 - **AI.** $1.00 of Palbase's models a month, at the provider's price and 10%. Past it, until the month ends, a call to them is `402 ai_payment_required`; a call under the project's own provider key goes on ([AI](https://palbase.studio/docs/backend/ai#what-it-costs)).
 

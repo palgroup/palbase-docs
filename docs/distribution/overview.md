@@ -125,13 +125,16 @@ Every change emits a `stores.*` event to the environment's [webhooks](https://pa
 |---|---|
 | `stores.apple.changed` | The Apple account was connected, checked (and Apple's answer changed) or disconnected. Never the key. |
 | `stores.google.changed` | The Play connection was made, checked (and Play's answer changed) or disconnected |
-| `stores.app.changed` | An app was linked to its store |
+| `stores.app.changed` | An app was linked to its store, or its App Store Connect record made or removed with the [Apple ID](https://palbase.studio/docs/distribution/app-store#an-apple-id) |
 | `stores.package.changed` | A package was made, or its build arrived |
 | `stores.delivery.requested` | A delivery was sent, or sent again |
 | `stores.delivery.changed` | A delivery moved: `queued`, `signing`, `uploading`, `processing`, `compliance`, `ready` or `failed` |
 | `stores.group.changed` | A group was made, renamed or deleted, its testers set, or a build given to it |
 | `stores.action.changed` | An action was planned, done, declined or failed |
 | `stores.version.changed` | An app's App Store version came to a new state: sent to App Review, in review, approved, rejected, withdrawn, released. `source` says who told it: `apple_webhook`, `poll` or `action` |
+| `stores.apple.session.changed` | An [Apple ID](https://palbase.studio/docs/distribution/app-store#an-apple-id) was signed in, or signed out. Never the session. |
+| `stores.apple.session.expired` | Apple ended the Apple ID's session: sign in again |
+| `stores.review.message` | App Review wrote in the app's Resolution Center: the text, the guidelines it names, its attachments (with an Apple ID signed in) |
 
 What the stores tell of an app — its App Store Connect webhook, its build uploads, Beta App Review, testers' feedback, its in-app purchases' review, its Play releases and its crash data — is on [App Health](https://palbase.studio/docs/distribution/health#the-events).
 

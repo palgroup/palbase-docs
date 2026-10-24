@@ -193,6 +193,19 @@ export async function countRequest(userId: string, requestId: string): Promise<v
 
 Past the window's `max`, a limit with `overflow` takes credits instead (`per_unit` of them a unit), and one without is refused: `409 limit_reached`. A hold counts in the window it was made in, even when it is committed after the window ends.
 
+The refusal says what would give the customer more, for the app to offer: `upgrades` lists the entitlements whose products give more of the limit than the customer has now, the smallest step up first — empty when no product gives more.
+
+```json
+{
+  "error": "limit_reached",
+  "error_description": "the customer used this window's limit",
+  "status": 409,
+  "request_id": "req_…",
+  "limit": "ai_requests",
+  "upgrades": [{ "entitlement": "pro", "name": "Pro", "product": "pro", "max": 500 }]
+}
+```
+
 `setCustomerLimit` gives one customer their own `max` — more for a customer support looks after, less for one who abuses it — until `expires_at` or `clearCustomerLimit`; `grantLimit` gives more units in the window it is in now. Each says why (`reason`).
 
 A window used to 80% emits `purchases.quota.threshold`, and used to the end `purchases.quota.exhausted`, each once a window.

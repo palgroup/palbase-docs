@@ -79,7 +79,17 @@ palbase env:tokens:create --minutes 120 --name coding-agent
 palbase env:tokens:create --scope machines:read,machines:logs   # only read machines and their logs
 ```
 
-Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:read`, `machines:logs`, `apps:sync` or `auth:test-users`. `palbase env:tokens:list` lists the live ones and `palbase env:tokens:revoke <id>` ends one at its next request. The docs an agent reads are at `/llms.txt`, with every page in one file at `/llms-full.txt`.
+Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:read`, `machines:logs`, `apps:sync`, `auth:test-users` or `support`. `palbase env:tokens:list` lists the live ones and `palbase env:tokens:revoke <id>` ends one at its next request. The docs an agent reads are at `/llms.txt`, with every page in one file at `/llms-full.txt`.
+
+## Asking Palbase
+
+What the docs do not answer — a command or call that fails with nothing to act on, a page that is wrong or missing, something Palbase seems not to do — goes to Palbase's support line:
+
+```sh
+palbase support:ask "machines:deploy fails with build_failed and the log ends at npm ci — what is wrong?"
+```
+
+The answer comes from these docs and from what the environment shows you: its machines, their last builds and the end of a failed build's log, read with your own sign-in or token and sent with the question. When the answer is that Palbase lacks something, the CLI prints a case number: Palbase has it, and you are told by email when Palbase closes it. Keys, tokens and passwords in a question are masked before anyone reads it. An agent asks with an environment token that has the `support` scope. A person asks 30 questions an hour, a project 60.
 
 ## What the commands cover
 
@@ -95,3 +105,4 @@ Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:r
 | [`github`](https://palbase.studio/docs/cli/reference#github), [`machines`](https://palbase.studio/docs/cli/reference#machines) | Connecting GitHub, machines, their builds, logs, crons and tasks ([Machines](https://palbase.studio/docs/machines/overview)) |
 | [`databases`](https://palbase.studio/docs/cli/reference#databases), [`db`](https://palbase.studio/docs/cli/reference#db) | Databases, their backups, connection addresses, `psql`, dumps and schema plans ([Databases](https://palbase.studio/docs/machines/databases)) |
 | [`config`](https://palbase.studio/docs/cli/reference#config), [`types`](https://palbase.studio/docs/cli/reference#types) | Comparing and copying module settings between environments, and the environment's names as TypeScript types |
+| [`support`](https://palbase.studio/docs/cli/reference#support) | A question to Palbase's support line ([Asking Palbase](#asking-palbase)) |

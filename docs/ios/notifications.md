@@ -6,7 +6,7 @@
 
 ## Push
 
-The app needs the **Push Notifications** capability, and the project needs a push provider: its APNs key, or Firebase Cloud Messaging ([Notifications](https://palbase.studio/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)).
+The app needs the **Push Notifications** capability, and the project needs a push provider: its APNs key, or Firebase Cloud Messaging ([Notifications](https://palbase.studio/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)). Each build of the app registered in the environment — the development app, its TestFlight build, the App Store app — is pushed to its own bundle, through the APNs environment its token is for: the SDK reads it from the build's provisioning profile (`sandbox` from Xcode and the simulator, `production` from TestFlight and the App Store) and says it as it registers the token ([Apple (APNs)](https://palbase.studio/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)).
 
 ```swift
 import Palbase
