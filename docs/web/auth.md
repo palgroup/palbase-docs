@@ -137,6 +137,23 @@ await pb.auth.mfa.removeFactor("fac_01", "correct-horse-battery-staple");
 
 `enrollSms(phone)` and `verifySms(code)` enroll a phone, `enrollEmail()` the account's address, and `regenerateRecoveryCodes()` replaces the recovery codes.
 
+### Stepping up
+
+A backend route that asks for a second factor (`auth: { aal: "aal2" }`), or for a recent one (`maxAge`), refuses a password sign-in with `kind: "stepUpRequired"` (`data.acr_values`, `data.max_age`). Step the signed-in user up and call again:
+
+```ts
+// src/approve.ts
+import { pb } from "./lib/palbase";
+
+await pb.auth.mfa.stepUp("123456"); // the code the authenticator app shows
+// or, with one of the user's passkeys: await pb.auth.passkey.stepUp();
+// or by text: await pb.auth.mfa.sendStepUpSmsCode(); then
+//   await pb.auth.mfa.stepUpWithSms(codeFromTheText);
+// the route called again now gets the aal2 token
+```
+
+Each returns the session, which holds the token at the new level from here on; its refreshes stay at that level (`TOKEN_REFRESHED` is told). The step-up is the session's last authentication, so a route's `maxAge` counts from it. An email code is not a way up: it is not a second factor ([Second factors and their strength](https://palbase.studio/docs/backend/authentication#second-factors-and-their-strength)).
+
 ## Passkeys
 
 ```ts
@@ -338,7 +355,6 @@ Every client operation of the auth contract, typed, through the session's transp
 | `pb.auth.api.updateMe({ body: { locale: "tr" } })` | `PATCH /auth/me` |
 | `pb.auth.api.listIdentities()` | `GET /auth/identities` |
 | `pb.auth.api.unlinkIdentity({ path: { id } })` | `DELETE /auth/identities/{id}` |
-| `pb.auth.api.stepUp({ body })` | `POST /auth/step-up` |
 | `pb.auth.api.webauthnRenameCredential({ path: { id }, body })` | `PUT /auth/webauthn/credentials/{id}` |
 
 The `/admin/*` operations are in the same client, and every one of them needs the secret key. From an app they are refused before anything is sent (`missing_credential`). Make them from a server with [`palbase/server`](https://palbase.studio/docs/server/overview).

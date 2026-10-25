@@ -283,6 +283,8 @@ A guard (`@UseGuards` and `@Roles` in other frameworks) answers only yes or no. 
 
 Every route has a limit: 300 requests a minute **per caller** unless `PalbaseFactory.create(…, { rateLimit })` or the route says otherwise. `rateLimit: { max, window }` allows at most `max` requests per `window` **seconds**. `rateLimit: false` turns it off for one route, and `rateLimit: false` in the bootstrap turns it off for every route that does not set its own.
 
+A list of windows holds a caller to each of them — a burst, a minute and an hour: `rateLimit: [{ max: 10, window: 10 }, { max: 30, window: 60 }, { max: 300, window: 3600 }]`. A request over any of them is refused and told to wait the longest of their waits, and it is not counted in the windows that had room: a caller told to wait out a burst has not spent its hour on the requests it was refused.
+
 ```ts
 // src/modules/todos/import.controller.ts
 import { Body, Controller, Post, User, z, type UserT } from "palbase/backend";

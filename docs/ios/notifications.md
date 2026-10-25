@@ -94,7 +94,7 @@ The extension tells the project that each push reached the phone, with the app c
 ```swift
 import PalbaseNotificationService
 
-final class NotificationService: PalbaseNotificationService, @unchecked Sendable {}
+final class NotificationService: PalbaseNotificationService {}
 ```
 
 The target's `NSExtensionPrincipalClass` names it (`$(PRODUCT_MODULE_NAME).NotificationService`, as Xcode's template does). Give the extension the **Keychain Sharing** capability with the app's group: the app keeps the configuration it runs with there (the project's address, its publishable key, its app group), and the extension reads it. An extension that compiles the app's environment in (`palbase/<app>.palbase` in its Compile Sources, with the build rule) can name it instead:
@@ -103,7 +103,7 @@ The target's `NSExtensionPrincipalClass` names it (`$(PRODUCT_MODULE_NAME).Notif
 import Palbase
 import PalbaseNotificationService
 
-final class NotificationService: PalbaseNotificationService, @unchecked Sendable {
+final class NotificationService: PalbaseNotificationService {
     override var configuration: PalbaseConfiguration? { .environment }
 }
 ```

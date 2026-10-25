@@ -47,7 +47,7 @@ A project has **3 databases** at most — a deleted one counts until it is purge
 | `dedicated-1x` | 1 vCPU of its own | 4 GiB | 25 GB | never |
 | `dedicated-2x` | 2 vCPU of its own | 8 GiB | 50 GB | never |
 
-`free` is the size every project may open. The others are sizes that are paid for: open to a project whose organization pays ([Billing](https://palbase.studio/docs/getting-started/billing)); another is refused one with `403 size_not_available`.
+`free` is the size every project may open. The others are sizes that are paid for: open to an environment on Pay as you go with credit ([Billing](https://palbase.studio/docs/getting-started/billing)); another is refused one with `403 size_not_available`.
 
 A size that sleeps is put to sleep when it is idle and **woken by the next connection**, in about 10 seconds; the client's connection waits for it. A `free` database awake for its 400 hours sleeps until the month ends, and a client is told so; one asleep for a week is **archived**, and its next connection brings it back from its backup. The other sizes never sleep and live on a disk of their own.
 

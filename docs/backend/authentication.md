@@ -78,7 +78,8 @@ export class CatalogController {
 | `false` | Anyone may call. A valid token still makes the caller a user (`@OptionalUser()`, and the database's identity). |
 | `{ required?: boolean }` | The same as `true` or `false`; `required` defaults to `true`. |
 | `{ verifiedEmail: true }` | A signed-in user whose token says `email_verified: true`, or `403 email_not_verified`. |
-| `{ aal: "aal2" }` | A user who signed in with a second factor (a passkey that verified its user, an authenticator or SMS code, a step-up), or `401 insufficient_user_authentication`. `"aal3"` asks more; `"aal1"` is a sign-in of any kind. Implies a signed-in user: with `required: false` the app stops at boot. |
+| `{ aal: "aal2" }` | A user who signed in with a second factor (a passkey that verified its user, an authenticator or SMS code, a step-up), or `401 insufficient_user_authentication`. `"aal3"` asks more: a key that never leaves its device; `"aal1"` is a sign-in of any kind. An email code is not a second factor ([below](#second-factors-and-their-strength)). Implies a signed-in user: with `required: false` the app stops at boot. |
+| `{ maxAge: 300 }` | A user who last proved who they are — signed in, or stepped up since — within the last 300 seconds, or `401 insufficient_user_authentication` with `max_age`. With `aal`, both: `{ aal: "aal2", maxAge: 300 }` is "a second factor within the last 5 minutes", what sending money or changing the account's email asks. Whole seconds above 0. Implies a signed-in user; an `@Upload` route cannot ask for it (the app stops at boot). |
 
 `role` and `permission` fields are refused when the app boots. Its token carries no application roles, and Palbase does not check them against a database, so the boot stops with an error naming the route, saying the role check has no database to run against and that the role is to be checked in the service. How to check one is [below](#roles).
 
@@ -91,9 +92,18 @@ export class CatalogController {
 | a token that does not verify | `401 invalid_token`, `data.reason` says why | handled, user `null` |
 | a valid token | handled, `@User()` is the user | handled, `@OptionalUser()` is the user |
 | a valid token below the route's `aal` | `401 insufficient_user_authentication` | — |
+| a valid token whose last authentication is older than the route's `maxAge` | `401 insufficient_user_authentication` | — |
 | tokens cannot be checked right now | `503 auth_unavailable`, `Retry-After: 1` | handled, user `null` |
 
-`insufficient_user_authentication` is RFC 9470's step-up challenge: `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values="urn:nist:800-63:aal2"` and `data.acr_values: "aal2"`. The session is fine: the app steps the user up (their second factor) and calls again. Palbase's clients name it apart from a signed-out caller: `stepUpRequired` on iOS, `StepUpRequired` on Android, `kind: "stepUpRequired"` on the web; none refreshes or ends the session for it.
+`insufficient_user_authentication` is RFC 9470's step-up challenge: `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values="urn:nist:800-63:aal2"` and `data.acr_values: "aal2"`; a route with `maxAge` adds `max_age=300` and `data.max_age: 300`. The session is fine: the app steps the user up (their second factor) and calls again. Palbase's clients name it apart from a signed-out caller: `stepUpRequired` on iOS, `StepUpRequired` on Android, `kind: "stepUpRequired"` on the web; none refreshes or ends the session for it.
+
+The step-up is one of:
+
+- `pb.auth.mfa.stepUp(code)` with the authenticator app's code;
+- `pb.auth.mfa.sendStepUpSmsCode()`, then `pb.auth.mfa.stepUpWithSms(code)` with the code it texted (`stepUp(smsCode:)` on iOS);
+- `stepUp()` on the client's passkeys: Face ID, a fingerprint or the device's screen lock.
+
+The session takes the token at the new level, and its refreshes stay there. A step-up is the session's last authentication: the token's `auth_time` is its moment, and every token the session is refreshed to keeps it, so a `maxAge` route counts from the step-up, not from the sign-in.
 
 ```ts
 // src/modules/admin/approvals.controller.ts
@@ -110,6 +120,35 @@ export class ApprovalsController {
 ```
 
 `data.reason` on an `invalid_token` refusal is one of `malformed`, `algorithm`, `unknown_key`, `signature`, `issuer`, `audience`, `project`, `expired`, `not_yet_valid`, `not_a_user`, `bound`, `not_a_session` or `session_ended`. A client that gets `expired` refreshes its session and calls again. `palbase/web` does that by itself for the project's modules. See [Calling Your Backend](https://palbase.studio/docs/web/backend-calls).
+
+```ts
+// src/modules/payments/transfers.controller.ts
+import { Controller, Param, Post, User, type UserT } from "palbase/backend";
+
+@Controller("/payments")
+export class TransfersController {
+  // Sending money asks for a second factor given in the last 5 minutes.
+  @Post("/transfers/{id}/send", { auth: { aal: "aal2", maxAge: 300 } })
+  send(@User() user: UserT, @Param("id") id: string) {
+    return { transfer: id, sentBy: user.id, provedAt: user.authTime };
+  }
+}
+```
+
+### Second factors and their strength
+
+The token says how its user last proved who they are: the level in `acr`, the method in `amr` (RFC 8176).
+
+| Method | `acr` | `amr` | |
+|---|---|---|---|
+| A key that never leaves its device (a security key, a device-bound passkey) | `aal3` | `hwk` | Resists phishing. |
+| A synced passkey: Face ID, a fingerprint, the screen lock | `aal2` | `swk` | Resists phishing. |
+| An authenticator app's code | `aal2` | `otp` | |
+| A code texted to the user's phone | `aal2` | `sms` | NIST calls it restricted (a SIM can be swapped): offer an app or a passkey beside it. |
+| A code emailed to the user | `aal1` | `email` | Not a second factor: the inbox is where the password is reset (NIST SP 800-63B-4 §3.1.3.1). It is no way to step up. |
+| A recovery code | `aal1` | `recovery` | A way back in, not a second factor. |
+
+A sign-in with a password and a second factor carries both (`["pwd", "otp"]`); a step-up's token carries the step-up's method alone, the authentication its `auth_time` is the moment of. A route that will take only a passkey checks `amr` in the service.
 
 ## How the token is verified
 
@@ -182,6 +221,24 @@ export class LocationController {
 | `enforce` | A call without a proof that verifies is answered `401 app_attest_required`. |
 
 The refusal carries `data.reason` (`app_attest_required`: no proof; `assertion_invalid`; `assertion_stale`: another call used the device's counter first; `device_unknown`: the device is not enrolled) and `data.challenge`, also in the `X-Palbase-Attest-Challenge` header: the SDK enrols the device when it must, proves the call with that challenge and sends it once more. Every answer of an attested route carries the next challenge in the same header, so a device's next call needs no extra round trip. When the proof cannot be checked (auth is not reachable, or the environment's mode was never read since the machine started) the route answers `503 attest_unavailable` with `Retry-After: 1`.
+
+A route that decides by device — one account per phone, a shared tablet at a desk — takes the device whose proof verified with `@AttestedDevice()`: its id and platform, as auth names them.
+
+```ts
+// src/modules/shifts/shifts.controller.ts
+import { AttestedDevice, Controller, Post, User, type UserT } from "palbase/backend";
+
+@Controller("/shifts")
+export class ShiftsController {
+  @Post("/clock-in", { attest: true })
+  clockIn(@User() user: UserT, @AttestedDevice() device: AttestedDevice | null) {
+    // { id: "dev_…", platform: "ios" | "android" } under enforce; null under off and monitor.
+    return { user: user.id, device: device?.id ?? null };
+  }
+}
+```
+
+It is the device auth verified, not the `X-Palbase-Device-Id` header the client sends: that one is only the client's word, under `off` and `monitor` too. Under `off` nothing is verified and under `monitor` nothing is refused, so `@AttestedDevice()` is `null` in both: a route does not act on a device for some calls and not for others. On a route that is not `attest: true` it is refused when the app starts.
 
 The environment's iOS and Android apps are its registered apps (`palbase apps:env:set`): an iOS app's App Attest key is taken for its bundle and team, an Android app's key for its package and the signing certificates registered with it (Play's app signing key and your upload key; not a debug key, whose build anyone with the phone can drive to sign requests). An Android enrolment is checked again on every call: a certificate of its chain revoked since, or a signing certificate taken off the app, stops it, and after 30 days the phone enrols again. Calls an app makes at once may reach the backend in any order: each is taken once. A browser cannot attest: under `enforce`, a web app's calls to an attested route are refused. So are calls from older app versions that predate attestation; set the app's minimum version before turning `enforce` on.
 

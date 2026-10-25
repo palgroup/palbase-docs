@@ -247,6 +247,11 @@ For the signed-in user:
 | `mfa.enrollEmail()` | Adds the account's address. |
 | `mfa.factors()` | The factors: each one's `id`, `type`, `verified`. |
 | `mfa.removeFactor(id:currentPassword:)` | Removes one; it asks for the account's password. |
+| `mfa.stepUp(code:)` | Steps the session up to aal2 with the authenticator's code: what a route that answers `stepUpRequired` asks. Returns the session. |
+| `mfa.sendStepUpSmsCode()`, `mfa.stepUp(smsCode:)` | The same by text: the first sends the code to the user's SMS factor, the second steps up with it. |
+| `passkeys.stepUp()` | The same with one of the account's passkeys: Face ID or Touch ID. |
+
+A step-up keeps the session's refresh token; its refreshes stay at the new level, and a route's `maxAge` counts from the step-up. An email code is not a way up ([Second factors and their strength](https://palbase.studio/docs/backend/authentication#second-factors-and-their-strength)).
 
 New recovery codes are `pb.auth.api.mfaRegenerateRecoveryCodes()`.
 

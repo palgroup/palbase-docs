@@ -127,6 +127,26 @@ stop();
 
 `me()` and `updateMe({ name, image, read_receipts, show_last_seen, default_timer_seconds })` are the person's own profile and settings; `profiles(userIds)` others' names and pictures. `block(userId)`, `unblock(userId)` and `report({ … })` are theirs to use. `notifications(conversationId, { notify_level, muted_until })` mutes a conversation, or keeps only its mentions.
 
+## A deleted group
+
+When a group's owner or an admin deletes it — or its last member leaves — it goes from everyone's `conversations()` at once, and those who were in it can still report it for 14 days ([Messaging](https://palbase.studio/docs/messaging/overview#moderation)). `deletedGroups()` lists them while they can, the latest to stop first: `state.items` are `{ id, title, deletedBy, reportableUntil }`, and one goes at its `reportableUntil`. `report` names it by its id with no message; the last 30 messages the person saw in it go with the report. A group the project's server deleted is not among them.
+
+```ts
+// src/deleted.ts
+import { pb } from "./lib/palbase";
+
+const deleted = pb.messaging.deletedGroups();
+const stop = deleted.subscribe(() => {
+  for (const g of deleted.state.items) console.log(g.title ?? "a group", "reportable until", g.reportableUntil);
+});
+
+const [group] = deleted.state.items;
+if (group) await pb.messaging.report({ conversation_id: group.id, reason: "harassment", user_id: group.deletedBy ?? undefined });
+stop();
+```
+
+The title is the one the device had; it is null when the device no longer had the group as the word came — on the deleter's own device now and then.
+
 ## Vanish mode and screenshots
 
 A direct conversation in vanish mode (`update(id, { settings: { vanish: true } })`) drops what the person read when they leave it: call `close(conversationId)` as its screen goes. A browser cannot know of a screenshot; the phone apps tell the others ([Messaging](https://palbase.studio/docs/messaging/overview#screenshots)).

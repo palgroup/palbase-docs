@@ -96,6 +96,8 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `journey.step` | A person's run took a step. | `{ journey, journey_id, run_id, user_id, step, kind, outcome, test }` |
 | `journey.event` | A journey's `event` step told the project's backend. | `{ journey, journey_id, run_id, user_id, step, name, data, test }` |
 | `journey.ended` | A person's run ended: `completed`, `converted`, `exited`, `stopped`. | `{ journey, journey_id, run_id, user_id, reason, test }` |
+| `messaging.report.created` | A person reported a conversation, someone in it or messages of it. Read what it carries with the secret key (`GET /messaging/admin/reports/{report_id}`); an organization that runs its customers' apps passes it on to them from here ([Messaging](https://palbase.studio/docs/messaging/overview#moderation)). | `{ report_id, conversation_id, reporter_id, reported_user_id, reason, message_count }` |
+| `messaging.conversation.created` / `messaging.conversation.deleted` | A conversation was made — by a person, or the project's server — or deleted for everyone. | `{ conversation_id, kind, created_by, member_ids }` / `{ conversation_id, deleted_by }` |
 | `audience.entered` / `audience.exited` | A person came to be in an analytics audience, or left it. | `{ audience_id, audience_name, person_id, user_id }` |
 | `machine.created` / `machine.updated` / `machine.deleted` | A machine was opened, changed, or taken away. | `{ name, source, size, replicas, port, version }` |
 | `stores.apple.changed` | The Apple account was connected, checked (and Apple's answer changed) or disconnected. The key is never in the event. | `{ change, issuer_id, key_id, status, capabilities }` |

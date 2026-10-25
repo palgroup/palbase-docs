@@ -1285,69 +1285,83 @@ It stops working when it expires, when it is revoked (`DELETE /v1/environments/{
 
 # Billing
 
-An organization is billed for its projects' use by the calendar month (UTC). It is on one of two plans:
+Each environment is billed on its own, by the calendar month (UTC): it has its own plan, its own credit and its own free quota, as a project of its own. The organization holds only what pays — its cards, its billing details and its bank transfers — and an environment's credit is never another's unless an owner or an admin moves it. Each environment is on one of two plans:
 
-- **Free**: no card. Every item has a free quota each month; a person with no payment account opens at most 2 projects of 2 environments each — one deleted counts until the month is out, so deleting and opening again brings no new month of free quotas; a Free project is opened by a person, not an organization's access token — and machines and databases are of the free sizes.
-- **Pay as you go**: the organization opens a payment account and loads a balance ahead, in US dollars. Its projects use the free quota once for the whole organization; what they use past it is priced and taken from the balance as it is used, every few minutes. There is no monthly fee and no bill afterwards.
+- **Free**: charged nothing. Every item has a free quota each month, and past it the environment is slowed or stopped ([Usage & Limits](/docs/getting-started/usage-and-limits#what-a-free-project-gets)); its machines and databases are of the free sizes. Every environment starts on Free. Until one of the organization's environments has paid a top-up, a person opens at most 2 projects of 2 environments each — one deleted counts until the month is out, so deleting and opening again brings no new month of free quotas — and a Free project is opened by a person, not an organization's access token.
+- **Pay as you go**: the environment has credit, loaded ahead in US dollars; its first top-up by card moves it there. What it uses past its own free quota is priced and taken from its credit as it is used, every few minutes; it may open every size of machine and database. There is no monthly fee and no bill afterwards.
 
-The prices, the free quotas and the terms are on the [billing terms](https://palbase.studio/legal/billing) page.
+When an environment's credit runs out, or its month reaches its limit, only it falls back to the free quotas; the organization's other environments go on. The prices, the free quotas and the terms are on the [billing terms](https://palbase.studio/legal/billing) page.
 
 ## Opening the payment account
 
-An owner or admin opens it in Studio, on the organization's **Billing** page: they accept the terms for the organization (Studio records who, when, and which version), choose a first top-up of $10 or more, and pay it on Stripe's page, which asks for the card, the billing address and, for a business, its VAT number. Tax is added on top as the billing address requires. Stripe emails an invoice for every top-up; **Billing › Invoices** lists them.
+An owner or admin opens it in Studio, on the organization's **Billing** page, by accepting the terms for the organization (Studio records who, when, and which version). Nothing is charged. From then on each environment is moved to Pay as you go by its first top-up by card, of $10 or more: **Billing › Environments › Upgrade** on the environment, paid on Stripe's page the first time, which asks for the card, the billing address and, for a business, its VAT number, and saves the card for the organization. Tax is added on top as the billing address requires. Stripe emails an invoice for every top-up, naming its environment; **Billing › Invoices** lists them.
 
-From then on the organization's projects may open every size of machine and database ([Machines](/docs/machines/overview#sizes), [Databases](/docs/machines/databases#sizes)) and are not held to the Free limits on projects and environments.
+Once one of its environments has paid a top-up, the organization is not held to the Free limits on projects and environments.
 
 ## Top-ups
 
-- **Automatic**: when the balance comes under a threshold, the default card is charged an amount, at most once an hour; on by default ($20 when under $5). A refund or a dispute turns it off. **Billing › Automatic top-up** changes both, sets a monthly cap on what it takes in a calendar month (the last top-up of a month is what is left of the cap, when that is at least $10), or turns it off, and the balance is then the ceiling. When the cap holds a top-up back, the owners and admins are emailed, once a month (again only if the cap is changed). When the default card declines, the same invoice is paid from the organization's other cards in turn — it is paid once at most. When every card declines, it is tried again once a day for two days, and the owners and admins are emailed each time; its invoice is voided (**Invoices** shows it as declined), and each try is a new one.
-- **Now**: **Top up** on the Billing page — a usual amount or any other, from any saved card, or another card on Stripe's page (it is saved for next time).
-- **By bank transfer**: **Top up › Bank transfer** makes an invoice with bank details of the organization's own; the balance gets the amount when the transfer arrives.
+Each environment is topped up on its own, from **Billing › Environments › Manage**:
 
-A top-up can be spent for 12 months; what is left of it then expires. **Billing › Credits** lists each top-up and bonus with what is left of it and when it expires; the one closest to expiring is spent first.
+- **Now**: **Top up** — a usual amount or any other, from any of the organization's saved cards, or another card on Stripe's page (it is saved for next time).
+- **Automatic**: when the environment's credit comes under a threshold, it is topped up by an amount, at most once an hour; on by default ($20 when under $5), and never past what the environment's monthly limit still needs. **Automatic top-up** changes both or turns it off. It is taken from the organization's default card; when that card declines, the same invoice is paid from the organization's other cards in turn — it is paid once at most. When every card declines, it is tried again once a day for two days, the owners and admins are emailed each time, and while a card declined today no other environment's automatic top-up tries it again that day. A declined invoice is voided (**Invoices** shows it as declined), and each try is a new one. A refund or a dispute of an environment's top-up turns its automatic top-up off.
+- **By bank transfer**: **Top up › Bank transfer** makes an invoice with bank details of the organization's own; the environment gets the amount when the transfer arrives — one on Free is then moved to Pay as you go with **Manage › Move to Pay as you go**. What the organization's transfers paid past their invoices stays with it, and pays the next top-up of any of its environments first, when it covers the whole of it — a card is charged only otherwise; what is left of it 75 days after it arrived, Stripe returns to the account it came from. An organization with no card is topped up automatically from what its transfers left, while it covers the top-up.
+
+Credit can be spent for 12 months; what is left of it then expires. The environment's sheet lists each top-up, bonus and credit moved in with what is left of it and when it expires; the one closest to expiring is spent first.
+
+## Moving credit between environments
+
+An owner or an admin moves an environment's credit to another environment of the same organization: all of it, or an amount (**Manage › Move credit**). Each part keeps its expiry. Credit never leaves the organization, and a member cannot move it. An environment whose credit is moved away entirely is moved to Free.
+
+Deleting an environment, or a project and its environments, offers to move their credit to another environment first. A deleted environment keeps its credit until it is purged, 7 days after it was deleted — **Billing › Environments** offers to move it until then — and what is left of it is lost when it is purged. The organization's owners and admins are emailed when an environment is deleted holding credit, with how much and when it is lost.
 
 ## Cards and billing details
 
-**Billing › Payment** lists the organization's cards. **Add card** saves one on Stripe's page — nothing is charged — and makes it the default unless you say otherwise; any other card can be made the default or removed. The default card is removed only when it is the last one, and the automatic top-up turns off with it.
+**Billing › Payment** lists the organization's cards, shared by its environments. **Add card** saves one on Stripe's page — nothing is charged — and makes it the default unless you say otherwise; any other card can be made the default or removed. The default card is removed only when it is the last one; the automatic top-ups then wait for a card, or a bank transfer.
 
 **Edit billing details** sets the name, address and tax number (a VAT number in the EU) the next invoices are made out to. The address is checked for tax at once: one that cannot be placed is refused, and nothing changes.
 
 ## What is charged
 
-**Usage** shows the month: what each environment used of each item and what it would cost on its own (gross), and the organization's charge for each item, its free quota taken once. Any member reads what was used; the amounts are an owner's or an admin's. **Download CSV** gives the same, a line per environment and item, for an organization that bills its own customers per project.
+**Usage** shows the month: each environment's plan and what it used, and to an owner or an admin what that came to before its free quota (gross) and what it was charged past it. Any member reads what was used; the amounts are an owner's or an admin's. **Download CSV** gives it item by item — a line per environment and item, units, gross and charged, with its total and what its credit gave — for an organization that bills its own customers per environment.
 
-Palbase AI's models, on Palbase's own provider keys, are their provider's price and 10%, and each month brings $1.00 of them free, once for the organization's projects. A project may have a monthly AI budget of its own ([AI](/docs/backend/ai#what-it-costs)). A call under the project's own provider key is the provider's to bill. Requests, push notifications, and email, SMS and WhatsApp sent through the project's own provider are not charged.
+Palbase AI's models, on Palbase's own provider keys, are their provider's price and 10%, and each month brings each environment $1.00 of them free. A project may have a monthly AI budget of its own ([AI](/docs/backend/ai#what-it-costs)). A call under the project's own provider key is the provider's to bill. Requests, push notifications, and email, SMS and WhatsApp sent through the project's own provider are not charged.
 
-The owners and admins are emailed when the balance comes under the days of spend they choose (3 by default, in **Automatic top-up**), and when it runs out.
+## Each environment's own
 
-## Each environment's place in the bill
+For each environment, an owner or an admin can, on **Billing › Environments › Manage** or from the API:
 
-For each environment, an admin can, on the Usage page (**Change**) or from the API:
-
-- set a **monthly cap**: at it, the environment is Free until the month ends, while the others go on;
-- pull it to the **Free plan**: it is charged nothing and held to the free quotas;
+- set a **monthly limit**: at it, the environment falls back to the free quotas until the month ends, while the others go on;
+- move it to **Free**: it is charged nothing and held to the free quotas; its credit stays, spent once it is back on Pay as you go;
 - **freeze** it: its requests are refused (`403 project_frozen`), its machines and databases stop, its data is kept, and only what it stores is charged. Unfreezing brings it back.
 
-## When the balance runs out
+## When an environment's credit runs out
 
-Nothing is owed. What is paid for stops: machines and databases of a paid size stop (`402 machine_not_paid` while it lasts), Palbase's AI models past the month's free dollar are refused (`402 ai_payment_required`; a project's own provider key goes on), and the projects are held to the free quotas, as on the Free plan; what is within them goes on. Usage measured in the few minutes before it stopped is taken from the next top-up; what the projects use after it is not charged. While the balance is out, the organization's projects share one free quota, as the account's bill does. A top-up brings everything back by itself.
+Nothing is owed. What it pays for stops: its machines and databases of a paid size stop (`402 machine_not_paid` while it lasts), Palbase's AI models past its month's free dollar are refused (`402 ai_payment_required`; a project's own provider key goes on), and it is held to its free quotas, as on Free; what is within them goes on. Usage measured in the few minutes before it stopped is taken from its next top-up; what it uses after it is not charged. The organization's other environments are not touched. A top-up brings it back by itself.
+
+## Emails and webhooks
+
+The organization's owners and admins are emailed when an environment's credit comes under the days of spend set for it (3 by default, in **Automatic top-up**) — at most once a day —, when it runs out, when its automatic top-up is declined, and when its month reaches its limit — and when an environment is deleted holding credit, a few minutes after, unless it was moved or the environment restored meanwhile. What happens at once to several environments comes in one email, naming each.
+
+Each environment's own webhooks are told the same as it happens, as `billing.low_balance`, `billing.balance_exhausted`, `billing.topup_failed` and `billing.limit_reached` ([Webhooks](/docs/server/webhooks#the-events)) — an organization that runs its customers' apps tells them from there. They carry no amount: the amounts are the organization's owners' and admins', on its bill.
 
 ## From the terminal
 
-The CLI does what the Billing page does, as you or with an admin's [access token](/docs/getting-started/access-tokens) in CI — save opening the payment account and the first top-up, which saves the card on Stripe's page:
+The CLI does what the Billing page does, as you or with an admin's [access token](/docs/getting-started/access-tokens) in CI — save opening the payment account and paying on Stripe's page, which are a person's:
 
 ```bash
-palbase billing                                   # the plan, the balance, the card, the automatic top-up, this month, each environment's place
+palbase billing                                   # each environment's plan, credit, month and limit
+palbase billing:env shop/staging                  # an environment's own: its plan, credit, limit and automatic top-up
+palbase billing:env shop/staging --limit 25 --auto-topup yes --threshold 10 --amount 50
+palbase billing:env shop/staging --plan free      # or pay_as_you_go; --frozen yes|no
+palbase billing:topup shop/staging 20             # from the saved card, $10 to $10,000; a Free one moves to Pay as you go
+palbase billing:bank-transfer shop/staging 500    # an invoice to pay by bank transfer
+palbase billing:transfer shop/staging shop/main 5 # credit moved, with its expiry; all of it when no amount is named
+palbase billing:ledger shop/staging --limit 50    # every change of its credit, newest first
+palbase billing:invoices                          # the top-ups' invoices, each with its environment
 palbase billing:charges --period 2026-10 --csv    # the month's charges by environment and item, as the page downloads them
-palbase billing:invoices                          # the top-ups' invoices
-palbase billing:ledger --limit 50                 # every change of the balance, newest first
-palbase billing:settings --auto-topup yes --threshold 10 --amount 50 --monthly-cap 200
-palbase billing:env shop/staging --cap 25         # an environment's monthly cap; --free yes|no, --frozen yes|no
-palbase billing:topup 20                          # from the saved card, $10 to $10,000; it asks first, -y does not
-palbase billing:bank-transfer 500                 # an invoice to pay by bank transfer
 ```
 
-The organization is `--org`'s, else the one of the environment chosen for the directory. Amounts are in US dollars, to the cent. A member reads the plan and the environments; the money is an owner's or an admin's.
+The environment is `project/environment` or its ref, else the one chosen for the directory; the organization is `--org`'s, else that environment's. Amounts are in US dollars, to the cent. A member reads the plans; the money is an owner's or an admin's.
 
 ## The API
 
@@ -1355,25 +1369,27 @@ What Studio's Billing page does, an admin's [access token](/docs/getting-started
 
 | Call | What it does |
 |---|---|
-| `GET /v1/orgs/{id}/billing` | The plan, the balance, the settings, and each environment's place in the bill |
-| `PATCH /v1/orgs/{id}/billing` | Automatic top-up (`auto_topup`, `auto_threshold_micros`, `auto_amount_micros`, `monthly_cap_micros`) and `low_balance_days` |
-| `POST /v1/orgs/{id}/billing/topups` | A top-up from the default card, or the one named: `{ "amount_micros": 20000000, "payment_method": "pm_…" }` |
+| `GET /v1/orgs/{id}/billing` | The payment account, and each environment's plan, credit, month and limit |
+| `GET /v1/orgs/{id}/billing/environments/{ref}` | An environment's own: its plan, credit, automatic top-up, limit and month |
+| `PATCH /v1/orgs/{id}/billing/environments/{ref}` | Its `plan` (`free`, `pay_as_you_go`), `frozen`, `monthly_limit_micros` (`null`: none), `auto_topup`, `auto_threshold_micros`, `auto_amount_micros`, `low_balance_days` |
+| `POST /v1/orgs/{id}/billing/environments/{ref}/topups` | A top-up of it from what bank transfers left, else the default card or the one named: `{ "amount_micros": 20000000, "payment_method": "pm_…" }`; `"plan": "pay_as_you_go"` moves a Free one with it |
+| `POST /v1/orgs/{id}/billing/environments/{ref}/bank-transfers` | An invoice to pay by bank transfer, for it |
+| `GET /v1/orgs/{id}/billing/environments/{ref}/ledger` | Every change of its credit; `?kind=topup,bonus,transfer` for the credits alone |
+| `POST /v1/orgs/{id}/billing/transfers` | Credit moved: `{ "from": "<ref>", "to": "<ref>", "amount_micros": 5000000 }`, all of it without `amount_micros` |
+| `DELETE /v1/projects/{id}?move_credit_to=<ref>` | Deletes a project, its environments' credit moved first; `DELETE /v1/environments/{ref}?move_credit_to=<ref>` an environment |
 | `GET /v1/orgs/{id}/billing/cards` | The cards, the default first |
 | `PUT /v1/orgs/{id}/billing/cards/{card}/default` | Makes a card the default |
 | `DELETE /v1/orgs/{id}/billing/cards/{card}` | Removes a card; the default only when it is the last |
 | `GET` / `PUT /v1/orgs/{id}/billing/customer` | The name, `address` and `tax_id` (`{ "type": "eu_vat", "value": "…" }`, or `null`) the invoices are made out to |
-| `POST /v1/orgs/{id}/billing/bank-transfers` | An invoice to pay by bank transfer |
-| `GET /v1/orgs/{id}/billing/charges?period=2026-10` | The month's charges, by environment and item |
+| `GET /v1/orgs/{id}/billing/charges?period=2026-10` | The month's charges, by environment and item: units, gross and charged |
 | `GET /v1/orgs/{id}/billing/charges.csv?period=2026-10` | The same, as CSV |
-| `GET /v1/orgs/{id}/billing/invoices` | The top-ups' invoices |
-| `GET /v1/orgs/{id}/billing/ledger` | Every change of the balance; `?kind=topup,bonus` for the credits alone |
-| `PATCH /v1/orgs/{id}/billing/environments/{ref}` | An environment's `cap_micros` (`null`: none), `free`, `frozen` |
+| `GET /v1/orgs/{id}/billing/invoices` | The top-ups' invoices, each with its environment; `?environment=<ref>` one's alone |
 
-Amounts are in micro-dollars (1,000,000 is $1), in whole cents. A member reads the plan and what was used; amounts and money are an admin's.
+Amounts are in micro-dollars (1,000,000 is $1), in whole cents. A member reads the plans and what was used; amounts and money are an admin's.
 
 ## Related
 
-- [Usage & Limits](/docs/getting-started/usage-and-limits) — what is metered, and what a free project gets
+- [Usage & Limits](/docs/getting-started/usage-and-limits) — what is metered, and what a free environment gets
 - [Organizations](/docs/getting-started/organizations) — roles, and who is emailed
 - [Access Tokens](/docs/getting-started/access-tokens) — an admin token for the API
 
@@ -1469,7 +1485,7 @@ A limit that counts refuses nothing: the use goes on and is metered.
 
 ## What a free project gets
 
-A project is free while its organization has no payment account, or has one with no balance left, and while it is pulled to the Free plan or at its monthly cap ([Billing](/docs/getting-started/billing)).
+An environment is free while it is on the Free plan — every environment starts on it — and while its credit has run out or its month is at its monthly limit ([Billing](/docs/getting-started/billing)). Each environment is free on its own: one running out holds no other.
 
 - **Sizes.** Its machines are of the `shared-256` size, the one free machine size, and it has one database at most, of the `free` size: a project holds one database of a free size at a time ([Databases](/docs/machines/databases#sizes)). Every other size is paid for: opening a machine or a database of one, or moving one to it, is `403 size_not_available`. `palbase machines:sizes` and `palbase databases:sizes` list the sizes and which of them the environment may open now ([Machines](/docs/machines/overview#sizes)).
 - **Traffic.** It sends 5 GB a month at full speed: its machines' internet traffic and its response traffic together. Past it, until the month ends, its machines' traffic and answers and the files its storage hands out go at about 256 kbit/s; nothing is stopped, and the API's other answers are not slowed. A slowed project's downloads are paced, and one more than it may have under way at once is `429 rate_limited` with `Retry-After`. See [Reaching the internet](/docs/machines/overview#reaching-the-internet).
@@ -1477,7 +1493,7 @@ A project is free while its organization has no payment account, or has one with
 - **A free database** is awake 400 hours a month at most. Past them it sleeps until the month ends, refusing connections, with its data kept; from then its next connection wakes it.
 - **AI.** $1.00 of Palbase's models a month, at the provider's price and 10%. Past it, until the month ends, a call to them is `402 ai_payment_required`; a call under the project's own provider key goes on ([AI](/docs/backend/ai#what-it-costs)).
 
-A project whose organization pays is never slowed for its traffic, and its machines and databases may be of any size; a database of the `free` size keeps its 400 hours whoever holds it. What it uses past the organization's free quotas is charged from the balance ([Billing](/docs/getting-started/billing)).
+An environment on Pay as you go with credit is never slowed for its traffic, and its machines and databases may be of any size; a database of the `free` size keeps its 400 hours whoever holds it. What it uses past its own free quotas is charged from its own credit ([Billing](/docs/getting-started/billing)).
 
 ## Each module's own limits
 
@@ -1492,7 +1508,7 @@ A project whose organization pays is never slowed for its traffic, and its machi
 
 ## Related
 
-- [Billing](/docs/getting-started/billing) — the plans, the balance and what is charged
+- [Billing](/docs/getting-started/billing) — each environment's plan and credit, and what is charged
 - [Logs](/docs/getting-started/logs) — every request, with its status
 - [Organizations](/docs/getting-started/organizations) — who sees the usage page, and who is mailed
 - [Machines](/docs/machines/overview) — sizes, sleep, and traffic to the internet
@@ -1643,7 +1659,20 @@ palbase env:tokens:create --scope machines:read,machines:logs   # only read mach
 
 Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:read`, `machines:logs`, `apps:sync`, `auth:test-users` or `support`. `palbase env:tokens:list` lists the live ones and `palbase env:tokens:revoke <id>` ends one at its next request. The docs an agent reads are at `/llms.txt`, with every page in one file at `/llms-full.txt`.
 
-## Asking Palbase
+## Searching the docs
+
+`palbase docs:search` finds what these docs say about what you need — by its meaning, in your own words; ask in English, the docs' language — and prints the sections that answer it, each with its address and its text:
+
+```sh
+palbase docs:search "<what you need>"
+palbase docs:search "<what you need>" --limit 3 --json
+```
+
+Say what you need as a question of your own — what you are trying to do, not the words of a heading — and the search finds the sections that mean it.
+
+It needs no sign-in, and a page changed here is found by what it says now within minutes. A caller searches 10 times in ten seconds, 30 a minute and 300 an hour: a sign-in or `PALBASE_TOKEN`, sent when there is one, as itself, and a search with neither by its address. When many search at once, a search waits its turn for a few seconds, or is told to search again in a moment. `--json` prints what the search answered — what an agent reads.
+
+## Asking Palbase's support line
 
 What the docs do not answer — a command or call that fails with nothing to act on, a page that is wrong or missing, something Palbase seems not to do — goes to Palbase's support line:
 
@@ -1667,7 +1696,8 @@ The answer comes from these docs and from what the environment shows you: its ma
 | [`github`](/docs/cli/reference#github), [`machines`](/docs/cli/reference#machines) | Connecting GitHub, machines, their builds, logs, crons and tasks ([Machines](/docs/machines/overview)) |
 | [`databases`](/docs/cli/reference#databases), [`db`](/docs/cli/reference#db) | Databases, their backups, connection addresses, `psql`, dumps and schema plans ([Databases](/docs/machines/databases)) |
 | [`config`](/docs/cli/reference#config), [`types`](/docs/cli/reference#types) | Comparing and copying module settings between environments, and the environment's names as TypeScript types |
-| [`support`](/docs/cli/reference#support) | A question to Palbase's support line ([Asking Palbase](#asking-palbase)) |
+| [`docs`](/docs/cli/reference#docs) | Searching these docs by meaning ([Searching the docs](#searching-the-docs)) |
+| [`support`](/docs/cli/reference#support) | A question to Palbase's support line ([Asking Palbase's support line](#asking-palbases-support-line)) |
 
 
 
@@ -1675,9 +1705,9 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.18.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.18.6 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-354 commands in 30 groups.
+382 commands in 32 groups.
 
 ## Global flags
 
@@ -1835,13 +1865,13 @@ The test users are deleted when the command ends, however it ends — Ctrl-C too
 
 ### `palbase billing`
 
-An organization's plan, balance, card, automatic top-up and this month — each environment's place in the bill and what it came to
+An organization's card and each environment's plan, balance, month and limit
 
 ```sh
 palbase billing [--org <org>]
 ```
 
-A member reads the plan and the environments; the money (balance, amounts) is an owner's or an admin's.
+A member reads the plans and what was used; the money (balances, amounts) is an owner's or an admin's.
 
 ```text
       --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
@@ -2046,7 +2076,7 @@ palbase tokens:revoke <name|id>
 
 ### `palbase billing:charges`
 
-A month's charges, by environment and item, gross — then the organization's, its free quota taken once — as a table or as CSV
+A month's charges, by environment and item — used, at the price table, charged past each one's free quota — as a table or as CSV
 
 ```sh
 palbase billing:charges [--period <YYYY-MM>] [--csv] [--org <org>]
@@ -2062,10 +2092,10 @@ palbase billing:charges [--period <YYYY-MM>] [--csv] [--org <org>]
 
 ### `palbase billing:invoices`
 
-The invoices of an organization's top-ups: Stripe makes one of each, and emails it
+The invoices of an organization's top-ups, each of an environment: Stripe makes one of each, and emails it
 
 ```sh
-palbase billing:invoices [--org <org>]
+palbase billing:invoices [<project/env | ref>] [--org <org>]
 ```
 
 ```text
@@ -2074,80 +2104,70 @@ palbase billing:invoices [--org <org>]
 
 ### `palbase billing:ledger`
 
-Every change of an organization's balance, newest first: top-ups, usage taken, refunds, what expired
+Every change of an environment's balance, newest first: top-ups, usage taken, credit moved, refunds, what expired
 
 ```sh
-palbase billing:ledger [--limit <n>] [--org <org>]
+palbase billing:ledger [<project/env | ref>] [--limit <n>]
 ```
 
 ```text
-      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
       --limit <n>  how many at most (default 50)
-```
-
-### `palbase billing:settings`
-
-An organization's automatic top-up — on or off, under what balance, by how much, at most how much a month — and when it is told the balance runs low
-
-```sh
-palbase billing:settings [--auto-topup yes|no] [--threshold <usd>] [--amount <usd>] [--monthly-cap <usd>|none] [--low-balance-days <n>] [--org <org>]
-```
-
-A month's cap takes what is left of it, and nothing once it is spent: the owners are emailed once a month when it holds a top-up back.
-
-```text
-      --org <org>               the organization (name or id; the one of the environment chosen here, or your only one)
-      --auto-topup <yes|no>     take a top-up from the saved card when the balance is under the threshold
-      --threshold <usd>         the balance under which it is taken
-      --amount <usd>            how much it takes ($10 at least)
-      --monthly-cap <usd|none>  at most this much a calendar month; none for no cap
-      --low-balance-days <n>    email the owners when the balance lasts fewer than n days of spend (1 to 60)
 ```
 
 ### `palbase billing:env`
 
-An environment's place in its organization's bill: a monthly cap, pulled to the Free plan, frozen
+An environment's place in the bill — its plan, frozen, its month's limit, its automatic top-up — read, or changed
 
 ```sh
-palbase billing:env <project/env | ref> [--cap <usd>|none] [--free yes|no] [--frozen yes|no] [-y]
+palbase billing:env [<project/env | ref>] [--plan free|pay_as_you_go] [--limit <usd>|none] [--frozen yes|no] [--auto-topup yes|no] [--threshold <usd>] [--amount <usd>] [--low-balance-days <n>] [-y]
 ```
 
-At its cap the environment is Free until the month ends; the others go on. Frozen, its requests are refused and its machines and databases stopped, its data kept; only what it stores is charged.
-Freezing asks first; -y does not.
+With no flag it shows the environment: its plan, balance, automatic top-up and month.
+Each environment pays for itself: at its limit, or its balance run out, it is Free until the month ends or a top-up comes; the organization's other environments go on. Moved to Pay as you go it needs credit to pay from: its first top-up (palbase billing:topup) moves it.
+Frozen, its requests are refused and its machines and databases stopped, its data kept; only what it stores is charged. Freezing asks first; -y does not.
 
 ```text
-      --cap <usd|none>   at most this much a month; none for no cap
-      --free <yes|no>    on the Free plan: charged nothing, held to the free quotas
-      --frozen <yes|no>  frozen: its requests refused, its machines and databases stopped, its data kept
+      --plan <free|pay_as_you_go>  Free (charged nothing, held to the free quotas, its credit kept) or Pay as you go (paid from its balance)
+      --limit <usd|none>           at most this much a month; none for no limit
+      --frozen <yes|no>            frozen: its requests refused, its machines and databases stopped, its data kept
+      --auto-topup <yes|no>        take a top-up from the organization's card when the balance is under the threshold
+      --threshold <usd>            the balance under which it is taken
+      --amount <usd>               how much it takes ($10 at least)
+      --low-balance-days <n>       email the owners when the balance lasts fewer than n days of spend (1 to 60)
 ```
 
 ### `palbase billing:topup`
 
-Put money on an organization's balance from its saved card, now: $10 to $10,000, the tax on top, an invoice made of it
+Put money on an environment's balance now — from what the organization's bank transfers left, else its saved card: $10 to $10,000, the tax on top, an invoice made of it
 
 ```sh
-palbase billing:topup <usd> [-y] [--org <org>]
+palbase billing:topup [<project/env | ref>] <usd> [-y]
 ```
 
-It takes the money: it asks first, and -y does not. With no card saved yet, the first top-up is on Stripe's page, in Studio.
-
-```text
-      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
-```
+It takes the money: it asks first, and -y does not. An environment on Free is moved to Pay as you go by it (its first top-up).
+With no card saved yet, the first top-up is on Stripe's page, in Studio.
 
 ### `palbase billing:bank-transfer`
 
-An invoice of a top-up to pay by bank transfer, to the organization's own bank details: credited as the money arrives
+An invoice of an environment's top-up to pay by bank transfer, to the organization's own bank details: credited as the money arrives
 
 ```sh
-palbase billing:bank-transfer <usd> [--org <org>]
+palbase billing:bank-transfer [<project/env | ref>] <usd>
 ```
 
 Stripe emails the invoice with the bank details; nothing is taken until the transfer arrives.
+A transfer of more than the invoice stays with the organization and pays its environments' next top-ups, before any card — for 75 days, then Stripe sends what is left back.
 
-```text
-      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
+### `palbase billing:transfer`
+
+Move credit from one of an organization's environments to another — all of it, or an amount — each part with its expiry
+
+```sh
+palbase billing:transfer <from project/env | ref> <to project/env | ref> [<usd>] [-y]
 ```
+
+An owner's or an admin's (an admin's access token too); never to another organization's environment. It asks first, and -y does not.
+A deleted environment keeps its credit until it is purged (a week): move it before then, or it is lost.
 
 ## `projects`
 
@@ -3124,11 +3144,180 @@ palbase analytics:summary [--window <24h>]
       --window <span>  how far back: 30m, 24h, 7d (default 24h)
 ```
 
+## `messaging`
+
+### `palbase messaging:settings:get`
+
+How the environment runs its conversations: how long messages are kept, whether a push says what one says, what becomes of a deleted user's messages, the hook
+
+```sh
+palbase messaging:settings:get
+```
+
+### `palbase messaging:settings:set`
+
+Change how the environment runs its conversations: a setting left out is left as it is
+
+```sh
+palbase messaging:settings:set [--retention-days <days>|off] [--push-preview on|off] [--deleted-user-messages keep|delete]
+```
+
+A shorter retention removes the messages older than it, in every conversation. A deleted user's messages are kept or deleted as the setting is when the user is deleted.
+Deleted, what of theirs had already gone from screens (seen once, its time up, vanish mode, taken back) stays its 14 days, sealed, for reports, then goes.
+Only what changes is sent: a change made beside this one to another setting stays.
+
+```text
+      --retention-days <days|off>            messages older than this many days are removed (1–36500); off: kept for good
+      --push-preview <on|off>                a push says what the message says (on), or only that one came (off)
+      --deleted-user-messages <keep|delete>  a deleted user's messages: kept, their writer anonymous, or deleted (what went from screens before stays its 14 days for reports)
+```
+
+### `palbase messaging:hook:get`
+
+The hook asked whom one may reach: where it is, how long it is waited for, what is done when it does not answer (never its secret)
+
+```sh
+palbase messaging:hook:get
+```
+
+### `palbase messaging:hook:set`
+
+Set the hook asked whom one may reach, or change it; a new hook's signing secret is printed this once, or kept in a secret with --secret-to
+
+```sh
+palbase messaging:hook:set [--url <url>] [--timeout-ms <ms>] [--on-error allow|deny] [--secret-to <NAME> [--dev]]
+```
+
+Before a direct conversation opens or people are added to a group, the hook is POSTed {"event": "messaging.can_message", "action": "direct" | "group_add", "from_user_id", "to_user_ids", "conversation_id"}, signed as Standard Webhooks sign (webhook-id, webhook-timestamp, webhook-signature), and answers 200 {"allowed_user_ids": […]}.
+A new hook takes --url (an https URL on the public internet). Its signing secret is printed this once, or kept in the environment's secrets with --secret-to (production; --dev: development) and printed nowhere. A hook changed keeps its secret: palbase messaging:hook:secret:rotate makes a new one.
+
+```text
+      --url <url>              where the hook is asked
+      --timeout-ms <ms>        how long it is waited for: 100 to 5000 (a new hook: 2000)
+      --on-error <allow|deny>  when it does not answer: allow everyone, or deny and the app is told to try again (a new hook: deny)
+      --secret-to <NAME>       keep the new signing secret in the environment's secret NAME instead of printing it
+      --dev                    with --secret-to: the development secrets, not production
+```
+
+### `palbase messaging:hook:remove`
+
+Remove the hook: anyone may reach anyone, and its signing secret is forgotten
+
+```sh
+palbase messaging:hook:remove
+```
+
+### `palbase messaging:hook:secret:rotate`
+
+Make the hook's signing secret anew: printed this once, or kept in a secret with --secret-to; the old one signs nothing more
+
+```sh
+palbase messaging:hook:secret:rotate [--secret-to <NAME> [--dev]]
+```
+
+The hook's calls are signed with the new secret alone from now: the endpoint verifies them with it (a machine reads a secret kept with --secret-to at its next start).
+
+```text
+      --secret-to <NAME>  keep the new signing secret in the environment's secret NAME instead of printing it
+      --dev               with --secret-to: the development secrets, not production
+```
+
+### `palbase messaging:reports:list`
+
+The reports people made, newest first: why, whom, which messages (what they carry: messaging:reports:get)
+
+```sh
+palbase messaging:reports:list [--status open|resolved] [--limit <n>] [--cursor <cursor>]
+```
+
+```text
+      --status <status>  only the open ones, or only the resolved ones
+      --limit <n>        at most this many (1–100, default 30)
+      --cursor <cursor>  the next page, as the last one said it
+```
+
+### `palbase messaging:reports:get`
+
+One report with what it carries: the reporter's note, what the messages it names said when reported and before they were edited
+
+```sh
+palbase messaging:reports:get <report id>
+```
+
+An owner's or an admin's (a member lists the reports, without what they carry); the read is in the project's access log. --json carries the messages' files with the keys that open them.
+A report of a group a person deleted says who deleted it and when; naming no message, it carries the last 30 messages the reporter saw in it.
+A report is deleted, with what it carries, 190 days after it is resolved; one never resolved, 2 years after it was made.
+
+### `palbase messaging:reports:resolve`
+
+Resolve a report, saying what came of it in the project's own words
+
+```sh
+palbase messaging:reports:resolve <report id> --resolution <text>
+```
+
+```text
+      --resolution <text>  what came of it: 1 to 64 characters (warned, removed, nothing found…)
+```
+
+### `palbase messaging:access-log`
+
+Each time people's messages were read or removed — by the project's server, or an owner or admin from Studio or the CLI — newest first: what, which conversation, whose, by whom (kept 400 days)
+
+```sh
+palbase messaging:access-log [--limit <n>] [--cursor <cursor>]
+```
+
+```text
+      --limit <n>        at most this many (1–200, default 50)
+      --cursor <cursor>  the next page, as the last one said it
+```
+
+### `palbase messaging:conversations:list`
+
+The project's conversations, or a person's with --user, the latest first: whose, how many people, when it last moved
+
+```sh
+palbase messaging:conversations:list [--user <user id>] [--limit <n>] [--cursor <cursor>]
+```
+
+```text
+      --user <user id>   only this person's conversations
+      --limit <n>        at most this many (1–100, default 30)
+      --cursor <cursor>  the next page, as the last one said it
+```
+
+### `palbase messaging:messages:list`
+
+What a conversation said, newest first — each read in the project's access log
+
+```sh
+palbase messaging:messages:list <conversation id> [--limit <n>] [--cursor <cursor>]
+```
+
+An owner's or an admin's: a member sees the conversations and the reports, not what was said.
+--json carries the messages whole, their files with the keys that open them.
+
+```text
+      --limit <n>        at most this many (1–100, default 50)
+      --cursor <cursor>  the next page, as the last one said it
+```
+
+### `palbase messaging:messages:delete`
+
+Remove a message for everyone in its conversation: what it said and its files go (in the access log)
+
+```sh
+palbase messaging:messages:delete <conversation id> <message id>
+```
+
+It is not undone: asked before it is done, whatever the environment (-y confirms).
+
 ## `config`
 
 ### `palbase config:diff`
 
-How two environments' module settings differ (auth, storage, flags, notify, realtime, analytics; machines, databases when named)
+How two environments' module settings differ (auth, storage, flags, notify, realtime, analytics, messaging; machines, databases when named)
 
 ```sh
 palbase config:diff --from <env> --to <env> [--only <modules>]
@@ -3140,7 +3329,7 @@ Exit code 0 when they are the same, 1 when they differ. --json gives each differ
 ```text
       --from <env>      the environment compared from (slug or ref)
       --to <env>        the environment compared to (slug or ref)
-      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics (the default), and databases,machines when named
+      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging (the default), and databases,machines when named
 ```
 
 ### `palbase config:copy`
@@ -3160,7 +3349,7 @@ Exit code 0 when the two are the same afterwards, 1 when a difference remains.
 ```text
       --from <env>      the environment compared from (slug or ref)
       --to <env>        the environment compared to (slug or ref)
-      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics (the default), and databases,machines when named
+      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging (the default), and databases,machines when named
 ```
 
 ## `secrets`
@@ -3692,6 +3881,24 @@ A person asks 30 questions an hour, a project's people 60. An environment token 
       --no-context  send the question alone, nothing of this environment's machines
 ```
 
+## `docs`
+
+### `palbase docs:search`
+
+Search Palbase's documentation by meaning: the sections that answer it, each with its address and its text
+
+```sh
+palbase docs:search "<what you need>" [--limit <n>]
+```
+
+Ask in English, the docs' language: a question finds the section it means by its meaning and by its words — say what you need, not the words of a heading.
+Each result is a section of a page: its title, its address with the section's anchor, and its text (the first 4000 characters of a longer one — the address has the rest).
+Anyone may search, signed in or not: 10 searches in ten seconds, 30 a minute, 300 an hour. A sign-in or PALBASE_TOKEN is sent when there is one and is counted as itself; with none, your address is. When many search at once, a search waits its turn for a few seconds, or is told to search again in a moment.
+
+```text
+      --limit <n>  how many sections (1 to 10, default 5)
+```
+
 ## `stores`
 
 ### `palbase stores:apple`
@@ -3745,6 +3952,62 @@ palbase stores:apple:disconnect
 
 ```text
       --apple-id  sign the Apple ID out, at Apple too, and forget its session; the key stays
+```
+
+### `palbase stores:apple:keys`
+
+The keys Palbase made at Apple for the environment with its Apple ID, where each stands, and which keys the environment lacks
+
+```sh
+palbase stores:apple:keys
+```
+
+Palbase makes them with the Apple ID signed in for the environment (stores:apple:connect --apple-id): stores:apple:keys:make. No one downloads a .p8.
+
+### `palbase stores:apple:keys:make`
+
+Make at Apple, with the environment's Apple ID, the keys it lacks — App Store Connect API, APNs, In-App Purchase — and connect them: one confirmation
+
+```sh
+palbase stores:apple:keys:make
+```
+
+With no flag, every key the environment lacks; a key it has is kept. The Apple ID is an Admin or the Account Holder of the team.
+APNs: one key for production and one for the sandbox, scoped to the environment's iOS apps; notify takes them. In-App Purchase: for one iOS app (--bundle with more than one); purchases connects it.
+
+```text
+      --asc             the App Store Connect API key
+      --apns            the APNs keys
+      --iap             the In-App Purchase key
+      --bundle <value>  the iOS app the In-App Purchase key is for, when the environment has more than one
+```
+
+### `palbase stores:apple:keys:revoke`
+
+Revoke at Apple an APNs or In-App Purchase key Palbase made for the environment (the App Store Connect key is revoked as stores:apple:disconnect takes it away)
+
+```sh
+palbase stores:apple:keys:revoke <key-id>
+```
+
+### `palbase stores:apple:share`
+
+Share the environment's Apple ID session with another environment of the project, which uses it while it has none of its own
+
+```sh
+palbase stores:apple:share <environment>
+```
+
+An environment of the same project alone: Palbase refuses another project's, of your organization or not (other_project).
+You are an owner or an admin of both environments; a key or an environment token does not share.
+Signed out, or signed in again, the session serves none it was shared with: share it again. stores:apple:unshare takes it back.
+
+### `palbase stores:apple:unshare`
+
+Take the environment's Apple ID session back from another environment of the project
+
+```sh
+palbase stores:apple:unshare <environment>
 ```
 
 ### `palbase stores:google`
@@ -4571,6 +4834,131 @@ palbase purchases:customer:revoke <customer id> <grant id>
 ```
 
 The grant's id is the one purchases:customer:grant printed. The entitlement stays on while a purchase still gives it.
+
+### `palbase purchases:customer:extend`
+
+Move a customer's subscription renewal days later, for free: the App Store's extension, Google Play's deferral, Stripe's next charge moved
+
+```sh
+palbase purchases:customer:extend <customer id> <subscription id> --days <1-90> --reason customer_satisfaction|service_issue|other [--note <why>]
+```
+
+The subscription's id is the one purchases:customer:get prints. The App Store extends a paid, active subscription, at most 90 days and twice a year.
+The store is asked again after: the new expiry is printed, and the customer's history keeps it with who did it.
+
+```text
+      --days <n>      how many days (1 to 90)
+      --reason <why>  customer_satisfaction, service_issue or other: as the App Store asks it
+      --note <why>    what support writes of it (500 characters at most): the record
+```
+
+### `palbase purchases:customer:refund`
+
+Refund a customer's subscription — its latest payment, or what is left of its period — and end it now: Google Play and Stripe
+
+```sh
+palbase purchases:customer:refund <customer id> <subscription id> --mode full|prorated [--note <why>]
+```
+
+The customer's access ends as it answers. The App Store decides its own refunds: the customer asks Apple, which asks the app what they used — Palbase answers it when they consented in the app.
+
+```text
+      --mode <kind>  full: the latest payment; prorated: what is left of its period
+      --note <why>   what support writes of it (500 characters at most): the record
+```
+
+### `palbase purchases:customer:cancel`
+
+Turn a customer's subscription renewal off: it ends at its period's end, the customer keeping what they paid for — Google Play and Stripe
+
+```sh
+palbase purchases:customer:cancel <customer id> <subscription id> [--note <why>]
+```
+
+An App Store subscription's renewal is the customer's to turn off (Settings › Apple ID › Subscriptions).
+
+```text
+      --note <why>  what support writes of it (500 characters at most): the record
+```
+
+### `palbase purchases:customer:credits`
+
+A customer's credit entries, the newest first: given, spent, taken back, expired, forgiven — with who did each, and why
+
+```sh
+palbase purchases:customer:credits <customer id> [--credits <key>] [--limit <n>] [--cursor <next>]
+```
+
+```text
+      --credits <key>  one of the catalog's credits alone
+      --limit <n>      entries a page (default 50, at most 200)
+      --cursor <next>  the next page, as the last one printed it
+```
+
+### `palbase purchases:customer:credits:give`
+
+Give a customer credits, saying why — a support case, a promotion — for a while or until spent
+
+```sh
+palbase purchases:customer:credits:give <customer id> <credits> <amount> --reason <why> [--source support|promotion] [--for 30d | --until <date>]
+```
+
+What they owe is paid first from what is given. Nothing is charged, in any store.
+
+```text
+      --reason <why>   why they are given (500 characters at most): the record
+      --source <kind>  support (the default) or promotion
+      --for <span>     how long they last: 12h, 30d, 2w
+      --until <date>   when they expire (2026-12-31, or a time)
+```
+
+### `palbase purchases:customer:credits:forgive`
+
+Forgive what a customer owes of a credit — all of it, or an amount — saying why
+
+```sh
+palbase purchases:customer:credits:forgive <customer id> <credits> --reason <why> [--amount <n>]
+```
+
+```text
+      --reason <why>  why it is forgiven (500 characters at most): the record
+      --amount <n>    how much of it (default: all they owe)
+```
+
+### `palbase purchases:customer:limit:set`
+
+Set a customer's own maximum of a limit — above or below the catalog's — saying why, for a while or until cleared
+
+```sh
+palbase purchases:customer:limit:set <customer id> <limit> <max> --reason <why> [--for 30d | --until <date>]
+```
+
+```text
+      --reason <why>  why (500 characters at most): the record
+      --for <span>    how long: 12h, 30d, 2w
+      --until <date>  when it ends (2026-12-31, or a time)
+```
+
+### `palbase purchases:customer:limit:clear`
+
+Clear a customer's own maximum of a limit: the catalog's counts again
+
+```sh
+palbase purchases:customer:limit:clear <customer id> <limit>
+```
+
+### `palbase purchases:customer:limit:give`
+
+Give a customer more of a limit for its current period, saying why — a gift on top of their maximum
+
+```sh
+palbase purchases:customer:limit:give <customer id> <limit> <amount> --reason <why> [--source support|promotion]
+```
+
+```text
+      --reason <why>   why it is given (500 characters at most): the record
+      --source <kind>  support (the default) or promotion
+```
 
 ### `palbase purchases:stripe`
 
@@ -7018,6 +7406,8 @@ A guard (`@UseGuards` and `@Roles` in other frameworks) answers only yes or no. 
 
 Every route has a limit: 300 requests a minute **per caller** unless `PalbaseFactory.create(…, { rateLimit })` or the route says otherwise. `rateLimit: { max, window }` allows at most `max` requests per `window` **seconds**. `rateLimit: false` turns it off for one route, and `rateLimit: false` in the bootstrap turns it off for every route that does not set its own.
 
+A list of windows holds a caller to each of them — a burst, a minute and an hour: `rateLimit: [{ max: 10, window: 10 }, { max: 30, window: 60 }, { max: 300, window: 3600 }]`. A request over any of them is refused and told to wait the longest of their waits, and it is not counted in the windows that had room: a caller told to wait out a burst has not spent its hour on the requests it was refused.
+
 ```ts
 // src/modules/todos/import.controller.ts
 import { Body, Controller, Post, User, z, type UserT } from "palbase/backend";
@@ -7404,7 +7794,8 @@ export class CatalogController {
 | `false` | Anyone may call. A valid token still makes the caller a user (`@OptionalUser()`, and the database's identity). |
 | `{ required?: boolean }` | The same as `true` or `false`; `required` defaults to `true`. |
 | `{ verifiedEmail: true }` | A signed-in user whose token says `email_verified: true`, or `403 email_not_verified`. |
-| `{ aal: "aal2" }` | A user who signed in with a second factor (a passkey that verified its user, an authenticator or SMS code, a step-up), or `401 insufficient_user_authentication`. `"aal3"` asks more; `"aal1"` is a sign-in of any kind. Implies a signed-in user: with `required: false` the app stops at boot. |
+| `{ aal: "aal2" }` | A user who signed in with a second factor (a passkey that verified its user, an authenticator or SMS code, a step-up), or `401 insufficient_user_authentication`. `"aal3"` asks more: a key that never leaves its device; `"aal1"` is a sign-in of any kind. An email code is not a second factor ([below](#second-factors-and-their-strength)). Implies a signed-in user: with `required: false` the app stops at boot. |
+| `{ maxAge: 300 }` | A user who last proved who they are — signed in, or stepped up since — within the last 300 seconds, or `401 insufficient_user_authentication` with `max_age`. With `aal`, both: `{ aal: "aal2", maxAge: 300 }` is "a second factor within the last 5 minutes", what sending money or changing the account's email asks. Whole seconds above 0. Implies a signed-in user; an `@Upload` route cannot ask for it (the app stops at boot). |
 
 `role` and `permission` fields are refused when the app boots. Its token carries no application roles, and Palbase does not check them against a database, so the boot stops with an error naming the route, saying the role check has no database to run against and that the role is to be checked in the service. How to check one is [below](#roles).
 
@@ -7417,9 +7808,18 @@ export class CatalogController {
 | a token that does not verify | `401 invalid_token`, `data.reason` says why | handled, user `null` |
 | a valid token | handled, `@User()` is the user | handled, `@OptionalUser()` is the user |
 | a valid token below the route's `aal` | `401 insufficient_user_authentication` | — |
+| a valid token whose last authentication is older than the route's `maxAge` | `401 insufficient_user_authentication` | — |
 | tokens cannot be checked right now | `503 auth_unavailable`, `Retry-After: 1` | handled, user `null` |
 
-`insufficient_user_authentication` is RFC 9470's step-up challenge: `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values="urn:nist:800-63:aal2"` and `data.acr_values: "aal2"`. The session is fine: the app steps the user up (their second factor) and calls again. Palbase's clients name it apart from a signed-out caller: `stepUpRequired` on iOS, `StepUpRequired` on Android, `kind: "stepUpRequired"` on the web; none refreshes or ends the session for it.
+`insufficient_user_authentication` is RFC 9470's step-up challenge: `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values="urn:nist:800-63:aal2"` and `data.acr_values: "aal2"`; a route with `maxAge` adds `max_age=300` and `data.max_age: 300`. The session is fine: the app steps the user up (their second factor) and calls again. Palbase's clients name it apart from a signed-out caller: `stepUpRequired` on iOS, `StepUpRequired` on Android, `kind: "stepUpRequired"` on the web; none refreshes or ends the session for it.
+
+The step-up is one of:
+
+- `pb.auth.mfa.stepUp(code)` with the authenticator app's code;
+- `pb.auth.mfa.sendStepUpSmsCode()`, then `pb.auth.mfa.stepUpWithSms(code)` with the code it texted (`stepUp(smsCode:)` on iOS);
+- `stepUp()` on the client's passkeys: Face ID, a fingerprint or the device's screen lock.
+
+The session takes the token at the new level, and its refreshes stay there. A step-up is the session's last authentication: the token's `auth_time` is its moment, and every token the session is refreshed to keeps it, so a `maxAge` route counts from the step-up, not from the sign-in.
 
 ```ts
 // src/modules/admin/approvals.controller.ts
@@ -7436,6 +7836,35 @@ export class ApprovalsController {
 ```
 
 `data.reason` on an `invalid_token` refusal is one of `malformed`, `algorithm`, `unknown_key`, `signature`, `issuer`, `audience`, `project`, `expired`, `not_yet_valid`, `not_a_user`, `bound`, `not_a_session` or `session_ended`. A client that gets `expired` refreshes its session and calls again. `palbase/web` does that by itself for the project's modules. See [Calling Your Backend](/docs/web/backend-calls).
+
+```ts
+// src/modules/payments/transfers.controller.ts
+import { Controller, Param, Post, User, type UserT } from "palbase/backend";
+
+@Controller("/payments")
+export class TransfersController {
+  // Sending money asks for a second factor given in the last 5 minutes.
+  @Post("/transfers/{id}/send", { auth: { aal: "aal2", maxAge: 300 } })
+  send(@User() user: UserT, @Param("id") id: string) {
+    return { transfer: id, sentBy: user.id, provedAt: user.authTime };
+  }
+}
+```
+
+### Second factors and their strength
+
+The token says how its user last proved who they are: the level in `acr`, the method in `amr` (RFC 8176).
+
+| Method | `acr` | `amr` | |
+|---|---|---|---|
+| A key that never leaves its device (a security key, a device-bound passkey) | `aal3` | `hwk` | Resists phishing. |
+| A synced passkey: Face ID, a fingerprint, the screen lock | `aal2` | `swk` | Resists phishing. |
+| An authenticator app's code | `aal2` | `otp` | |
+| A code texted to the user's phone | `aal2` | `sms` | NIST calls it restricted (a SIM can be swapped): offer an app or a passkey beside it. |
+| A code emailed to the user | `aal1` | `email` | Not a second factor: the inbox is where the password is reset (NIST SP 800-63B-4 §3.1.3.1). It is no way to step up. |
+| A recovery code | `aal1` | `recovery` | A way back in, not a second factor. |
+
+A sign-in with a password and a second factor carries both (`["pwd", "otp"]`); a step-up's token carries the step-up's method alone, the authentication its `auth_time` is the moment of. A route that will take only a passkey checks `amr` in the service.
 
 ## How the token is verified
 
@@ -7508,6 +7937,24 @@ export class LocationController {
 | `enforce` | A call without a proof that verifies is answered `401 app_attest_required`. |
 
 The refusal carries `data.reason` (`app_attest_required`: no proof; `assertion_invalid`; `assertion_stale`: another call used the device's counter first; `device_unknown`: the device is not enrolled) and `data.challenge`, also in the `X-Palbase-Attest-Challenge` header: the SDK enrols the device when it must, proves the call with that challenge and sends it once more. Every answer of an attested route carries the next challenge in the same header, so a device's next call needs no extra round trip. When the proof cannot be checked (auth is not reachable, or the environment's mode was never read since the machine started) the route answers `503 attest_unavailable` with `Retry-After: 1`.
+
+A route that decides by device — one account per phone, a shared tablet at a desk — takes the device whose proof verified with `@AttestedDevice()`: its id and platform, as auth names them.
+
+```ts
+// src/modules/shifts/shifts.controller.ts
+import { AttestedDevice, Controller, Post, User, type UserT } from "palbase/backend";
+
+@Controller("/shifts")
+export class ShiftsController {
+  @Post("/clock-in", { attest: true })
+  clockIn(@User() user: UserT, @AttestedDevice() device: AttestedDevice | null) {
+    // { id: "dev_…", platform: "ios" | "android" } under enforce; null under off and monitor.
+    return { user: user.id, device: device?.id ?? null };
+  }
+}
+```
+
+It is the device auth verified, not the `X-Palbase-Device-Id` header the client sends: that one is only the client's word, under `off` and `monitor` too. Under `off` nothing is verified and under `monitor` nothing is refused, so `@AttestedDevice()` is `null` in both: a route does not act on a device for some calls and not for others. On a route that is not `attest: true` it is refused when the app starts.
 
 The environment's iOS and Android apps are its registered apps (`palbase apps:env:set`): an iOS app's App Attest key is taken for its bundle and team, an Android app's key for its package and the signing certificates registered with it (Play's app signing key and your upload key; not a debug key, whose build anyone with the phone can drive to sign requests). An Android enrolment is checked again on every call: a certificate of its chain revoked since, or a signing certificate taken off the app, stops it, and after 30 days the phone enrols again. Calls an app makes at once may reach the backend in any order: each is taken once. A browser cannot attest: under `enforce`, a web app's calls to an attested route are refused. So are calls from older app versions that predate attestation; set the app's minimum version before turning `enforce` on.
 
@@ -11111,7 +11558,7 @@ A journey's page draws it top to bottom: who enters at the top, each step under 
 
 `POST /journeys/{key}/publish` makes a draft live: people enter it from then on (a `members_of` journey enrolls the audience's members now). A live journey does not change (`409 journey_published`): copy it into a new draft (`POST /journeys/{key}/copy` with `{ "key": "…", "name": "…" }`), publish that, and stop the old one. `POST /journeys/{key}/stop` lets no one in any more and ends the runs in it; its report stays. `DELETE /journeys/{key}` deletes a journey with its runs and its report.
 
-A project keeps 500 journeys and runs 50 at once. An organization on the Free plan runs 2 at once (`402 live_journeys_limit`); with a payment method, the people who enter journeys are billed by the month ([Billing](/docs/getting-started/billing)): the first 1,000 people a month are free, then $2 for each 1,000 more.
+A project keeps 500 journeys and runs 50 at once. An environment without its paid rights — on Free, out of credit, or at its monthly limit — runs 2 at once (`402 live_journeys_limit`); on Pay as you go, the people who enter its journeys are billed by the month ([Billing](/docs/getting-started/billing)): the first 1,000 people a month are free, then $2 for each 1,000 more.
 
 ## The report
 
@@ -11849,12 +12296,12 @@ export class RepliesController {
 
 The models answer with Palbase's own provider keys, unless the project connected a key of its own for the model's provider (`connectProvider`, or Studio's **AI › Models & keys**). A call under the project's own key is billed to it by the provider, and Palbase charges nothing for it.
 
-- **Each month brings $1.00 of Palbase's models free.** A Free project has its own dollar; an organization with a payment account has one dollar for all its projects, taken off its bill ([Billing](/docs/getting-started/billing)).
-- **Past it**, a Pay as you go organization pays from its balance, at the provider's price and 10%. A Free project, or one whose organization's balance ran out, is refused (`402 ai_payment_required`) until the month ends (UTC) or the organization has a balance: a top-up serves it again within a minute.
+- **Each month brings $1.00 of Palbase's models free**, to each environment: its own dollar, whatever its plan and its organization's other environments ([Billing](/docs/getting-started/billing)).
+- **Past it**, an environment on Pay as you go pays from its own credit, at the provider's price and 10%. One on Free, one whose credit ran out, or one at its monthly limit is refused (`402 ai_payment_required`) until the month ends (UTC), or until it is on Pay as you go with credit: a top-up serves it again within a minute.
 - **A monthly budget.** An owner or an admin of the organization may set the most a project spends on Palbase's models in a month, in Studio's **AI › Settings** or with the CLI. Past it, calls to them are refused (`402 ai_budget_reached`) until the month ends or the budget is raised, and the organization's owners are emailed, once a month and budget. The project's key and its environment tokens cannot set it: what spends the money does not raise its own limit.
 - A Free project's dollar and a budget hold as each use ends: a response is admitted with what the project has left, and one that would cost more, or is still running when it is reached, stops there with the error `ai_limit_reached` (a project with less than a cent left is at its limit: `402`). Responses running at once may each spend what was left, so the month may pass the limit by a little.
-- **Pay as you go.** A paying project's responses are held, the same way, to what its organization can still pay: its balance and what is left of its free dollar, all its projects together. When less than a cent is left, calls are `402 ai_payment_required` until a top-up; usage of the last moments before it ran out is taken from the next top-up.
-- **Voice.** A voice session's model runs for as long as the session is open: a project with no payment account opens one on Palbase's models no more (`402 ai_payment_required`), one needs a dollar left of its budget and of what its organization can pay to open, and an open one is closed (`ai_limit_reached`) when the project's free dollar, budget or balance runs out. On the project's own OpenAI key it runs regardless.
+- **Pay as you go.** A paying environment's responses are held, the same way, to what it can still pay: its own credit — no more than its monthly limit still allows — and what is left of its free dollar. When less than a cent is left, calls are `402 ai_payment_required` until a top-up; usage of the last moments before it ran out is taken from the next top-up.
+- **Voice.** A voice session's model runs for as long as the session is open: an environment on Free opens one on Palbase's models no more (`402 ai_payment_required`), one on Pay as you go needs a dollar left of its budget and of its credit for each voice open, and an open one is closed (`ai_limit_reached`) when the environment's free dollar, budget or credit runs out. On the project's own OpenAI key it runs regardless.
 - **A call cut before its answer** (a turn stopped, a stream given up): its provider says what its tokens were only at the end. A reasoning model's hidden thinking, which the provider bills as output, is then estimated from how long it thought at the model's measured speed, rounded down, and the use is marked `estimated` (Studio: **Estimate**).
 
 `GET /ai/spend` says the month's spend at what it is billed, what is left of a Free project's dollar, the budget, and whether Palbase's models serve the project now (and if not, why). Studio shows the same on **AI › Models & keys**.
@@ -12258,7 +12705,7 @@ In the app, the member joins `SupportGateway` with the chat's id, and the handle
 | 403 | `not_a_member` | `as` names a user who is not a member of the chat. |
 | 403 | `not_your_turn` | `as` decides or answers a turn another member began. |
 | 404 | `attachment_not_found` | A message attaches a file that is not there, or one its writer may not attach. |
-| 402 | `ai_payment_required` | The project used this month's free AI and its organization has no payment account with a balance, and it has no key of its own for the model's provider ([What it costs](#what-it-costs)). |
+| 402 | `ai_payment_required` | The environment used this month's free AI and has no credit to pay past it — it is on Free, its credit ran out or its month is at its limit — and it has no key of its own for the model's provider ([What it costs](#what-it-costs)). |
 | 402 | `ai_budget_reached` | The project's monthly AI budget is spent, and it has no key of its own for the model's provider. |
 | 403 | `forbidden` | A key or a token named `monthly_budget_usd` in the settings: an owner or an admin sets it, in Studio or with the CLI. |
 | 409 | `history_full` | The project keeps as much chat history as it may. Delete chats to write again. |
@@ -14217,6 +14664,23 @@ await pb.auth.mfa.removeFactor("fac_01", "correct-horse-battery-staple");
 
 `enrollSms(phone)` and `verifySms(code)` enroll a phone, `enrollEmail()` the account's address, and `regenerateRecoveryCodes()` replaces the recovery codes.
 
+### Stepping up
+
+A backend route that asks for a second factor (`auth: { aal: "aal2" }`), or for a recent one (`maxAge`), refuses a password sign-in with `kind: "stepUpRequired"` (`data.acr_values`, `data.max_age`). Step the signed-in user up and call again:
+
+```ts
+// src/approve.ts
+import { pb } from "./lib/palbase";
+
+await pb.auth.mfa.stepUp("123456"); // the code the authenticator app shows
+// or, with one of the user's passkeys: await pb.auth.passkey.stepUp();
+// or by text: await pb.auth.mfa.sendStepUpSmsCode(); then
+//   await pb.auth.mfa.stepUpWithSms(codeFromTheText);
+// the route called again now gets the aal2 token
+```
+
+Each returns the session, which holds the token at the new level from here on; its refreshes stay at that level (`TOKEN_REFRESHED` is told). The step-up is the session's last authentication, so a route's `maxAge` counts from it. An email code is not a way up: it is not a second factor ([Second factors and their strength](/docs/backend/authentication#second-factors-and-their-strength)).
+
 ## Passkeys
 
 ```ts
@@ -14418,7 +14882,6 @@ Every client operation of the auth contract, typed, through the session's transp
 | `pb.auth.api.updateMe({ body: { locale: "tr" } })` | `PATCH /auth/me` |
 | `pb.auth.api.listIdentities()` | `GET /auth/identities` |
 | `pb.auth.api.unlinkIdentity({ path: { id } })` | `DELETE /auth/identities/{id}` |
-| `pb.auth.api.stepUp({ body })` | `POST /auth/step-up` |
 | `pb.auth.api.webauthnRenameCredential({ path: { id }, body })` | `PUT /auth/webauthn/credentials/{id}` |
 
 The `/admin/*` operations are in the same client, and every one of them needs the secret key. From an app they are refused before anything is sent (`missing_credential`). Make them from a server with [`palbase/server`](/docs/server/overview).
@@ -15622,6 +16085,26 @@ stop();
 ## The person
 
 `me()` and `updateMe({ name, image, read_receipts, show_last_seen, default_timer_seconds })` are the person's own profile and settings; `profiles(userIds)` others' names and pictures. `block(userId)`, `unblock(userId)` and `report({ … })` are theirs to use. `notifications(conversationId, { notify_level, muted_until })` mutes a conversation, or keeps only its mentions.
+
+## A deleted group
+
+When a group's owner or an admin deletes it — or its last member leaves — it goes from everyone's `conversations()` at once, and those who were in it can still report it for 14 days ([Messaging](/docs/messaging/overview#moderation)). `deletedGroups()` lists them while they can, the latest to stop first: `state.items` are `{ id, title, deletedBy, reportableUntil }`, and one goes at its `reportableUntil`. `report` names it by its id with no message; the last 30 messages the person saw in it go with the report. A group the project's server deleted is not among them.
+
+```ts
+// src/deleted.ts
+import { pb } from "./lib/palbase";
+
+const deleted = pb.messaging.deletedGroups();
+const stop = deleted.subscribe(() => {
+  for (const g of deleted.state.items) console.log(g.title ?? "a group", "reportable until", g.reportableUntil);
+});
+
+const [group] = deleted.state.items;
+if (group) await pb.messaging.report({ conversation_id: group.id, reason: "harassment", user_id: group.deletedBy ?? undefined });
+stop();
+```
+
+The title is the one the device had; it is null when the device no longer had the group as the word came — on the deleter's own device now and then.
 
 ## Vanish mode and screenshots
 
@@ -17311,6 +17794,11 @@ For the signed-in user:
 | `mfa.enrollEmail()` | Adds the account's address. |
 | `mfa.factors()` | The factors: each one's `id`, `type`, `verified`. |
 | `mfa.removeFactor(id:currentPassword:)` | Removes one; it asks for the account's password. |
+| `mfa.stepUp(code:)` | Steps the session up to aal2 with the authenticator's code: what a route that answers `stepUpRequired` asks. Returns the session. |
+| `mfa.sendStepUpSmsCode()`, `mfa.stepUp(smsCode:)` | The same by text: the first sends the code to the user's SMS factor, the second steps up with it. |
+| `passkeys.stepUp()` | The same with one of the account's passkeys: Face ID or Touch ID. |
+
+A step-up keeps the session's refresh token; its refreshes stay at the new level, and a route's `maxAge` counts from the step-up. An email code is not a way up ([Second factors and their strength](/docs/backend/authentication#second-factors-and-their-strength)).
 
 New recovery codes are `pb.auth.api.mfaRegenerateRecoveryCodes()`.
 
@@ -17539,7 +18027,7 @@ A code the route's contract declares is a case of its own (`NotesCreateError.for
 | `.validation(ValidationFailure)` | `400`, the input failed the route's schema: `fields`, each a `field` and its `message`. |
 | `.rateLimited(RateLimitInfo)` | `429`, the route's limit: `retryAfter` in seconds. |
 | `.unauthorized(AuthFailure)` | `401`, after the client already refreshed the token once. |
-| `.stepUpRequired(StepUpFailure)` | `401 insufficient_user_authentication`: the route asks for a stronger sign-in (`acrValues`, e.g. `["aal2"]`; `maxAge`). The session is fine and is not refreshed: step the user up with their second factor, then call again. |
+| `.stepUpRequired(StepUpFailure)` | `401 insufficient_user_authentication`: the route asks for a stronger sign-in (`acrValues`, e.g. `["aal2"]`; `maxAge`). The session is fine and is not refreshed: step the user up with their second factor — `pb.auth.mfa.stepUp(code:)` with an authenticator code, `pb.auth.mfa.stepUp(smsCode:)` after `sendStepUpSmsCode()`, or `pb.auth.passkeys.stepUp()` with one of the account's passkeys — then call again (`maxAge` counts from the step-up); the session holds the aal2 token from then on, refreshes included. |
 | `.appAttestRequired(AuthFailure)` | `401 app_attest_required` the device's proof could not settle: the SDK enrolled, proved and sent the call again, and the backend still refused ([Device attestation](#device-attestation)). |
 | `.attestationUnavailable(AttestationFailure)` | The route asks for the device's proof and this device cannot give one now: `reason` says why (`unsupported_device`, a Simulator or hardware without App Attest; `enrolment_rate_limited` with `retryAfter`; `app_attest_not_configured`, no iOS app registered). Nothing more is sent. |
 | `.network(TransportFailure)` | No answer: no network, the connection lost, a timeout. |
@@ -17915,7 +18403,7 @@ The project holds its clients to limits the platform sets and the project may lo
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.7.0 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.7.2 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -18019,8 +18507,7 @@ The `PalbaseMessagingNotificationService` extension shows a message's push and, 
    ```swift
    import PalbaseMessagingNotificationService
 
-   // Swift 6 asks a subclass to restate its base's @unchecked Sendable.
-   final class NotificationService: PalbaseMessagingNotificationService, @unchecked Sendable {}
+   final class NotificationService: PalbaseMessagingNotificationService {}
    ```
 
 2. **Share the copy and the session.** In *Signing & Capabilities*, give the app and the extension the same:
@@ -18036,6 +18523,22 @@ The extension's `Info.plist` is Xcode's: `NSExtensionPointIdentifier` `com.apple
 ## Screenshots
 
 iOS cannot stop a screenshot. A conversation's screen says it is shown (`onScreen(true)` as it appears, `onScreen(false)` as it goes): when a screenshot is taken while it shows a conversation in vanish mode or a message seen once, the others are told. A conversation in vanish mode drops what the person read when they leave it: call `close()` as its screen goes.
+
+## A deleted group
+
+When a group's owner or an admin deletes it — or its last member leaves — it goes from everyone's `conversations()` at once, and those who were in it can still report it for 14 days ([Messaging](/docs/messaging/overview#moderation)). `pb.messaging.deletedGroups()` is `@Observable`: its `items` are the groups the person can still report, the latest to stop first, each with `id`, `title`, `deletedBy` and `reportableUntil`, and one goes at its `reportableUntil`. `report(_:)` names it by its id with no message; the last 30 messages the person saw in it go with the report. A group the project's server deleted is not among them.
+
+```swift
+let deleted = pb.messaging.deletedGroups()
+for group in deleted.items {
+    print(group.title ?? "a group", group.reportableUntil)
+}
+if let group = deleted.items.first {
+    try await pb.messaging.report(.init(conversationId: group.id, reason: .harassment, userId: group.deletedBy))
+}
+```
+
+The title is the one the device had; it is nil when the device no longer had the group as the word came — on the deleter's own device now and then.
 
 ## Signing out
 
@@ -18472,7 +18975,7 @@ The extension tells the project that each push reached the phone, with the app c
 ```swift
 import PalbaseNotificationService
 
-final class NotificationService: PalbaseNotificationService, @unchecked Sendable {}
+final class NotificationService: PalbaseNotificationService {}
 ```
 
 The target's `NSExtensionPrincipalClass` names it (`$(PRODUCT_MODULE_NAME).NotificationService`, as Xcode's template does). Give the extension the **Keychain Sharing** capability with the app's group: the app keeps the configuration it runs with there (the project's address, its publishable key, its app group), and the extension reads it. An extension that compiles the app's environment in (`palbase/<app>.palbase` in its Compile Sources, with the build rule) can name it instead:
@@ -18481,7 +18984,7 @@ The target's `NSExtensionPrincipalClass` names it (`$(PRODUCT_MODULE_NAME).Notif
 import Palbase
 import PalbaseNotificationService
 
-final class NotificationService: PalbaseNotificationService, @unchecked Sendable {
+final class NotificationService: PalbaseNotificationService {
     override var configuration: PalbaseConfiguration? { .environment }
 }
 ```
@@ -19407,6 +19910,45 @@ pb.auth.mfa.removeFactor("fac_01", currentPassword = "correct-horse-battery-stap
 
 `enrollSms(phone)` and `verifySms(code)` enroll a phone, and `enrollEmail()` the account's address.
 
+### Stepping up
+
+A backend route that asks for a second factor (`auth { aal: "aal2" }`), or for a recent one (`maxAge`), refuses a password sign-in with `StepUpRequired(acrValues, maxAge, …)`. Step the signed-in user up and call again:
+
+| Method | What it does |
+|---|---|
+| `mfa.stepUp(code)` | With the authenticator app's code. Returns the session. |
+| `mfa.sendStepUpSmsCode()`, `mfa.stepUpWithSms(code)` | By text: the first sends the code to the user's SMS factor, the second steps up with it. |
+| `passkeys.stepUp(context)` | With one of the account's passkeys: the fingerprint, the face or the screen lock. |
+
+Each keeps the session's refresh token; its refreshes stay at the new level (`TOKEN_REFRESHED` is told), and a route's `maxAge` counts from the step-up. An email code is not a way up ([Second factors and their strength](/docs/backend/authentication#second-factors-and-their-strength)).
+
+## Passkeys
+
+`pb.auth.passkeys` runs the system's passkey sheet through Credential Manager: the fingerprint, the face or the device's screen lock. The project publishes its registered Android apps' certificates for it ([Registering the app](/docs/android/overview#registering-the-app)).
+
+```kotlin
+// Adds a passkey to the signed-in account.
+pb.auth.passkeys.register(context)
+
+// Signs in with one of the device's passkeys for the project.
+val user = pb.auth.passkeys.signIn(context)
+
+// Opens an account with a passkey (an email is optional when the project allows it).
+when (val result = pb.auth.passkeys.signUp(context, email = "ada@example.com")) {
+    is Auth.Passkeys.SignUpResult.SignedIn -> showHome(result.user)
+    is Auth.Passkeys.SignUpResult.ConfirmationRequired -> askToConfirm(result.userId)
+}
+```
+
+| Method | What it does |
+|---|---|
+| `passkeys.register(context, name, userName)` | Adds a passkey to the signed-in account; asks for a recent sign-in. Returns the registered credential. |
+| `passkeys.signIn(context)` | Signs in with a passkey the device holds for the project. Returns the user. |
+| `passkeys.signUp(context, email, displayName)` | Opens an account with a passkey: `SignedIn(user)`, or `ConfirmationRequired(userId)` when the address is to be confirmed first. |
+| `passkeys.stepUp(context)` | Steps the signed-in session up ([Stepping up](#stepping-up)). |
+
+A sheet the user dismisses throws `passkey_cancelled` (`pb.auth.wasCancelled(e)` is true); `passkey_unavailable` is a device with no passkey or no credential provider; `passkey_exists`, a passkey the account already has on this device; `passkey_failed`, one the system refused (the app's certificate not in the project's `assetlinks.json`, most often).
+
 ## Magic links
 
 ```kotlin
@@ -19505,7 +20047,7 @@ Every client call of the auth contract, typed (`AuthAPI.Client`), through the se
 | `pb.auth.api.unlinkIdentity(id)` | `DELETE /auth/identities/{id}` |
 | `pb.auth.sessions.list()`, `.revoke(id)`, `.revokeAll()` | The user's sessions on every device |
 
-Passkeys and social sign-in (Google, Apple, GitHub, Microsoft) have no one-call method in the Android SDK at this version. Their calls are in `pb.auth.api` (`webauthn…`, `socialConfig`, `socialBegin`, `socialComplete`), and a token pair a flow of the app's own ends in starts the session with `setSession(accessToken, refreshToken, expiresIn)`. The project publishes its registered Android apps' certificates for Credential Manager ([Registering the app](/docs/android/overview#registering-the-app)).
+Google's sign-in is one call, `pb.auth.signInWithGoogle(context, variant)` (Google's sheet through Credential Manager). Apple, GitHub and Microsoft have none in the Android SDK at this version: their calls are in `pb.auth.api` (`socialConfig`, `socialBegin`, `socialComplete`), and a token pair a flow of the app's own ends in starts the session with `setSession(accessToken, refreshToken, expiresIn)`.
 
 ## Proof of work
 
@@ -19643,7 +20185,7 @@ The contract's errors are what the route throws, as the backend's build reads th
 | `RateLimited(retryAfter, …)` | A `429`, with the seconds to wait. |
 | `IntegrityRequired(code, …)` | A `401 app_attest_required` the device's proof could not settle: the SDK enrolled, proved and sent the call again, and the backend still refused ([Device attestation](#device-attestation)). |
 | `AttestationUnavailable(reason, …)` | The route asks for the device's proof and this device cannot give one: an emulator or a key that is not in secure hardware (`hardware_key_unavailable`, `software_key`), an unlocked bootloader (`device_not_locked`), the keystore not answering now (`keystore_unavailable`, asked again later). Nothing more is sent. |
-| `StepUpRequired(acrValues, maxAge, …)` | A `401 insufficient_user_authentication`: the route asks for a stronger sign-in (`acrValues`, e.g. `urn:nist:800-63:aal2`). The session is fine and is not refreshed: step the user up with their second factor, then call again. |
+| `StepUpRequired(acrValues, maxAge, …)` | A `401 insufficient_user_authentication`: the route asks for a stronger sign-in (`acrValues`, e.g. `urn:nist:800-63:aal2`). The session is fine and is not refreshed: step the user up with their second factor — `pb.auth.mfa.stepUp(code)` with an authenticator code, `pb.auth.mfa.stepUpWithSms(code)` after `sendStepUpSmsCode()`, or `pb.auth.passkeys.stepUp(context)` with a passkey — then call again (`maxAge` counts from the step-up); the session holds the aal2 token from then on, refreshes included. |
 | `Network(ioCause)` | No answer: no network, the host unreachable. |
 | `Decoding(decodeCause)` | A 2xx whose body is not what the contract declares. |
 | `Encoding(encodeCause)` | The request could not be written; it was not sent. |
@@ -20131,6 +20673,21 @@ DisposableEffect(id) {
     onDispose { stop() }
 }
 ```
+
+## A deleted group
+
+When a group's owner or an admin deletes it — or its last member leaves — it goes from everyone's `conversations()` at once, and those who were in it can still report it for 14 days ([Messaging](/docs/messaging/overview#moderation)). `pb.messaging.deletedGroups` is a `StateFlow<List<DeletedGroup>>` of the groups the person can still report, the latest to stop first, each with `id`, `title`, `deletedBy` and `reportableUntil`; one goes at its `reportableUntil`. `report` names it by its id with no message; the last 30 messages the person saw in it go with the report. A group the project's server deleted is not among them.
+
+```kotlin
+val deleted by pb.messaging.deletedGroups.collectAsState()
+deleted.forEach { group -> Text(group.title ?: "a group") }
+
+deleted.firstOrNull()?.let { group ->
+    pb.messaging.report(MessagingAPI.ReportRequest(conversationId = group.id, reason = MessagingAPI.ReportRequest.Reason.HARASSMENT, userId = group.deletedBy))
+}
+```
+
+The title is the one the device had; it is null when the device no longer had the group as the word came — on the deleter's own device now and then.
 
 ## Signing out
 
@@ -21193,6 +21750,8 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `journey.step` | A person's run took a step. | `{ journey, journey_id, run_id, user_id, step, kind, outcome, test }` |
 | `journey.event` | A journey's `event` step told the project's backend. | `{ journey, journey_id, run_id, user_id, step, name, data, test }` |
 | `journey.ended` | A person's run ended: `completed`, `converted`, `exited`, `stopped`. | `{ journey, journey_id, run_id, user_id, reason, test }` |
+| `messaging.report.created` | A person reported a conversation, someone in it or messages of it. Read what it carries with the secret key (`GET /messaging/admin/reports/{report_id}`); an organization that runs its customers' apps passes it on to them from here ([Messaging](/docs/messaging/overview#moderation)). | `{ report_id, conversation_id, reporter_id, reported_user_id, reason, message_count }` |
+| `messaging.conversation.created` / `messaging.conversation.deleted` | A conversation was made — by a person, or the project's server — or deleted for everyone. | `{ conversation_id, kind, created_by, member_ids }` / `{ conversation_id, deleted_by }` |
 | `audience.entered` / `audience.exited` | A person came to be in an analytics audience, or left it. | `{ audience_id, audience_name, person_id, user_id }` |
 | `machine.created` / `machine.updated` / `machine.deleted` | A machine was opened, changed, or taken away. | `{ name, source, size, replicas, port, version }` |
 | `stores.apple.changed` | The Apple account was connected, checked (and Apple's answer changed) or disconnected. The key is never in the event. | `{ change, issuer_id, key_id, status, capabilities }` |
@@ -21399,7 +21958,7 @@ The origins a passkey is accepted from are the environment's web apps; see [Pass
 | Key | Default | What it says |
 |---|---|---|
 | `risk_engine_enabled` | `false` | Score every sign-up and sign-in for risk, from 0 to 1. |
-| `risk_step_up` | `0.3` | At this score a sign-in asks for a second factor: an email code when the account has none. |
+| `risk_step_up` | `0.3` | At this score a sign-in asks for a second factor: an email code when the account has none (it proves the inbox; the session it opens is `aal1`, as an email code is not a second factor). |
 | `risk_strict_step_up` | `0.6` | At this score it asks for a strong one, an authenticator app or a passkey, when the account has one. |
 | `risk_block` | `0.8` | At this score the sign-up or sign-in is refused, answered as a wrong password or a failed sign-up would be, so the refusal does not tell anyone the account exists. |
 
@@ -21427,7 +21986,7 @@ Those two, and [Have I Been Pwned](https://haveibeenpwned.com), are connected wi
 
 `app_attest_mode` is `off` (the default), `monitor` or `enforce`: the switch of the backend routes marked `attest: true` ([Device attestation](/docs/backend/authentication#device-attestation)), read by the environment's machines every 30 seconds. `monitor` and `enforce` need an iOS or Android app registered with the environment (`palbase apps:env:set`).
 
-Auth enrols a device when the app proves it: an iOS device's App Attest key (`POST /auth/devices/attest/ios`), or an Android device's Keystore key, whose attestation chain must end in one of Google's hardware attestation roots with no certificate on Google's revocation list, the key in the phone's secure hardware, the phone locked with a verified boot, and the app the registered package signed with a registered certificate (`POST /auth/devices/attest/android`). Both take the challenge of `POST /auth/devices/challenge` and need no session. Auth verifies a request's proof when a server asks it to (`POST /admin/attest/devices/assert`, with the secret key), and answers the mode at `GET /admin/attest/devices/attest-policy` and the last hours' counts at `GET /admin/attest/devices/observations`. Palbase's iOS and Android SDKs do the enrolment and the proofs by themselves.
+Auth enrols a device when the app proves it: an iOS device's App Attest key (`POST /auth/devices/attest/ios`), or an Android device's Keystore key, whose attestation chain must end in one of Google's hardware attestation roots with no certificate on Google's revocation list, the key in the phone's secure hardware, the phone locked with a verified boot, and the app the registered package signed with a registered certificate (`POST /auth/devices/attest/android`). Both take the challenge of `POST /auth/devices/challenge` and need no session. The three are limited to 10 calls in 15 minutes per installation (or signed-in user) at an address, and 600 per address over every installation behind it: one install retrying does not stop the next phone behind the same carrier's address. Past either: `429 rate_limit_exceeded` with `Retry-After`, which the SDKs report as `enrolment_rate_limited`. Auth verifies a request's proof when a server asks it to (`POST /admin/attest/devices/assert`, with the secret key; a passing verdict names the device, its `device_id` and `platform`), and answers the mode at `GET /admin/attest/devices/attest-policy` and the last hours' counts at `GET /admin/attest/devices/observations`. Palbase's iOS and Android SDKs do the enrolment and the proofs by themselves.
 
 ## Signing keys
 
@@ -24044,7 +24603,7 @@ A guest merged into an account reads as the account. A user never seen here read
 
 ## What happened to them
 
-Their **History**, the newest first, a page at a time: each payment and renewal, a refund (and its kind: refund, chargeback, family sharing), the subscription's renewal turned off or back on, a failed charge, its end, the grants given and taken back, the credits given, taken back, expired and forgiven, and the purchases that moved to or from them — each with when, who did it (`store`, `customer`, the developer whose Studio or CLI call it was as `developer:…`, or the key as `key:…`) and why. Credits spent are the credits' own entries (**Credits** on the record, or `GET …/credits/entries`).
+Their **History**, the newest first, a page at a time: each payment and renewal, a refund (and its kind: refund, chargeback, family sharing), the subscription's renewal turned off or back on, a failed charge, its end, the grants given and taken back, the credits given, taken back, expired and forgiven, the purchases that moved to or from them, what support did at a store (`extension`, `refund_issued`, `cancel_requested`, with its days, the expiry it left, the refund's kind and support's note), and a refund they asked the App Store for (`refund_requested`, with what Apple was told: `answer`) — each with when, who did it (`store`, `customer`, the developer whose Studio or CLI call it was as `developer:…`, or the key as `key:…`) and why. Credits spent are the credits' own entries (**Credits** on the record, or `GET …/credits/entries`).
 
 ```sh
 palbase purchases:customer:history <user id> -E production
@@ -24072,6 +24631,61 @@ What the customer bought is not touched: the entitlement stays on while a purcha
 In Studio every member of the project reads a customer, their history and their grants; giving or revoking a grant and giving credits is an admin's or the owner's. A grant shows as `store: "promotional"`, `period_type: "promotional"`; turning the entitlement on or off emits `purchases.entitlement.changed`.
 
 Credits and quota are given the same way, saying why — [Entitlements, Credits & Limits › Giving credits](/docs/purchases/entitlements#giving-credits).
+
+## A subscription, at its store
+
+Support moves a subscription's renewal later, refunds it or turns its renewal off from the customer's page (the buttons on a row of **Subscriptions**), from a terminal, or from your server with the secret key. The subscription's id is the one the record lists (`subscriptions[].id`). The store is asked to do it, then read again: the answer is the subscription as its store holds it after, and the history keeps what was done, by whom, and the note.
+
+| | App Store | Google Play | Web (Stripe) |
+|---|---|---|---|
+| **Extend** (1–90 days, for free) | Apple's renewal-date extension: a paid, active subscription, at most twice a year | The next renewal deferred | The next charge moved later |
+| **Refund** (the latest payment, in full or what is left of its period) | Apple decides: `409 store_decides_refunds` | Revoked, refunded | Refunded, the subscription cancelled |
+| **Turn the renewal off** | The customer's, in their Apple account: `409 customer_cancels` | Cancelled at the period's end | Cancelled at the period's end |
+
+A refund ends the subscription and the customer's access as it answers; turning the renewal off leaves them the period they paid for.
+
+```sh
+palbase purchases:customer:get <user id> -E production            # the subscription's id
+palbase purchases:customer:extend <user id> <subscription id> --days 7 --reason service_issue --note "Outage of the 21st" -E production
+palbase purchases:customer:refund <user id> <subscription id> --mode prorated -E production
+palbase purchases:customer:cancel <user id> <subscription id> -E production
+```
+
+`--reason` is `customer_satisfaction`, `service_issue` or `other`, as Apple asks it. From your server they are `extendSubscription`, `refundSubscription` and `cancelSubscription` (`POST /purchases/customers/{customer_id}/subscriptions/{subscription_id}/extend|refund|cancel`), each under an `Idempotency-Key`: sent again with it, it is done once. A store that refuses answers `409 store_refused` with what it said; one that cannot be reached, `502 store_unreachable` — sending again with the same key is safe.
+
+## A refund the customer asks the App Store for
+
+In the App Store the customer asks Apple for a refund (in the app with `Transaction.beginRefundRequest`, or at reportaproblem.apple.com). Apple then asks the app, within 12 hours, what they had of the purchase, and weighs the answer. The environment answers it for you — whether it gave what was bought, whether a free trial came first, how much of a pack of credits was spent — and says nothing of its own wish: the decision is Apple's.
+
+It answers only for a customer who allowed it in the app; Apple takes no answer without that. Ask them once, where your app speaks of refunds or privacy, and record what they said:
+
+```ts
+// app/settings.ts
+import { createClient } from "palbase/web";
+
+const pb = createClient({ url: "https://<ref>.palbase.studio", publishableKey: "pb_<ref>_c…" });
+
+export async function rememberRefundChoice(allowed: boolean): Promise<void> {
+  await pb.purchases.setRefundDataConsent(allowed); // PUT /purchases/me/refund-data-consent
+}
+```
+
+On iOS it is `pb.purchases.setRefundDataConsent(true)`, on Android `pb.purchases.setRefundDataConsent(true)`; the latest word counts, for every app of the project. Never asked, or `false`: Apple is told nothing. The customer's page shows what they said and when (`refund_data_consent` on the record), and the history every question Apple asked, with its `answer`: `sent`, `pending`, `not_consented`, or `expired` when Apple could not be reached in its 12 hours.
+
+## Credit entries, debts and limits
+
+The customer's page lists every move of their credits — given, spent, taken back by a refund, expired, forgiven — with who did each and why (`GET /purchases/customers/{customer_id}/credits/entries`). A refund of credits already spent leaves a debt, paid first from what they get next; support forgives it, all of it or an amount, saying why. A limit's maximum is set for one customer — above or below the catalog's, for a while or until cleared — and more of it given for its current period:
+
+```sh
+palbase purchases:customer:credits <user id> -E production
+palbase purchases:customer:credits:give <user id> tokens 50 --reason "Ticket 4821" -E production
+palbase purchases:customer:credits:forgive <user id> tokens --reason "Goodwill" -E production
+palbase purchases:customer:limit:set <user id> ai_requests 500 --reason "Pilot" --for 30d -E production
+palbase purchases:customer:limit:give <user id> ai_requests 20 --reason "A failed job" -E production
+palbase purchases:customer:limit:clear <user id> ai_requests -E production
+```
+
+In Studio every member reads these; extending, refunding or cancelling a subscription, giving or forgiving credits and setting or giving a limit is an admin's or the owner's.
 
 ## Guests
 
@@ -24140,7 +24754,7 @@ await palbase.purchases.updateSettings({
 
 - [Entitlements, Credits & Limits](/docs/purchases/entitlements): what a customer has, and spending it
 - [Charts](/docs/purchases/charts): what customers bought, over time
-- CLI: [`purchases:customer:get`](/docs/cli/reference#palbase-purchasescustomerget), [`purchases:customer:grant`](/docs/cli/reference#palbase-purchasescustomergrant), [`purchases:customer:revoke`](/docs/cli/reference#palbase-purchasescustomerrevoke)
+- CLI: [`purchases:customer:get`](/docs/cli/reference#palbase-purchasescustomerget), [`purchases:customer:grant`](/docs/cli/reference#palbase-purchasescustomergrant), [`purchases:customer:revoke`](/docs/cli/reference#palbase-purchasescustomerrevoke), [`purchases:customer:extend`](/docs/cli/reference#palbase-purchasescustomerextend), [`purchases:customer:refund`](/docs/cli/reference#palbase-purchasescustomerrefund), [`purchases:customer:cancel`](/docs/cli/reference#palbase-purchasescustomercancel)
 
 
 
@@ -24257,7 +24871,7 @@ What a person said and read is kept by the project, not by a phone. Signing out,
 
 ## Kept encrypted
 
-Every conversation has a key of its own, kept wrapped by the project's key: its messages' words, its title and its files' keys are stored sealed, and a copy of the database or a backup holds none of them in the clear. A file is encrypted on the device, with a key of its own, before it is uploaded: storage holds only what it cannot read. This is not end-to-end encryption: Palbase opens a conversation's messages to deliver them, and your server reads them with the secret key — each read recorded (below).
+Every conversation has a key of its own, kept wrapped by the project's key: its messages' words, its title and its files' keys are stored sealed, and a copy of the database or a backup holds none of them in the clear. A file is encrypted on the device, with a key of its own, before it is uploaded: storage holds only what it cannot read. This is not end-to-end encryption: Palbase opens a conversation's messages to deliver them, your server reads them with the secret key, and your organization's owners and admins read them in Studio — each read recorded, with who read it ([Your server](#your-server)). Your team's members see the conversations and the reports, not what was said.
 
 ## What people do
 
@@ -24272,6 +24886,14 @@ Every conversation has a key of its own, kept wrapped by the project's key: its 
 - **Vanish mode** (a direct conversation's): a message read goes once its reader leaves the conversation.
 - **Muting** a conversation, or its mentions alone: a muted one sends no push.
 - **Blocking** a person: what they send does not reach whoever blocked them (to their writer it looks sent). **Reporting** a conversation, a person or messages: the report is the project's ([Moderation](#moderation)).
+
+**Kept for a report.** What goes from people's screens without their choosing is kept on the server for 14 days, sealed as it was, for a report alone — Messenger reviews a deleted message reported within 14 days, Instagram keeps a vanish-mode message as long:
+
+- a message seen once, its time up, in vanish mode, or taken back by its writer or a group's admin: one who saw it can still report it, and what it said, its files too, goes with the report. Only someone who was in the conversation when it went — and, for a photo or video seen once, who opened it — reports what it said;
+- what an edited message said before each change: a report of the message shows its earlier versions, those changed while the reporter was in the conversation. The people in it see the last version alone;
+- a group a person deleted — its owner or an admin, or the last to leave: it goes from everyone's list at once, and stays sealed 14 days; those who were in it, when it went or before, report it (the app has it as deleted until then), and the last 30 messages each saw go with their report. Then it is gone.
+
+Nothing else reads what is kept, and after 14 days it is gone — even when the project's retention or a deleted account takes the message sooner: with `deleted_user_messages: delete`, a person deleting their account does not wipe what they took back before. Say so in your app's privacy policy. What the project itself removes — its server, its retention — is kept for nothing: a conversation the project's server deletes goes at once, a group still sealed too.
 
 A person may hide their read receipts (`PATCH /messaging/me`, `read_receipts: false`): in direct conversations they then show no one what they read and see no one's; in groups receipts are always shown.
 
@@ -24297,23 +24919,32 @@ On iOS and Android, the push also brings the message into the device's copy whil
 
 ## Your server
 
-With the secret key, your server makes conversations for people, adds and removes them, says something in a conversation (a booking's confirmation, a support agent), removes a message, and reads what was said — for moderation, support or an export (`GET /messaging/admin/conversations/{conversation_id}/messages`). Each read of people's messages is recorded, and `GET /messaging/admin/access-log` lists them.
+With the secret key, your server makes conversations for people, adds and removes them, says something in a conversation (a booking's confirmation, a support agent), removes a message, and reads what was said — for moderation, support or an export (`GET /messaging/admin/conversations/{conversation_id}/messages`; a file's link: `GET …/messages/{message_id}/attachments/{attachment_id}`, the file opened with the key in its message).
+
+Your organization's owners and admins read the same in Studio (**Messaging › Conversations**, a person's conversations by their user ID) and with the CLI (`palbase messaging:conversations:list --user <id>`, `palbase messaging:messages:list <conversation_id>`). A member of your team sees the conversations, not what was said: the platform refuses them. Every read of people's messages — a file opened too — is recorded with who read it: a developer by name, a key or a token by its id. Studio's **Access log** and `GET /messaging/admin/access-log` (`palbase messaging:access-log`) list them, 400 days.
 
 **Who may write to whom** is everyone, unless the project's hook says otherwise: set `hook` in the settings and the project's endpoint is asked, signed as a webhook is, before a direct conversation is opened or someone is added to a group — `messaging.can_message`, answering whether they may. When it does not answer, `on_error` says what happens: deny (the default; the app tries again) or allow.
 
 ## Moderation
 
-A report reaches the project as the `messaging.report.created` event, with what it carries: the reported messages, readable by the project. `GET /messaging/admin/reports` lists them and `POST /messaging/admin/reports/{report_id}/resolve` resolves one.
+A person reports a message, someone or a conversation from your app. What the reported messages say when reported — their files too, and a message already gone from the screen while it is kept for a report — is copied into the report, sealed, and kept with it whatever becomes of the message.
+
+- **You hear of it**: the `messaging.report.created` event reaches your webhook, and your organization's owners and admins are mailed — at most once an hour for the whole organization, one mail with each environment's reports of the hour. The mail says how many and why, never what was reported; an organization that runs its customers' apps passes each report on to them from the event.
+- **Studio**: **Messaging › Reports** lists them. An owner or admin opens one — its reporter's words, the messages and their files — removes the messages for everyone, and marks it resolved in their own words; a member sees the list alone. App stores expect reports to be looked at in good time.
+- **The CLI**: `palbase messaging:reports:list`, `palbase messaging:reports:get <id>`, `palbase messaging:reports:resolve <id> --resolution removed`.
+- **Your server**: `GET /messaging/admin/reports`, `GET /messaging/admin/reports/{report_id}` (a file's link: `…/attachments/{attachment_id}`), `POST /messaging/admin/reports/{report_id}/resolve`.
+
+A report is kept 190 days once resolved — the EU's Digital Services Act keeps a decision open to complaint at least six months, and six calendar months reach 184 days — and two years when never resolved; its copies and files go with it.
 
 ## The project's settings
 
-`GET /messaging/settings` and `PUT /messaging/settings`, with the secret key:
+In Studio (**Messaging**), with the CLI (`palbase messaging:settings:set`, `palbase messaging:hook:set`; `palbase config:diff` and `palbase config:copy` compare and copy them between environments), or with the secret key (`GET` and `PUT /messaging/settings`):
 
 | Setting | What it does |
 |---|---|
 | `retention_days` | Messages older are removed; none (the default): kept for good |
 | `push_preview` | Pushes say what a message says (the default), or only that one came |
-| `deleted_user_messages` | A deleted user's messages: `keep` (the default), their writer shown as a deleted user with nothing personal kept, or `delete` |
+| `deleted_user_messages` | A deleted user's messages: `keep` (the default), their writer shown as a deleted user with nothing personal kept, or `delete` — save what went from screens before, kept its 14 days for a report |
 | `hook` | Who may write to whom (above); none: anyone to anyone |
 
 ## What it costs
@@ -25542,7 +26173,11 @@ Apple's API leaves some of App Store Connect to a person on its website: App Rev
 
 An Apple ID is signed in to the environment's team: the team of its App Store Connect key or, with no key yet, the team its iOS apps are in. When the Apple ID is in that team, Palbase chooses it for you; when it is in other teams alone, the sign-in is refused with `422 apple_team_mismatch`, naming the Apple ID's teams and the environment's, and nothing is kept.
 
-You sign in once for the whole organization. An environment with no session of its own is lent one that another environment of its organization signed in to the same team — staging and production of a project, or two projects of one company account, sign in once — for a person who is an owner or an admin of the environment it was signed in for: Studio, and the CLI with your sign-in. `GET /stores/apple/session` says so with `shared_from`. A secret key, or an environment's token, reaches its own environment's session alone. Signing out, by such a person, signs it out for every environment that uses it. Each keeps its session until Apple ends it.
+An Apple ID's session serves the environment it was signed in for. A project's other environments sign in once with it: share it with them. It is shared with the project's own environments alone: no environment of another project uses it — of your organization and your Apple team or not — and an environment added to the project later is shared nothing until someone shares it.
+
+`PUT /stores/apple/session/shares/{environment}`, called on the environment that signed in, shares its session with another environment of the same project (`environment` is that one's ref). It is a person's call, an owner or an admin of both environments: a secret key gets `403 person_required`, an environment's token `403 token_out_of_scope`, one who is no owner or admin of the other environment `403 admin_required`, an environment of another project `403 other_project`. An environment whose App Store Connect key or iOS apps are another team's is refused with `422 apple_team_mismatch`. `DELETE /stores/apple/session/shares/{environment}` takes it back. From a terminal: `palbase stores:apple:share <environment>` on the environment that signed in (`-E`), with the other environment's slug or ref, and `palbase stores:apple:unshare <environment>`; Studio offers the project's other environments ticked after the sign-in, and an environment with no Apple ID offers the one of its project with one tap. A share holds the sign-in it was given: signed out, or signed in again, the session serves none of the environments it was shared with before — share it again.
+
+`GET /stores/apple/session` on an environment it was shared with says so with `shared_from`. A shared session is lent to a person who is an owner or an admin of the environment it was signed in for: Studio, and the CLI with your sign-in. A secret key, or an environment's token, reaches its own environment's session alone. Signing out, by such a person, signs it out for every environment that uses it. Each keeps its session until Apple ends it.
 
 Sign in from Studio, under **App Distribution › Apple ID**, or ask for the link yourself with `POST /stores/apple/session/grants` and open its `connect_url`. Studio asks for a one-time link and opens Palbase's own sign-in page. You type the password there, and the page seals it to a key only the environment's stores module opens: nothing on its way reads it. The module hands it to Apple and keeps it nowhere: Palbase keeps only the session Apple gives back, sealed with the environment's own key.
 
@@ -25560,9 +26195,9 @@ With an Apple ID signed in, Palbase makes the keys the environment lacks at Appl
 - **APNs keys**: two, one for production and one for the sandbox, each scoped to the environment's iOS apps of the Apple ID's team (Apple makes a key scoped to apps for one environment; an app of another team is none of its). The notify module takes them as the environment's APNs provider: each environment's pushes are signed with its own key.
 - **The In-App Purchase key**: for one of the environment's iOS apps (name it when there is more than one). The purchases module connects it, and asks the App Store Server API with it first.
 
-In Studio, **App Distribution › Apple ID** lists them under **Keys**, what the environment lacks ticked: **Make and connect** makes them, with one confirmation. Over the API, `POST /stores/apple/keys` makes one kind a request: `{"kind": "asc" | "apns" | "iap", "bundle"}`; `GET /stores/apple/keys` lists them and where each stands (`waiting` for its module, `taken`, `refused`, `revoked`).
+In Studio, **App Distribution › Apple ID** lists them under **Keys**, what the environment lacks ticked: **Make and connect** makes them, with one confirmation. From a terminal, `palbase stores:apple:keys` says what Palbase made and what the environment lacks, and `palbase stores:apple:keys:make` makes every missing key (`--asc`, `--apns`, `--iap` for some; `--bundle` for the In-App Purchase key's app). Over the API, `POST /stores/apple/keys` makes one kind a request: `{"kind": "asc" | "apns" | "iap", "bundle"}`; `GET /stores/apple/keys` lists them and where each stands (`waiting` for its module, `taken`, `refused`, `revoked`).
 
-A key the environment connected itself is kept: making one is refused with `409 key_connected`, and the module that has one of its own refuses the one made, which is revoked at Apple at once. Each key's `.p8` is read from Apple once, sealed with the environment's key, and handed to its module over Palbase's internal network; once taken, the stores module drops its copy. `DELETE /stores/apple/keys/{key_id}`, or **Revoke** beside it in Studio, revokes an APNs or In-App Purchase key Palbase made.
+A key the environment connected itself is kept: making one is refused with `409 key_connected`, and the module that has one of its own refuses the one made, which is revoked at Apple at once. Each key's `.p8` is read from Apple once, sealed with the environment's key, and handed to its module over Palbase's internal network; once taken, the stores module drops its copy. `DELETE /stores/apple/keys/{key_id}`, **Revoke** beside it in Studio, or `palbase stores:apple:keys:revoke <key-id>`, revokes an APNs or In-App Purchase key Palbase made.
 
 Apple makes keys for an Admin or the Account Holder of the team: an Apple ID of another role is told `409 apple_role_insufficient`. Making and revoking keys is an owner's or an admin's of the environment, never an environment's token's (`403 token_out_of_scope`): a key outlives it. The App Store Connect key is made with the Admin role, as the key you would connect yourself is: it reaches the team's users too, so revoke it if you stop using Palbase for the app.
 
@@ -25954,7 +26589,7 @@ A **shared** size has a fraction of a CPU as its ceiling and is **put to sleep w
 
 Sleeping has consequences for code: a machine that sleeps runs nothing while it sleeps. A timer, an in-memory cache or a background loop stops with it, and a request that wakes it pays the start-up. Work that must happen on a schedule is a [cron](#crons-and-tasks), and work to be done once, now or later, a [task](#crons-and-tasks): the platform wakes the machine for either.
 
-`shared-256` is the size every project may open. The others are sizes that are paid for: open to a project whose organization pays ([Billing](/docs/getting-started/billing)); for another, opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](/docs/getting-started/usage-and-limits)).
+`shared-256` is the size every project may open. The others are sizes that are paid for: open to an environment on Pay as you go with credit ([Billing](/docs/getting-started/billing)); for another, opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](/docs/getting-started/usage-and-limits)).
 
 What a project's machines and databases reserve between them is held to the project's limit: a size or a number of copies that does not fit is refused with `409 machines_over_limit`.
 
@@ -26496,7 +27131,7 @@ A project has **3 databases** at most — a deleted one counts until it is purge
 | `dedicated-1x` | 1 vCPU of its own | 4 GiB | 25 GB | never |
 | `dedicated-2x` | 2 vCPU of its own | 8 GiB | 50 GB | never |
 
-`free` is the size every project may open. The others are sizes that are paid for: open to a project whose organization pays ([Billing](/docs/getting-started/billing)); another is refused one with `403 size_not_available`.
+`free` is the size every project may open. The others are sizes that are paid for: open to an environment on Pay as you go with credit ([Billing](/docs/getting-started/billing)); another is refused one with `403 size_not_available`.
 
 A size that sleeps is put to sleep when it is idle and **woken by the next connection**, in about 10 seconds; the client's connection waits for it. A `free` database awake for its 400 hours sleeps until the month ends, and a client is told so; one asleep for a week is **archived**, and its next connection brings it back from its backup. The other sizes never sleep and live on a disk of their own.
 

@@ -81,7 +81,20 @@ palbase env:tokens:create --scope machines:read,machines:logs   # only read mach
 
 Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:read`, `machines:logs`, `apps:sync`, `auth:test-users` or `support`. `palbase env:tokens:list` lists the live ones and `palbase env:tokens:revoke <id>` ends one at its next request. The docs an agent reads are at `/llms.txt`, with every page in one file at `/llms-full.txt`.
 
-## Asking Palbase
+## Searching the docs
+
+`palbase docs:search` finds what these docs say about what you need — by its meaning, in your own words; ask in English, the docs' language — and prints the sections that answer it, each with its address and its text:
+
+```sh
+palbase docs:search "<what you need>"
+palbase docs:search "<what you need>" --limit 3 --json
+```
+
+Say what you need as a question of your own — what you are trying to do, not the words of a heading — and the search finds the sections that mean it.
+
+It needs no sign-in, and a page changed here is found by what it says now within minutes. A caller searches 10 times in ten seconds, 30 a minute and 300 an hour: a sign-in or `PALBASE_TOKEN`, sent when there is one, as itself, and a search with neither by its address. When many search at once, a search waits its turn for a few seconds, or is told to search again in a moment. `--json` prints what the search answered — what an agent reads.
+
+## Asking Palbase's support line
 
 What the docs do not answer — a command or call that fails with nothing to act on, a page that is wrong or missing, something Palbase seems not to do — goes to Palbase's support line:
 
@@ -105,4 +118,5 @@ The answer comes from these docs and from what the environment shows you: its ma
 | [`github`](https://palbase.studio/docs/cli/reference#github), [`machines`](https://palbase.studio/docs/cli/reference#machines) | Connecting GitHub, machines, their builds, logs, crons and tasks ([Machines](https://palbase.studio/docs/machines/overview)) |
 | [`databases`](https://palbase.studio/docs/cli/reference#databases), [`db`](https://palbase.studio/docs/cli/reference#db) | Databases, their backups, connection addresses, `psql`, dumps and schema plans ([Databases](https://palbase.studio/docs/machines/databases)) |
 | [`config`](https://palbase.studio/docs/cli/reference#config), [`types`](https://palbase.studio/docs/cli/reference#types) | Comparing and copying module settings between environments, and the environment's names as TypeScript types |
-| [`support`](https://palbase.studio/docs/cli/reference#support) | A question to Palbase's support line ([Asking Palbase](#asking-palbase)) |
+| [`docs`](https://palbase.studio/docs/cli/reference#docs) | Searching these docs by meaning ([Searching the docs](#searching-the-docs)) |
+| [`support`](https://palbase.studio/docs/cli/reference#support) | A question to Palbase's support line ([Asking Palbase's support line](#asking-palbases-support-line)) |

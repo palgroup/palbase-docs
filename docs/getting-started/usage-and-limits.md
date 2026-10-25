@@ -88,7 +88,7 @@ A limit that counts refuses nothing: the use goes on and is metered.
 
 ## What a free project gets
 
-A project is free while its organization has no payment account, or has one with no balance left, and while it is pulled to the Free plan or at its monthly cap ([Billing](https://palbase.studio/docs/getting-started/billing)).
+An environment is free while it is on the Free plan — every environment starts on it — and while its credit has run out or its month is at its monthly limit ([Billing](https://palbase.studio/docs/getting-started/billing)). Each environment is free on its own: one running out holds no other.
 
 - **Sizes.** Its machines are of the `shared-256` size, the one free machine size, and it has one database at most, of the `free` size: a project holds one database of a free size at a time ([Databases](https://palbase.studio/docs/machines/databases#sizes)). Every other size is paid for: opening a machine or a database of one, or moving one to it, is `403 size_not_available`. `palbase machines:sizes` and `palbase databases:sizes` list the sizes and which of them the environment may open now ([Machines](https://palbase.studio/docs/machines/overview#sizes)).
 - **Traffic.** It sends 5 GB a month at full speed: its machines' internet traffic and its response traffic together. Past it, until the month ends, its machines' traffic and answers and the files its storage hands out go at about 256 kbit/s; nothing is stopped, and the API's other answers are not slowed. A slowed project's downloads are paced, and one more than it may have under way at once is `429 rate_limited` with `Retry-After`. See [Reaching the internet](https://palbase.studio/docs/machines/overview#reaching-the-internet).
@@ -96,7 +96,7 @@ A project is free while its organization has no payment account, or has one with
 - **A free database** is awake 400 hours a month at most. Past them it sleeps until the month ends, refusing connections, with its data kept; from then its next connection wakes it.
 - **AI.** $1.00 of Palbase's models a month, at the provider's price and 10%. Past it, until the month ends, a call to them is `402 ai_payment_required`; a call under the project's own provider key goes on ([AI](https://palbase.studio/docs/backend/ai#what-it-costs)).
 
-A project whose organization pays is never slowed for its traffic, and its machines and databases may be of any size; a database of the `free` size keeps its 400 hours whoever holds it. What it uses past the organization's free quotas is charged from the balance ([Billing](https://palbase.studio/docs/getting-started/billing)).
+An environment on Pay as you go with credit is never slowed for its traffic, and its machines and databases may be of any size; a database of the `free` size keeps its 400 hours whoever holds it. What it uses past its own free quotas is charged from its own credit ([Billing](https://palbase.studio/docs/getting-started/billing)).
 
 ## Each module's own limits
 
@@ -111,7 +111,7 @@ A project whose organization pays is never slowed for its traffic, and its machi
 
 ## Related
 
-- [Billing](https://palbase.studio/docs/getting-started/billing) — the plans, the balance and what is charged
+- [Billing](https://palbase.studio/docs/getting-started/billing) — each environment's plan and credit, and what is charged
 - [Logs](https://palbase.studio/docs/getting-started/logs) — every request, with its status
 - [Organizations](https://palbase.studio/docs/getting-started/organizations) — who sees the usage page, and who is mailed
 - [Machines](https://palbase.studio/docs/machines/overview) — sizes, sleep, and traffic to the internet

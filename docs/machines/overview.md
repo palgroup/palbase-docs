@@ -62,7 +62,7 @@ A **shared** size has a fraction of a CPU as its ceiling and is **put to sleep w
 
 Sleeping has consequences for code: a machine that sleeps runs nothing while it sleeps. A timer, an in-memory cache or a background loop stops with it, and a request that wakes it pays the start-up. Work that must happen on a schedule is a [cron](#crons-and-tasks), and work to be done once, now or later, a [task](#crons-and-tasks): the platform wakes the machine for either.
 
-`shared-256` is the size every project may open. The others are sizes that are paid for: open to a project whose organization pays ([Billing](https://palbase.studio/docs/getting-started/billing)); for another, opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
+`shared-256` is the size every project may open. The others are sizes that are paid for: open to an environment on Pay as you go with credit ([Billing](https://palbase.studio/docs/getting-started/billing)); for another, opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
 
 What a project's machines and databases reserve between them is held to the project's limit: a size or a number of copies that does not fit is refused with `409 machines_over_limit`.
 

@@ -100,6 +100,45 @@ pb.auth.mfa.removeFactor("fac_01", currentPassword = "correct-horse-battery-stap
 
 `enrollSms(phone)` and `verifySms(code)` enroll a phone, and `enrollEmail()` the account's address.
 
+### Stepping up
+
+A backend route that asks for a second factor (`auth { aal: "aal2" }`), or for a recent one (`maxAge`), refuses a password sign-in with `StepUpRequired(acrValues, maxAge, …)`. Step the signed-in user up and call again:
+
+| Method | What it does |
+|---|---|
+| `mfa.stepUp(code)` | With the authenticator app's code. Returns the session. |
+| `mfa.sendStepUpSmsCode()`, `mfa.stepUpWithSms(code)` | By text: the first sends the code to the user's SMS factor, the second steps up with it. |
+| `passkeys.stepUp(context)` | With one of the account's passkeys: the fingerprint, the face or the screen lock. |
+
+Each keeps the session's refresh token; its refreshes stay at the new level (`TOKEN_REFRESHED` is told), and a route's `maxAge` counts from the step-up. An email code is not a way up ([Second factors and their strength](https://palbase.studio/docs/backend/authentication#second-factors-and-their-strength)).
+
+## Passkeys
+
+`pb.auth.passkeys` runs the system's passkey sheet through Credential Manager: the fingerprint, the face or the device's screen lock. The project publishes its registered Android apps' certificates for it ([Registering the app](https://palbase.studio/docs/android/overview#registering-the-app)).
+
+```kotlin
+// Adds a passkey to the signed-in account.
+pb.auth.passkeys.register(context)
+
+// Signs in with one of the device's passkeys for the project.
+val user = pb.auth.passkeys.signIn(context)
+
+// Opens an account with a passkey (an email is optional when the project allows it).
+when (val result = pb.auth.passkeys.signUp(context, email = "ada@example.com")) {
+    is Auth.Passkeys.SignUpResult.SignedIn -> showHome(result.user)
+    is Auth.Passkeys.SignUpResult.ConfirmationRequired -> askToConfirm(result.userId)
+}
+```
+
+| Method | What it does |
+|---|---|
+| `passkeys.register(context, name, userName)` | Adds a passkey to the signed-in account; asks for a recent sign-in. Returns the registered credential. |
+| `passkeys.signIn(context)` | Signs in with a passkey the device holds for the project. Returns the user. |
+| `passkeys.signUp(context, email, displayName)` | Opens an account with a passkey: `SignedIn(user)`, or `ConfirmationRequired(userId)` when the address is to be confirmed first. |
+| `passkeys.stepUp(context)` | Steps the signed-in session up ([Stepping up](#stepping-up)). |
+
+A sheet the user dismisses throws `passkey_cancelled` (`pb.auth.wasCancelled(e)` is true); `passkey_unavailable` is a device with no passkey or no credential provider; `passkey_exists`, a passkey the account already has on this device; `passkey_failed`, one the system refused (the app's certificate not in the project's `assetlinks.json`, most often).
+
 ## Magic links
 
 ```kotlin
@@ -198,7 +237,7 @@ Every client call of the auth contract, typed (`AuthAPI.Client`), through the se
 | `pb.auth.api.unlinkIdentity(id)` | `DELETE /auth/identities/{id}` |
 | `pb.auth.sessions.list()`, `.revoke(id)`, `.revokeAll()` | The user's sessions on every device |
 
-Passkeys and social sign-in (Google, Apple, GitHub, Microsoft) have no one-call method in the Android SDK at this version. Their calls are in `pb.auth.api` (`webauthn…`, `socialConfig`, `socialBegin`, `socialComplete`), and a token pair a flow of the app's own ends in starts the session with `setSession(accessToken, refreshToken, expiresIn)`. The project publishes its registered Android apps' certificates for Credential Manager ([Registering the app](https://palbase.studio/docs/android/overview#registering-the-app)).
+Google's sign-in is one call, `pb.auth.signInWithGoogle(context, variant)` (Google's sheet through Credential Manager). Apple, GitHub and Microsoft have none in the Android SDK at this version: their calls are in `pb.auth.api` (`socialConfig`, `socialBegin`, `socialComplete`), and a token pair a flow of the app's own ends in starts the session with `setSession(accessToken, refreshToken, expiresIn)`.
 
 ## Proof of work
 

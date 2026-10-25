@@ -122,7 +122,7 @@ The origins a passkey is accepted from are the environment's web apps; see [Pass
 | Key | Default | What it says |
 |---|---|---|
 | `risk_engine_enabled` | `false` | Score every sign-up and sign-in for risk, from 0 to 1. |
-| `risk_step_up` | `0.3` | At this score a sign-in asks for a second factor: an email code when the account has none. |
+| `risk_step_up` | `0.3` | At this score a sign-in asks for a second factor: an email code when the account has none (it proves the inbox; the session it opens is `aal1`, as an email code is not a second factor). |
 | `risk_strict_step_up` | `0.6` | At this score it asks for a strong one, an authenticator app or a passkey, when the account has one. |
 | `risk_block` | `0.8` | At this score the sign-up or sign-in is refused, answered as a wrong password or a failed sign-up would be, so the refusal does not tell anyone the account exists. |
 
@@ -150,7 +150,7 @@ Those two, and [Have I Been Pwned](https://haveibeenpwned.com), are connected wi
 
 `app_attest_mode` is `off` (the default), `monitor` or `enforce`: the switch of the backend routes marked `attest: true` ([Device attestation](https://palbase.studio/docs/backend/authentication#device-attestation)), read by the environment's machines every 30 seconds. `monitor` and `enforce` need an iOS or Android app registered with the environment (`palbase apps:env:set`).
 
-Auth enrols a device when the app proves it: an iOS device's App Attest key (`POST /auth/devices/attest/ios`), or an Android device's Keystore key, whose attestation chain must end in one of Google's hardware attestation roots with no certificate on Google's revocation list, the key in the phone's secure hardware, the phone locked with a verified boot, and the app the registered package signed with a registered certificate (`POST /auth/devices/attest/android`). Both take the challenge of `POST /auth/devices/challenge` and need no session. Auth verifies a request's proof when a server asks it to (`POST /admin/attest/devices/assert`, with the secret key), and answers the mode at `GET /admin/attest/devices/attest-policy` and the last hours' counts at `GET /admin/attest/devices/observations`. Palbase's iOS and Android SDKs do the enrolment and the proofs by themselves.
+Auth enrols a device when the app proves it: an iOS device's App Attest key (`POST /auth/devices/attest/ios`), or an Android device's Keystore key, whose attestation chain must end in one of Google's hardware attestation roots with no certificate on Google's revocation list, the key in the phone's secure hardware, the phone locked with a verified boot, and the app the registered package signed with a registered certificate (`POST /auth/devices/attest/android`). Both take the challenge of `POST /auth/devices/challenge` and need no session. The three are limited to 10 calls in 15 minutes per installation (or signed-in user) at an address, and 600 per address over every installation behind it: one install retrying does not stop the next phone behind the same carrier's address. Past either: `429 rate_limit_exceeded` with `Retry-After`, which the SDKs report as `enrolment_rate_limited`. Auth verifies a request's proof when a server asks it to (`POST /admin/attest/devices/assert`, with the secret key; a passing verdict names the device, its `device_id` and `platform`), and answers the mode at `GET /admin/attest/devices/attest-policy` and the last hours' counts at `GET /admin/attest/devices/observations`. Palbase's iOS and Android SDKs do the enrolment and the proofs by themselves.
 
 ## Signing keys
 

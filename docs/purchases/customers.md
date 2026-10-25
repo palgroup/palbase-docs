@@ -49,7 +49,7 @@ A guest merged into an account reads as the account. A user never seen here read
 
 ## What happened to them
 
-Their **History**, the newest first, a page at a time: each payment and renewal, a refund (and its kind: refund, chargeback, family sharing), the subscription's renewal turned off or back on, a failed charge, its end, the grants given and taken back, the credits given, taken back, expired and forgiven, and the purchases that moved to or from them — each with when, who did it (`store`, `customer`, the developer whose Studio or CLI call it was as `developer:…`, or the key as `key:…`) and why. Credits spent are the credits' own entries (**Credits** on the record, or `GET …/credits/entries`).
+Their **History**, the newest first, a page at a time: each payment and renewal, a refund (and its kind: refund, chargeback, family sharing), the subscription's renewal turned off or back on, a failed charge, its end, the grants given and taken back, the credits given, taken back, expired and forgiven, the purchases that moved to or from them, what support did at a store (`extension`, `refund_issued`, `cancel_requested`, with its days, the expiry it left, the refund's kind and support's note), and a refund they asked the App Store for (`refund_requested`, with what Apple was told: `answer`) — each with when, who did it (`store`, `customer`, the developer whose Studio or CLI call it was as `developer:…`, or the key as `key:…`) and why. Credits spent are the credits' own entries (**Credits** on the record, or `GET …/credits/entries`).
 
 ```sh
 palbase purchases:customer:history <user id> -E production
@@ -77,6 +77,61 @@ What the customer bought is not touched: the entitlement stays on while a purcha
 In Studio every member of the project reads a customer, their history and their grants; giving or revoking a grant and giving credits is an admin's or the owner's. A grant shows as `store: "promotional"`, `period_type: "promotional"`; turning the entitlement on or off emits `purchases.entitlement.changed`.
 
 Credits and quota are given the same way, saying why — [Entitlements, Credits & Limits › Giving credits](https://palbase.studio/docs/purchases/entitlements#giving-credits).
+
+## A subscription, at its store
+
+Support moves a subscription's renewal later, refunds it or turns its renewal off from the customer's page (the buttons on a row of **Subscriptions**), from a terminal, or from your server with the secret key. The subscription's id is the one the record lists (`subscriptions[].id`). The store is asked to do it, then read again: the answer is the subscription as its store holds it after, and the history keeps what was done, by whom, and the note.
+
+| | App Store | Google Play | Web (Stripe) |
+|---|---|---|---|
+| **Extend** (1–90 days, for free) | Apple's renewal-date extension: a paid, active subscription, at most twice a year | The next renewal deferred | The next charge moved later |
+| **Refund** (the latest payment, in full or what is left of its period) | Apple decides: `409 store_decides_refunds` | Revoked, refunded | Refunded, the subscription cancelled |
+| **Turn the renewal off** | The customer's, in their Apple account: `409 customer_cancels` | Cancelled at the period's end | Cancelled at the period's end |
+
+A refund ends the subscription and the customer's access as it answers; turning the renewal off leaves them the period they paid for.
+
+```sh
+palbase purchases:customer:get <user id> -E production            # the subscription's id
+palbase purchases:customer:extend <user id> <subscription id> --days 7 --reason service_issue --note "Outage of the 21st" -E production
+palbase purchases:customer:refund <user id> <subscription id> --mode prorated -E production
+palbase purchases:customer:cancel <user id> <subscription id> -E production
+```
+
+`--reason` is `customer_satisfaction`, `service_issue` or `other`, as Apple asks it. From your server they are `extendSubscription`, `refundSubscription` and `cancelSubscription` (`POST /purchases/customers/{customer_id}/subscriptions/{subscription_id}/extend|refund|cancel`), each under an `Idempotency-Key`: sent again with it, it is done once. A store that refuses answers `409 store_refused` with what it said; one that cannot be reached, `502 store_unreachable` — sending again with the same key is safe.
+
+## A refund the customer asks the App Store for
+
+In the App Store the customer asks Apple for a refund (in the app with `Transaction.beginRefundRequest`, or at reportaproblem.apple.com). Apple then asks the app, within 12 hours, what they had of the purchase, and weighs the answer. The environment answers it for you — whether it gave what was bought, whether a free trial came first, how much of a pack of credits was spent — and says nothing of its own wish: the decision is Apple's.
+
+It answers only for a customer who allowed it in the app; Apple takes no answer without that. Ask them once, where your app speaks of refunds or privacy, and record what they said:
+
+```ts
+// app/settings.ts
+import { createClient } from "palbase/web";
+
+const pb = createClient({ url: "https://<ref>.palbase.studio", publishableKey: "pb_<ref>_c…" });
+
+export async function rememberRefundChoice(allowed: boolean): Promise<void> {
+  await pb.purchases.setRefundDataConsent(allowed); // PUT /purchases/me/refund-data-consent
+}
+```
+
+On iOS it is `pb.purchases.setRefundDataConsent(true)`, on Android `pb.purchases.setRefundDataConsent(true)`; the latest word counts, for every app of the project. Never asked, or `false`: Apple is told nothing. The customer's page shows what they said and when (`refund_data_consent` on the record), and the history every question Apple asked, with its `answer`: `sent`, `pending`, `not_consented`, or `expired` when Apple could not be reached in its 12 hours.
+
+## Credit entries, debts and limits
+
+The customer's page lists every move of their credits — given, spent, taken back by a refund, expired, forgiven — with who did each and why (`GET /purchases/customers/{customer_id}/credits/entries`). A refund of credits already spent leaves a debt, paid first from what they get next; support forgives it, all of it or an amount, saying why. A limit's maximum is set for one customer — above or below the catalog's, for a while or until cleared — and more of it given for its current period:
+
+```sh
+palbase purchases:customer:credits <user id> -E production
+palbase purchases:customer:credits:give <user id> tokens 50 --reason "Ticket 4821" -E production
+palbase purchases:customer:credits:forgive <user id> tokens --reason "Goodwill" -E production
+palbase purchases:customer:limit:set <user id> ai_requests 500 --reason "Pilot" --for 30d -E production
+palbase purchases:customer:limit:give <user id> ai_requests 20 --reason "A failed job" -E production
+palbase purchases:customer:limit:clear <user id> ai_requests -E production
+```
+
+In Studio every member reads these; extending, refunding or cancelling a subscription, giving or forgiving credits and setting or giving a limit is an admin's or the owner's.
 
 ## Guests
 
@@ -145,4 +200,4 @@ await palbase.purchases.updateSettings({
 
 - [Entitlements, Credits & Limits](https://palbase.studio/docs/purchases/entitlements): what a customer has, and spending it
 - [Charts](https://palbase.studio/docs/purchases/charts): what customers bought, over time
-- CLI: [`purchases:customer:get`](https://palbase.studio/docs/cli/reference#palbase-purchasescustomerget), [`purchases:customer:grant`](https://palbase.studio/docs/cli/reference#palbase-purchasescustomergrant), [`purchases:customer:revoke`](https://palbase.studio/docs/cli/reference#palbase-purchasescustomerrevoke)
+- CLI: [`purchases:customer:get`](https://palbase.studio/docs/cli/reference#palbase-purchasescustomerget), [`purchases:customer:grant`](https://palbase.studio/docs/cli/reference#palbase-purchasescustomergrant), [`purchases:customer:revoke`](https://palbase.studio/docs/cli/reference#palbase-purchasescustomerrevoke), [`purchases:customer:extend`](https://palbase.studio/docs/cli/reference#palbase-purchasescustomerextend), [`purchases:customer:refund`](https://palbase.studio/docs/cli/reference#palbase-purchasescustomerrefund), [`purchases:customer:cancel`](https://palbase.studio/docs/cli/reference#palbase-purchasescustomercancel)

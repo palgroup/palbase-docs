@@ -6,7 +6,7 @@
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.7.0 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.7.2 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -110,8 +110,7 @@ The `PalbaseMessagingNotificationService` extension shows a message's push and, 
    ```swift
    import PalbaseMessagingNotificationService
 
-   // Swift 6 asks a subclass to restate its base's @unchecked Sendable.
-   final class NotificationService: PalbaseMessagingNotificationService, @unchecked Sendable {}
+   final class NotificationService: PalbaseMessagingNotificationService {}
    ```
 
 2. **Share the copy and the session.** In *Signing & Capabilities*, give the app and the extension the same:
@@ -127,6 +126,22 @@ The extension's `Info.plist` is Xcode's: `NSExtensionPointIdentifier` `com.apple
 ## Screenshots
 
 iOS cannot stop a screenshot. A conversation's screen says it is shown (`onScreen(true)` as it appears, `onScreen(false)` as it goes): when a screenshot is taken while it shows a conversation in vanish mode or a message seen once, the others are told. A conversation in vanish mode drops what the person read when they leave it: call `close()` as its screen goes.
+
+## A deleted group
+
+When a group's owner or an admin deletes it — or its last member leaves — it goes from everyone's `conversations()` at once, and those who were in it can still report it for 14 days ([Messaging](https://palbase.studio/docs/messaging/overview#moderation)). `pb.messaging.deletedGroups()` is `@Observable`: its `items` are the groups the person can still report, the latest to stop first, each with `id`, `title`, `deletedBy` and `reportableUntil`, and one goes at its `reportableUntil`. `report(_:)` names it by its id with no message; the last 30 messages the person saw in it go with the report. A group the project's server deleted is not among them.
+
+```swift
+let deleted = pb.messaging.deletedGroups()
+for group in deleted.items {
+    print(group.title ?? "a group", group.reportableUntil)
+}
+if let group = deleted.items.first {
+    try await pb.messaging.report(.init(conversationId: group.id, reason: .harassment, userId: group.deletedBy))
+}
+```
+
+The title is the one the device had; it is nil when the device no longer had the group as the word came — on the deleter's own device now and then.
 
 ## Signing out
 

@@ -27,7 +27,7 @@
 
 ## CLI
 
-- [Overview](https://palbase.studio/docs/cli/overview): palbase, the CLI in the npm package: signing in, choosing an environment, running a backend on your computer, tokens for CI and for AI agents, asking Palbase's support line, and what its commands cover.
+- [Overview](https://palbase.studio/docs/cli/overview): palbase, the CLI in the npm package: signing in, choosing an environment, running a backend on your computer, tokens for CI and for AI agents, searching the docs by meaning, asking Palbase's support line, and what its commands cover.
 - [Reference](https://palbase.studio/docs/cli/reference): Every command of the palbase CLI with its usage, what it does and its flags, as the CLI's own help prints them.
 
 ## Backend SDK

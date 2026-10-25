@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.18.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.18.6 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-354 commands in 30 groups.
+382 commands in 32 groups.
 
 ## Global flags
 
@@ -162,13 +162,13 @@ The test users are deleted when the command ends, however it ends — Ctrl-C too
 
 ### `palbase billing`
 
-An organization's plan, balance, card, automatic top-up and this month — each environment's place in the bill and what it came to
+An organization's card and each environment's plan, balance, month and limit
 
 ```sh
 palbase billing [--org <org>]
 ```
 
-A member reads the plan and the environments; the money (balance, amounts) is an owner's or an admin's.
+A member reads the plans and what was used; the money (balances, amounts) is an owner's or an admin's.
 
 ```text
       --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
@@ -373,7 +373,7 @@ palbase tokens:revoke <name|id>
 
 ### `palbase billing:charges`
 
-A month's charges, by environment and item, gross — then the organization's, its free quota taken once — as a table or as CSV
+A month's charges, by environment and item — used, at the price table, charged past each one's free quota — as a table or as CSV
 
 ```sh
 palbase billing:charges [--period <YYYY-MM>] [--csv] [--org <org>]
@@ -389,10 +389,10 @@ palbase billing:charges [--period <YYYY-MM>] [--csv] [--org <org>]
 
 ### `palbase billing:invoices`
 
-The invoices of an organization's top-ups: Stripe makes one of each, and emails it
+The invoices of an organization's top-ups, each of an environment: Stripe makes one of each, and emails it
 
 ```sh
-palbase billing:invoices [--org <org>]
+palbase billing:invoices [<project/env | ref>] [--org <org>]
 ```
 
 ```text
@@ -401,80 +401,70 @@ palbase billing:invoices [--org <org>]
 
 ### `palbase billing:ledger`
 
-Every change of an organization's balance, newest first: top-ups, usage taken, refunds, what expired
+Every change of an environment's balance, newest first: top-ups, usage taken, credit moved, refunds, what expired
 
 ```sh
-palbase billing:ledger [--limit <n>] [--org <org>]
+palbase billing:ledger [<project/env | ref>] [--limit <n>]
 ```
 
 ```text
-      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
       --limit <n>  how many at most (default 50)
-```
-
-### `palbase billing:settings`
-
-An organization's automatic top-up — on or off, under what balance, by how much, at most how much a month — and when it is told the balance runs low
-
-```sh
-palbase billing:settings [--auto-topup yes|no] [--threshold <usd>] [--amount <usd>] [--monthly-cap <usd>|none] [--low-balance-days <n>] [--org <org>]
-```
-
-A month's cap takes what is left of it, and nothing once it is spent: the owners are emailed once a month when it holds a top-up back.
-
-```text
-      --org <org>               the organization (name or id; the one of the environment chosen here, or your only one)
-      --auto-topup <yes|no>     take a top-up from the saved card when the balance is under the threshold
-      --threshold <usd>         the balance under which it is taken
-      --amount <usd>            how much it takes ($10 at least)
-      --monthly-cap <usd|none>  at most this much a calendar month; none for no cap
-      --low-balance-days <n>    email the owners when the balance lasts fewer than n days of spend (1 to 60)
 ```
 
 ### `palbase billing:env`
 
-An environment's place in its organization's bill: a monthly cap, pulled to the Free plan, frozen
+An environment's place in the bill — its plan, frozen, its month's limit, its automatic top-up — read, or changed
 
 ```sh
-palbase billing:env <project/env | ref> [--cap <usd>|none] [--free yes|no] [--frozen yes|no] [-y]
+palbase billing:env [<project/env | ref>] [--plan free|pay_as_you_go] [--limit <usd>|none] [--frozen yes|no] [--auto-topup yes|no] [--threshold <usd>] [--amount <usd>] [--low-balance-days <n>] [-y]
 ```
 
-At its cap the environment is Free until the month ends; the others go on. Frozen, its requests are refused and its machines and databases stopped, its data kept; only what it stores is charged.
-Freezing asks first; -y does not.
+With no flag it shows the environment: its plan, balance, automatic top-up and month.
+Each environment pays for itself: at its limit, or its balance run out, it is Free until the month ends or a top-up comes; the organization's other environments go on. Moved to Pay as you go it needs credit to pay from: its first top-up (palbase billing:topup) moves it.
+Frozen, its requests are refused and its machines and databases stopped, its data kept; only what it stores is charged. Freezing asks first; -y does not.
 
 ```text
-      --cap <usd|none>   at most this much a month; none for no cap
-      --free <yes|no>    on the Free plan: charged nothing, held to the free quotas
-      --frozen <yes|no>  frozen: its requests refused, its machines and databases stopped, its data kept
+      --plan <free|pay_as_you_go>  Free (charged nothing, held to the free quotas, its credit kept) or Pay as you go (paid from its balance)
+      --limit <usd|none>           at most this much a month; none for no limit
+      --frozen <yes|no>            frozen: its requests refused, its machines and databases stopped, its data kept
+      --auto-topup <yes|no>        take a top-up from the organization's card when the balance is under the threshold
+      --threshold <usd>            the balance under which it is taken
+      --amount <usd>               how much it takes ($10 at least)
+      --low-balance-days <n>       email the owners when the balance lasts fewer than n days of spend (1 to 60)
 ```
 
 ### `palbase billing:topup`
 
-Put money on an organization's balance from its saved card, now: $10 to $10,000, the tax on top, an invoice made of it
+Put money on an environment's balance now — from what the organization's bank transfers left, else its saved card: $10 to $10,000, the tax on top, an invoice made of it
 
 ```sh
-palbase billing:topup <usd> [-y] [--org <org>]
+palbase billing:topup [<project/env | ref>] <usd> [-y]
 ```
 
-It takes the money: it asks first, and -y does not. With no card saved yet, the first top-up is on Stripe's page, in Studio.
-
-```text
-      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
-```
+It takes the money: it asks first, and -y does not. An environment on Free is moved to Pay as you go by it (its first top-up).
+With no card saved yet, the first top-up is on Stripe's page, in Studio.
 
 ### `palbase billing:bank-transfer`
 
-An invoice of a top-up to pay by bank transfer, to the organization's own bank details: credited as the money arrives
+An invoice of an environment's top-up to pay by bank transfer, to the organization's own bank details: credited as the money arrives
 
 ```sh
-palbase billing:bank-transfer <usd> [--org <org>]
+palbase billing:bank-transfer [<project/env | ref>] <usd>
 ```
 
 Stripe emails the invoice with the bank details; nothing is taken until the transfer arrives.
+A transfer of more than the invoice stays with the organization and pays its environments' next top-ups, before any card — for 75 days, then Stripe sends what is left back.
 
-```text
-      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
+### `palbase billing:transfer`
+
+Move credit from one of an organization's environments to another — all of it, or an amount — each part with its expiry
+
+```sh
+palbase billing:transfer <from project/env | ref> <to project/env | ref> [<usd>] [-y]
 ```
+
+An owner's or an admin's (an admin's access token too); never to another organization's environment. It asks first, and -y does not.
+A deleted environment keeps its credit until it is purged (a week): move it before then, or it is lost.
 
 ## `projects`
 
@@ -1451,11 +1441,180 @@ palbase analytics:summary [--window <24h>]
       --window <span>  how far back: 30m, 24h, 7d (default 24h)
 ```
 
+## `messaging`
+
+### `palbase messaging:settings:get`
+
+How the environment runs its conversations: how long messages are kept, whether a push says what one says, what becomes of a deleted user's messages, the hook
+
+```sh
+palbase messaging:settings:get
+```
+
+### `palbase messaging:settings:set`
+
+Change how the environment runs its conversations: a setting left out is left as it is
+
+```sh
+palbase messaging:settings:set [--retention-days <days>|off] [--push-preview on|off] [--deleted-user-messages keep|delete]
+```
+
+A shorter retention removes the messages older than it, in every conversation. A deleted user's messages are kept or deleted as the setting is when the user is deleted.
+Deleted, what of theirs had already gone from screens (seen once, its time up, vanish mode, taken back) stays its 14 days, sealed, for reports, then goes.
+Only what changes is sent: a change made beside this one to another setting stays.
+
+```text
+      --retention-days <days|off>            messages older than this many days are removed (1–36500); off: kept for good
+      --push-preview <on|off>                a push says what the message says (on), or only that one came (off)
+      --deleted-user-messages <keep|delete>  a deleted user's messages: kept, their writer anonymous, or deleted (what went from screens before stays its 14 days for reports)
+```
+
+### `palbase messaging:hook:get`
+
+The hook asked whom one may reach: where it is, how long it is waited for, what is done when it does not answer (never its secret)
+
+```sh
+palbase messaging:hook:get
+```
+
+### `palbase messaging:hook:set`
+
+Set the hook asked whom one may reach, or change it; a new hook's signing secret is printed this once, or kept in a secret with --secret-to
+
+```sh
+palbase messaging:hook:set [--url <url>] [--timeout-ms <ms>] [--on-error allow|deny] [--secret-to <NAME> [--dev]]
+```
+
+Before a direct conversation opens or people are added to a group, the hook is POSTed {"event": "messaging.can_message", "action": "direct" | "group_add", "from_user_id", "to_user_ids", "conversation_id"}, signed as Standard Webhooks sign (webhook-id, webhook-timestamp, webhook-signature), and answers 200 {"allowed_user_ids": […]}.
+A new hook takes --url (an https URL on the public internet). Its signing secret is printed this once, or kept in the environment's secrets with --secret-to (production; --dev: development) and printed nowhere. A hook changed keeps its secret: palbase messaging:hook:secret:rotate makes a new one.
+
+```text
+      --url <url>              where the hook is asked
+      --timeout-ms <ms>        how long it is waited for: 100 to 5000 (a new hook: 2000)
+      --on-error <allow|deny>  when it does not answer: allow everyone, or deny and the app is told to try again (a new hook: deny)
+      --secret-to <NAME>       keep the new signing secret in the environment's secret NAME instead of printing it
+      --dev                    with --secret-to: the development secrets, not production
+```
+
+### `palbase messaging:hook:remove`
+
+Remove the hook: anyone may reach anyone, and its signing secret is forgotten
+
+```sh
+palbase messaging:hook:remove
+```
+
+### `palbase messaging:hook:secret:rotate`
+
+Make the hook's signing secret anew: printed this once, or kept in a secret with --secret-to; the old one signs nothing more
+
+```sh
+palbase messaging:hook:secret:rotate [--secret-to <NAME> [--dev]]
+```
+
+The hook's calls are signed with the new secret alone from now: the endpoint verifies them with it (a machine reads a secret kept with --secret-to at its next start).
+
+```text
+      --secret-to <NAME>  keep the new signing secret in the environment's secret NAME instead of printing it
+      --dev               with --secret-to: the development secrets, not production
+```
+
+### `palbase messaging:reports:list`
+
+The reports people made, newest first: why, whom, which messages (what they carry: messaging:reports:get)
+
+```sh
+palbase messaging:reports:list [--status open|resolved] [--limit <n>] [--cursor <cursor>]
+```
+
+```text
+      --status <status>  only the open ones, or only the resolved ones
+      --limit <n>        at most this many (1–100, default 30)
+      --cursor <cursor>  the next page, as the last one said it
+```
+
+### `palbase messaging:reports:get`
+
+One report with what it carries: the reporter's note, what the messages it names said when reported and before they were edited
+
+```sh
+palbase messaging:reports:get <report id>
+```
+
+An owner's or an admin's (a member lists the reports, without what they carry); the read is in the project's access log. --json carries the messages' files with the keys that open them.
+A report of a group a person deleted says who deleted it and when; naming no message, it carries the last 30 messages the reporter saw in it.
+A report is deleted, with what it carries, 190 days after it is resolved; one never resolved, 2 years after it was made.
+
+### `palbase messaging:reports:resolve`
+
+Resolve a report, saying what came of it in the project's own words
+
+```sh
+palbase messaging:reports:resolve <report id> --resolution <text>
+```
+
+```text
+      --resolution <text>  what came of it: 1 to 64 characters (warned, removed, nothing found…)
+```
+
+### `palbase messaging:access-log`
+
+Each time people's messages were read or removed — by the project's server, or an owner or admin from Studio or the CLI — newest first: what, which conversation, whose, by whom (kept 400 days)
+
+```sh
+palbase messaging:access-log [--limit <n>] [--cursor <cursor>]
+```
+
+```text
+      --limit <n>        at most this many (1–200, default 50)
+      --cursor <cursor>  the next page, as the last one said it
+```
+
+### `palbase messaging:conversations:list`
+
+The project's conversations, or a person's with --user, the latest first: whose, how many people, when it last moved
+
+```sh
+palbase messaging:conversations:list [--user <user id>] [--limit <n>] [--cursor <cursor>]
+```
+
+```text
+      --user <user id>   only this person's conversations
+      --limit <n>        at most this many (1–100, default 30)
+      --cursor <cursor>  the next page, as the last one said it
+```
+
+### `palbase messaging:messages:list`
+
+What a conversation said, newest first — each read in the project's access log
+
+```sh
+palbase messaging:messages:list <conversation id> [--limit <n>] [--cursor <cursor>]
+```
+
+An owner's or an admin's: a member sees the conversations and the reports, not what was said.
+--json carries the messages whole, their files with the keys that open them.
+
+```text
+      --limit <n>        at most this many (1–100, default 50)
+      --cursor <cursor>  the next page, as the last one said it
+```
+
+### `palbase messaging:messages:delete`
+
+Remove a message for everyone in its conversation: what it said and its files go (in the access log)
+
+```sh
+palbase messaging:messages:delete <conversation id> <message id>
+```
+
+It is not undone: asked before it is done, whatever the environment (-y confirms).
+
 ## `config`
 
 ### `palbase config:diff`
 
-How two environments' module settings differ (auth, storage, flags, notify, realtime, analytics; machines, databases when named)
+How two environments' module settings differ (auth, storage, flags, notify, realtime, analytics, messaging; machines, databases when named)
 
 ```sh
 palbase config:diff --from <env> --to <env> [--only <modules>]
@@ -1467,7 +1626,7 @@ Exit code 0 when they are the same, 1 when they differ. --json gives each differ
 ```text
       --from <env>      the environment compared from (slug or ref)
       --to <env>        the environment compared to (slug or ref)
-      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics (the default), and databases,machines when named
+      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging (the default), and databases,machines when named
 ```
 
 ### `palbase config:copy`
@@ -1487,7 +1646,7 @@ Exit code 0 when the two are the same afterwards, 1 when a difference remains.
 ```text
       --from <env>      the environment compared from (slug or ref)
       --to <env>        the environment compared to (slug or ref)
-      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics (the default), and databases,machines when named
+      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging (the default), and databases,machines when named
 ```
 
 ## `secrets`
@@ -2019,6 +2178,24 @@ A person asks 30 questions an hour, a project's people 60. An environment token 
       --no-context  send the question alone, nothing of this environment's machines
 ```
 
+## `docs`
+
+### `palbase docs:search`
+
+Search Palbase's documentation by meaning: the sections that answer it, each with its address and its text
+
+```sh
+palbase docs:search "<what you need>" [--limit <n>]
+```
+
+Ask in English, the docs' language: a question finds the section it means by its meaning and by its words — say what you need, not the words of a heading.
+Each result is a section of a page: its title, its address with the section's anchor, and its text (the first 4000 characters of a longer one — the address has the rest).
+Anyone may search, signed in or not: 10 searches in ten seconds, 30 a minute, 300 an hour. A sign-in or PALBASE_TOKEN is sent when there is one and is counted as itself; with none, your address is. When many search at once, a search waits its turn for a few seconds, or is told to search again in a moment.
+
+```text
+      --limit <n>  how many sections (1 to 10, default 5)
+```
+
 ## `stores`
 
 ### `palbase stores:apple`
@@ -2072,6 +2249,62 @@ palbase stores:apple:disconnect
 
 ```text
       --apple-id  sign the Apple ID out, at Apple too, and forget its session; the key stays
+```
+
+### `palbase stores:apple:keys`
+
+The keys Palbase made at Apple for the environment with its Apple ID, where each stands, and which keys the environment lacks
+
+```sh
+palbase stores:apple:keys
+```
+
+Palbase makes them with the Apple ID signed in for the environment (stores:apple:connect --apple-id): stores:apple:keys:make. No one downloads a .p8.
+
+### `palbase stores:apple:keys:make`
+
+Make at Apple, with the environment's Apple ID, the keys it lacks — App Store Connect API, APNs, In-App Purchase — and connect them: one confirmation
+
+```sh
+palbase stores:apple:keys:make
+```
+
+With no flag, every key the environment lacks; a key it has is kept. The Apple ID is an Admin or the Account Holder of the team.
+APNs: one key for production and one for the sandbox, scoped to the environment's iOS apps; notify takes them. In-App Purchase: for one iOS app (--bundle with more than one); purchases connects it.
+
+```text
+      --asc             the App Store Connect API key
+      --apns            the APNs keys
+      --iap             the In-App Purchase key
+      --bundle <value>  the iOS app the In-App Purchase key is for, when the environment has more than one
+```
+
+### `palbase stores:apple:keys:revoke`
+
+Revoke at Apple an APNs or In-App Purchase key Palbase made for the environment (the App Store Connect key is revoked as stores:apple:disconnect takes it away)
+
+```sh
+palbase stores:apple:keys:revoke <key-id>
+```
+
+### `palbase stores:apple:share`
+
+Share the environment's Apple ID session with another environment of the project, which uses it while it has none of its own
+
+```sh
+palbase stores:apple:share <environment>
+```
+
+An environment of the same project alone: Palbase refuses another project's, of your organization or not (other_project).
+You are an owner or an admin of both environments; a key or an environment token does not share.
+Signed out, or signed in again, the session serves none it was shared with: share it again. stores:apple:unshare takes it back.
+
+### `palbase stores:apple:unshare`
+
+Take the environment's Apple ID session back from another environment of the project
+
+```sh
+palbase stores:apple:unshare <environment>
 ```
 
 ### `palbase stores:google`
@@ -2898,6 +3131,131 @@ palbase purchases:customer:revoke <customer id> <grant id>
 ```
 
 The grant's id is the one purchases:customer:grant printed. The entitlement stays on while a purchase still gives it.
+
+### `palbase purchases:customer:extend`
+
+Move a customer's subscription renewal days later, for free: the App Store's extension, Google Play's deferral, Stripe's next charge moved
+
+```sh
+palbase purchases:customer:extend <customer id> <subscription id> --days <1-90> --reason customer_satisfaction|service_issue|other [--note <why>]
+```
+
+The subscription's id is the one purchases:customer:get prints. The App Store extends a paid, active subscription, at most 90 days and twice a year.
+The store is asked again after: the new expiry is printed, and the customer's history keeps it with who did it.
+
+```text
+      --days <n>      how many days (1 to 90)
+      --reason <why>  customer_satisfaction, service_issue or other: as the App Store asks it
+      --note <why>    what support writes of it (500 characters at most): the record
+```
+
+### `palbase purchases:customer:refund`
+
+Refund a customer's subscription — its latest payment, or what is left of its period — and end it now: Google Play and Stripe
+
+```sh
+palbase purchases:customer:refund <customer id> <subscription id> --mode full|prorated [--note <why>]
+```
+
+The customer's access ends as it answers. The App Store decides its own refunds: the customer asks Apple, which asks the app what they used — Palbase answers it when they consented in the app.
+
+```text
+      --mode <kind>  full: the latest payment; prorated: what is left of its period
+      --note <why>   what support writes of it (500 characters at most): the record
+```
+
+### `palbase purchases:customer:cancel`
+
+Turn a customer's subscription renewal off: it ends at its period's end, the customer keeping what they paid for — Google Play and Stripe
+
+```sh
+palbase purchases:customer:cancel <customer id> <subscription id> [--note <why>]
+```
+
+An App Store subscription's renewal is the customer's to turn off (Settings › Apple ID › Subscriptions).
+
+```text
+      --note <why>  what support writes of it (500 characters at most): the record
+```
+
+### `palbase purchases:customer:credits`
+
+A customer's credit entries, the newest first: given, spent, taken back, expired, forgiven — with who did each, and why
+
+```sh
+palbase purchases:customer:credits <customer id> [--credits <key>] [--limit <n>] [--cursor <next>]
+```
+
+```text
+      --credits <key>  one of the catalog's credits alone
+      --limit <n>      entries a page (default 50, at most 200)
+      --cursor <next>  the next page, as the last one printed it
+```
+
+### `palbase purchases:customer:credits:give`
+
+Give a customer credits, saying why — a support case, a promotion — for a while or until spent
+
+```sh
+palbase purchases:customer:credits:give <customer id> <credits> <amount> --reason <why> [--source support|promotion] [--for 30d | --until <date>]
+```
+
+What they owe is paid first from what is given. Nothing is charged, in any store.
+
+```text
+      --reason <why>   why they are given (500 characters at most): the record
+      --source <kind>  support (the default) or promotion
+      --for <span>     how long they last: 12h, 30d, 2w
+      --until <date>   when they expire (2026-12-31, or a time)
+```
+
+### `palbase purchases:customer:credits:forgive`
+
+Forgive what a customer owes of a credit — all of it, or an amount — saying why
+
+```sh
+palbase purchases:customer:credits:forgive <customer id> <credits> --reason <why> [--amount <n>]
+```
+
+```text
+      --reason <why>  why it is forgiven (500 characters at most): the record
+      --amount <n>    how much of it (default: all they owe)
+```
+
+### `palbase purchases:customer:limit:set`
+
+Set a customer's own maximum of a limit — above or below the catalog's — saying why, for a while or until cleared
+
+```sh
+palbase purchases:customer:limit:set <customer id> <limit> <max> --reason <why> [--for 30d | --until <date>]
+```
+
+```text
+      --reason <why>  why (500 characters at most): the record
+      --for <span>    how long: 12h, 30d, 2w
+      --until <date>  when it ends (2026-12-31, or a time)
+```
+
+### `palbase purchases:customer:limit:clear`
+
+Clear a customer's own maximum of a limit: the catalog's counts again
+
+```sh
+palbase purchases:customer:limit:clear <customer id> <limit>
+```
+
+### `palbase purchases:customer:limit:give`
+
+Give a customer more of a limit for its current period, saying why — a gift on top of their maximum
+
+```sh
+palbase purchases:customer:limit:give <customer id> <limit> <amount> --reason <why> [--source support|promotion]
+```
+
+```text
+      --reason <why>   why it is given (500 characters at most): the record
+      --source <kind>  support (the default) or promotion
+```
 
 ### `palbase purchases:stripe`
 

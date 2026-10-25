@@ -110,6 +110,21 @@ DisposableEffect(id) {
 }
 ```
 
+## A deleted group
+
+When a group's owner or an admin deletes it — or its last member leaves — it goes from everyone's `conversations()` at once, and those who were in it can still report it for 14 days ([Messaging](https://palbase.studio/docs/messaging/overview#moderation)). `pb.messaging.deletedGroups` is a `StateFlow<List<DeletedGroup>>` of the groups the person can still report, the latest to stop first, each with `id`, `title`, `deletedBy` and `reportableUntil`; one goes at its `reportableUntil`. `report` names it by its id with no message; the last 30 messages the person saw in it go with the report. A group the project's server deleted is not among them.
+
+```kotlin
+val deleted by pb.messaging.deletedGroups.collectAsState()
+deleted.forEach { group -> Text(group.title ?: "a group") }
+
+deleted.firstOrNull()?.let { group ->
+    pb.messaging.report(MessagingAPI.ReportRequest(conversationId = group.id, reason = MessagingAPI.ReportRequest.Reason.HARASSMENT, userId = group.deletedBy))
+}
+```
+
+The title is the one the device had; it is null when the device no longer had the group as the word came — on the deleter's own device now and then.
+
 ## Signing out
 
 The phone's copy is kept in the app's own SQLite, in files not backed up. When the person signs out it is dropped, unless `pb.messaging.keepOnSignOut = true` — then it is theirs again when they come back. Whoever signs in next never reads it; and unless copies are kept, the person who signs in drops any other's left there.
