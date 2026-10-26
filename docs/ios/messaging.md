@@ -6,7 +6,7 @@
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.7.2 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.8.1 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -64,6 +64,35 @@ struct Chat: View {
 ## Writing
 
 `send(_:_:)` takes text, or `SendOptions`: `replyTo`, `threadId` and `alsoInConversation`, `mentions`, `files` (encrypted on the phone before they are uploaded), `expiresIn` with `expiresFrom`, `viewOnce`, and `sendAt` for a message the server sends later. A message waits in the outbox while the phone is offline and goes once it can, once. `edit`, `remove`, `react`, `unreact`, `markRead`, `typing`, `cancelScheduled` and `editScheduled` change what was said; `open(_:attachment:)` downloads and decrypts a file, and a message seen once gives its files by `viewOnce(_:)` alone — held by the app, never by the phone's copy.
+
+## Search
+
+`search(_:)` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one (`in:`). Each `SearchHit` carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, `peer`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 code units. The first page also lists the person's conversations whose name says it (`conversations`), found on the phone. What the module finds and never finds: [Messaging](https://palbase.studio/docs/messaging/overview#search).
+
+```swift
+let found = try await pb.messaging.search("toplanti")
+for c in found.conversations { print(c.title ?? "Chat") }   // their names say it: draw them first
+for hit in found.messages {
+    let text = hit.message.text ?? ""
+    var row = AttributedString(text)   // the text, what was asked in bold
+    for m in hit.matches where m.field == .text {
+        let from = text.utf16.index(text.startIndex, offsetBy: m.offset)
+        let to = text.utf16.index(from, offsetBy: m.length)
+        if let r = Range(from..<to, in: row) { row[r].inlinePresentationIntent = .stronglyEmphasized }
+    }
+}
+let more = try await pb.messaging.search("toplanti", cursor: found.nextCursor)   // while nextCursor is not nil
+```
+
+A find opens where it was said: `conversation(_:at:)` is the conversation's page around it, `focus` naming the message to scroll to and mark. `loadEarlier()` reads back from there and `loadLater()` forward; once it reaches the newest, `hasLater` is false and it is kept current as any. An answer the conversation's timeline does not show has a `threadRootId`: open its thread at it.
+
+```swift
+if let root = hit.threadRootId {
+    thread = pb.messaging.thread(hit.conversation.id, root: root, at: hit.message.id)
+} else {
+    chat = pb.messaging.conversation(hit.conversation.id, at: hit.message.id)   // chat.focus == hit.message.id
+}
+```
 
 ## A message while the app is open
 

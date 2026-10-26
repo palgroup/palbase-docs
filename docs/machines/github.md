@@ -91,6 +91,37 @@ A push that changes nothing a machine is built from leaves it as it runs, and do
 
 Where GitHub's account of a push may not be everything it changed, every machine built from the branch is built: a forced push, a branch's first push, a push of 2,048 commits or more, and a commit that names no files (an empty commit among them) or 3,000 or more.
 
+## For platforms: building with a token
+
+A platform whose own users give their repositories to **its** GitHub App — not to Palbase Cloud — builds their machines without asking them to install another app: it makes a token for each build and gives it with the deploy (`source.access: "token"`). Its users see only the platform; nothing of Palbase is installed on their accounts.
+
+The token is the platform's GitHub App's **installation token, for the machine's repository alone, read-only** — GitHub's `POST /app/installations/{installation_id}/access_tokens` with `repositories: ["<name>"]` and `permissions: { contents: "read" }`. Palbase checks it with GitHub at once: it must be an installation's (`ghs_…`; a person's token is refused), reach the machine's repository and nothing else. What a token may do is not something GitHub tells whoever holds it, so read-only is yours to ask for: Palbase only ever reads with it. The build reads its source with it once and forgets it — no answer, log or build keeps it. One lasts an hour, so make one for each deploy.
+
+```ts
+// platform-server.ts
+import { PalbaseCloud } from "palbase/cloud";
+
+const cloud = new PalbaseCloud({ token: process.env.PALBASE_TOKEN! });
+const ref = process.env.CUSTOMER_ENV_REF!;
+// Your GitHub App's installation token for this repository alone, read-only.
+const token = process.env.REPOSITORY_TOKEN!;
+
+// Opened with a token: its first build is the branch's head (or `commit`).
+await cloud.project(ref).machines.createMachine({ body: {
+  name: "backend", size: "shared-256",
+  source: { repository: "customer/shop", branch: "main", access: "token" },
+  git_access_token: token,
+} });
+
+// Each push your app hears of: a new token, and the commit to build.
+await cloud.project(ref).machines.deployMachine({ path: { name: "backend" }, body: {
+  commit: "4f6e1c2a9b0d7e3f5a8c1b2d4e6f7a9c0b1d2e3f",
+  git_access_token: token,
+} });
+```
+
+A machine read with tokens is deployed by its platform: no push GitHub delivers to Palbase builds it (your app hears the push — its `push` webhook — and deploys the commit), no check is put on its commits, and it does not wait for checks (`deploy_after_checks` is refused). Everything else is a machine's like any other: its builds, their logs, its own logs, rollbacks and its settings ([Builds, Logs & Rollback](https://palbase.studio/docs/machines/builds)). A change of its branch is built at its next deploy. How it is read is chosen when it is made.
+
 ## What GitHub shows
 
 Each build puts a check on its commit, named **Palbase Cloud · `<ref>`** for the `backend` machine and **Palbase Cloud · `<name>-<ref>`** for another: *Queued*, *Building*, *Waiting for configuration*, then *Rolled out*, *Build failed* or *Did not come up* — or *Left behind* when a newer commit of the branch is built first. The commit's checks are the quickest way to see what a push did; Studio's machine page has the same builds with their logs ([Builds, Logs & Rollback](https://palbase.studio/docs/machines/builds)).

@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.18.6 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.20.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-382 commands in 32 groups.
+384 commands in 32 groups.
 
 ## Global flags
 
@@ -1343,6 +1343,30 @@ Whether each channel can send now, through which providers, and what to do when 
 palbase notify:deliverability
 ```
 
+### `palbase notify:devices:list`
+
+The devices a push reaches, newest first: each user's, and the installations no one is signed in on — never a token
+
+```sh
+palbase notify:devices:list [--user <id>] [--platform android|ios|ios_voip|web] [--limit <n>]
+```
+
+```text
+      --user <id>            one user's devices
+      --platform <platform>  one platform's: android, ios, ios_voip or web
+      --limit <n>            how many (default 50, at most 500)
+```
+
+### `palbase notify:devices:delete`
+
+Forget a device — every token it registered, whoever is signed in on it, no one included: a push reaches it no more
+
+```sh
+palbase notify:devices:delete <device_id>
+```
+
+The device's id is the app's own name for it (notify:devices:list). The app registers it again when it next asks for push.
+
 ## `realtime`
 
 ### `palbase realtime:channels:get`
@@ -2171,7 +2195,8 @@ palbase support:ask "<question>" [--no-context]
 
 It is answered by a model Palbase pays for, from Palbase's documentation and — unless --no-context — this environment's machines, their last builds and a failed build's log, read with your sign-in or PALBASE_TOKEN (what it cannot read is left out).
 Keys, tokens and passwords in what is sent are masked before anything reads them.
-When the answer finds something Palbase lacks, it is logged under the case it names, and you are mailed when it is closed (asked with an environment token, the owners of its organization are).
+When the answer finds something Palbase lacks, it is logged under a case the CLI prints, and you are mailed when it is closed (asked with an environment token, the owners of its organization are). An answer that finds nothing lacking is printed alone, with no case number.
+Palbase keeps every question with its answer, masked, to see what it is asked most and make its docs better there — not what this environment showed, nor who asked; a project's questions go when the project is deleted.
 A person asks 30 questions an hour, a project's people 60. An environment token narrowed to the support scope asks too.
 
 ```text

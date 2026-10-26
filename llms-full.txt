@@ -1680,7 +1680,7 @@ What the docs do not answer — a command or call that fails with nothing to act
 palbase support:ask "machines:deploy fails with build_failed and the log ends at npm ci — what is wrong?"
 ```
 
-The answer comes from these docs and from what the environment shows you: its machines, their last builds and the end of a failed build's log, read with your own sign-in or token and sent with the question. When the answer is that Palbase lacks something, the CLI prints a case number: Palbase has it, and you are told by email when Palbase closes it. Keys, tokens and passwords in a question are masked before anyone reads it. An agent asks with an environment token that has the `support` scope. A person asks 30 questions an hour, a project 60.
+The answer comes from these docs and from what the environment shows you: its machines, their last builds and the end of a failed build's log, read with your own sign-in or token and sent with the question. When the answer is that Palbase lacks something, the CLI prints a case number: Palbase has it, and you are told by email when Palbase closes it. An answer that finds nothing lacking is printed alone, with no case number. Keys, tokens and passwords in a question are masked before anyone reads it. Palbase keeps every question with its answer — masked, without what the environment showed or who asked — to see what it is asked most and make these docs better there; a project's questions go when the project is deleted. An agent asks with an environment token that has the `support` scope. A person asks 30 questions an hour, a project 60.
 
 ## What the commands cover
 
@@ -1705,9 +1705,9 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.18.6 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.20.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-382 commands in 32 groups.
+384 commands in 32 groups.
 
 ## Global flags
 
@@ -3046,6 +3046,30 @@ Whether each channel can send now, through which providers, and what to do when 
 palbase notify:deliverability
 ```
 
+### `palbase notify:devices:list`
+
+The devices a push reaches, newest first: each user's, and the installations no one is signed in on — never a token
+
+```sh
+palbase notify:devices:list [--user <id>] [--platform android|ios|ios_voip|web] [--limit <n>]
+```
+
+```text
+      --user <id>            one user's devices
+      --platform <platform>  one platform's: android, ios, ios_voip or web
+      --limit <n>            how many (default 50, at most 500)
+```
+
+### `palbase notify:devices:delete`
+
+Forget a device — every token it registered, whoever is signed in on it, no one included: a push reaches it no more
+
+```sh
+palbase notify:devices:delete <device_id>
+```
+
+The device's id is the app's own name for it (notify:devices:list). The app registers it again when it next asks for push.
+
 ## `realtime`
 
 ### `palbase realtime:channels:get`
@@ -3874,7 +3898,8 @@ palbase support:ask "<question>" [--no-context]
 
 It is answered by a model Palbase pays for, from Palbase's documentation and — unless --no-context — this environment's machines, their last builds and a failed build's log, read with your sign-in or PALBASE_TOKEN (what it cannot read is left out).
 Keys, tokens and passwords in what is sent are masked before anything reads them.
-When the answer finds something Palbase lacks, it is logged under the case it names, and you are mailed when it is closed (asked with an environment token, the owners of its organization are).
+When the answer finds something Palbase lacks, it is logged under a case the CLI prints, and you are mailed when it is closed (asked with an environment token, the owners of its organization are). An answer that finds nothing lacking is printed alone, with no case number.
+Palbase keeps every question with its answer, masked, to see what it is asked most and make its docs better there — not what this environment showed, nor who asked; a project's questions go when the project is deleted.
 A person asks 30 questions an hour, a project's people 60. An environment token narrowed to the support scope asks too.
 
 ```text
@@ -11236,7 +11261,7 @@ export class ChatPush {
 
 A push is one message per user, delivered to **every device of theirs** — an Expo token through Expo, a VoIP token through APNs, an iOS token through APNs if the project has it (else FCM), Android through FCM, a browser through its own push service (Web Push, below). `to: { topic }` sends one message to a topic's followers instead. Fields beyond the title and body: `data` (4 KiB for the app), `deep_link`, `image` (https), `badge`, `sound`, `silent`, `content_available`, `mutable_content`, `collapse_key`, `ttl`, `priority`, and `push_type: "voip"` for a call ring to `ios_voip` devices.
 
-**Devices are the app's to register**, and the iOS and Android SDKs do it for you: `POST /notify/devices` with the token its push SDK gave it (`device_id`, `platform` — `android`, `ios`, `ios_voip` or `web` — `token`, the install's `installation_id`, and an iOS token's `apns_environment`: `sandbox` or `production`). With no one signed in, the publishable key alone registers it as the install's, proven with the install's secret (`X-Palbase-Installation-Secret`): a push that names the install — `to: { installation_ids }` — reaches it, so an app reaches people who never signed up. When someone signs in, their registration takes the device and it is theirs; signed out, the app registers it as the install's again. A user's device is the session's it was registered in: when the session ends — the user signed out or ended it from another device, its refresh token was revoked, an admin revoked it — the device is forgotten, and no push of theirs reaches it. A token another device held moves to this one. Your backend reads a user's devices (never their tokens) with `listUserDevices({ path: { user_id } })`.
+**Devices are the app's to register**, and the iOS and Android SDKs do it for you: `POST /notify/devices` with the token its push SDK gave it (`device_id`, `platform` — `android`, `ios`, `ios_voip` or `web` — `token`, the install's `installation_id`, and an iOS token's `apns_environment`: `sandbox` or `production`). With no one signed in, the publishable key alone registers it as the install's, proven with the install's secret (`X-Palbase-Installation-Secret`): a push that names the install — `to: { installation_ids }` — reaches it, so an app reaches people who never signed up. When someone signs in, their registration takes the device and it is theirs; signed out, the app registers it as the install's again. A user's device is the session's it was registered in: when the session ends — the user signed out or ended it from another device, its refresh token was revoked, an admin revoked it — the device is forgotten, and no push of theirs reaches it. A token another device held moves to this one. Your backend reads a user's devices (never their tokens) with `listUserDevices({ path: { user_id } })`. It forgets one with `deleteMyDevice({ path: { device_id } })` and the secret key — every registration of that device in the environment, whoever is signed in on it, no one included: a test device, a lost phone, an install no session will forget; from a terminal, `palbase notify:devices:list` finds it and `palbase notify:devices:delete <device_id>` forgets it.
 
 **An app taken off a phone** shows when its next push goes: APNs answers `410`, FCM `UNREGISTERED`. The device is forgotten, and `notification.uninstalled` (`{ platform, provider, device_id, installation_id, user_id }`) goes into the person's timeline and to your webhook — the uninstall you can count and reach back for by other means.
 
@@ -12296,6 +12321,8 @@ export class RepliesController {
 
 The models answer with Palbase's own provider keys, unless the project connected a key of its own for the model's provider (`connectProvider`, or Studio's **AI › Models & keys**). A call under the project's own key is billed to it by the provider, and Palbase charges nothing for it.
 
+Kimi K3.1 Pro (`kimi:kimi-k3.1-pro`, Moonshot AI) is answered only when a project names it: no role is Kimi. Moonshot's terms let it use what it is sent to improve its services: always on Palbase's key, and on a project's own key unless the project has agreed otherwise with Moonshot in writing. It always thinks, at `low`, `high` or `max` (`max` when none is named), and it reads pictures.
+
 - **Each month brings $1.00 of Palbase's models free**, to each environment: its own dollar, whatever its plan and its organization's other environments ([Billing](/docs/getting-started/billing)).
 - **Past it**, an environment on Pay as you go pays from its own credit, at the provider's price and 10%. One on Free, one whose credit ran out, or one at its monthly limit is refused (`402 ai_payment_required`) until the month ends (UTC), or until it is on Pay as you go with credit: a top-up serves it again within a minute.
 - **A monthly budget.** An owner or an admin of the organization may set the most a project spends on Palbase's models in a month, in Studio's **AI › Settings** or with the CLI. Past it, calls to them are refused (`402 ai_budget_reached`) until the month ends or the budget is raised, and the organization's owners are emailed, once a month and budget. The project's key and its environment tokens cannot set it: what spends the money does not raise its own limit.
@@ -12452,7 +12479,7 @@ The agent is your build's: the build writes it into its contract (`x-palbase-age
 | `tools` | 64 at most, an MCP server's tools counted. |
 | `subagents` | 16 at most: each a `name`, a `description` the agent reads to hand it work, and its own `instructions`, `model` and `tools`. `required: true` fails the turn when its part fails. |
 | `maxToolCalls` | The turn's tool calls, 1 to 10 000. Past it the agent is told it has no tools left, and answers. |
-| `thinking` | `visible` shows the model's reasoning in the chat's stream as `thinking` parts. `hidden` does not ask for it. When the model's provider will not give it, the turn says so once: a `thinking` part with `unavailable: true`, the `model` and the provider's `reason`. One cause is an OpenAI organization not verified for reasoning summaries; Anthropic's models (`strong`) show theirs. |
+| `thinking` | `visible` shows the model's reasoning in the chat's stream as `thinking` parts. `hidden` does not ask for it. When the model's provider will not give it, the turn says so once: a `thinking` part with `unavailable: true`, the `model` and the provider's `reason`. One cause is an OpenAI organization not verified for reasoning summaries; Anthropic's models (`strong`) and Kimi show theirs. |
 
 ### Agents the project keeps
 
@@ -16010,7 +16037,7 @@ stopList();
 | Call | What it is |
 |---|---|
 | `conversations()` | The person's conversations, the latest first: `items`, `unread` across them, and `synced` once the device's copy caught up |
-| `conversation(id)` | One conversation: `conversation`, `entries` (its timeline, the oldest first, then what is on its way), `members`, `typing`, `hasEarlier` |
+| `conversation(id)` | One conversation: `conversation`, `entries` (its timeline, the oldest first, then what is on its way), `members`, `typing`, `hasEarlier`; opened at a message (`{ at }`), `focus` and `hasLater` too ([Search](#search)) |
 | `direct(userId)` | The direct conversation with someone |
 | `group({ title, memberIds, description, photo, settings })` | A new group, the person its owner; `notAdded` names whom the project's hook kept out |
 | `thread(conversationId, rootId)` | A message's thread: `root`, `entries`, `thread` (its count, its last answer, who answered, its unread count) |
@@ -16063,6 +16090,36 @@ await pb.messaging.send(conversationId, { text: "Good morning", sendAt: nine });
 ```
 
 A message waits in the outbox while the browser is offline or the server is away and goes once it can, once; an entry of kind `pending` is one on its way. `edit`, `remove` (for `everyone` or `me`), `react` and `unreact`, `markRead`, `typing`, `cancelScheduled` and `editScheduled` change what was said. `open(message, attachmentId)` downloads a file and decrypts it in the browser; a message seen once gives its files by `viewOnce(message)` alone, and the app holds them — the device keeps none.
+
+## Search
+
+`search(query, { conversationId, limit, cursor })` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one. Each hit carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, `peer`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 code units, as a string's. The first page also lists the person's conversations whose name says it (`conversations`), from their own list. What the module finds and never finds: [Messaging](/docs/messaging/overview#search).
+
+A find opens where it was said: `conversation(id, { at })` is the conversation's stretch around the message, `focus` naming it to scroll to and mark. `loadEarlier()` reads back from there and `loadLater()` forward; once it reaches the newest, `hasLater` is false and it is the conversation's timeline again. An answer the conversation's timeline does not show has a `threadRootId`: open its thread at it.
+
+```ts
+// src/search.ts
+import { pb } from "./lib/palbase";
+
+const found = await pb.messaging.search("toplanti");
+for (const c of found.conversations) console.log(c.title); // their names say it: draw them first
+
+const mark = (text: string, at: { offset: number; length: number }[]) =>
+  at.reduceRight((t, m) => `${t.slice(0, m.offset)}<b>${t.slice(m.offset, m.offset + m.length)}</b>${t.slice(m.offset + m.length)}`, text);
+for (const hit of found.messages) {
+  console.log(hit.title, mark(hit.message.text ?? "", hit.matches.filter((m) => m.field === "text")));
+}
+
+// Tapped: opened at the message, the message marked.
+const hit = found.messages[0];
+const at = hit.threadRootId
+  ? pb.messaging.thread(hit.conversation.id, hit.threadRootId, { at: hit.message.id })
+  : pb.messaging.conversation(hit.conversation.id, { at: hit.message.id });
+at.subscribe(() => console.log(at.state.entries.length, "around", at.state.focus));
+
+// More: while nextCursor is not null.
+const more = found.nextCursor ? await pb.messaging.search("toplanti", { cursor: found.nextCursor }) : null;
+```
 
 ## A message while the app is open
 
@@ -18403,7 +18460,7 @@ The project holds its clients to limits the platform sets and the project may lo
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.7.2 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.8.1 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -18461,6 +18518,35 @@ struct Chat: View {
 ## Writing
 
 `send(_:_:)` takes text, or `SendOptions`: `replyTo`, `threadId` and `alsoInConversation`, `mentions`, `files` (encrypted on the phone before they are uploaded), `expiresIn` with `expiresFrom`, `viewOnce`, and `sendAt` for a message the server sends later. A message waits in the outbox while the phone is offline and goes once it can, once. `edit`, `remove`, `react`, `unreact`, `markRead`, `typing`, `cancelScheduled` and `editScheduled` change what was said; `open(_:attachment:)` downloads and decrypts a file, and a message seen once gives its files by `viewOnce(_:)` alone — held by the app, never by the phone's copy.
+
+## Search
+
+`search(_:)` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one (`in:`). Each `SearchHit` carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, `peer`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 code units. The first page also lists the person's conversations whose name says it (`conversations`), found on the phone. What the module finds and never finds: [Messaging](/docs/messaging/overview#search).
+
+```swift
+let found = try await pb.messaging.search("toplanti")
+for c in found.conversations { print(c.title ?? "Chat") }   // their names say it: draw them first
+for hit in found.messages {
+    let text = hit.message.text ?? ""
+    var row = AttributedString(text)   // the text, what was asked in bold
+    for m in hit.matches where m.field == .text {
+        let from = text.utf16.index(text.startIndex, offsetBy: m.offset)
+        let to = text.utf16.index(from, offsetBy: m.length)
+        if let r = Range(from..<to, in: row) { row[r].inlinePresentationIntent = .stronglyEmphasized }
+    }
+}
+let more = try await pb.messaging.search("toplanti", cursor: found.nextCursor)   // while nextCursor is not nil
+```
+
+A find opens where it was said: `conversation(_:at:)` is the conversation's page around it, `focus` naming the message to scroll to and mark. `loadEarlier()` reads back from there and `loadLater()` forward; once it reaches the newest, `hasLater` is false and it is kept current as any. An answer the conversation's timeline does not show has a `threadRootId`: open its thread at it.
+
+```swift
+if let root = hit.threadRootId {
+    thread = pb.messaging.thread(hit.conversation.id, root: root, at: hit.message.id)
+} else {
+    chat = pb.messaging.conversation(hit.conversation.id, at: hit.message.id)   // chat.focus == hit.message.id
+}
+```
 
 ## A message while the app is open
 
@@ -20589,7 +20675,7 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.7.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.8.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // pushes: the FCM token, and the service that draws them
     implementation("studio.palbase:palbase-messaging")  // pb.messaging
@@ -20626,6 +20712,33 @@ fun Chat(pb: PalbaseClient, id: String) {
 ```
 
 `pb.messaging.direct(userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message). A message waits in the outbox while the phone is offline and goes once it can, once. Files are encrypted on the phone (AES-256-GCM) before they are uploaded; `pb.messaging.open(message, attachment)` downloads and decrypts one, and a message seen once gives its files by `pb.messaging.viewOnce(message)` alone.
+
+## Search
+
+`pb.messaging.search(query)` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one (`conversationId`). Each `SearchHit` carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 offsets, as a `String`'s. The first page also lists the person's conversations whose name says it (`conversations`), found on the phone. What the module finds and never finds: [Messaging](/docs/messaging/overview#search).
+
+```kotlin
+val results = pb.messaging.search("toplanti")
+results.conversations.forEach { c -> Text(c.title ?: "Chat") } // their names say it: draw them first
+results.messages.forEach { hit ->
+    Text(hit.title ?: "Chat")
+    Text(buildAnnotatedString {
+        append(hit.message.text ?: "")
+        hit.matches.filter { it.field == SearchMatch.Field.TEXT }.forEach { m ->
+            addStyle(SpanStyle(fontWeight = FontWeight.Bold), m.offset.toInt(), (m.offset + m.length).toInt())
+        }
+    })
+}
+// More: pb.messaging.search("toplanti", cursor = results.nextCursor) while nextCursor is not null —
+// a page may hold fewer messages than asked, even none.
+```
+
+A find opens where it was said: `pb.messaging.conversation(hit.conversation.id, at = hit.message.id)` is the conversation's page around it, `focus` naming the message to scroll to and mark. `loadEarlier()` reads back from there and `loadLater()` forward; once it reaches the newest, `hasLater` is false and it reads on live. An answer the conversation's timeline does not show has a `threadRootId`: open its thread at it.
+
+```kotlin
+val view = hit.threadRootId?.let { root -> pb.messaging.thread(hit.conversation.id, root, at = hit.message.id) }
+    ?: pb.messaging.conversation(hit.conversation.id, at = hit.message.id)
+```
 
 ## Pushes
 
@@ -21831,6 +21944,105 @@ The platform signs what it asks of a machine the same way, with the key it start
 - [Server SDK Overview](/docs/server/overview) — `createServer`, refusals and retries
 - [Storage](/docs/backend/storage) — what emits `file.uploaded`, `file.deleted` and `file.moved`
 - [Secrets](/docs/backend/secrets) — where a receiving server keeps its endpoint secret
+
+
+
+<!-- ===== cloud/overview ===== -->
+
+# Overview
+
+`palbase/cloud` is Palbase run from your own server: one client, made with your **organization's access token**, that does everything Studio and the CLI do through the API — open projects and environments, put them on Pay as you go and top up their credit from your card, read their usage and invoices, build machines and databases — and reaches every project's modules at its own address: its users, files, analytics, purchases and their charts, AI, messaging and the rest. It is for a product that opens a Palbase project for each of its own customers and keeps Palbase out of their sight: your customers sign in to your product, and your server does the rest with one token.
+
+Use it from a server you control. It refuses to run in a browser — the token can open, change and pay for every project of your organization, so it never belongs in an app or a web page. An app keeps using `palbase/web`, the iOS or Android SDK, with its project's publishable key.
+
+## The token
+
+Make an access token in Studio (**Organization → Access tokens**) with the **admin** role, or **member** for a server that only reads. Making one is a person's to do — a token never makes another — as are accepting the terms and saving the organization's card. Keep it in your server's secrets, as `PALBASE_TOKEN`:
+
+- It starts with `pbo_` and ends in a checksum: `palbase/cloud` refuses one that is cut short, mistyped or of another kind before anything is sent (`tokenIsWellFormed(token)` asks the same). Tokens made before 2026-10-25 carry no checksum: make a new one.
+- It does what its role does, in your organization alone. Another organization's project answers `404`, the same as a project that does not exist.
+- It ends on its date, when it is removed, and when the person who made it leaves the organization or is made less than its role.
+
+## Quick example
+
+```ts
+// server.ts
+import { PalbaseCloud } from "palbase/cloud";
+
+const cloud = new PalbaseCloud({ token: process.env.PALBASE_TOKEN! });
+
+// One project for one of your customers, and its environment — Free until its first top-up.
+// A project opened by the API has no environment yet; its keys are shown once, as the environment is added.
+const org = process.env.PALBASE_ORG_ID!;
+const { data: made } = await cloud.projects.create({ path: { id: org }, body: { name: "customer-1042" } });
+const { data: added } = await cloud.projects.addEnvironment({ path: { id: made.project.id }, body: { name: "main", slug: "main" } });
+const ref = added.environment.ref;
+
+// Its first top-up, from the organization's default card, moves it to Pay as you go.
+await cloud.billing.topUp({ path: { id: org, ref }, body: { amount_micros: 20_000_000, plan: "pay_as_you_go" } });
+
+// Topped up again by itself: $20 whenever it falls under $5.
+await cloud.billing.steer({ path: { id: org, ref }, body: { auto_topup: true, auto_threshold_micros: 5_000_000, auto_amount_micros: 20_000_000 } });
+
+// What it used, and its users — at the project's own address.
+const usage = await cloud.projects.usage({ path: { ref } });
+const users = await cloud.project(ref).auth.adminListUsers({ query: { limit: 50 } });
+console.log(usage.data, users.data.users.length);
+```
+
+Every call takes `{ path, query, headers, body }` as its operation needs them and answers `{ status, data, headers }`; a refusal is thrown as a `PalbaseError` with its `status` and `code`, as in [palbase/server](/docs/server/overview). Writes take an `Idempotency-Key` header and are safe to send again with the same one.
+
+## What is in it
+
+The client's own namespaces are Studio's API — the same calls Studio's screens make:
+
+| Namespace | What it does |
+| --- | --- |
+| `orgs`, `projects` | the organization, its members and audit log; projects and their environments, usage, keys' hints, GitHub installations shared to a new environment |
+| `billing` | the bill, cards, invoices and charges; an environment's plan, monthly limit, automatic top-up, balance and ledger; top-ups and bank transfers |
+| `webhooks`, `orgWebhooks` | an environment's webhook endpoints and deliveries; the organization's own endpoints for its projects' billing events |
+| `environmentTokens` | tokens for one environment: an agent's, or one of your users' (below) |
+| `apps`, `snippets`, `chartViews`, `accessRequests`, `docs` | client apps, saved database snippets and chart views, access requests, the docs' search |
+
+`cloud.project(ref)` is one environment's modules: `auth`, `storage`, `analytics`, `purchases`, `ai`, `messaging`, `notify`, `flags`, `journeys`, `secrets`, `stores`, `realtime` and `machines` (its machines and databases) — every call of theirs a server makes, by the names their API reference gives them. What only an app's user calls — signing in, signing up, a password reset — is not there: that is the apps' SDKs'.
+
+## Your users: a token each
+
+Your customers' people never get a Palbase account. When one of them works in your product — your dashboard, an AI agent acting for them — mint them a token for their project alone, in their role, for the time they need it:
+
+```ts
+import { PalbaseCloud } from "palbase/cloud";
+
+const cloud = new PalbaseCloud({ token: process.env.PALBASE_TOKEN! });
+const ref = "abcd1234efgh"; // the customer's environment
+
+const { data: minted } = await cloud.environmentTokens.mint({
+  path: { ref },
+  body: { name: "dashboard", role: "member", on_behalf_of: "ada@customer-1042.com", expires_in_minutes: 60 },
+});
+// minted.token (pbe_…) reads that environment alone: another answers 404, a member's write 403.
+```
+
+The token is shown once. It does at most what its role does and never more than what minted it; it makes no token and does no organization's work; `on_behalf_of` is recorded beside its every call in the environment's audit. It ends after `expires_in_minutes` (5 to 240), when it is revoked, and when what minted it ends.
+
+## Billing events to your server
+
+Register your organization's endpoint once, and each of your projects' balance events reaches it as it happens — with its `ref`, its name and the amounts:
+
+```ts
+import { PalbaseCloud } from "palbase/cloud";
+
+const cloud = new PalbaseCloud({ token: process.env.PALBASE_TOKEN! });
+const org = process.env.PALBASE_ORG_ID!;
+
+const { data: endpoint } = await cloud.orgWebhooks.add({
+  path: { id: org },
+  body: { url: "https://api.example.com/palbase/billing", events: ["org.billing.low_balance", "org.billing.balance_exhausted", "org.billing.limit_reached", "org.billing.topup_failed"] },
+});
+// endpoint.secret is shown once: verify each delivery's Palbase-Signature with it.
+```
+
+They are signed as a project's events are ([Webhooks](/docs/server/webhooks)). An environment's own endpoints get its `billing.*` events with its `ref` and never an amount: the amounts are the organization's.
 
 
 
@@ -24897,6 +25109,16 @@ Nothing else reads what is kept, and after 14 days it is gone — even when the 
 
 A person may hide their read receipts (`PATCH /messaging/me`, `read_receipts: false`): in direct conversations they then show no one what they read and see no one's; in groups receipts are always shown.
 
+## Search
+
+A person finds their messages by their words — in one conversation, or across all of theirs — the newest first (`GET /messaging/search`). A word's beginning finds it: "toplanti" finds "Toplantıda", as capitals, accents and the Turkish i's are one. Every word asked must be there, in what was said or in a file's name. Each message found comes with the conversation it is in, the people it shows (who wrote it, and the other person of a direct conversation) and where it says what was asked, to highlight. The app opens the conversation at that message (`around`) and pages back and forward from there. The clients also list, first, the conversations whose name matches.
+
+- **Only what the person sees.** Nothing from before they joined a group that keeps its history from new members, nor after they left; nothing they cleared or removed for themselves, nor an answer in the thread of one; nothing a person they block sent them since, in their direct conversation; nothing removed.
+- **Never found.** Messages seen once, and those of vanish mode. A message changed is found by what it says now.
+- **Kept encrypted.** The words are kept as marks the conversation's key makes of their beginnings: never readable in the database, and one word said in two conversations leaves unrelated marks. Within one conversation the marks do show which of its messages share a word's beginning, and how often — not what the word is: the price of searching encrypted words on the server. A word's middle ("plantı") finds nothing, and a single letter finds only a word of one letter.
+
+The 2,000 conversations a person spoke in last are searched. Search costs nothing extra: its marks are not counted in what the messages weigh.
+
 ## Screenshots
 
 A browser does not say when someone takes a screenshot, and a phone cannot always stop one:
@@ -26888,6 +27110,37 @@ A push to the branch is built for a machine **when it changes a file in what tha
 A push that changes nothing a machine is built from leaves it as it runs, and does not count against the project's builds for the day. A machine built from the repository's root is built by every push.
 
 Where GitHub's account of a push may not be everything it changed, every machine built from the branch is built: a forced push, a branch's first push, a push of 2,048 commits or more, and a commit that names no files (an empty commit among them) or 3,000 or more.
+
+## For platforms: building with a token
+
+A platform whose own users give their repositories to **its** GitHub App — not to Palbase Cloud — builds their machines without asking them to install another app: it makes a token for each build and gives it with the deploy (`source.access: "token"`). Its users see only the platform; nothing of Palbase is installed on their accounts.
+
+The token is the platform's GitHub App's **installation token, for the machine's repository alone, read-only** — GitHub's `POST /app/installations/{installation_id}/access_tokens` with `repositories: ["<name>"]` and `permissions: { contents: "read" }`. Palbase checks it with GitHub at once: it must be an installation's (`ghs_…`; a person's token is refused), reach the machine's repository and nothing else. What a token may do is not something GitHub tells whoever holds it, so read-only is yours to ask for: Palbase only ever reads with it. The build reads its source with it once and forgets it — no answer, log or build keeps it. One lasts an hour, so make one for each deploy.
+
+```ts
+// platform-server.ts
+import { PalbaseCloud } from "palbase/cloud";
+
+const cloud = new PalbaseCloud({ token: process.env.PALBASE_TOKEN! });
+const ref = process.env.CUSTOMER_ENV_REF!;
+// Your GitHub App's installation token for this repository alone, read-only.
+const token = process.env.REPOSITORY_TOKEN!;
+
+// Opened with a token: its first build is the branch's head (or `commit`).
+await cloud.project(ref).machines.createMachine({ body: {
+  name: "backend", size: "shared-256",
+  source: { repository: "customer/shop", branch: "main", access: "token" },
+  git_access_token: token,
+} });
+
+// Each push your app hears of: a new token, and the commit to build.
+await cloud.project(ref).machines.deployMachine({ path: { name: "backend" }, body: {
+  commit: "4f6e1c2a9b0d7e3f5a8c1b2d4e6f7a9c0b1d2e3f",
+  git_access_token: token,
+} });
+```
+
+A machine read with tokens is deployed by its platform: no push GitHub delivers to Palbase builds it (your app hears the push — its `push` webhook — and deploys the commit), no check is put on its commits, and it does not wait for checks (`deploy_after_checks` is refused). Everything else is a machine's like any other: its builds, their logs, its own logs, rollbacks and its settings ([Builds, Logs & Rollback](/docs/machines/builds)). A change of its branch is built at its next deploy. How it is read is chosen when it is made.
 
 ## What GitHub shows
 

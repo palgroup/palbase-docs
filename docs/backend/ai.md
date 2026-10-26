@@ -66,6 +66,8 @@ export class RepliesController {
 
 The models answer with Palbase's own provider keys, unless the project connected a key of its own for the model's provider (`connectProvider`, or Studio's **AI › Models & keys**). A call under the project's own key is billed to it by the provider, and Palbase charges nothing for it.
 
+Kimi K3.1 Pro (`kimi:kimi-k3.1-pro`, Moonshot AI) is answered only when a project names it: no role is Kimi. Moonshot's terms let it use what it is sent to improve its services: always on Palbase's key, and on a project's own key unless the project has agreed otherwise with Moonshot in writing. It always thinks, at `low`, `high` or `max` (`max` when none is named), and it reads pictures.
+
 - **Each month brings $1.00 of Palbase's models free**, to each environment: its own dollar, whatever its plan and its organization's other environments ([Billing](https://palbase.studio/docs/getting-started/billing)).
 - **Past it**, an environment on Pay as you go pays from its own credit, at the provider's price and 10%. One on Free, one whose credit ran out, or one at its monthly limit is refused (`402 ai_payment_required`) until the month ends (UTC), or until it is on Pay as you go with credit: a top-up serves it again within a minute.
 - **A monthly budget.** An owner or an admin of the organization may set the most a project spends on Palbase's models in a month, in Studio's **AI › Settings** or with the CLI. Past it, calls to them are refused (`402 ai_budget_reached`) until the month ends or the budget is raised, and the organization's owners are emailed, once a month and budget. The project's key and its environment tokens cannot set it: what spends the money does not raise its own limit.
@@ -222,7 +224,7 @@ The agent is your build's: the build writes it into its contract (`x-palbase-age
 | `tools` | 64 at most, an MCP server's tools counted. |
 | `subagents` | 16 at most: each a `name`, a `description` the agent reads to hand it work, and its own `instructions`, `model` and `tools`. `required: true` fails the turn when its part fails. |
 | `maxToolCalls` | The turn's tool calls, 1 to 10 000. Past it the agent is told it has no tools left, and answers. |
-| `thinking` | `visible` shows the model's reasoning in the chat's stream as `thinking` parts. `hidden` does not ask for it. When the model's provider will not give it, the turn says so once: a `thinking` part with `unavailable: true`, the `model` and the provider's `reason`. One cause is an OpenAI organization not verified for reasoning summaries; Anthropic's models (`strong`) show theirs. |
+| `thinking` | `visible` shows the model's reasoning in the chat's stream as `thinking` parts. `hidden` does not ask for it. When the model's provider will not give it, the turn says so once: a `thinking` part with `unavailable: true`, the `model` and the provider's `reason`. One cause is an OpenAI organization not verified for reasoning summaries; Anthropic's models (`strong`) and Kimi show theirs. |
 
 ### Agents the project keeps
 

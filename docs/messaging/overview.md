@@ -44,6 +44,16 @@ Nothing else reads what is kept, and after 14 days it is gone — even when the 
 
 A person may hide their read receipts (`PATCH /messaging/me`, `read_receipts: false`): in direct conversations they then show no one what they read and see no one's; in groups receipts are always shown.
 
+## Search
+
+A person finds their messages by their words — in one conversation, or across all of theirs — the newest first (`GET /messaging/search`). A word's beginning finds it: "toplanti" finds "Toplantıda", as capitals, accents and the Turkish i's are one. Every word asked must be there, in what was said or in a file's name. Each message found comes with the conversation it is in, the people it shows (who wrote it, and the other person of a direct conversation) and where it says what was asked, to highlight. The app opens the conversation at that message (`around`) and pages back and forward from there. The clients also list, first, the conversations whose name matches.
+
+- **Only what the person sees.** Nothing from before they joined a group that keeps its history from new members, nor after they left; nothing they cleared or removed for themselves, nor an answer in the thread of one; nothing a person they block sent them since, in their direct conversation; nothing removed.
+- **Never found.** Messages seen once, and those of vanish mode. A message changed is found by what it says now.
+- **Kept encrypted.** The words are kept as marks the conversation's key makes of their beginnings: never readable in the database, and one word said in two conversations leaves unrelated marks. Within one conversation the marks do show which of its messages share a word's beginning, and how often — not what the word is: the price of searching encrypted words on the server. A word's middle ("plantı") finds nothing, and a single letter finds only a word of one letter.
+
+The 2,000 conversations a person spoke in last are searched. Search costs nothing extra: its marks are not counted in what the messages weigh.
+
 ## Screenshots
 
 A browser does not say when someone takes a screenshot, and a phone cannot always stop one:

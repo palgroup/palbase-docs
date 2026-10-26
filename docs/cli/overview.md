@@ -102,7 +102,7 @@ What the docs do not answer — a command or call that fails with nothing to act
 palbase support:ask "machines:deploy fails with build_failed and the log ends at npm ci — what is wrong?"
 ```
 
-The answer comes from these docs and from what the environment shows you: its machines, their last builds and the end of a failed build's log, read with your own sign-in or token and sent with the question. When the answer is that Palbase lacks something, the CLI prints a case number: Palbase has it, and you are told by email when Palbase closes it. Keys, tokens and passwords in a question are masked before anyone reads it. An agent asks with an environment token that has the `support` scope. A person asks 30 questions an hour, a project 60.
+The answer comes from these docs and from what the environment shows you: its machines, their last builds and the end of a failed build's log, read with your own sign-in or token and sent with the question. When the answer is that Palbase lacks something, the CLI prints a case number: Palbase has it, and you are told by email when Palbase closes it. An answer that finds nothing lacking is printed alone, with no case number. Keys, tokens and passwords in a question are masked before anyone reads it. Palbase keeps every question with its answer — masked, without what the environment showed or who asked — to see what it is asked most and make these docs better there; a project's questions go when the project is deleted. An agent asks with an environment token that has the `support` scope. A person asks 30 questions an hour, a project 60.
 
 ## What the commands cover
 

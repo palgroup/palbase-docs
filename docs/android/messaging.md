@@ -25,7 +25,7 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.7.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.8.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // pushes: the FCM token, and the service that draws them
     implementation("studio.palbase:palbase-messaging")  // pb.messaging
@@ -62,6 +62,33 @@ fun Chat(pb: PalbaseClient, id: String) {
 ```
 
 `pb.messaging.direct(userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message). A message waits in the outbox while the phone is offline and goes once it can, once. Files are encrypted on the phone (AES-256-GCM) before they are uploaded; `pb.messaging.open(message, attachment)` downloads and decrypts one, and a message seen once gives its files by `pb.messaging.viewOnce(message)` alone.
+
+## Search
+
+`pb.messaging.search(query)` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one (`conversationId`). Each `SearchHit` carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 offsets, as a `String`'s. The first page also lists the person's conversations whose name says it (`conversations`), found on the phone. What the module finds and never finds: [Messaging](https://palbase.studio/docs/messaging/overview#search).
+
+```kotlin
+val results = pb.messaging.search("toplanti")
+results.conversations.forEach { c -> Text(c.title ?: "Chat") } // their names say it: draw them first
+results.messages.forEach { hit ->
+    Text(hit.title ?: "Chat")
+    Text(buildAnnotatedString {
+        append(hit.message.text ?: "")
+        hit.matches.filter { it.field == SearchMatch.Field.TEXT }.forEach { m ->
+            addStyle(SpanStyle(fontWeight = FontWeight.Bold), m.offset.toInt(), (m.offset + m.length).toInt())
+        }
+    })
+}
+// More: pb.messaging.search("toplanti", cursor = results.nextCursor) while nextCursor is not null —
+// a page may hold fewer messages than asked, even none.
+```
+
+A find opens where it was said: `pb.messaging.conversation(hit.conversation.id, at = hit.message.id)` is the conversation's page around it, `focus` naming the message to scroll to and mark. `loadEarlier()` reads back from there and `loadLater()` forward; once it reaches the newest, `hasLater` is false and it reads on live. An answer the conversation's timeline does not show has a `threadRootId`: open its thread at it.
+
+```kotlin
+val view = hit.threadRootId?.let { root -> pb.messaging.thread(hit.conversation.id, root, at = hit.message.id) }
+    ?: pb.messaging.conversation(hit.conversation.id, at = hit.message.id)
+```
 
 ## Pushes
 

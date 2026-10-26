@@ -51,7 +51,7 @@ stopList();
 | Call | What it is |
 |---|---|
 | `conversations()` | The person's conversations, the latest first: `items`, `unread` across them, and `synced` once the device's copy caught up |
-| `conversation(id)` | One conversation: `conversation`, `entries` (its timeline, the oldest first, then what is on its way), `members`, `typing`, `hasEarlier` |
+| `conversation(id)` | One conversation: `conversation`, `entries` (its timeline, the oldest first, then what is on its way), `members`, `typing`, `hasEarlier`; opened at a message (`{ at }`), `focus` and `hasLater` too ([Search](#search)) |
 | `direct(userId)` | The direct conversation with someone |
 | `group({ title, memberIds, description, photo, settings })` | A new group, the person its owner; `notAdded` names whom the project's hook kept out |
 | `thread(conversationId, rootId)` | A message's thread: `root`, `entries`, `thread` (its count, its last answer, who answered, its unread count) |
@@ -104,6 +104,36 @@ await pb.messaging.send(conversationId, { text: "Good morning", sendAt: nine });
 ```
 
 A message waits in the outbox while the browser is offline or the server is away and goes once it can, once; an entry of kind `pending` is one on its way. `edit`, `remove` (for `everyone` or `me`), `react` and `unreact`, `markRead`, `typing`, `cancelScheduled` and `editScheduled` change what was said. `open(message, attachmentId)` downloads a file and decrypts it in the browser; a message seen once gives its files by `viewOnce(message)` alone, and the app holds them — the device keeps none.
+
+## Search
+
+`search(query, { conversationId, limit, cursor })` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one. Each hit carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, `peer`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 code units, as a string's. The first page also lists the person's conversations whose name says it (`conversations`), from their own list. What the module finds and never finds: [Messaging](https://palbase.studio/docs/messaging/overview#search).
+
+A find opens where it was said: `conversation(id, { at })` is the conversation's stretch around the message, `focus` naming it to scroll to and mark. `loadEarlier()` reads back from there and `loadLater()` forward; once it reaches the newest, `hasLater` is false and it is the conversation's timeline again. An answer the conversation's timeline does not show has a `threadRootId`: open its thread at it.
+
+```ts
+// src/search.ts
+import { pb } from "./lib/palbase";
+
+const found = await pb.messaging.search("toplanti");
+for (const c of found.conversations) console.log(c.title); // their names say it: draw them first
+
+const mark = (text: string, at: { offset: number; length: number }[]) =>
+  at.reduceRight((t, m) => `${t.slice(0, m.offset)}<b>${t.slice(m.offset, m.offset + m.length)}</b>${t.slice(m.offset + m.length)}`, text);
+for (const hit of found.messages) {
+  console.log(hit.title, mark(hit.message.text ?? "", hit.matches.filter((m) => m.field === "text")));
+}
+
+// Tapped: opened at the message, the message marked.
+const hit = found.messages[0];
+const at = hit.threadRootId
+  ? pb.messaging.thread(hit.conversation.id, hit.threadRootId, { at: hit.message.id })
+  : pb.messaging.conversation(hit.conversation.id, { at: hit.message.id });
+at.subscribe(() => console.log(at.state.entries.length, "around", at.state.focus));
+
+// More: while nextCursor is not null.
+const more = found.nextCursor ? await pb.messaging.search("toplanti", { cursor: found.nextCursor }) : null;
+```
 
 ## A message while the app is open
 

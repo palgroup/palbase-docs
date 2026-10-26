@@ -117,6 +117,10 @@
 - [Overview](https://palbase.studio/docs/server/overview): palbase/server — createServer with the project's secret key: every module's server calls, refusals as PalbaseError, retries and paging.
 - [Webhooks](https://palbase.studio/docs/server/webhooks): The project's events delivered to your server: Palbase-Signature, verifyWebhook, and delivery that may come twice but never not at all.
 
+## Cloud SDK
+
+- [Overview](https://palbase.studio/docs/cloud/overview): palbase/cloud — your organization's access token on your own server: every project's environments, billing, usage, machines and modules, and a token for each of your users, without the CLI.
+
 ## Auth
 
 - [Overview](https://palbase.studio/docs/auth/overview): An environment's auth, set up from Studio, the CLI or the admin calls: passwords, email confirmation, email links, sessions and token lifetimes, passkeys, risk, security emails, signing keys and auth's own emails.
