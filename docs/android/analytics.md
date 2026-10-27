@@ -59,6 +59,25 @@ What is held goes together: 5 seconds after the first of it, as soon as 20 event
 
 ## Timings
 
+While `PERFORMANCE` is granted, the SDK times on its own how long the launch took, from the process's start to its first activity started, as an `app_start` sample named `cold` — a process begun for a push, a job or a widget and opened later is not one. In an app built with the Palbase Gradle plugin it also times each request the app makes — its own OkHttp clients and `HttpURLConnection`s and every library's, the SDK's among them — as a `network` sample: its method, its address as its route (no query, an id in the path as `:id`), its status and how long it took. What analytics itself sends is not timed.
+
+```kotlin
+// settings.gradle.kts
+pluginManagement { repositories { gradlePluginPortal(); google(); mavenCentral(); maven("https://palgroup.github.io/palbase-android/") } }
+
+// app/build.gradle.kts
+plugins {
+    id("com.android.application")
+    id("studio.palbase") version "0.10.0"
+}
+```
+
+The plugin rewrites, as the app is built, each `OkHttpClient()`, `OkHttpClient.Builder.build()`, `URL.openConnection()` and a connection's `getResponseCode()` and `getInputStream()` — in the app and in every library it takes — to the SDK, which does what was asked and times it. It reaches no network, and an app without `palbase-analytics` is built as it was. Each timing is turned off in `AnalyticsOptions(network = false, appStart = false)`.
+
+An app whose users can grant `PERFORMANCE` declares these timings in Play Console's Data safety form as **App info and performance › Diagnostics**, collected, for analytics.
+
+What the app measures itself:
+
 ```kotlin
 import studio.palbase.analytics.Analytics
 

@@ -76,6 +76,30 @@ const { data: minted } = await cloud.environmentTokens.mint({
 
 The token is shown once. It does at most what its role does and never more than what minted it; it makes no token and does no organization's work; `on_behalf_of` is recorded beside its every call in the environment's audit. It ends after `expires_in_minutes` (5 to 240), when it is revoked, and when what minted it ends.
 
+## Confirming for your users
+
+A few steps are a person's to confirm — sending an app to App Review, releasing it, expiring a build ([Actions](https://palbase.studio/docs/distribution/overview#actions)). Your users have no Palbase account, so your server confirms for them with your organization's token, once an owner or an admin turns on **Confirms for people** for it in Studio (**Organization › Access tokens**). Each confirmation names the person, and the action keeps them as its decider:
+
+```ts
+import { PalbaseCloud } from "palbase/cloud";
+
+const ref = "abcd1234efgh"; // the customer's environment
+const forAda = new PalbaseCloud({
+  token: process.env.PALBASE_TOKEN!,
+  fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init);
+    request.headers.set("Palbase-For", "yourplatform:user_42"); // who clicked, in your product
+    return fetch(request);
+  },
+});
+const stores = forAda.project(ref).stores;
+const { data: action } = await stores.getAction({ path: { action_id: "the planned action's id" } });
+// Shown to your user first: action.summary. Then, on their yes:
+await stores.confirmAction({ path: { action_id: action.id }, body: { hash: action.hash } });
+```
+
+Ask your user before you confirm, with the plan's own summary: the hash makes sure what runs is what they read. A token without **Confirms for people** that names anyone is refused (`403 token_does_not_confirm`).
+
 ## Billing events to your server
 
 Register your organization's endpoint once, and each of your projects' balance events reaches it as it happens — with its `ref`, its name and the amounts:

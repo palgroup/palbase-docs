@@ -103,6 +103,7 @@ A chat that works in a workspace gives its agent the workspace's own tools as we
 | `palai.workspace.commit`, `palai.publish.push` | Commit, as the member the turn is for, and push to the chat's branch. |
 | `palai.artifact.publish`, `palai.artifact.open`, `palai.artifact.read`, `palai.artifact.list` | Publish a file as the turn's output, and read the ones published. |
 | `palai.agent.spawn`, `palai.agent.status`, `palai.agent.send`, `palai.agent.stop` | Hand work to a subagent, follow it, message it and stop it. |
+| `palai.advisor.ask` | Ask the agent's [advisor](#the-advisor), when it has one. |
 
 The table a backend tool reads:
 
@@ -225,6 +226,43 @@ The agent is your build's: the build writes it into its contract (`x-palbase-age
 | `subagents` | 16 at most: each a `name`, a `description` the agent reads to hand it work, and its own `instructions`, `model` and `tools`. `required: true` fails the turn when its part fails. |
 | `maxToolCalls` | The turn's tool calls, 1 to 10 000. Past it the agent is told it has no tools left, and answers. |
 | `thinking` | `visible` shows the model's reasoning in the chat's stream as `thinking` parts. `hidden` does not ask for it. When the model's provider will not give it, the turn says so once: a `thinking` part with `unavailable: true`, the `model` and the provider's `reason`. One cause is an OpenAI organization not verified for reasoning summaries; Anthropic's models (`strong`) and Kimi show theirs. |
+| `advisor` | A second model that reads the agent's work and holds it to your rules: [The advisor](#the-advisor). |
+
+### The advisor
+
+An agent can have an **advisor**: a second model that reads what the agent does as a person watching it would — its messages, the reasoning its model gives, its tool calls and what they answered, the files it wrote — and, when a decision goes against the agent's instructions, its goal or the advisor's own rules, tells the agent so.
+
+```ts
+// src/modules/coder/coder.agent.ts
+import { Palbase } from "palbase/backend";
+
+export const coder = Palbase.ai.agent("coder", () => ({
+  model: "openai:gpt-6-luna",
+  instructions: "You are the shop's coding agent.",
+  tools: [/* … */],
+  advisor: {
+    model: "anthropic:claude-haiku-5-5",
+    instructions: "Rule 1: new files go under src/ only. Rule 2: never edit a test to make it pass.",
+    tools: [{ source: "mcp", name: "shop-docs", only: ["search"] }],
+  },
+}));
+```
+
+- **After every step** the advisor reads what the agent did since its last look, in the background: the agent does not wait for it. When it has something the agent must know, the agent reads it at its next step, as a message that begins `[palai:advisor]` — the advisor's word, not the person's. By default it says nothing.
+- **A turn's answer waits for it.** When the agent answers, the advisor reads the answer first. If it objects, the agent is told and goes on in the same turn; a turn's answer is held twice at most. The advisor never stops the turn: the agent has the last word.
+- **The agent can ask it**, with the `palai.advisor.ask` tool. A decision none of the agent's instructions, the advisor's rules or the work so far settle — a business rule, a price, a name — the advisor does not make up: it tells the agent to ask the person.
+- **It only reads.** It reads the agent's workspace (files, search, the working tree's diff) and the tools of the MCP servers named in its `tools` that say they only read (`readOnlyHint`). A server's other tools are left out; a tool named in `only` that does not say so refuses the turn (`400 advisor_tool_not_read_only`). Nothing it reads waits for a person.
+- **It reads the agent's reasoning** when the model's provider gives it — Anthropic's and OpenAI's models do — even when the agent's `thinking` is `hidden`: then it is asked for the advisor alone and shown in no stream.
+- **Its calls are the turn's**: in the turn's cost (`chats.turnCost(…).advisor` says how much of it was the advisor's) and its budget. A turn past its budget is not read further.
+
+Each reading is an `advisor` part in the chat's stream: `{ kind: "step" | "final" | "ask", verdict: "none" | "heads_up" | "answer" | "unreadable", rule, message, question, told }`. A one-shot answer of an agent with an advisor is read by it too.
+
+| Field | What it is |
+|---|---|
+| `model` | A role or a catalogue model. Left out, the agent's. |
+| `instructions` | Its rules: what it holds the agent to, 64 KiB at most. |
+| `effort` | How hard its model thinks. |
+| `tools` | MCP servers it reads with (`{ source: "mcp", name, only }`), 32 at most. |
 
 ### Agents the project keeps
 
@@ -287,7 +325,7 @@ export class SupportController {
 | `chats.approve(id, approvalId, { reason, as })`, `chats.deny(…)` | A call that waits for a person's yes, made or not. Denied, the agent is told the reason and goes on. |
 | `chats.answer(id, callId, output, { isError, as })` | A client tool's answer: `true` when it is the one taken, `false` when another came first. |
 | `chats.sendToSubagent(id, runId, text, { as })` | A message for a subagent at work, at its next step. |
-| `chats.turnCost(id, responseId)` | What a turn cost so far, its subagents counted: tokens, `costNanoUsd` (and `usd`), and `final` once nothing more of it is settled. `runs` breaks it down run by run: the turn's own and each subagent's, by name, model and state. A turn still at work is read as it spends. |
+| `chats.turnCost(id, responseId)` | What a turn cost so far, its subagents counted: tokens, `costNanoUsd` (and `usd`), and `final` once nothing more of it is settled. `runs` breaks it down run by run: the turn's own and each subagent's, by name, model and state. `advisor` says what the agent's [advisor](#the-advisor) spent of it. A turn still at work is read as it spends. |
 | `chats.events(id)` | The chat as a source a gateway pipes into its channel. See [A chat in an app](#a-chat-in-an-app). |
 
 `send` keys a message on its `clientId`: the same id sent again, a retry, is the same message, delivered once. One is made when you give none. `delivery` is for a message that comes while the agent works: `"next"` (the default) gives it the message at its next step, `"now"` cuts the step it is in.
@@ -382,7 +420,7 @@ With `autoPush: false` a push waits for a member's approval, as an `approval: tr
 
 ## A chat in an app
 
-A chat reaches its members through a gateway declared with `chat: true`. When its first member joins, the gateway pipes the chat into its channel. From then on the **platform** writes the chat there itself: the members' messages, each answer as it is written, the tool calls, the approvals and the subagents' work. The backend is not in the stream. The channel keeps the chat a day (or what `durable` says), so a member who joins later, or was away, has all of it. What a member does in the chat (a message, a yes or a no, a client tool's answer, stop) comes to the gateway as one of its messages, and the backend does it **as them**.
+A chat reaches its members through a gateway declared with `chat: true`. When its first member joins, the gateway pipes the chat into its channel. From then on the **platform** writes the chat there itself: the members' messages, each answer as it is written, the tool calls, the approvals, the subagents' work and the advisor's readings. The backend is not in the stream. The channel keeps the chat a day (or what `durable` says), so a member who joins later, or was away, has all of it. What a member does in the chat (a message, a yes or a no, a client tool's answer, stop) comes to the gateway as one of its messages, and the backend does it **as them**.
 
 The channel keeps a day of the chat. A chat opened later is read back at `GET /ai/chats/{id}/parts?limit=&cursor=`, a page at a time from its newest end back: the same parts the stream told, in their order, each under the id the channel told it (`part_id`). A client that holds the channel's parts and pages of these keeps each one once. An answer's text is placed by its offset, as in the stream. The last page reaches the chat's start and begins where a fork began. A client that already holds the channel's day passes the `id` of the oldest part it holds as `before=<id>`, and the first page starts just before that part, so the day is not read twice. Each page after it is read by its `next_cursor`. A call with both `cursor` and `before` is refused (`400`). A voice's end is in the pages under the id the channel told it (`vclosed:<voice>`). For a voice the engine lost, whose end its journal never says, it comes right after the voice's last part. Reading a page changes nothing. A client's `loadOlder()` reads the page before the oldest it holds.
 
@@ -473,6 +511,8 @@ In the app, the member joins `SupportGateway` with the chat's id, and the handle
 
 | Status | `error` | When |
 |---|---|---|
+| 400 | `advisor_tool_not_read_only` | The agent's advisor names an MCP server whose tool does not say it only reads (`readOnlyHint`), or a server none of whose tools say so. |
+| 400 | `advisor_tool_waits` | The agent's advisor names an MCP server whose calls wait for a person's yes. |
 | 403 | `server_only` | A user started a chat, or asked for what only the server reads (a turn's cost, a chat's pipe). |
 | 403 | `not_a_member` | `as` names a user who is not a member of the chat. |
 | 403 | `not_your_turn` | `as` decides or answers a turn another member began. |

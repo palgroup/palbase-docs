@@ -103,6 +103,8 @@ palbase stores:actions:decline <action id>
 
 A confirmation names the hash of the plan that was shown, runs it once, and only within a day of planning. It is a person's: a signed-in CLI or Studio's **App Distribution › Actions**, where planned actions wait under **Waiting for you**. An access token, an environment token or the secret key alone is refused (`403 person_required`), so a build machine plans and a person confirms. The CLI shows what the action does and asks before it runs, in every environment; `-y` confirms without asking. Declining needs no person.
 
+A platform whose own users have no Palbase account — a product studio that runs its customers' stores from its own pages — confirms for them with its organization's access token, once an owner or an admin of the organization turns on **Confirms for people** for that token (Studio's **Organization › Access tokens**). Each confirmation then names the person it is for in the `Palbase-For` header (1 to 128 of letters, digits and `. _ : @ -`, such as `yourplatform:user_42`), and the action keeps them as its decider, beside the token. A token without it that names anyone is refused (`403 token_does_not_confirm`); one with it that names no one confirms nothing. In `palbase/cloud`, give the client a `fetch` that sets the header for the person who clicked.
+
 ## In Studio
 
 **App Distribution**, under **Release** in an environment:

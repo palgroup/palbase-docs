@@ -6,7 +6,7 @@
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.8.1 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.10.0 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -91,6 +91,21 @@ if let root = hit.threadRootId {
     thread = pb.messaging.thread(hit.conversation.id, root: root, at: hit.message.id)
 } else {
     chat = pb.messaging.conversation(hit.conversation.id, at: hit.message.id)   // chat.focus == hit.message.id
+}
+```
+
+### By meaning
+
+With the project's `search_by_meaning` on ([Messaging](https://palbase.studio/docs/messaging/overview#by-meaning)), `search(_:by: .meaning)` finds the messages nearest what the question means, in none of its words: "uçuş saati kaçta" finds "Uçağımız sabah dokuzda Sabiha Gökçen'den kalkıyor". The nearest come first, one page (`nextCursor` is nil), each with `score` — how near, 0.3 to 1 — and no `matches`; `conversations` is empty. A hit opens as any does: `conversation(_:at:)`.
+
+```swift
+do {
+    let found = try await pb.messaging.search("uçuş saati kaçta", by: .meaning)
+    for hit in found.messages { print(hit.score ?? 0, hit.title ?? "", hit.message.text ?? "") }
+} catch let e as PalbaseError {
+    // search_by_meaning_off: the project searches by words alone. too_many_searches: a person asks
+    // 30 at once, one more a minute. ai_payment_required: the project's AI use is spent.
+    print(e.code)
 }
 ```
 

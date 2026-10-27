@@ -54,6 +54,15 @@ A person finds their messages by their words — in one conversation, or across 
 
 The 2,000 conversations a person spoke in last are searched. Search costs nothing extra: its marks are not counted in what the messages weigh.
 
+### By meaning
+
+With the project's `search_by_meaning` on, a person also finds their messages by what they mean, in none of the words asked: "uçuş saati" finds "THY 14:30'da kalkıyor" (`GET /messaging/search?by=meaning`). What is found is what is near the question, the nearest first, each with how near (`score`, 0.3 to 1) — one page; a message about something else may still come, further down. The same people see the same messages as by words, and a message changed is found by what it means now.
+
+- **Your choice, off until you turn it on.** Each message's text — not a system message's, nor one seen once, nor one of vanish mode — goes to OpenAI to be embedded (`text-embedding-3-large`), billed to the project as its AI use ([AI](https://palbase.studio/docs/backend/ai#what-it-costs)): about $2.90 a million short messages (about twenty tokens each), and each question a person asks. OpenAI keeps what it is sent up to 30 days for abuse monitoring and never trains on it; say so in your app's privacy policy. Turned on, the messages written before are embedded too, in the background; turned off, nothing more goes to OpenAI and the vectors are removed.
+- **Kept encrypted.** A message's vector says nearly what its text said, so it is kept sealed with the conversation's key, as the message is: a copy of the database holds none readable. A search opens the vectors of the person's conversations in the server's memory alone.
+- **Within reason.** A person asks 30 questions by meaning at once and one more a minute (`429 too_many_searches`, with `Retry-After`); a question asked again within ten minutes is not asked of OpenAI again. Of each conversation, its newest 100,000 messages are searched by meaning. When the project's AI allowance or budget is spent (`402 ai_payment_required`), messages are sent as ever and found by their words; those written meanwhile are embedded once it is renewed.
+- **Short messages.** A message of one word ("tamam") is found by its word, not embedded.
+
 ## Screenshots
 
 A browser does not say when someone takes a screenshot, and a phone cannot always stop one:
@@ -103,6 +112,7 @@ In Studio (**Messaging**), with the CLI (`palbase messaging:settings:set`, `palb
 | `push_preview` | Pushes say what a message says (the default), or only that one came |
 | `deleted_user_messages` | A deleted user's messages: `keep` (the default), their writer shown as a deleted user with nothing personal kept, or `delete` — save what went from screens before, kept its 14 days for a report |
 | `hook` | Who may write to whom (above); none: anyone to anyone |
+| `search_by_meaning` | Messages are found by what they mean too ([Search](#by-meaning)); off (the default): by their words alone, and no message goes to a model |
 
 ## What it costs
 

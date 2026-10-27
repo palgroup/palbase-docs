@@ -2,7 +2,7 @@
 
 # CLI reference
 
-Every command of `palbase` 0.20.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.22.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
 384 commands in 32 groups.
 
@@ -1469,7 +1469,7 @@ palbase analytics:summary [--window <24h>]
 
 ### `palbase messaging:settings:get`
 
-How the environment runs its conversations: how long messages are kept, whether a push says what one says, what becomes of a deleted user's messages, the hook
+How the environment runs its conversations: how long messages are kept, whether a push says what one says, what becomes of a deleted user's messages, whether they are found by what they mean, the hook
 
 ```sh
 palbase messaging:settings:get
@@ -1480,17 +1480,19 @@ palbase messaging:settings:get
 Change how the environment runs its conversations: a setting left out is left as it is
 
 ```sh
-palbase messaging:settings:set [--retention-days <days>|off] [--push-preview on|off] [--deleted-user-messages keep|delete]
+palbase messaging:settings:set [--retention-days <days>|off] [--push-preview on|off] [--deleted-user-messages keep|delete] [--search-by-meaning on|off]
 ```
 
 A shorter retention removes the messages older than it, in every conversation. A deleted user's messages are kept or deleted as the setting is when the user is deleted.
 Deleted, what of theirs had already gone from screens (seen once, its time up, vanish mode, taken back) stays its 14 days, sealed, for reports, then goes.
+Search by meaning on: the app's search({ by: 'meaning' }) finds the messages nearest what a question means, no word of it needed. Each message's text (not a system message's, one seen a limited number of times, nor one of vanish mode) is embedded by the project's embedding model through the AI module and billed as the project's AI use; the messages written before are embedded in the background (seconds to minutes), a new one is found ~5 s after it is sent. Off: no message goes to a model, and the vectors are removed.
 Only what changes is sent: a change made beside this one to another setting stays.
 
 ```text
       --retention-days <days|off>            messages older than this many days are removed (1–36500); off: kept for good
       --push-preview <on|off>                a push says what the message says (on), or only that one came (off)
       --deleted-user-messages <keep|delete>  a deleted user's messages: kept, their writer anonymous, or deleted (what went from screens before stays its 14 days for reports)
+      --search-by-meaning <on|off>           messages are found by what they mean too (on: each embedded through the AI module, billed as AI use), or by their words alone (off)
 ```
 
 ### `palbase messaging:hook:get`

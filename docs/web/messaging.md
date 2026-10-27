@@ -135,6 +135,25 @@ at.subscribe(() => console.log(at.state.entries.length, "around", at.state.focus
 const more = found.nextCursor ? await pb.messaging.search("toplanti", { cursor: found.nextCursor }) : null;
 ```
 
+### By meaning
+
+With the project's `search_by_meaning` on ([Messaging](https://palbase.studio/docs/messaging/overview#by-meaning)), `search(query, { by: "meaning" })` finds the messages nearest what the question means, in none of its words: "uçuş saati kaçta" finds "Uçağımız sabah dokuzda Sabiha Gökçen'den kalkıyor". The nearest come first, one page (`nextCursor` is null), each with `score` — how near, 0.3 to 1 — and no `matches`; `conversations` is empty. A hit opens as any does: `conversation(id, { at })`.
+
+```ts
+// src/search-meaning.ts
+import { pb } from "./lib/palbase";
+
+try {
+  const found = await pb.messaging.search("uçuş saati kaçta", { by: "meaning" });
+  for (const hit of found.messages) console.log(hit.score?.toFixed(2), hit.title, hit.message.text);
+} catch (e) {
+  // search_by_meaning_off (409): the project searches by words alone — offer that.
+  // too_many_searches (429): a person asks 30 at once, one more a minute; e.retryAfter says when.
+  // ai_payment_required (402): the project's AI use is spent for the month.
+  console.log((e as { code?: string }).code);
+}
+```
+
 ## A message while the app is open
 
 A push for a message is not shown as the browser's notification while a page of the app is in front: the service worker leaves it to the page. `onIncoming` tells the page a new message from someone else as it arrives, so it draws its own banner — skip the conversation already on the screen:

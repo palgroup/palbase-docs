@@ -1705,7 +1705,7 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.20.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.22.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
 384 commands in 32 groups.
 
@@ -3172,7 +3172,7 @@ palbase analytics:summary [--window <24h>]
 
 ### `palbase messaging:settings:get`
 
-How the environment runs its conversations: how long messages are kept, whether a push says what one says, what becomes of a deleted user's messages, the hook
+How the environment runs its conversations: how long messages are kept, whether a push says what one says, what becomes of a deleted user's messages, whether they are found by what they mean, the hook
 
 ```sh
 palbase messaging:settings:get
@@ -3183,17 +3183,19 @@ palbase messaging:settings:get
 Change how the environment runs its conversations: a setting left out is left as it is
 
 ```sh
-palbase messaging:settings:set [--retention-days <days>|off] [--push-preview on|off] [--deleted-user-messages keep|delete]
+palbase messaging:settings:set [--retention-days <days>|off] [--push-preview on|off] [--deleted-user-messages keep|delete] [--search-by-meaning on|off]
 ```
 
 A shorter retention removes the messages older than it, in every conversation. A deleted user's messages are kept or deleted as the setting is when the user is deleted.
 Deleted, what of theirs had already gone from screens (seen once, its time up, vanish mode, taken back) stays its 14 days, sealed, for reports, then goes.
+Search by meaning on: the app's search({ by: 'meaning' }) finds the messages nearest what a question means, no word of it needed. Each message's text (not a system message's, one seen a limited number of times, nor one of vanish mode) is embedded by the project's embedding model through the AI module and billed as the project's AI use; the messages written before are embedded in the background (seconds to minutes), a new one is found ~5 s after it is sent. Off: no message goes to a model, and the vectors are removed.
 Only what changes is sent: a change made beside this one to another setting stays.
 
 ```text
       --retention-days <days|off>            messages older than this many days are removed (1–36500); off: kept for good
       --push-preview <on|off>                a push says what the message says (on), or only that one came (off)
       --deleted-user-messages <keep|delete>  a deleted user's messages: kept, their writer anonymous, or deleted (what went from screens before stays its 14 days for reports)
+      --search-by-meaning <on|off>           messages are found by what they mean too (on: each embedded through the AI module, billed as AI use), or by their words alone (off)
 ```
 
 ### `palbase messaging:hook:get`
@@ -12358,6 +12360,7 @@ A chat that works in a workspace gives its agent the workspace's own tools as we
 | `palai.workspace.commit`, `palai.publish.push` | Commit, as the member the turn is for, and push to the chat's branch. |
 | `palai.artifact.publish`, `palai.artifact.open`, `palai.artifact.read`, `palai.artifact.list` | Publish a file as the turn's output, and read the ones published. |
 | `palai.agent.spawn`, `palai.agent.status`, `palai.agent.send`, `palai.agent.stop` | Hand work to a subagent, follow it, message it and stop it. |
+| `palai.advisor.ask` | Ask the agent's [advisor](#the-advisor), when it has one. |
 
 The table a backend tool reads:
 
@@ -12480,6 +12483,43 @@ The agent is your build's: the build writes it into its contract (`x-palbase-age
 | `subagents` | 16 at most: each a `name`, a `description` the agent reads to hand it work, and its own `instructions`, `model` and `tools`. `required: true` fails the turn when its part fails. |
 | `maxToolCalls` | The turn's tool calls, 1 to 10 000. Past it the agent is told it has no tools left, and answers. |
 | `thinking` | `visible` shows the model's reasoning in the chat's stream as `thinking` parts. `hidden` does not ask for it. When the model's provider will not give it, the turn says so once: a `thinking` part with `unavailable: true`, the `model` and the provider's `reason`. One cause is an OpenAI organization not verified for reasoning summaries; Anthropic's models (`strong`) and Kimi show theirs. |
+| `advisor` | A second model that reads the agent's work and holds it to your rules: [The advisor](#the-advisor). |
+
+### The advisor
+
+An agent can have an **advisor**: a second model that reads what the agent does as a person watching it would — its messages, the reasoning its model gives, its tool calls and what they answered, the files it wrote — and, when a decision goes against the agent's instructions, its goal or the advisor's own rules, tells the agent so.
+
+```ts
+// src/modules/coder/coder.agent.ts
+import { Palbase } from "palbase/backend";
+
+export const coder = Palbase.ai.agent("coder", () => ({
+  model: "openai:gpt-6-luna",
+  instructions: "You are the shop's coding agent.",
+  tools: [/* … */],
+  advisor: {
+    model: "anthropic:claude-haiku-5-5",
+    instructions: "Rule 1: new files go under src/ only. Rule 2: never edit a test to make it pass.",
+    tools: [{ source: "mcp", name: "shop-docs", only: ["search"] }],
+  },
+}));
+```
+
+- **After every step** the advisor reads what the agent did since its last look, in the background: the agent does not wait for it. When it has something the agent must know, the agent reads it at its next step, as a message that begins `[palai:advisor]` — the advisor's word, not the person's. By default it says nothing.
+- **A turn's answer waits for it.** When the agent answers, the advisor reads the answer first. If it objects, the agent is told and goes on in the same turn; a turn's answer is held twice at most. The advisor never stops the turn: the agent has the last word.
+- **The agent can ask it**, with the `palai.advisor.ask` tool. A decision none of the agent's instructions, the advisor's rules or the work so far settle — a business rule, a price, a name — the advisor does not make up: it tells the agent to ask the person.
+- **It only reads.** It reads the agent's workspace (files, search, the working tree's diff) and the tools of the MCP servers named in its `tools` that say they only read (`readOnlyHint`). A server's other tools are left out; a tool named in `only` that does not say so refuses the turn (`400 advisor_tool_not_read_only`). Nothing it reads waits for a person.
+- **It reads the agent's reasoning** when the model's provider gives it — Anthropic's and OpenAI's models do — even when the agent's `thinking` is `hidden`: then it is asked for the advisor alone and shown in no stream.
+- **Its calls are the turn's**: in the turn's cost (`chats.turnCost(…).advisor` says how much of it was the advisor's) and its budget. A turn past its budget is not read further.
+
+Each reading is an `advisor` part in the chat's stream: `{ kind: "step" | "final" | "ask", verdict: "none" | "heads_up" | "answer" | "unreadable", rule, message, question, told }`. A one-shot answer of an agent with an advisor is read by it too.
+
+| Field | What it is |
+|---|---|
+| `model` | A role or a catalogue model. Left out, the agent's. |
+| `instructions` | Its rules: what it holds the agent to, 64 KiB at most. |
+| `effort` | How hard its model thinks. |
+| `tools` | MCP servers it reads with (`{ source: "mcp", name, only }`), 32 at most. |
 
 ### Agents the project keeps
 
@@ -12542,7 +12582,7 @@ export class SupportController {
 | `chats.approve(id, approvalId, { reason, as })`, `chats.deny(…)` | A call that waits for a person's yes, made or not. Denied, the agent is told the reason and goes on. |
 | `chats.answer(id, callId, output, { isError, as })` | A client tool's answer: `true` when it is the one taken, `false` when another came first. |
 | `chats.sendToSubagent(id, runId, text, { as })` | A message for a subagent at work, at its next step. |
-| `chats.turnCost(id, responseId)` | What a turn cost so far, its subagents counted: tokens, `costNanoUsd` (and `usd`), and `final` once nothing more of it is settled. `runs` breaks it down run by run: the turn's own and each subagent's, by name, model and state. A turn still at work is read as it spends. |
+| `chats.turnCost(id, responseId)` | What a turn cost so far, its subagents counted: tokens, `costNanoUsd` (and `usd`), and `final` once nothing more of it is settled. `runs` breaks it down run by run: the turn's own and each subagent's, by name, model and state. `advisor` says what the agent's [advisor](#the-advisor) spent of it. A turn still at work is read as it spends. |
 | `chats.events(id)` | The chat as a source a gateway pipes into its channel. See [A chat in an app](#a-chat-in-an-app). |
 
 `send` keys a message on its `clientId`: the same id sent again, a retry, is the same message, delivered once. One is made when you give none. `delivery` is for a message that comes while the agent works: `"next"` (the default) gives it the message at its next step, `"now"` cuts the step it is in.
@@ -12637,7 +12677,7 @@ With `autoPush: false` a push waits for a member's approval, as an `approval: tr
 
 ## A chat in an app
 
-A chat reaches its members through a gateway declared with `chat: true`. When its first member joins, the gateway pipes the chat into its channel. From then on the **platform** writes the chat there itself: the members' messages, each answer as it is written, the tool calls, the approvals and the subagents' work. The backend is not in the stream. The channel keeps the chat a day (or what `durable` says), so a member who joins later, or was away, has all of it. What a member does in the chat (a message, a yes or a no, a client tool's answer, stop) comes to the gateway as one of its messages, and the backend does it **as them**.
+A chat reaches its members through a gateway declared with `chat: true`. When its first member joins, the gateway pipes the chat into its channel. From then on the **platform** writes the chat there itself: the members' messages, each answer as it is written, the tool calls, the approvals, the subagents' work and the advisor's readings. The backend is not in the stream. The channel keeps the chat a day (or what `durable` says), so a member who joins later, or was away, has all of it. What a member does in the chat (a message, a yes or a no, a client tool's answer, stop) comes to the gateway as one of its messages, and the backend does it **as them**.
 
 The channel keeps a day of the chat. A chat opened later is read back at `GET /ai/chats/{id}/parts?limit=&cursor=`, a page at a time from its newest end back: the same parts the stream told, in their order, each under the id the channel told it (`part_id`). A client that holds the channel's parts and pages of these keeps each one once. An answer's text is placed by its offset, as in the stream. The last page reaches the chat's start and begins where a fork began. A client that already holds the channel's day passes the `id` of the oldest part it holds as `before=<id>`, and the first page starts just before that part, so the day is not read twice. Each page after it is read by its `next_cursor`. A call with both `cursor` and `before` is refused (`400`). A voice's end is in the pages under the id the channel told it (`vclosed:<voice>`). For a voice the engine lost, whose end its journal never says, it comes right after the voice's last part. Reading a page changes nothing. A client's `loadOlder()` reads the page before the oldest it holds.
 
@@ -12728,6 +12768,8 @@ In the app, the member joins `SupportGateway` with the chat's id, and the handle
 
 | Status | `error` | When |
 |---|---|---|
+| 400 | `advisor_tool_not_read_only` | The agent's advisor names an MCP server whose tool does not say it only reads (`readOnlyHint`), or a server none of whose tools say so. |
+| 400 | `advisor_tool_waits` | The agent's advisor names an MCP server whose calls wait for a person's yes. |
 | 403 | `server_only` | A user started a chat, or asked for what only the server reads (a turn's cost, a chat's pipe). |
 | 403 | `not_a_member` | `as` names a user who is not a member of the chat. |
 | 403 | `not_your_turn` | `as` decides or answers a turn another member began. |
@@ -16121,6 +16163,25 @@ at.subscribe(() => console.log(at.state.entries.length, "around", at.state.focus
 const more = found.nextCursor ? await pb.messaging.search("toplanti", { cursor: found.nextCursor }) : null;
 ```
 
+### By meaning
+
+With the project's `search_by_meaning` on ([Messaging](/docs/messaging/overview#by-meaning)), `search(query, { by: "meaning" })` finds the messages nearest what the question means, in none of its words: "uçuş saati kaçta" finds "Uçağımız sabah dokuzda Sabiha Gökçen'den kalkıyor". The nearest come first, one page (`nextCursor` is null), each with `score` — how near, 0.3 to 1 — and no `matches`; `conversations` is empty. A hit opens as any does: `conversation(id, { at })`.
+
+```ts
+// src/search-meaning.ts
+import { pb } from "./lib/palbase";
+
+try {
+  const found = await pb.messaging.search("uçuş saati kaçta", { by: "meaning" });
+  for (const hit of found.messages) console.log(hit.score?.toFixed(2), hit.title, hit.message.text);
+} catch (e) {
+  // search_by_meaning_off (409): the project searches by words alone — offer that.
+  // too_many_searches (429): a person asks 30 at once, one more a minute; e.retryAfter says when.
+  // ai_payment_required (402): the project's AI use is spent for the month.
+  console.log((e as { code?: string }).code);
+}
+```
+
 ## A message while the app is open
 
 A push for a message is not shown as the browser's notification while a page of the app is in front: the service worker leaves it to the page. `onIncoming` tells the page a new message from someone else as it arrives, so it draws its own banner — skip the conversation already on the screen:
@@ -18460,7 +18521,7 @@ The project holds its clients to limits the platform sets and the project may lo
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.8.1 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.10.0 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -18545,6 +18606,21 @@ if let root = hit.threadRootId {
     thread = pb.messaging.thread(hit.conversation.id, root: root, at: hit.message.id)
 } else {
     chat = pb.messaging.conversation(hit.conversation.id, at: hit.message.id)   // chat.focus == hit.message.id
+}
+```
+
+### By meaning
+
+With the project's `search_by_meaning` on ([Messaging](/docs/messaging/overview#by-meaning)), `search(_:by: .meaning)` finds the messages nearest what the question means, in none of its words: "uçuş saati kaçta" finds "Uçağımız sabah dokuzda Sabiha Gökçen'den kalkıyor". The nearest come first, one page (`nextCursor` is nil), each with `score` — how near, 0.3 to 1 — and no `matches`; `conversations` is empty. A hit opens as any does: `conversation(_:at:)`.
+
+```swift
+do {
+    let found = try await pb.messaging.search("uçuş saati kaçta", by: .meaning)
+    for hit in found.messages { print(hit.score ?? 0, hit.title ?? "", hit.message.text ?? "") }
+} catch let e as PalbaseError {
+    // search_by_meaning_off: the project searches by words alone. too_many_searches: a person asks
+    // 30 at once, one more a minute. ai_payment_required: the project's AI use is spent.
+    print(e.code)
 }
 ```
 
@@ -18828,6 +18904,17 @@ From the moment `pb.analytics` is first touched, it records these by itself, eac
 Each one can be turned off in the configuration: `PalbaseConfiguration.environment.with(analytics: AnalyticsOptions(appBackground: false))` ([Overview](/docs/ios/overview#what-the-app-adds-to-the-configuration)). An app extension (a widget, a notification service) makes none of them.
 
 ## Performance
+
+While `performance` is granted, the SDK times on its own, with no code of the app's:
+
+- **Each request the app's `URLSession` makes** — the project's, its backend's and every other service's; async, completion handler or delegate alike — as a `network` sample: its method, its address as its route (no query, an id in the path as `:id`), its status and how long it took. What analytics itself sends is not timed, nor a request the app cancelled, nor a web socket.
+- **How long the launch took**, from the process's start to the app before the person, as an `app_start` sample named `cold`. A launch the system began ahead of the person (prewarming), or one begun in the background (a push, a fetch) and opened later, is not one.
+
+Before `performance` is granted nothing of the app's networking is touched. Each is turned off in the configuration: `AnalyticsOptions(network: false, appStart: false)`.
+
+The SDK's privacy manifest declares these timings as **Performance Data**, linked to the user, for analytics, so Xcode's Privacy Report lists it. An app whose users can grant `performance` adds Performance Data to its App Privacy answers in App Store Connect.
+
+What the app measures itself:
 
 ```swift
 import Palbase
@@ -20675,7 +20762,7 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.8.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.9.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // pushes: the FCM token, and the service that draws them
     implementation("studio.palbase:palbase-messaging")  // pb.messaging
@@ -20738,6 +20825,20 @@ A find opens where it was said: `pb.messaging.conversation(hit.conversation.id, 
 ```kotlin
 val view = hit.threadRootId?.let { root -> pb.messaging.thread(hit.conversation.id, root, at = hit.message.id) }
     ?: pb.messaging.conversation(hit.conversation.id, at = hit.message.id)
+```
+
+### By meaning
+
+With the project's `search_by_meaning` on ([Messaging](/docs/messaging/overview#by-meaning)), `search(query, by = SearchBy.MEANING)` finds the messages nearest what the question means, in none of its words: "uçuş saati kaçta" finds "Uçağımız sabah dokuzda Sabiha Gökçen'den kalkıyor". The nearest come first, one page (`nextCursor` is null), each with `score` — how near, 0.3 to 1 — and no `matches`; `conversations` is empty. A hit opens as any does: `conversation(id, at = hit.message.id)`.
+
+```kotlin
+try {
+    val found = pb.messaging.search("uçuş saati kaçta", by = SearchBy.MEANING)
+    found.messages.forEach { hit -> Text("${hit.title}: ${hit.message.text} (${"%.2f".format(hit.score)})") }
+} catch (e: PalbaseError) {
+    // search_by_meaning_off: the project searches by words alone. too_many_searches: a person asks
+    // 30 at once, one more a minute (e.retryAfter). ai_payment_required: the project's AI use is spent.
+}
 ```
 
 ## Pushes
@@ -20982,6 +21083,25 @@ An event is sent as the signed-in user, or, with no one signed in, under an anon
 What is held goes together: 5 seconds after the first of it, as soon as 20 events, screens and timings are held, and when the app's screens are hidden. What is held when the app closes is kept on the device and sent at the next launch.
 
 ## Timings
+
+While `PERFORMANCE` is granted, the SDK times on its own how long the launch took, from the process's start to its first activity started, as an `app_start` sample named `cold` — a process begun for a push, a job or a widget and opened later is not one. In an app built with the Palbase Gradle plugin it also times each request the app makes — its own OkHttp clients and `HttpURLConnection`s and every library's, the SDK's among them — as a `network` sample: its method, its address as its route (no query, an id in the path as `:id`), its status and how long it took. What analytics itself sends is not timed.
+
+```kotlin
+// settings.gradle.kts
+pluginManagement { repositories { gradlePluginPortal(); google(); mavenCentral(); maven("https://palgroup.github.io/palbase-android/") } }
+
+// app/build.gradle.kts
+plugins {
+    id("com.android.application")
+    id("studio.palbase") version "0.10.0"
+}
+```
+
+The plugin rewrites, as the app is built, each `OkHttpClient()`, `OkHttpClient.Builder.build()`, `URL.openConnection()` and a connection's `getResponseCode()` and `getInputStream()` — in the app and in every library it takes — to the SDK, which does what was asked and times it. It reaches no network, and an app without `palbase-analytics` is built as it was. Each timing is turned off in `AnalyticsOptions(network = false, appStart = false)`.
+
+An app whose users can grant `PERFORMANCE` declares these timings in Play Console's Data safety form as **App info and performance › Diagnostics**, collected, for analytics.
+
+What the app measures itself:
 
 ```kotlin
 import studio.palbase.analytics.Analytics
@@ -22025,6 +22145,30 @@ const { data: minted } = await cloud.environmentTokens.mint({
 
 The token is shown once. It does at most what its role does and never more than what minted it; it makes no token and does no organization's work; `on_behalf_of` is recorded beside its every call in the environment's audit. It ends after `expires_in_minutes` (5 to 240), when it is revoked, and when what minted it ends.
 
+## Confirming for your users
+
+A few steps are a person's to confirm — sending an app to App Review, releasing it, expiring a build ([Actions](/docs/distribution/overview#actions)). Your users have no Palbase account, so your server confirms for them with your organization's token, once an owner or an admin turns on **Confirms for people** for it in Studio (**Organization › Access tokens**). Each confirmation names the person, and the action keeps them as its decider:
+
+```ts
+import { PalbaseCloud } from "palbase/cloud";
+
+const ref = "abcd1234efgh"; // the customer's environment
+const forAda = new PalbaseCloud({
+  token: process.env.PALBASE_TOKEN!,
+  fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init);
+    request.headers.set("Palbase-For", "yourplatform:user_42"); // who clicked, in your product
+    return fetch(request);
+  },
+});
+const stores = forAda.project(ref).stores;
+const { data: action } = await stores.getAction({ path: { action_id: "the planned action's id" } });
+// Shown to your user first: action.summary. Then, on their yes:
+await stores.confirmAction({ path: { action_id: action.id }, body: { hash: action.hash } });
+```
+
+Ask your user before you confirm, with the plan's own summary: the hash makes sure what runs is what they read. A token without **Confirms for people** that names anyone is refused (`403 token_does_not_confirm`).
+
 ## Billing events to your server
 
 Register your organization's endpoint once, and each of your projects' balance events reaches it as it happens — with its `ref`, its name and the amounts:
@@ -22188,7 +22332,7 @@ Those two, and [Have I Been Pwned](https://haveibeenpwned.com), are connected wi
 
 ### Security emails
 
-`security_notifications` lists the changes a user is emailed about: `password_changed`, `email_changed` (told to the old address), `identity_linked`, `identity_unlinked`, `mfa_factor_enrolled`, `mfa_factor_removed`, `passkey_added`, `passkey_removed`. A second factor or a passkey added or removed (`mfa_factor_enrolled`, `mfa_factor_removed`, `passkey_added`, `passkey_removed`) is mailed by default, in every project: a change to what a user signs in with that they did not make is how a stolen password shows. The others are off until the project turns them on. Each is sent only to a confirmed address, in the user's language, with its own template (`auth.security_<kind>`). **Auth › Settings › Security notifications** turns each on and off.
+`security_notifications` lists the changes a user is emailed about: `password_changed`, `email_changed` (told to the old address), `identity_linked`, `identity_unlinked`, `mfa_factor_enrolled`, `mfa_factor_removed`, `mfa_recovery_code_used` (with how many codes are left), `passkey_added`, `passkey_removed`. A second factor or a passkey added or removed, and a recovery code used (`mfa_factor_enrolled`, `mfa_factor_removed`, `mfa_recovery_code_used`, `passkey_added`, `passkey_removed`), are mailed by default, in every project: a change to what a user signs in with that they did not make is how a stolen password shows. A recovery code opens that one sign-in: the account's second factors stay, and the next sign-in asks for one again. The others are off until the project turns them on. Each is sent only to a confirmed address, in the user's language, with its own template (`auth.security_<kind>`). **Auth › Settings › Security notifications** turns each on and off.
 
 ### The OpenID provider
 
@@ -25119,6 +25263,15 @@ A person finds their messages by their words — in one conversation, or across 
 
 The 2,000 conversations a person spoke in last are searched. Search costs nothing extra: its marks are not counted in what the messages weigh.
 
+### By meaning
+
+With the project's `search_by_meaning` on, a person also finds their messages by what they mean, in none of the words asked: "uçuş saati" finds "THY 14:30'da kalkıyor" (`GET /messaging/search?by=meaning`). What is found is what is near the question, the nearest first, each with how near (`score`, 0.3 to 1) — one page; a message about something else may still come, further down. The same people see the same messages as by words, and a message changed is found by what it means now.
+
+- **Your choice, off until you turn it on.** Each message's text — not a system message's, nor one seen once, nor one of vanish mode — goes to OpenAI to be embedded (`text-embedding-3-large`), billed to the project as its AI use ([AI](/docs/backend/ai#what-it-costs)): about $2.90 a million short messages (about twenty tokens each), and each question a person asks. OpenAI keeps what it is sent up to 30 days for abuse monitoring and never trains on it; say so in your app's privacy policy. Turned on, the messages written before are embedded too, in the background; turned off, nothing more goes to OpenAI and the vectors are removed.
+- **Kept encrypted.** A message's vector says nearly what its text said, so it is kept sealed with the conversation's key, as the message is: a copy of the database holds none readable. A search opens the vectors of the person's conversations in the server's memory alone.
+- **Within reason.** A person asks 30 questions by meaning at once and one more a minute (`429 too_many_searches`, with `Retry-After`); a question asked again within ten minutes is not asked of OpenAI again. Of each conversation, its newest 100,000 messages are searched by meaning. When the project's AI allowance or budget is spent (`402 ai_payment_required`), messages are sent as ever and found by their words; those written meanwhile are embedded once it is renewed.
+- **Short messages.** A message of one word ("tamam") is found by its word, not embedded.
+
 ## Screenshots
 
 A browser does not say when someone takes a screenshot, and a phone cannot always stop one:
@@ -25168,6 +25321,7 @@ In Studio (**Messaging**), with the CLI (`palbase messaging:settings:set`, `palb
 | `push_preview` | Pushes say what a message says (the default), or only that one came |
 | `deleted_user_messages` | A deleted user's messages: `keep` (the default), their writer shown as a deleted user with nothing personal kept, or `delete` — save what went from screens before, kept its 14 days for a report |
 | `hook` | Who may write to whom (above); none: anyone to anyone |
+| `search_by_meaning` | Messages are found by what they mean too ([Search](#by-meaning)); off (the default): by their words alone, and no message goes to a model |
 
 ## What it costs
 
@@ -25430,11 +25584,20 @@ A sample is one number: a duration in milliseconds, or a web vital's own unit.
 
 | Type | What it measures | Sent by |
 |---|---|---|
-| `web_vital` | A page's LCP, INP, CLS, FCP and TTFB | The web SDK, with `performance` allowed ([Web Analytics](/docs/web/analytics)) |
-| `network` | One request the app made: its method and route, its time | The web SDK (each `fetch`), the mobile SDKs |
-| `app_start` | How long a mobile app took to open | The mobile SDKs |
-| `screen` | How long a screen took | The mobile SDKs |
-| `custom` | Anything your code measures | The mobile SDKs |
+| `web_vital` | A page's LCP, INP, CLS, FCP and TTFB | The web SDK, on its own ([Web Analytics](/docs/web/analytics)) |
+| `network` | One request the app made: its method and route, its status, its time | The web SDK (each `fetch`) and the iOS SDK (each `URLSession` request) on their own; the Android SDK in an app built with the Palbase Gradle plugin (each OkHttp and `HttpURLConnection` request) |
+| `app_start` | How long a mobile app took to open (`cold`): from the process's start to the app before the person | The iOS and Android SDKs, on their own |
+| `screen` | How long a screen took | Your code (`measure` with the screen kind) |
+| `custom` | Anything your code measures | Your code (`startTrace`, `measure`) |
+
+**Nothing is measured until the app's user allows performance** — the consent key `performance`. An app with no consent screen says what it starts with ([iOS](/docs/ios/consent), [Android](/docs/android/analytics), [Web](/docs/web/consent)); a key with no starting value and no choice collects nothing, and the Performance screen stays empty:
+
+```swift
+// iOS: analytics and performance collected until the person chooses otherwise
+let pb = PalbaseClient(try .environment.with(consent: ConsentOptions(start: ["analytics": .granted, "performance": .granted])))
+```
+
+The SDKs time every request the app makes — the project's, your backend's and every other service's — but not what analytics itself sends, nor a request the app cancelled, nor a web socket. A launch the person did not wait for (started by the system ahead of them, or for a push or a job and opened later) is not an `app_start`. Each is turned off in the app's analytics options (`network`, `appStart`).
 
 A network sample's address is kept as its route: no query, and an id in the path is `:id`. Samples go without the person's id unless `analytics` is allowed too.
 
@@ -25465,7 +25628,7 @@ for (const row of lcp.data.rows) console.log(row.key, Math.round(row.p75), "ms a
 
 A request trace is one request as one side saw it: its `endpoint`, `method`, `status`, `duration_ms`, its error when it failed, and the request id the platform gave it. `source` says whose report it is:
 
-- **`client`**: the app's. The mobile SDKs report each request they make; the web SDK's network samples are read here too, in the same shape.
+- **`client`**: the app's. The SDKs' network samples (each request an app made, as its SDK timed it) are read here, in the same shape.
 - **`backend`**: your backend's. A `palbase/backend` app reports every request it answers, with its route as declared (`/orders/{id}`) and the signed-in caller, in batches behind the answers ([Analytics](/docs/analytics/overview#sending-from-a-server)).
 
 The app's report and the backend's of one request share its request id, so the two sides of a request are read together, and the difference between them is often where the time went.
@@ -25910,6 +26073,8 @@ palbase stores:actions:decline <action id>
 ```
 
 A confirmation names the hash of the plan that was shown, runs it once, and only within a day of planning. It is a person's: a signed-in CLI or Studio's **App Distribution › Actions**, where planned actions wait under **Waiting for you**. An access token, an environment token or the secret key alone is refused (`403 person_required`), so a build machine plans and a person confirms. The CLI shows what the action does and asks before it runs, in every environment; `-y` confirms without asking. Declining needs no person.
+
+A platform whose own users have no Palbase account — a product studio that runs its customers' stores from its own pages — confirms for them with its organization's access token, once an owner or an admin of the organization turns on **Confirms for people** for that token (Studio's **Organization › Access tokens**). Each confirmation then names the person it is for in the `Palbase-For` header (1 to 128 of letters, digits and `. _ : @ -`, such as `yourplatform:user_42`), and the action keeps them as its decider, beside the token. A token without it that names anyone is refused (`403 token_does_not_confirm`); one with it that names no one confirms nothing. In `palbase/cloud`, give the client a `fetch` that sets the header for the person who clicked.
 
 ## In Studio
 

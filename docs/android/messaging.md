@@ -25,7 +25,7 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.8.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.9.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // pushes: the FCM token, and the service that draws them
     implementation("studio.palbase:palbase-messaging")  // pb.messaging
@@ -88,6 +88,20 @@ A find opens where it was said: `pb.messaging.conversation(hit.conversation.id, 
 ```kotlin
 val view = hit.threadRootId?.let { root -> pb.messaging.thread(hit.conversation.id, root, at = hit.message.id) }
     ?: pb.messaging.conversation(hit.conversation.id, at = hit.message.id)
+```
+
+### By meaning
+
+With the project's `search_by_meaning` on ([Messaging](https://palbase.studio/docs/messaging/overview#by-meaning)), `search(query, by = SearchBy.MEANING)` finds the messages nearest what the question means, in none of its words: "uçuş saati kaçta" finds "Uçağımız sabah dokuzda Sabiha Gökçen'den kalkıyor". The nearest come first, one page (`nextCursor` is null), each with `score` — how near, 0.3 to 1 — and no `matches`; `conversations` is empty. A hit opens as any does: `conversation(id, at = hit.message.id)`.
+
+```kotlin
+try {
+    val found = pb.messaging.search("uçuş saati kaçta", by = SearchBy.MEANING)
+    found.messages.forEach { hit -> Text("${hit.title}: ${hit.message.text} (${"%.2f".format(hit.score)})") }
+} catch (e: PalbaseError) {
+    // search_by_meaning_off: the project searches by words alone. too_many_searches: a person asks
+    // 30 at once, one more a minute (e.retryAfter). ai_payment_required: the project's AI use is spent.
+}
 ```
 
 ## Pushes

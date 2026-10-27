@@ -10,11 +10,20 @@ A sample is one number: a duration in milliseconds, or a web vital's own unit.
 
 | Type | What it measures | Sent by |
 |---|---|---|
-| `web_vital` | A page's LCP, INP, CLS, FCP and TTFB | The web SDK, with `performance` allowed ([Web Analytics](https://palbase.studio/docs/web/analytics)) |
-| `network` | One request the app made: its method and route, its time | The web SDK (each `fetch`), the mobile SDKs |
-| `app_start` | How long a mobile app took to open | The mobile SDKs |
-| `screen` | How long a screen took | The mobile SDKs |
-| `custom` | Anything your code measures | The mobile SDKs |
+| `web_vital` | A page's LCP, INP, CLS, FCP and TTFB | The web SDK, on its own ([Web Analytics](https://palbase.studio/docs/web/analytics)) |
+| `network` | One request the app made: its method and route, its status, its time | The web SDK (each `fetch`) and the iOS SDK (each `URLSession` request) on their own; the Android SDK in an app built with the Palbase Gradle plugin (each OkHttp and `HttpURLConnection` request) |
+| `app_start` | How long a mobile app took to open (`cold`): from the process's start to the app before the person | The iOS and Android SDKs, on their own |
+| `screen` | How long a screen took | Your code (`measure` with the screen kind) |
+| `custom` | Anything your code measures | Your code (`startTrace`, `measure`) |
+
+**Nothing is measured until the app's user allows performance** — the consent key `performance`. An app with no consent screen says what it starts with ([iOS](https://palbase.studio/docs/ios/consent), [Android](https://palbase.studio/docs/android/analytics), [Web](https://palbase.studio/docs/web/consent)); a key with no starting value and no choice collects nothing, and the Performance screen stays empty:
+
+```swift
+// iOS: analytics and performance collected until the person chooses otherwise
+let pb = PalbaseClient(try .environment.with(consent: ConsentOptions(start: ["analytics": .granted, "performance": .granted])))
+```
+
+The SDKs time every request the app makes — the project's, your backend's and every other service's — but not what analytics itself sends, nor a request the app cancelled, nor a web socket. A launch the person did not wait for (started by the system ahead of them, or for a push or a job and opened later) is not an `app_start`. Each is turned off in the app's analytics options (`network`, `appStart`).
 
 A network sample's address is kept as its route: no query, and an id in the path is `:id`. Samples go without the person's id unless `analytics` is allowed too.
 
@@ -45,7 +54,7 @@ for (const row of lcp.data.rows) console.log(row.key, Math.round(row.p75), "ms a
 
 A request trace is one request as one side saw it: its `endpoint`, `method`, `status`, `duration_ms`, its error when it failed, and the request id the platform gave it. `source` says whose report it is:
 
-- **`client`**: the app's. The mobile SDKs report each request they make; the web SDK's network samples are read here too, in the same shape.
+- **`client`**: the app's. The SDKs' network samples (each request an app made, as its SDK timed it) are read here, in the same shape.
 - **`backend`**: your backend's. A `palbase/backend` app reports every request it answers, with its route as declared (`/orders/{id}`) and the signed-in caller, in batches behind the answers ([Analytics](https://palbase.studio/docs/analytics/overview#sending-from-a-server)).
 
 The app's report and the backend's of one request share its request id, so the two sides of a request are read together, and the difference between them is often where the time went.
