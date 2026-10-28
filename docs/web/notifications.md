@@ -37,15 +37,17 @@ await pb.notify.push.refresh();
 |---|---|
 | `supported()` | Whether the browser takes pushes at all: a service worker, the Push API and notifications. |
 | `permission()` | `granted`, `denied`, `default` (not asked yet) or `unsupported`. |
-| `subscribe(options?)` | Asks the person (call it from a tap), registers the service worker, subscribes the browser with the project's key through its own push service, and registers the subscription as a device. `true` when the browser takes pushes now, `false` when the person refused or the browser has none. `options`: `serviceWorker`, the worker's path (`/palbase-sw.js` unless given), and `scope`. |
+| `subscribe(options?)` | Asks the person (call it from a tap), registers the service worker, subscribes the browser with the project's key through its own push service, and registers the subscription as a device. `true` when the browser takes pushes now, `false` when the person refused or the browser has none. `options`: `serviceWorker`, the worker's path (`/palbase-sw.js` unless given), and `scope`, its scope (its folder unless given). A scope another worker holds is refused: it would replace that one. |
 | `unsubscribe()` | Ends the browser's subscription. The project forgets the device as it next pushes it. |
 | `refresh()` | Registers the subscription again, without a prompt, when the person allowed it and there is one. |
 
-The device is the signed-in user's, or this install's (`pb.installation.id`) while no one is signed in: a push that names the install reaches it then. It is registered again by itself as people sign in and out, and a subscription that cannot be registered again ends, so one person's pushes are never shown to the next. The project's key for Web Push (VAPID) is its own, made as the first browser asks for it: no account of another provider is needed.
+The device is the signed-in user's, or this install's (`pb.installation.id`) while no one is signed in: a push that names the install reaches it then. It is registered again by itself as people sign in and out, one change at a time. When that registration cannot be sent — the browser offline, the server unreachable — Palbase's subscription ends and a new one takes its place, registered for whoever is signed in once the server answers (tried again after 1 s, 5 s, 30 s, 2 min and 10 min, and at the next change): one person's pushes are never shown to the next. The project's key for Web Push (VAPID) is its own, made as the first browser asks for it: no account of another provider is needed.
 
 ### The service worker
 
 The pushes are shown by the SDK's service worker, served from your site's own origin. Copy `node_modules/palbase/dist/web/push-sw.js` (the package exports it as `palbase/web/push-sw.js`) into the folder your site serves as it is, as `palbase-sw.js`: `public/palbase-sw.js` in Next.js or Vite. Copy it again when you update `palbase`. To serve it elsewhere, name its path: `subscribe({ serviceWorker: "/sw/palbase.js" })`.
+
+Palbase touches only its own worker and subscription. A scope holds one worker, so where your app's own worker (an offline cache, another service's pushes) holds the folder's scope, Palbase's registers at `palbase-push/` beside it: a push reaches its worker whatever pages that controls, and yours stays as it is. A worker is Palbase's for this project when its URL carries this project's key.
 
 `subscribe()` registers it with the project's address and publishable key in its URL, which it reports with. The worker shows each push, opens its link when it is tapped (an `https` address, or one of your site's; a tab of your app at that address is focused rather than opened again), and tells the project how each went — delivered, opened, dismissed — with the push's own receipt as the credential. It tells your open pages too:
 

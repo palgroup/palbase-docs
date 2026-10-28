@@ -134,8 +134,9 @@ The contract's errors are what the route throws, as the backend's build reads th
 A route the backend marks `attest: true` is called only by your app on a genuine phone ([Device attestation](https://palbase.studio/docs/backend/authentication#device-attestation)). The SDK proves each call by itself:
 
 - once per install, it makes a key in the phone's secure hardware and enrols it: auth checks the key's attestation chain against Google's roots and revocation list, that the phone is locked with a verified boot, and that the app is your registered package signed with one of its registered certificates;
-- each call to the backend then carries a signature with that key over the call's method, path, body and a short-lived challenge, and a counter, so a captured call cannot be sent again or changed;
-- a `401 app_attest_required` is answered by itself: enrol if needed, prove, send once more.
+- each call to such a route then carries a signature with that key over the call's method, path, body and a short-lived challenge, and a counter, so a captured call cannot be sent again or changed;
+- the route's generated method knows it attests (`palbase apps:sync` writes it from the contract), so its first call is proved: the SDK enrols before it if needed and asks your backend for a fresh challenge (`GET /.well-known/palbase/attest-challenge`, once for calls made together), with no `401` round trip first. A route not marked carries no proof;
+- a `401 app_attest_required` from a route its client does not know as attested — a client generated before the route was marked — is answered by itself: enrol if needed, prove, send once more; the route is proved from then on while the app runs. `palbase apps:sync` again marks it.
 
 What only you set: the SHA-256 of the certificates your releases are signed with, registered with the app (`palbase apps:env:set <app> --sha256 play_signing=AB:CD:…`; Play's app signing key and your upload key). Do not register a debug key where attestation is enforced: a debug build can be driven over adb to sign requests. An emulator cannot attest: under enforce its calls end in `AttestationUnavailable`.
 

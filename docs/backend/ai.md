@@ -248,14 +248,14 @@ export const coder = Palbase.ai.agent("coder", () => ({
 }));
 ```
 
-- **After every step** the advisor reads what the agent did since its last look, in the background: the agent does not wait for it. When it has something the agent must know, the agent reads it at its next step, as a message that begins `[palai:advisor]` — the advisor's word, not the person's. By default it says nothing.
+- **After every step** the advisor reads what the agent did since its last look, in the background: the agent does not wait for it. It looks for what is wrong — what the agent wrote, what it made, a screen a tool showed it — and opens what the record only names before it judges. When it has something the agent must know, the agent reads it at its next step, as a message that begins `[palai:advisor]` — the advisor's word, not the person's. When it finds nothing wrong it says nothing.
 - **A turn's answer waits for it.** When the agent answers, the advisor reads the answer first. If it objects, the agent is told and goes on in the same turn; a turn's answer is held twice at most. The advisor never stops the turn: the agent has the last word.
 - **The agent can ask it**, with the `palai.advisor.ask` tool. A decision none of the agent's instructions, the advisor's rules or the work so far settle — a business rule, a price, a name — the advisor does not make up: it tells the agent to ask the person.
-- **It only reads.** It reads the agent's workspace (files, search, the working tree's diff) and the tools of the MCP servers named in its `tools` that say they only read (`readOnlyHint`). A server's other tools are left out; a tool named in `only` that does not say so refuses the turn (`400 advisor_tool_not_read_only`). Nothing it reads waits for a person.
+- **It only reads.** It reads the agent's workspace (files, search, the working tree's diff), the pictures the agent's tools answered — a screenshot, by the id its record names — and the image files of the workspace, and the tools of the MCP servers named in its `tools` that say they only read (`readOnlyHint`). No picture is sent to it unasked: it opens the ones it wants to see, four a reading at most. A server's other tools are left out; a tool named in `only` that does not say so refuses the turn (`400 advisor_tool_not_read_only`). Nothing it reads waits for a person.
 - **It reads the agent's reasoning** when the model's provider gives it — Anthropic's and OpenAI's models do — even when the agent's `thinking` is `hidden`: then it is asked for the advisor alone and shown in no stream.
 - **Its calls are the turn's**: in the turn's cost (`chats.turnCost(…).advisor` says how much of it was the advisor's) and its budget. A turn past its budget is not read further.
 
-Each reading is an `advisor` part in the chat's stream: `{ kind: "step" | "final" | "ask", verdict: "none" | "heads_up" | "answer" | "unreadable", rule, message, question, told }`. A one-shot answer of an agent with an advisor is read by it too.
+Each reading is an `advisor` part in the chat's stream: `{ kind: "step" | "final" | "ask", verdict: "none" | "heads_up" | "answer" | "unreadable", rule, message, question, told, reads }` — `reads` is what it opened, in order (`{ tool, input }`: a file, a screenshot by its id). A one-shot answer of an agent with an advisor is read by it too.
 
 | Field | What it is |
 |---|---|

@@ -140,14 +140,14 @@ export class DownloadService {
 }
 ```
 
-A missing object is a `404` refusal (a `PalbaseError`). `Range` (one byte range, answered `206`) and `If-None-Match` (answered `304`, with no body) are honoured, and `headObject` reads the headers without the bytes. A read with the secret key names the object's owner in `X-Owner-Id`; a public or signed URL never does. What is served is made inert — `nosniff`, a sandboxing CSP, and a download for any type a browser does not render safely — and every read counts toward the project's egress.
+A missing object is a `404` refusal (a `PalbaseError`). `Range` (one byte range, answered `206`) and `If-None-Match` (answered `304`, with no body) are honoured, and `headObject` reads the headers without the bytes. A read with the secret key names the object's owner in `X-Owner-Id`; a public or signed URL never does. What is served is made inert — `nosniff`, a sandboxing CSP, and a download for any type a browser does not render safely — and every read that reaches storage counts toward the project's egress ([The CDN](#the-cdn)).
 
 ## Three ways a client reads a file
 
 | URL | Who may read it | Made by |
 |---|---|---|
 | `https://<ref>.palbase.studio/storage/public/{bucket}/{path}` | Anyone, with no credential — an `<img src>`, a CDN. A private bucket's object is `403`. | Nothing to make: the bucket is `public`. |
-| `https://<ref>.palbase.studio/storage/signed/{bucket}/{path}?…&sig=…` | Anyone holding the URL, until it expires (7 days at most). | `createSignedUrl` |
+| `https://cdn.palbase.studio/<ref>/signed/{bucket}/{path}?…&sig=…` | Anyone holding the URL, until it expires (7 days at most). | `createSignedUrl` |
 | `GET /storage/buckets/{bucket}/objects/{path}` | Your backend, with the secret key. | — |
 
 The `{path}` in a URL is **one** percent-encoded segment: `a/b.jpg` is `a%2Fb.jpg`. `?variant=thumb` reads a rendition on all three.
@@ -166,7 +166,18 @@ export function publicUrl(bucket: string, path: string, variant?: string): strin
 }
 ```
 
-A signed URL is absolute, at the project's own address, and opens nothing at another project's. Every parameter of it is covered by its signature: a URL changed by one character, expired, or naming another object is `403`. The object must exist when the URL is signed.
+A signed URL is absolute, at the CDN's address under the project's ref, and opens nothing of another project's. Every parameter of it is covered by its signature: a URL changed by one character, expired, or naming another object is `403`. The object must exist when the URL is signed, and the URL names its bytes as they were: one signed after the object changed is another URL. A public object is read the same way at `https://cdn.palbase.studio/<ref>/public/{bucket}/{path}`.
+
+## The CDN
+
+`cdn.palbase.studio` is served by Cloudflare: a file read there is kept near whoever reads it, and the next read of it near them is answered from that copy without reaching your project.
+
+- **A minute at most.** A public object is kept 60 seconds (`Cache-Control: public, max-age=60`), browsers included; a signed URL's object 60 seconds or until the URL expires, whichever comes first. A file deleted or replaced is gone from every copy within a minute. A refusal — `403`, `404` — is never kept.
+- **Pictures and files, not video.** A video, or a file larger than 25 MiB, is not kept: the CDN's address answers `302` with the same path and query at the project's own address (`https://<ref>.palbase.studio/storage/…`), and it is read there. A client following redirects, as browsers and every SDK do, sees nothing of it.
+- **No credential.** The CDN's address reads public and signed files alone — `GET` and `HEAD` — and no key or token sent there is read: what is kept is what anyone holding the URL is given.
+- **Counted when it reaches storage.** A read answered from the CDN's copy is not your project's traffic: it is not counted, nor slowed. One that reaches storage is, as at the project's own address.
+
+The project's own address answers the same reads (`/storage/public/…`, `/storage/signed/…`), without the CDN in front.
 
 ## Image renditions
 

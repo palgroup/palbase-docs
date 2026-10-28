@@ -38,7 +38,7 @@ A machine that names a **test command** (`test_command`, as Render's pre-deploy 
 
 The tests reach what the machine reaches — its database, the project's storage, mail and the rest — so they write as the machine does: write tests that leave the data as a real user's session would, and that do not depend on an empty database.
 
-They pass, and the version takes traffic. One fails, and the build fails: its `reason` names the tests that failed, its GitHub check shows the end of what they printed (what the run was given that is secret written over), the version never takes traffic, the machine keeps the version it runs, and the migration is taken back. A run has 20 minutes. A build is tested as the machine named its tests when the build was released to it. `palbase test --machine <name>` runs the same command, as the same test users, on your computer.
+They pass, and the version takes traffic. One fails, and the build fails: its `reason` names the tests that failed, its GitHub check shows the end of what they printed (what the run was given that is secret written over), the version never takes traffic, the machine keeps the version it runs, and the migration is taken back. The build's log (`palbase machines:builds:log <build>`) keeps the end of what the tests printed and, under its own heading after it, the end of what **the new version itself** printed while they ran — where a `500` it answered a test with is, with its error, its stack and the request's id (`request_id`, the one the test's `TestApiError` names), secrets written over the same way. Those lines are in the machine's log too, as `source: "test"` (below). A run has 20 minutes. A build is tested as the machine named its tests when the build was released to it. `palbase test --machine <name>` runs the same command, as the same test users, on your computer.
 
 ### How the image is made
 
@@ -108,7 +108,7 @@ Studio's machine page (**Backend › Machines › `<name>`**) lists its **Builds
 
 ## Logs
 
-What the machine writes to stdout and stderr is kept — every copy, every version (one that never came up too), and its migration runs — for **7 days**, up to 1,200 lines a minute per machine; past that, the rest of that minute is not kept. Write one JSON object a line and each is one line to read back: `Log` from `palbase/backend` does exactly that, with the request's id on every line ([Backend SDK](https://palbase.studio/docs/backend/overview)).
+What the machine writes to stdout and stderr is kept — every copy, every version (one that never came up too), its migration runs, and each new version while its tests ran against it — for **7 days**, up to 1,200 lines a minute per machine for each of those sources (its serving copies, its migration runs, a build's test run); past that, the rest of that minute is not kept — a test run that prints much takes nothing from the version that serves. Write one JSON object a line and each is one line to read back: `Log` from `palbase/backend` does exactly that, with the request's id on every line ([Backend SDK](https://palbase.studio/docs/backend/overview)).
 
 Studio's machine page shows the last hour, the last 100, 500 or 2,000 lines of it. From a server, `readMachineLogs` (`GET /machines/{name}/logs`) answers NDJSON, one line object a line, oldest first:
 
@@ -119,7 +119,7 @@ Studio's machine page shows the last hour, the last 100, 500 or 2,000 lines of i
 | `lines` | How many lines at most, 1 to 5,000 (500 by default) — for a followed read, before it follows |
 | `follow` | `true` holds the answer open and sends what the machine writes next |
 
-Each line carries `ts` (to the nanosecond), `id` (ids sort as lines do, and the same line read twice has the same id), `stream` (`stdout` or `stderr`), `generation` (the machine's version that wrote it), `source` (`machine`, or `migration` for a migration run), `line` (what was written) and which copy wrote it.
+Each line carries `ts` (to the nanosecond), `id` (ids sort as lines do, and the same line read twice has the same id), `stream` (`stdout` or `stderr`), `generation` (the machine's version that wrote it), `source` (`machine`, `migration` for a migration run, or `test` for what a new version printed while its tests ran against it), `line` (what was written) and which copy wrote it.
 
 ```ts
 // scripts/tail.ts

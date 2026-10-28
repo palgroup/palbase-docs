@@ -175,11 +175,14 @@ describe.skipIf(!testRun.stack)("notes, over HTTP", () => {
 | Your computer | `bun test` | the unit tests; the HTTP tests skip themselves |
 | Your computer, against your app | `palbase test --users alice,bob --base-url http://localhost:8080 -- bun test ./tests` | all of them, as test users made for this run in the environment you use, deleted when the command ends — Ctrl-C too |
 | As a machine runs them | `palbase test --machine backend --base-url http://localhost:8080` | the machine's own test command, as its test users (it shows the command and asks before running it; `-y` says yes) |
+| An agent with an environment's token, against the deployed machine | `PALBASE_TOKEN=pbe_… palbase test --users alice,bob --base-url https://<ref>.app.palbase.studio -- bun test ./tests` | all of them, against the version that serves, as test users made with the token (scope `auth:test-users`) and deleted when the command ends. No key is made: the command gets no `PALBASE_SECRET_KEY`, so it starts no app of its own. In `main`, `-y` confirms the test users made there |
 | The platform | `palbase machines:update backend --test-command "bun test ./tests" --test-users alice,bob` | every new build, against the new version itself, before it takes traffic |
 
 On the platform the tests run against the new version **as it will run** — its env, its secrets, its database, after its migration has started: they pass and it takes traffic; one fails and the build fails, naming the test, while the machine keeps serving the version it runs (see [Builds](https://palbase.studio/docs/machines/builds#tests-before-it-takes-traffic)). The tests write where the app writes, so write them as a real user's session: a note of their own, not a table they expect empty. What a test user owns goes with them — the run deletes its users, and a deleted user's rows are erased (`ownedByUser()`, on `user.deleted`).
 
 The image has to carry the tests: `palbase init`'s `Dockerfile` copies `tests/`, and Bun's types are a dev dependency the image does not install.
+
+When a test fails with a `500`, its `TestApiError` names the request's id (`request_id`). What the app printed for it — its error, its stack, on a line with that id — is in the build's log after what the tests printed (`palbase machines:builds:log <build>`), and in the machine's log as `source: "test"`: `palbase machines:logs <name> --search <request_id>` finds it. An environment token with `machines:logs` reads both.
 
 ## Without the network
 

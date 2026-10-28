@@ -139,8 +139,9 @@ A code the route's contract declares is a case of its own (`NotesCreateError.for
 A route the backend marks `attest: true` is called only by your app on a genuine iPhone or iPad ([Device attestation](https://palbase.studio/docs/backend/authentication#device-attestation)). The SDK proves each call by itself with Apple's App Attest:
 
 - once per install it makes an App Attest key and enrols it: auth checks Apple's attestation of it for your registered app (team and bundle);
-- each call to the backend then carries an assertion over the call's method, path, body and a short-lived challenge, with the key's counter, so a captured call cannot be sent again or changed;
-- a `401 app_attest_required` is answered by itself: enrol if needed, prove, send once more.
+- each call to such a route then carries an assertion over the call's method, path, body and a short-lived challenge, with the key's counter, so a captured call cannot be sent again or changed;
+- the route's generated method knows it attests (`palbase apps:sync` writes it from the contract), so its first call is proved: the SDK enrols before it if needed and asks your backend for a fresh challenge (`GET /.well-known/palbase/attest-challenge`, once for calls made together), with no `401` round trip first. A route not marked carries no proof;
+- a `401 app_attest_required` from a route its client does not know as attested — a client generated before the route was marked — is answered by itself: enrol if needed, prove, send once more; the route is proved from then on while the app runs. `palbase apps:sync` again marks it.
 
 What only you set: Xcode's **App Attest** capability on the app target. It writes `com.apple.developer.devicecheck.appattest-environment` = `development`, Apple's sandbox, for a build run from Xcode; a TestFlight or App Store build uses Apple's production environment whatever the value says, so one entitlements file serves Debug and Release. `palbase apps:sync` reminds you when an environment's backend has an attested route. A Simulator cannot attest: under enforce its calls end in `.attestationUnavailable`.
 

@@ -2,7 +2,7 @@
 
 # CLI reference
 
-Every command of `palbase` 0.22.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.23.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
 384 commands in 32 groups.
 
@@ -98,7 +98,7 @@ Nothing already there is written over: a file init would write that exists stops
 --db's table is typed in palbase/palbase-env.d.ts by the block palbase db:types writes of the schema: run db:types again when you change it.
 --print writes nothing: it prints the files as JSON ({ name, db, version, files: { `<path>`: `<text>` } }), for a program that seeds a repository with this release's starter (bunx `palbase@<version>` init --print `<name>` --db).
 Then: bun install, palbase use `<project>/<environment>`, palbase env:pull, bun dev.
-Its tests: bun test (here, no app); palbase test --users alice,bob --base-url http://localhost:8080 -- bun test ./tests (against the app you started, as test users made for the run); on the platform, palbase machines:update `<name>` --test-command "bun test ./tests" --test-users alice,bob runs them against each new build before it takes traffic.
+Its tests: bun test (here, no app); palbase test --users alice,bob --base-url http://localhost:8080 -- bun test ./tests (against the app you started, as test users made for the run — with an environment's token, against the deployed machine: --base-url `https://<ref>.app.palbase.studio`); on the platform, palbase machines:update `<name>` --test-command "bun test ./tests" --test-users alice,bob runs them against each new build before it takes traffic.
 
 ```text
       --db     with a database: a schema file (a table each user reads alone) and its routes
@@ -152,6 +152,7 @@ palbase test --machine backend --base-url http://localhost:8080: the machine's o
 palbase test --users alice,bob --base-url http://localhost:8080 -- bun test: api.signInAs("alice") acts as a test user made for this run.
 The command gets what palbase run gives it, and PALBASE_TEST_AUTH_URL (the environment's address), PALBASE_TEST_IDENTITIES (the run's test users, each with its token) and, with --base-url, PALBASE_TEST_BASE_URL (where the app under test answers; without it HTTP tests skip themselves).
 The test users are deleted when the command ends, however it ends — Ctrl-C too: the command is stopped, they are deleted, and palbase test ends as the signal would have.
+With an environment's token (PALBASE_TOKEN, scope auth:test-users) the test users are made and deleted with the token, and no key is made: the command gets no PALBASE_SECRET_KEY, so test the app where it is deployed — palbase test --users alice,bob --base-url `https://<ref>.app.palbase.studio` -- bun test ./tests (the machine named backend; `https://<name>-<ref>.app.palbase.studio` for another, as machines:list shows).
 
 ```text
       --machine <name>  a machine whose test command (when no command is given) and test users (when --users is not) are run
@@ -4371,6 +4372,8 @@ A machine's log: the last hour, or since a time; -f follows what it writes next
 ```sh
 palbase machines:logs [name] [-f] [--since <time>] [--lines <n>] [--search <text>]
 ```
+
+Besides the machine's own lines: its migration runs' (migration), and what a build printed while its tests ran against it (test) — the error it answered a test with, and that request's id: palbase machines:logs `<name>` --search `<request_id>`.
 
 ```text
   -f, --follow         keep printing what the machine writes

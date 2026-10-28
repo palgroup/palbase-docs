@@ -1488,7 +1488,7 @@ A limit that counts refuses nothing: the use goes on and is metered.
 An environment is free while it is on the Free plan — every environment starts on it — and while its credit has run out or its month is at its monthly limit ([Billing](/docs/getting-started/billing)). Each environment is free on its own: one running out holds no other.
 
 - **Sizes.** Its machines are of the `shared-256` size, the one free machine size, and it has one database at most, of the `free` size: a project holds one database of a free size at a time ([Databases](/docs/machines/databases#sizes)). Every other size is paid for: opening a machine or a database of one, or moving one to it, is `403 size_not_available`. `palbase machines:sizes` and `palbase databases:sizes` list the sizes and which of them the environment may open now ([Machines](/docs/machines/overview#sizes)).
-- **Traffic.** It sends 5 GB a month at full speed: its machines' internet traffic and its response traffic together. Past it, until the month ends, its machines' traffic and answers and the files its storage hands out go at about 256 kbit/s; nothing is stopped, and the API's other answers are not slowed. A slowed project's downloads are paced, and one more than it may have under way at once is `429 rate_limited` with `Retry-After`. See [Reaching the internet](/docs/machines/overview#reaching-the-internet).
+- **Traffic.** It sends 5 GB a month at full speed: its machines' internet traffic and its response traffic together. Past it, until the month ends, its machines' traffic and answers and the files its storage hands out go at about 256 kbit/s; nothing is stopped, and the API's other answers are not slowed. A slowed project's downloads are paced, and one more than it may have under way at once is `429 rate_limited` with `Retry-After`. A file the CDN answers from its own copy never reaches the project, and is neither counted nor slowed ([The CDN](/docs/backend/storage#the-cdn)). See [Reaching the internet](/docs/machines/overview#reaching-the-internet).
 - **Chat messages.** 1 million messages a month, and 1 GiB of them kept. Past either, until the month ends, the project's messages go at about one a second, all its people and its server together: a send waits its turn, 10 seconds at the most, and one whose turn is further off is `429 slowed` with `Retry-After` — the SDKs keep it in their outbox and send it again. No message is lost, and reading, syncing and everything else go on at full speed. What is kept counts at its month's largest, so a project that keeps more than 1 GiB is slowed again early each month: remove old messages, or set the project's retention ([Messaging](/docs/messaging/overview#the-projects-settings)), to stay under it.
 - **A free database** is awake 400 hours a month at most. Past them it sleeps until the month ends, refusing connections, with its data kept; from then its next connection wakes it.
 - **AI.** $1.00 of Palbase's models a month, at the provider's price and 10%. Past it, until the month ends, a call to them is `402 ai_payment_required`; a call under the project's own provider key goes on ([AI](/docs/backend/ai#what-it-costs)).
@@ -1705,7 +1705,7 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.22.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.23.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
 384 commands in 32 groups.
 
@@ -1801,7 +1801,7 @@ Nothing already there is written over: a file init would write that exists stops
 --db's table is typed in palbase/palbase-env.d.ts by the block palbase db:types writes of the schema: run db:types again when you change it.
 --print writes nothing: it prints the files as JSON ({ name, db, version, files: { `<path>`: `<text>` } }), for a program that seeds a repository with this release's starter (bunx `palbase@<version>` init --print `<name>` --db).
 Then: bun install, palbase use `<project>/<environment>`, palbase env:pull, bun dev.
-Its tests: bun test (here, no app); palbase test --users alice,bob --base-url http://localhost:8080 -- bun test ./tests (against the app you started, as test users made for the run); on the platform, palbase machines:update `<name>` --test-command "bun test ./tests" --test-users alice,bob runs them against each new build before it takes traffic.
+Its tests: bun test (here, no app); palbase test --users alice,bob --base-url http://localhost:8080 -- bun test ./tests (against the app you started, as test users made for the run — with an environment's token, against the deployed machine: --base-url `https://<ref>.app.palbase.studio`); on the platform, palbase machines:update `<name>` --test-command "bun test ./tests" --test-users alice,bob runs them against each new build before it takes traffic.
 
 ```text
       --db     with a database: a schema file (a table each user reads alone) and its routes
@@ -1855,6 +1855,7 @@ palbase test --machine backend --base-url http://localhost:8080: the machine's o
 palbase test --users alice,bob --base-url http://localhost:8080 -- bun test: api.signInAs("alice") acts as a test user made for this run.
 The command gets what palbase run gives it, and PALBASE_TEST_AUTH_URL (the environment's address), PALBASE_TEST_IDENTITIES (the run's test users, each with its token) and, with --base-url, PALBASE_TEST_BASE_URL (where the app under test answers; without it HTTP tests skip themselves).
 The test users are deleted when the command ends, however it ends — Ctrl-C too: the command is stopped, they are deleted, and palbase test ends as the signal would have.
+With an environment's token (PALBASE_TOKEN, scope auth:test-users) the test users are made and deleted with the token, and no key is made: the command gets no PALBASE_SECRET_KEY, so test the app where it is deployed — palbase test --users alice,bob --base-url `https://<ref>.app.palbase.studio` -- bun test ./tests (the machine named backend; `https://<name>-<ref>.app.palbase.studio` for another, as machines:list shows).
 
 ```text
       --machine <name>  a machine whose test command (when no command is given) and test users (when --users is not) are run
@@ -6074,6 +6075,8 @@ A machine's log: the last hour, or since a time; -f follows what it writes next
 ```sh
 palbase machines:logs [name] [-f] [--since <time>] [--lines <n>] [--search <text>]
 ```
+
+Besides the machine's own lines: its migration runs' (migration), and what a build printed while its tests ran against it (test) — the error it answered a test with, and that request's id: palbase machines:logs `<name>` --search `<request_id>`.
 
 ```text
   -f, --follow         keep printing what the machine writes
@@ -10421,14 +10424,14 @@ export class DownloadService {
 }
 ```
 
-A missing object is a `404` refusal (a `PalbaseError`). `Range` (one byte range, answered `206`) and `If-None-Match` (answered `304`, with no body) are honoured, and `headObject` reads the headers without the bytes. A read with the secret key names the object's owner in `X-Owner-Id`; a public or signed URL never does. What is served is made inert — `nosniff`, a sandboxing CSP, and a download for any type a browser does not render safely — and every read counts toward the project's egress.
+A missing object is a `404` refusal (a `PalbaseError`). `Range` (one byte range, answered `206`) and `If-None-Match` (answered `304`, with no body) are honoured, and `headObject` reads the headers without the bytes. A read with the secret key names the object's owner in `X-Owner-Id`; a public or signed URL never does. What is served is made inert — `nosniff`, a sandboxing CSP, and a download for any type a browser does not render safely — and every read that reaches storage counts toward the project's egress ([The CDN](#the-cdn)).
 
 ## Three ways a client reads a file
 
 | URL | Who may read it | Made by |
 |---|---|---|
 | `https://<ref>.palbase.studio/storage/public/{bucket}/{path}` | Anyone, with no credential — an `<img src>`, a CDN. A private bucket's object is `403`. | Nothing to make: the bucket is `public`. |
-| `https://<ref>.palbase.studio/storage/signed/{bucket}/{path}?…&sig=…` | Anyone holding the URL, until it expires (7 days at most). | `createSignedUrl` |
+| `https://cdn.palbase.studio/<ref>/signed/{bucket}/{path}?…&sig=…` | Anyone holding the URL, until it expires (7 days at most). | `createSignedUrl` |
 | `GET /storage/buckets/{bucket}/objects/{path}` | Your backend, with the secret key. | — |
 
 The `{path}` in a URL is **one** percent-encoded segment: `a/b.jpg` is `a%2Fb.jpg`. `?variant=thumb` reads a rendition on all three.
@@ -10447,7 +10450,18 @@ export function publicUrl(bucket: string, path: string, variant?: string): strin
 }
 ```
 
-A signed URL is absolute, at the project's own address, and opens nothing at another project's. Every parameter of it is covered by its signature: a URL changed by one character, expired, or naming another object is `403`. The object must exist when the URL is signed.
+A signed URL is absolute, at the CDN's address under the project's ref, and opens nothing of another project's. Every parameter of it is covered by its signature: a URL changed by one character, expired, or naming another object is `403`. The object must exist when the URL is signed, and the URL names its bytes as they were: one signed after the object changed is another URL. A public object is read the same way at `https://cdn.palbase.studio/<ref>/public/{bucket}/{path}`.
+
+## The CDN
+
+`cdn.palbase.studio` is served by Cloudflare: a file read there is kept near whoever reads it, and the next read of it near them is answered from that copy without reaching your project.
+
+- **A minute at most.** A public object is kept 60 seconds (`Cache-Control: public, max-age=60`), browsers included; a signed URL's object 60 seconds or until the URL expires, whichever comes first. A file deleted or replaced is gone from every copy within a minute. A refusal — `403`, `404` — is never kept.
+- **Pictures and files, not video.** A video, or a file larger than 25 MiB, is not kept: the CDN's address answers `302` with the same path and query at the project's own address (`https://<ref>.palbase.studio/storage/…`), and it is read there. A client following redirects, as browsers and every SDK do, sees nothing of it.
+- **No credential.** The CDN's address reads public and signed files alone — `GET` and `HEAD` — and no key or token sent there is read: what is kept is what anyone holding the URL is given.
+- **Counted when it reaches storage.** A read answered from the CDN's copy is not your project's traffic: it is not counted, nor slowed. One that reaches storage is, as at the project's own address.
+
+The project's own address answers the same reads (`/storage/public/…`, `/storage/signed/…`), without the CDN in front.
 
 ## Image renditions
 
@@ -12505,14 +12519,14 @@ export const coder = Palbase.ai.agent("coder", () => ({
 }));
 ```
 
-- **After every step** the advisor reads what the agent did since its last look, in the background: the agent does not wait for it. When it has something the agent must know, the agent reads it at its next step, as a message that begins `[palai:advisor]` — the advisor's word, not the person's. By default it says nothing.
+- **After every step** the advisor reads what the agent did since its last look, in the background: the agent does not wait for it. It looks for what is wrong — what the agent wrote, what it made, a screen a tool showed it — and opens what the record only names before it judges. When it has something the agent must know, the agent reads it at its next step, as a message that begins `[palai:advisor]` — the advisor's word, not the person's. When it finds nothing wrong it says nothing.
 - **A turn's answer waits for it.** When the agent answers, the advisor reads the answer first. If it objects, the agent is told and goes on in the same turn; a turn's answer is held twice at most. The advisor never stops the turn: the agent has the last word.
 - **The agent can ask it**, with the `palai.advisor.ask` tool. A decision none of the agent's instructions, the advisor's rules or the work so far settle — a business rule, a price, a name — the advisor does not make up: it tells the agent to ask the person.
-- **It only reads.** It reads the agent's workspace (files, search, the working tree's diff) and the tools of the MCP servers named in its `tools` that say they only read (`readOnlyHint`). A server's other tools are left out; a tool named in `only` that does not say so refuses the turn (`400 advisor_tool_not_read_only`). Nothing it reads waits for a person.
+- **It only reads.** It reads the agent's workspace (files, search, the working tree's diff), the pictures the agent's tools answered — a screenshot, by the id its record names — and the image files of the workspace, and the tools of the MCP servers named in its `tools` that say they only read (`readOnlyHint`). No picture is sent to it unasked: it opens the ones it wants to see, four a reading at most. A server's other tools are left out; a tool named in `only` that does not say so refuses the turn (`400 advisor_tool_not_read_only`). Nothing it reads waits for a person.
 - **It reads the agent's reasoning** when the model's provider gives it — Anthropic's and OpenAI's models do — even when the agent's `thinking` is `hidden`: then it is asked for the advisor alone and shown in no stream.
 - **Its calls are the turn's**: in the turn's cost (`chats.turnCost(…).advisor` says how much of it was the advisor's) and its budget. A turn past its budget is not read further.
 
-Each reading is an `advisor` part in the chat's stream: `{ kind: "step" | "final" | "ask", verdict: "none" | "heads_up" | "answer" | "unreadable", rule, message, question, told }`. A one-shot answer of an agent with an advisor is read by it too.
+Each reading is an `advisor` part in the chat's stream: `{ kind: "step" | "final" | "ask", verdict: "none" | "heads_up" | "answer" | "unreadable", rule, message, question, told, reads }` — `reads` is what it opened, in order (`{ tool, input }`: a file, a screenshot by its id). A one-shot answer of an agent with an advisor is read by it too.
 
 | Field | What it is |
 |---|---|
@@ -14204,11 +14218,14 @@ describe.skipIf(!testRun.stack)("notes, over HTTP", () => {
 | Your computer | `bun test` | the unit tests; the HTTP tests skip themselves |
 | Your computer, against your app | `palbase test --users alice,bob --base-url http://localhost:8080 -- bun test ./tests` | all of them, as test users made for this run in the environment you use, deleted when the command ends — Ctrl-C too |
 | As a machine runs them | `palbase test --machine backend --base-url http://localhost:8080` | the machine's own test command, as its test users (it shows the command and asks before running it; `-y` says yes) |
+| An agent with an environment's token, against the deployed machine | `PALBASE_TOKEN=pbe_… palbase test --users alice,bob --base-url https://<ref>.app.palbase.studio -- bun test ./tests` | all of them, against the version that serves, as test users made with the token (scope `auth:test-users`) and deleted when the command ends. No key is made: the command gets no `PALBASE_SECRET_KEY`, so it starts no app of its own. In `main`, `-y` confirms the test users made there |
 | The platform | `palbase machines:update backend --test-command "bun test ./tests" --test-users alice,bob` | every new build, against the new version itself, before it takes traffic |
 
 On the platform the tests run against the new version **as it will run** — its env, its secrets, its database, after its migration has started: they pass and it takes traffic; one fails and the build fails, naming the test, while the machine keeps serving the version it runs (see [Builds](/docs/machines/builds#tests-before-it-takes-traffic)). The tests write where the app writes, so write them as a real user's session: a note of their own, not a table they expect empty. What a test user owns goes with them — the run deletes its users, and a deleted user's rows are erased (`ownedByUser()`, on `user.deleted`).
 
 The image has to carry the tests: `palbase init`'s `Dockerfile` copies `tests/`, and Bun's types are a dev dependency the image does not install.
+
+When a test fails with a `500`, its `TestApiError` names the request's id (`request_id`). What the app printed for it — its error, its stack, on a line with that id — is in the build's log after what the tests printed (`palbase machines:builds:log <build>`), and in the machine's log as `source: "test"`: `palbase machines:logs <name> --search <request_id>` finds it. An environment token with `machines:logs` reads both.
 
 ## Without the network
 
@@ -17054,15 +17071,17 @@ await pb.notify.push.refresh();
 |---|---|
 | `supported()` | Whether the browser takes pushes at all: a service worker, the Push API and notifications. |
 | `permission()` | `granted`, `denied`, `default` (not asked yet) or `unsupported`. |
-| `subscribe(options?)` | Asks the person (call it from a tap), registers the service worker, subscribes the browser with the project's key through its own push service, and registers the subscription as a device. `true` when the browser takes pushes now, `false` when the person refused or the browser has none. `options`: `serviceWorker`, the worker's path (`/palbase-sw.js` unless given), and `scope`. |
+| `subscribe(options?)` | Asks the person (call it from a tap), registers the service worker, subscribes the browser with the project's key through its own push service, and registers the subscription as a device. `true` when the browser takes pushes now, `false` when the person refused or the browser has none. `options`: `serviceWorker`, the worker's path (`/palbase-sw.js` unless given), and `scope`, its scope (its folder unless given). A scope another worker holds is refused: it would replace that one. |
 | `unsubscribe()` | Ends the browser's subscription. The project forgets the device as it next pushes it. |
 | `refresh()` | Registers the subscription again, without a prompt, when the person allowed it and there is one. |
 
-The device is the signed-in user's, or this install's (`pb.installation.id`) while no one is signed in: a push that names the install reaches it then. It is registered again by itself as people sign in and out, and a subscription that cannot be registered again ends, so one person's pushes are never shown to the next. The project's key for Web Push (VAPID) is its own, made as the first browser asks for it: no account of another provider is needed.
+The device is the signed-in user's, or this install's (`pb.installation.id`) while no one is signed in: a push that names the install reaches it then. It is registered again by itself as people sign in and out, one change at a time. When that registration cannot be sent — the browser offline, the server unreachable — Palbase's subscription ends and a new one takes its place, registered for whoever is signed in once the server answers (tried again after 1 s, 5 s, 30 s, 2 min and 10 min, and at the next change): one person's pushes are never shown to the next. The project's key for Web Push (VAPID) is its own, made as the first browser asks for it: no account of another provider is needed.
 
 ### The service worker
 
 The pushes are shown by the SDK's service worker, served from your site's own origin. Copy `node_modules/palbase/dist/web/push-sw.js` (the package exports it as `palbase/web/push-sw.js`) into the folder your site serves as it is, as `palbase-sw.js`: `public/palbase-sw.js` in Next.js or Vite. Copy it again when you update `palbase`. To serve it elsewhere, name its path: `subscribe({ serviceWorker: "/sw/palbase.js" })`.
+
+Palbase touches only its own worker and subscription. A scope holds one worker, so where your app's own worker (an offline cache, another service's pushes) holds the folder's scope, Palbase's registers at `palbase-push/` beside it: a push reaches its worker whatever pages that controls, and yours stays as it is. A worker is Palbase's for this project when its URL carries this project's key.
 
 `subscribe()` registers it with the project's address and publishable key in its URL, which it reports with. The worker shows each push, opens its link when it is tapped (an `https` address, or one of your site's; a tab of your app at that address is focused rather than opened again), and tells the project how each went — delivered, opened, dismissed — with the push's own receipt as the credential. It tells your open pages too:
 
@@ -18159,8 +18178,9 @@ A code the route's contract declares is a case of its own (`NotesCreateError.for
 A route the backend marks `attest: true` is called only by your app on a genuine iPhone or iPad ([Device attestation](/docs/backend/authentication#device-attestation)). The SDK proves each call by itself with Apple's App Attest:
 
 - once per install it makes an App Attest key and enrols it: auth checks Apple's attestation of it for your registered app (team and bundle);
-- each call to the backend then carries an assertion over the call's method, path, body and a short-lived challenge, with the key's counter, so a captured call cannot be sent again or changed;
-- a `401 app_attest_required` is answered by itself: enrol if needed, prove, send once more.
+- each call to such a route then carries an assertion over the call's method, path, body and a short-lived challenge, with the key's counter, so a captured call cannot be sent again or changed;
+- the route's generated method knows it attests (`palbase apps:sync` writes it from the contract), so its first call is proved: the SDK enrols before it if needed and asks your backend for a fresh challenge (`GET /.well-known/palbase/attest-challenge`, once for calls made together), with no `401` round trip first. A route not marked carries no proof;
+- a `401 app_attest_required` from a route its client does not know as attested — a client generated before the route was marked — is answered by itself: enrol if needed, prove, send once more; the route is proved from then on while the app runs. `palbase apps:sync` again marks it.
 
 What only you set: Xcode's **App Attest** capability on the app target. It writes `com.apple.developer.devicecheck.appattest-environment` = `development`, Apple's sandbox, for a build run from Xcode; a TestFlight or App Store build uses Apple's production environment whatever the value says, so one entitlements file serves Debug and Release. `palbase apps:sync` reminds you when an environment's backend has an attested route. A Simulator cannot attest: under enforce its calls end in `.attestationUnavailable`.
 
@@ -20371,8 +20391,9 @@ The contract's errors are what the route throws, as the backend's build reads th
 A route the backend marks `attest: true` is called only by your app on a genuine phone ([Device attestation](/docs/backend/authentication#device-attestation)). The SDK proves each call by itself:
 
 - once per install, it makes a key in the phone's secure hardware and enrols it: auth checks the key's attestation chain against Google's roots and revocation list, that the phone is locked with a verified boot, and that the app is your registered package signed with one of its registered certificates;
-- each call to the backend then carries a signature with that key over the call's method, path, body and a short-lived challenge, and a counter, so a captured call cannot be sent again or changed;
-- a `401 app_attest_required` is answered by itself: enrol if needed, prove, send once more.
+- each call to such a route then carries a signature with that key over the call's method, path, body and a short-lived challenge, and a counter, so a captured call cannot be sent again or changed;
+- the route's generated method knows it attests (`palbase apps:sync` writes it from the contract), so its first call is proved: the SDK enrols before it if needed and asks your backend for a fresh challenge (`GET /.well-known/palbase/attest-challenge`, once for calls made together), with no `401` round trip first. A route not marked carries no proof;
+- a `401 app_attest_required` from a route its client does not know as attested — a client generated before the route was marked — is answered by itself: enrol if needed, prove, send once more; the route is proved from then on while the app runs. `palbase apps:sync` again marks it.
 
 What only you set: the SHA-256 of the certificates your releases are signed with, registered with the app (`palbase apps:env:set <app> --sha256 play_signing=AB:CD:…`; Play's app signing key and your upload key). Do not register a debug key where attestation is enforced: a debug build can be driven over adb to sign requests. An emulator cannot attest: under enforce its calls end in `AttestationUnavailable`.
 
@@ -27364,7 +27385,7 @@ A machine that names a **test command** (`test_command`, as Render's pre-deploy 
 
 The tests reach what the machine reaches — its database, the project's storage, mail and the rest — so they write as the machine does: write tests that leave the data as a real user's session would, and that do not depend on an empty database.
 
-They pass, and the version takes traffic. One fails, and the build fails: its `reason` names the tests that failed, its GitHub check shows the end of what they printed (what the run was given that is secret written over), the version never takes traffic, the machine keeps the version it runs, and the migration is taken back. A run has 20 minutes. A build is tested as the machine named its tests when the build was released to it. `palbase test --machine <name>` runs the same command, as the same test users, on your computer.
+They pass, and the version takes traffic. One fails, and the build fails: its `reason` names the tests that failed, its GitHub check shows the end of what they printed (what the run was given that is secret written over), the version never takes traffic, the machine keeps the version it runs, and the migration is taken back. The build's log (`palbase machines:builds:log <build>`) keeps the end of what the tests printed and, under its own heading after it, the end of what **the new version itself** printed while they ran — where a `500` it answered a test with is, with its error, its stack and the request's id (`request_id`, the one the test's `TestApiError` names), secrets written over the same way. Those lines are in the machine's log too, as `source: "test"` (below). A run has 20 minutes. A build is tested as the machine named its tests when the build was released to it. `palbase test --machine <name>` runs the same command, as the same test users, on your computer.
 
 ### How the image is made
 
@@ -27434,7 +27455,7 @@ Studio's machine page (**Backend › Machines › `<name>`**) lists its **Builds
 
 ## Logs
 
-What the machine writes to stdout and stderr is kept — every copy, every version (one that never came up too), and its migration runs — for **7 days**, up to 1,200 lines a minute per machine; past that, the rest of that minute is not kept. Write one JSON object a line and each is one line to read back: `Log` from `palbase/backend` does exactly that, with the request's id on every line ([Backend SDK](/docs/backend/overview)).
+What the machine writes to stdout and stderr is kept — every copy, every version (one that never came up too), its migration runs, and each new version while its tests ran against it — for **7 days**, up to 1,200 lines a minute per machine for each of those sources (its serving copies, its migration runs, a build's test run); past that, the rest of that minute is not kept — a test run that prints much takes nothing from the version that serves. Write one JSON object a line and each is one line to read back: `Log` from `palbase/backend` does exactly that, with the request's id on every line ([Backend SDK](/docs/backend/overview)).
 
 Studio's machine page shows the last hour, the last 100, 500 or 2,000 lines of it. From a server, `readMachineLogs` (`GET /machines/{name}/logs`) answers NDJSON, one line object a line, oldest first:
 
@@ -27445,7 +27466,7 @@ Studio's machine page shows the last hour, the last 100, 500 or 2,000 lines of i
 | `lines` | How many lines at most, 1 to 5,000 (500 by default) — for a followed read, before it follows |
 | `follow` | `true` holds the answer open and sends what the machine writes next |
 
-Each line carries `ts` (to the nanosecond), `id` (ids sort as lines do, and the same line read twice has the same id), `stream` (`stdout` or `stderr`), `generation` (the machine's version that wrote it), `source` (`machine`, or `migration` for a migration run), `line` (what was written) and which copy wrote it.
+Each line carries `ts` (to the nanosecond), `id` (ids sort as lines do, and the same line read twice has the same id), `stream` (`stdout` or `stderr`), `generation` (the machine's version that wrote it), `source` (`machine`, `migration` for a migration run, or `test` for what a new version printed while its tests ran against it), `line` (what was written) and which copy wrote it.
 
 ```ts
 // scripts/tail.ts
