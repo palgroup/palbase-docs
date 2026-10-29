@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.23.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.26.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-384 commands in 32 groups.
+403 commands in 33 groups.
 
 ## Global flags
 
@@ -919,22 +919,58 @@ palbase auth:test-users:list
 
 ### `palbase auth:test-users:create`
 
-Make test users for a suite: their passwords, and with --token an access token each, shown this once; --template has the backend write the data a screen needs for each
+Make test users for a suite, of the kind a sign-in asks for: their passwords (and a second factor's key), and with --token an access token each, shown this once; --template has the backend write the data a screen needs for each
 
 ```sh
-palbase auth:test-users:create [--count <n>] [--token] [--template <name> [--machine <name>]]
+palbase auth:test-users:create [--count <n>] [--token] [--email <address>] [--password <pw> | --passwordless] [--phone <e164> [--otp <code>]] [--email-otp <code>] [--unverified] [--mfa totp|sms|email] [--template <name> [--machine <name>]]
 ```
 
 A test user signs in as any user does; its tokens say test: true, so a backend can tell them apart. --token gives each an access token at once, for a test that calls the backend as that user.
+Its mail and texts are kept for it, read with palbase auth:test-users:messages `<id>` — a sign-in link, a verification or second factor's code: a made address (…@test.invalid) is mailed nothing and a phone texted nothing, while --email with an address of yours gets its mail too.
+Of the kind a sign-in asks for: --passwordless (a link, a code or a passkey alone), --unverified (its verification is tested), --phone with its fixed code (--otp, made when left out), --email-otp (a fixed code its email accepts: a reviewer reads no inbox), --mfa (a second factor from the start; totp answers its key once).
 --template `<name>` has the backend write the data of its @TestUserTemplate({ name }) for each user — its seed for one account, in its own code (palbase/backend), run on the machine --machine names or the environment's only one, for test users alone. Each user is answered with the rows written, by table, or why its template was not (no_template, not_a_test_user, template_failed, template_timeout, machine_unavailable): the user is made all the same, and the command then ends with 1. At most 10 users at once with a template.
 palbase auth:test-users:template writes another template for a user made with one; palbase auth:test-users:delete has the template undone before the user is deleted.
 
 ```text
-      --count <n>        how many (default 1, at most 100; 10 with --template)
-      --token            an access token for each, too
-      --template <name>  a @TestUserTemplate of the backend's: its data written for each user
-      --machine <name>   the machine whose backend has the template (default: the environment's only one)
+      --count <n>             how many (default 1, at most 100; 10 with --template)
+      --token                 an access token for each, too
+      --email <address>       its address — one of yours gets its mail too (default: a made …@test.invalid)
+      --password <pw>         its password (default: a made one)
+      --passwordless          no password: it signs in by a link, a code or a passkey
+      --phone <e164>          a verified phone, texted nothing
+      --otp <code>            the phone's fixed code, six digits (default: a made one)
+      --email-otp <code>      a fixed code its email accepts, six digits
+      --unverified            its email unverified
+      --mfa <totp|sms|email>  a second factor from the start
+      --template <name>       a @TestUserTemplate of the backend's: its data written for each user
+      --machine <name>        the machine whose backend has the template (default: the environment's only one)
 ```
+
+### `palbase auth:test-users:messages`
+
+A test user's mail and texts of the last 7 days, the 50 newest first: to whom, the code and the link each carried
+
+```sh
+palbase auth:test-users:messages <user-id> [--channel email|sms]
+```
+
+What a flow sent the user — a sign-in link, a verification or second factor's code, the project's own mail — is kept for it: a test reads the code or link here. --json answers each whole: its subject, text, HTML and the variables its template had.
+A user who is no test user is refused (not_a_test_user): no one else's mail is kept.
+
+```text
+      --channel <email|sms>  only this channel's
+```
+
+### `palbase auth:test-users:address`
+
+An address for an app's sign-up to be tested with: the account a sign-up with it opens is a test user, its mail kept for palbase auth:test-users:messages
+
+```sh
+palbase auth:test-users:address
+```
+
+The address (signup-…@test.invalid) is typed into the app's sign-up form: the account it opens is a test user — its tokens say test: true, it is not counted as an active user, its verification mail is kept, never sent. Used once.
+It holds a place of the environment's test-user cap until it is used, or lapses a day after it was made. A sign-up with any other address opens an ordinary user.
 
 ### `palbase auth:test-users:template`
 
@@ -4276,6 +4312,12 @@ The environment needs its GitHub link first: palbase github:connect.
       --size <size>                       its size (palbase machines:sizes lists them)
       --replicas <n>                      how many copies run, each on a node of its own
       --port <port>                       the port it listens on (it also finds it in PORT)
+      --always-on                         keep it awake: never put to sleep when idle (an environment on Pay as you go pays its every hour; on Free a shared machine sleeps when idle)
+      --no-always-on                      let it sleep when idle again
+      --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
+      --no-previews                       preview no pull request from now on
+      --preview-forks                     preview pull requests from forks too: anyone's code runs with this environment's settings
+      --no-preview-forks                  preview no pull request from a fork from now on
       --health <path>                     where it answers 2xx while well; a release that does not is not rolled out
       --openapi-path <path>               where its app serves its OpenAPI contract, when it is not a Palbase backend (apps:sync makes its client from it); "" for a Palbase backend's own
       --db <database>                     a database of the environment it is given (PALBASE_DB_URL); "" for none
@@ -4303,6 +4345,12 @@ palbase machines:update [name] [--size …] [--replicas …] [--db …] [--repo 
       --size <size>                       its size (palbase machines:sizes lists them)
       --replicas <n>                      how many copies run, each on a node of its own
       --port <port>                       the port it listens on (it also finds it in PORT)
+      --always-on                         keep it awake: never put to sleep when idle (an environment on Pay as you go pays its every hour; on Free a shared machine sleeps when idle)
+      --no-always-on                      let it sleep when idle again
+      --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
+      --no-previews                       preview no pull request from now on
+      --preview-forks                     preview pull requests from forks too: anyone's code runs with this environment's settings
+      --no-preview-forks                  preview no pull request from a fork from now on
       --health <path>                     where it answers 2xx while well; a release that does not is not rolled out
       --openapi-path <path>               where its app serves its OpenAPI contract, when it is not a Palbase backend (apps:sync makes its client from it); "" for a Palbase backend's own
       --db <database>                     a database of the environment it is given (PALBASE_DB_URL); "" for none
@@ -4351,6 +4399,53 @@ A machine's builds, newest first
 
 ```sh
 palbase machines:builds [name]
+```
+
+### `palbase machines:previews`
+
+A machine's pull request previews, newest first: each a machine of its own while its pull request is open
+
+```sh
+palbase machines:previews [name]
+```
+
+### `palbase machines:domains`
+
+A machine's own domains: whether each answers, and what its DNS still needs
+
+```sh
+palbase machines:domains [--machine <name>]
+```
+
+```text
+      --machine <name>  the machine (default: the environment's only one)
+```
+
+### `palbase machines:domains:add`
+
+Have a machine answer at a domain of your own too (www.example.com, or example.com)
+
+```sh
+palbase machines:domains:add <host> [--machine <name>]
+```
+
+It answers once its DNS points at the platform (the CNAME) and says it is this environment's (the TXT record): both are printed.
+Cloudflare issues its certificate; a domain is one environment's until it is removed there.
+
+```text
+      --machine <name>  the machine (default: the environment's only one)
+```
+
+### `palbase machines:domains:remove`
+
+Stop a machine answering at a domain: at once, and another environment may add it
+
+```sh
+palbase machines:domains:remove <host> [--machine <name>]
+```
+
+```text
+      --machine <name>  the machine (default: the environment's only one)
 ```
 
 ### `palbase machines:builds:log`
@@ -4553,6 +4648,192 @@ Delete a machine: it stops serving, its address answers nothing
 
 ```sh
 palbase machines:delete <name>
+```
+
+## `hosting`
+
+### `palbase hosting:deploy`
+
+Deploy a folder as a static site: only the files that changed are sent, and the site serves them at once
+
+```sh
+palbase hosting:deploy <folder> [--site <name>] [--spa]
+```
+
+The folder is what your build wrote (dist, build, out, public): every file in it is served, at its path from the folder's root.
+The site is opened on its first deploy; --spa then answers a path no file answers with /index.html (a single-page app).
+A folder of one page, index.html, is taken for a single-page app when the site is opened.
+
+```text
+      --site <name>  the site (default: web, which answers at the environment's ref)
+      --spa          when the site is opened: answer every path no file answers with /index.html
+```
+
+### `palbase hosting:sites:list`
+
+The environment's static sites, where each answers and the release it serves
+
+```sh
+palbase hosting:sites:list
+```
+
+### `palbase hosting:sites:create`
+
+Open a static site — built from GitHub on every push with --repo/--branch, or deployed from a folder (hosting:deploy opens one too)
+
+```sh
+palbase hosting:sites:create [name] [--spa] [--repo <owner/name> --branch <branch> --path <dir>] [--build-command …] [--output <dir>] [--build-env K=V]… [--previews [--preview-forks]]
+```
+
+With --branch (and --repo, or in a checkout of a GitHub repository), its branch's head is built at once and on every push: the folder its build writes is served.
+With --previews, each pull request against the branch is built too and answers at `<name>-pr<n>-<ref>` until it closes; the pull request is told where.
+The environment needs its GitHub link first: palbase github:connect.
+
+```text
+      --spa                        a single-page app: every path no file answers is its /index.html
+      --repo <owner/name>          build it from this GitHub repository on every push (default with --branch: this checkout's origin)
+      --branch <branch>            the branch whose pushes are built
+      --path <dir>                 the site's directory in the repository (default: this directory's place in it)
+      --install-command <command>  what installs its packages (default: from its lockfile — pnpm, yarn, npm, bun)
+      --build-command <command>    what builds it (default: its package.json's build script)
+      --output <dir>               the folder the build writes (default: what its builder writes — dist, build, out, …)
+      --build-env <K=V>            a setting the build runs with (repeat it): what its pages are sent (VITE_*), never a secret
+      --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
+      --preview-forks              preview pull requests from forks too: anyone's code runs with this environment's settings
+```
+
+### `palbase hosting:sites:update`
+
+Change a site: whether it is a single-page app, where it is built from, what its build runs
+
+```sh
+palbase hosting:sites:update <name> [--spa | --no-spa] [--repo … --branch … --path …] [--no-source] [--build-command …] [--output …] [--build-env K=V]… [--previews | --no-previews] [--preview-forks | --no-preview-forks]
+```
+
+```text
+      --spa                        a single-page app: every path no file answers is its /index.html
+      --no-spa                     not a single-page app: a path no file answers is 404
+      --repo <owner/name>          build it from this GitHub repository on every push (default with --branch: this checkout's origin)
+      --branch <branch>            the branch whose pushes are built
+      --path <dir>                 the site's directory in the repository (default: this directory's place in it)
+      --install-command <command>  what installs its packages (default: from its lockfile — pnpm, yarn, npm, bun)
+      --build-command <command>    what builds it (default: its package.json's build script)
+      --output <dir>               the folder the build writes (default: what its builder writes — dist, build, out, …)
+      --build-env <K=V>            a setting the build runs with (repeat it): what its pages are sent (VITE_*), never a secret
+      --no-source                  build it from no repository any more: deploy folders alone
+      --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
+      --no-previews                preview no pull request from now on
+      --preview-forks              preview pull requests from forks too: anyone's code runs with this environment's settings
+      --no-preview-forks           preview no pull request from a fork from now on
+```
+
+### `palbase hosting:sites:delete`
+
+Delete a site: its addresses serve nothing from now on
+
+```sh
+palbase hosting:sites:delete <name>
+```
+
+### `palbase hosting:releases`
+
+A site's releases, newest first: the ten newest are kept to return to
+
+```sh
+palbase hosting:releases [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:rollback`
+
+Serve an earlier release of a site again, at once (the one before the serving one, or a named one)
+
+```sh
+palbase hosting:rollback [--site <name>] [--to <release id | #number>]
+```
+
+```text
+      --site <name>   the site (default: web)
+      --to <release>  the release: its id, or its number (#3)
+```
+
+### `palbase hosting:builds`
+
+A site's newest builds (a site built from GitHub), or one with its log
+
+```sh
+palbase hosting:builds [build] [--site <name>] [--wait]
+```
+
+```text
+      --site <name>  the site (default: web)
+      --wait         with a build: follow it until it ends
+```
+
+### `palbase hosting:build`
+
+Build a site's branch head now and serve it, as a push does
+
+```sh
+palbase hosting:build [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:previews`
+
+A site's pull request previews, newest first: where each answers, and whether it is built
+
+```sh
+palbase hosting:previews [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:domains`
+
+A site's own domains: whether each answers, and what its DNS still needs
+
+```sh
+palbase hosting:domains [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:domains:add`
+
+Have a site answer at a domain of your own too (www.example.com, or example.com)
+
+```sh
+palbase hosting:domains:add <host> [--site <name>]
+```
+
+It answers once its DNS points at the platform (the CNAME) and says it is this environment's (the TXT record): both are printed.
+Cloudflare issues its certificate; a domain is one environment's until it is removed there.
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:domains:remove`
+
+Stop a site answering at a domain: at once, and another environment may add it
+
+```sh
+palbase hosting:domains:remove <host> [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
 ```
 
 ## `databases`

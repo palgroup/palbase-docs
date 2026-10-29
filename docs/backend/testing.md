@@ -168,6 +168,10 @@ describe.skipIf(!testRun.stack)("notes, over HTTP", () => {
 - A refusal throws `TestApiError`: its `status`, its code (`error`), its `data` and the whole `body`, the platform's envelope.
 - `testRun.minted("alice")` says whether the run made that user. `createTestApi({ baseUrl, identities, … })` is a client of your own, for a test that calls two apps.
 
+### A sign-in's link or code
+
+What the project sends a test user — a magic link, a verification or second factor's code, a password reset — is kept for it, never sent to a made address: a test reads it with the secret key or an environment token (`GET /notify/test-users/{user_id}/messages`, `palbase auth:test-users:messages <id>`) and goes on with the `link` or `code` it picks out — see [Its mail and texts](https://palbase.studio/docs/backend/test-users#its-mail-and-texts). A test of your app's sign-up form types in a sign-up address (`palbase auth:test-users:address`): the account it opens is a test user, not a counted one — see [Testing a sign-up](https://palbase.studio/docs/backend/test-users#testing-a-sign-up).
+
 ## Running them
 
 | Where | How | What runs |

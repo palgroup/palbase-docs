@@ -1272,7 +1272,7 @@ Test users, and the sign-ins made for them, are open: they are test fixtures, an
 | `machines:read` | The environment's machines, their builds, crons and queues (not a task's payload), contracts and metrics |
 | `machines:logs` | A machine's logs and its builds' logs |
 | `apps:sync` | What `palbase apps:sync` reads: the project's apps as they are in this environment, their client settings, the machines' contracts |
-| `auth:test-users` | The environment's test users: made with their sign-ins, listed, deleted. Not other users |
+| `auth:test-users` | The environment's test users: made with their sign-ins, listed, deleted, their kept mail and texts read (`palbase auth:test-users:messages`), a sign-up address made (`palbase auth:test-users:address`). Not other users |
 | `support` | A question to Palbase's support line (`palbase support:ask`, `POST /ai/support-questions`): an agent asks Palbase what it cannot find out, not the person it works for |
 
 ### When it stops working
@@ -1425,6 +1425,7 @@ Every member of the organization reads it ([Organizations](/docs/getting-started
 | `requests` | **API requests**: each request to the environment's address that a module answers. Not among them: the cache's calls, the stores' reports to purchases (`/purchases/webhooks/…`), and the files the platform moves for a module's own work, such as an AI workspace's |
 | `auth.mau` | **Monthly active users**: the users who signed in or kept a session alive in the month |
 | `notify.email`, `notify.push`, `notify.sms`, `notify.whatsapp` | **Email**, **Push**, **SMS** and **WhatsApp** sent: an email through any sender (those through Palbase's shared sender are also `notify.email.shared`), a push delivered to a user on any of their devices, a text or a verification code, a WhatsApp message |
+| `notify.sms.shared` | **Verification codes through Palbase's Twilio**, in nano-dollars at Twilio's price: each code's text at the dearest price Twilio lists for its country (which carrier a number is on is not known before it is texted), and $0.05 for each code approved. An environment with no SMS provider and no verification service of its own sends its codes (phone sign-in, SMS second factor, `/notify/verifications`) this way, from a Twilio Verify service of its own: its texts say the code is from the project when the environment has paid rights, from Palbase otherwise. Billed at Twilio's price and 10%, its first $4 of a month free; a free environment past them sends no more until the month ends (`429 quota_exceeded`) |
 | `storage.bytes` | **Stored data**: the objects and their renditions, the month's largest |
 | `storage.egress` | **Download traffic**: what storage sent, a part of response traffic |
 | `storage.operations` | The requests storage served |
@@ -1705,9 +1706,9 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.23.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.26.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-384 commands in 32 groups.
+403 commands in 33 groups.
 
 ## Global flags
 
@@ -2622,22 +2623,58 @@ palbase auth:test-users:list
 
 ### `palbase auth:test-users:create`
 
-Make test users for a suite: their passwords, and with --token an access token each, shown this once; --template has the backend write the data a screen needs for each
+Make test users for a suite, of the kind a sign-in asks for: their passwords (and a second factor's key), and with --token an access token each, shown this once; --template has the backend write the data a screen needs for each
 
 ```sh
-palbase auth:test-users:create [--count <n>] [--token] [--template <name> [--machine <name>]]
+palbase auth:test-users:create [--count <n>] [--token] [--email <address>] [--password <pw> | --passwordless] [--phone <e164> [--otp <code>]] [--email-otp <code>] [--unverified] [--mfa totp|sms|email] [--template <name> [--machine <name>]]
 ```
 
 A test user signs in as any user does; its tokens say test: true, so a backend can tell them apart. --token gives each an access token at once, for a test that calls the backend as that user.
+Its mail and texts are kept for it, read with palbase auth:test-users:messages `<id>` — a sign-in link, a verification or second factor's code: a made address (…@test.invalid) is mailed nothing and a phone texted nothing, while --email with an address of yours gets its mail too.
+Of the kind a sign-in asks for: --passwordless (a link, a code or a passkey alone), --unverified (its verification is tested), --phone with its fixed code (--otp, made when left out), --email-otp (a fixed code its email accepts: a reviewer reads no inbox), --mfa (a second factor from the start; totp answers its key once).
 --template `<name>` has the backend write the data of its @TestUserTemplate({ name }) for each user — its seed for one account, in its own code (palbase/backend), run on the machine --machine names or the environment's only one, for test users alone. Each user is answered with the rows written, by table, or why its template was not (no_template, not_a_test_user, template_failed, template_timeout, machine_unavailable): the user is made all the same, and the command then ends with 1. At most 10 users at once with a template.
 palbase auth:test-users:template writes another template for a user made with one; palbase auth:test-users:delete has the template undone before the user is deleted.
 
 ```text
-      --count <n>        how many (default 1, at most 100; 10 with --template)
-      --token            an access token for each, too
-      --template <name>  a @TestUserTemplate of the backend's: its data written for each user
-      --machine <name>   the machine whose backend has the template (default: the environment's only one)
+      --count <n>             how many (default 1, at most 100; 10 with --template)
+      --token                 an access token for each, too
+      --email <address>       its address — one of yours gets its mail too (default: a made …@test.invalid)
+      --password <pw>         its password (default: a made one)
+      --passwordless          no password: it signs in by a link, a code or a passkey
+      --phone <e164>          a verified phone, texted nothing
+      --otp <code>            the phone's fixed code, six digits (default: a made one)
+      --email-otp <code>      a fixed code its email accepts, six digits
+      --unverified            its email unverified
+      --mfa <totp|sms|email>  a second factor from the start
+      --template <name>       a @TestUserTemplate of the backend's: its data written for each user
+      --machine <name>        the machine whose backend has the template (default: the environment's only one)
 ```
+
+### `palbase auth:test-users:messages`
+
+A test user's mail and texts of the last 7 days, the 50 newest first: to whom, the code and the link each carried
+
+```sh
+palbase auth:test-users:messages <user-id> [--channel email|sms]
+```
+
+What a flow sent the user — a sign-in link, a verification or second factor's code, the project's own mail — is kept for it: a test reads the code or link here. --json answers each whole: its subject, text, HTML and the variables its template had.
+A user who is no test user is refused (not_a_test_user): no one else's mail is kept.
+
+```text
+      --channel <email|sms>  only this channel's
+```
+
+### `palbase auth:test-users:address`
+
+An address for an app's sign-up to be tested with: the account a sign-up with it opens is a test user, its mail kept for palbase auth:test-users:messages
+
+```sh
+palbase auth:test-users:address
+```
+
+The address (signup-…@test.invalid) is typed into the app's sign-up form: the account it opens is a test user — its tokens say test: true, it is not counted as an active user, its verification mail is kept, never sent. Used once.
+It holds a place of the environment's test-user cap until it is used, or lapses a day after it was made. A sign-up with any other address opens an ordinary user.
 
 ### `palbase auth:test-users:template`
 
@@ -5979,6 +6016,12 @@ The environment needs its GitHub link first: palbase github:connect.
       --size <size>                       its size (palbase machines:sizes lists them)
       --replicas <n>                      how many copies run, each on a node of its own
       --port <port>                       the port it listens on (it also finds it in PORT)
+      --always-on                         keep it awake: never put to sleep when idle (an environment on Pay as you go pays its every hour; on Free a shared machine sleeps when idle)
+      --no-always-on                      let it sleep when idle again
+      --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
+      --no-previews                       preview no pull request from now on
+      --preview-forks                     preview pull requests from forks too: anyone's code runs with this environment's settings
+      --no-preview-forks                  preview no pull request from a fork from now on
       --health <path>                     where it answers 2xx while well; a release that does not is not rolled out
       --openapi-path <path>               where its app serves its OpenAPI contract, when it is not a Palbase backend (apps:sync makes its client from it); "" for a Palbase backend's own
       --db <database>                     a database of the environment it is given (PALBASE_DB_URL); "" for none
@@ -6006,6 +6049,12 @@ palbase machines:update [name] [--size …] [--replicas …] [--db …] [--repo 
       --size <size>                       its size (palbase machines:sizes lists them)
       --replicas <n>                      how many copies run, each on a node of its own
       --port <port>                       the port it listens on (it also finds it in PORT)
+      --always-on                         keep it awake: never put to sleep when idle (an environment on Pay as you go pays its every hour; on Free a shared machine sleeps when idle)
+      --no-always-on                      let it sleep when idle again
+      --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
+      --no-previews                       preview no pull request from now on
+      --preview-forks                     preview pull requests from forks too: anyone's code runs with this environment's settings
+      --no-preview-forks                  preview no pull request from a fork from now on
       --health <path>                     where it answers 2xx while well; a release that does not is not rolled out
       --openapi-path <path>               where its app serves its OpenAPI contract, when it is not a Palbase backend (apps:sync makes its client from it); "" for a Palbase backend's own
       --db <database>                     a database of the environment it is given (PALBASE_DB_URL); "" for none
@@ -6054,6 +6103,53 @@ A machine's builds, newest first
 
 ```sh
 palbase machines:builds [name]
+```
+
+### `palbase machines:previews`
+
+A machine's pull request previews, newest first: each a machine of its own while its pull request is open
+
+```sh
+palbase machines:previews [name]
+```
+
+### `palbase machines:domains`
+
+A machine's own domains: whether each answers, and what its DNS still needs
+
+```sh
+palbase machines:domains [--machine <name>]
+```
+
+```text
+      --machine <name>  the machine (default: the environment's only one)
+```
+
+### `palbase machines:domains:add`
+
+Have a machine answer at a domain of your own too (www.example.com, or example.com)
+
+```sh
+palbase machines:domains:add <host> [--machine <name>]
+```
+
+It answers once its DNS points at the platform (the CNAME) and says it is this environment's (the TXT record): both are printed.
+Cloudflare issues its certificate; a domain is one environment's until it is removed there.
+
+```text
+      --machine <name>  the machine (default: the environment's only one)
+```
+
+### `palbase machines:domains:remove`
+
+Stop a machine answering at a domain: at once, and another environment may add it
+
+```sh
+palbase machines:domains:remove <host> [--machine <name>]
+```
+
+```text
+      --machine <name>  the machine (default: the environment's only one)
 ```
 
 ### `palbase machines:builds:log`
@@ -6256,6 +6352,192 @@ Delete a machine: it stops serving, its address answers nothing
 
 ```sh
 palbase machines:delete <name>
+```
+
+## `hosting`
+
+### `palbase hosting:deploy`
+
+Deploy a folder as a static site: only the files that changed are sent, and the site serves them at once
+
+```sh
+palbase hosting:deploy <folder> [--site <name>] [--spa]
+```
+
+The folder is what your build wrote (dist, build, out, public): every file in it is served, at its path from the folder's root.
+The site is opened on its first deploy; --spa then answers a path no file answers with /index.html (a single-page app).
+A folder of one page, index.html, is taken for a single-page app when the site is opened.
+
+```text
+      --site <name>  the site (default: web, which answers at the environment's ref)
+      --spa          when the site is opened: answer every path no file answers with /index.html
+```
+
+### `palbase hosting:sites:list`
+
+The environment's static sites, where each answers and the release it serves
+
+```sh
+palbase hosting:sites:list
+```
+
+### `palbase hosting:sites:create`
+
+Open a static site — built from GitHub on every push with --repo/--branch, or deployed from a folder (hosting:deploy opens one too)
+
+```sh
+palbase hosting:sites:create [name] [--spa] [--repo <owner/name> --branch <branch> --path <dir>] [--build-command …] [--output <dir>] [--build-env K=V]… [--previews [--preview-forks]]
+```
+
+With --branch (and --repo, or in a checkout of a GitHub repository), its branch's head is built at once and on every push: the folder its build writes is served.
+With --previews, each pull request against the branch is built too and answers at `<name>-pr<n>-<ref>` until it closes; the pull request is told where.
+The environment needs its GitHub link first: palbase github:connect.
+
+```text
+      --spa                        a single-page app: every path no file answers is its /index.html
+      --repo <owner/name>          build it from this GitHub repository on every push (default with --branch: this checkout's origin)
+      --branch <branch>            the branch whose pushes are built
+      --path <dir>                 the site's directory in the repository (default: this directory's place in it)
+      --install-command <command>  what installs its packages (default: from its lockfile — pnpm, yarn, npm, bun)
+      --build-command <command>    what builds it (default: its package.json's build script)
+      --output <dir>               the folder the build writes (default: what its builder writes — dist, build, out, …)
+      --build-env <K=V>            a setting the build runs with (repeat it): what its pages are sent (VITE_*), never a secret
+      --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
+      --preview-forks              preview pull requests from forks too: anyone's code runs with this environment's settings
+```
+
+### `palbase hosting:sites:update`
+
+Change a site: whether it is a single-page app, where it is built from, what its build runs
+
+```sh
+palbase hosting:sites:update <name> [--spa | --no-spa] [--repo … --branch … --path …] [--no-source] [--build-command …] [--output …] [--build-env K=V]… [--previews | --no-previews] [--preview-forks | --no-preview-forks]
+```
+
+```text
+      --spa                        a single-page app: every path no file answers is its /index.html
+      --no-spa                     not a single-page app: a path no file answers is 404
+      --repo <owner/name>          build it from this GitHub repository on every push (default with --branch: this checkout's origin)
+      --branch <branch>            the branch whose pushes are built
+      --path <dir>                 the site's directory in the repository (default: this directory's place in it)
+      --install-command <command>  what installs its packages (default: from its lockfile — pnpm, yarn, npm, bun)
+      --build-command <command>    what builds it (default: its package.json's build script)
+      --output <dir>               the folder the build writes (default: what its builder writes — dist, build, out, …)
+      --build-env <K=V>            a setting the build runs with (repeat it): what its pages are sent (VITE_*), never a secret
+      --no-source                  build it from no repository any more: deploy folders alone
+      --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
+      --no-previews                preview no pull request from now on
+      --preview-forks              preview pull requests from forks too: anyone's code runs with this environment's settings
+      --no-preview-forks           preview no pull request from a fork from now on
+```
+
+### `palbase hosting:sites:delete`
+
+Delete a site: its addresses serve nothing from now on
+
+```sh
+palbase hosting:sites:delete <name>
+```
+
+### `palbase hosting:releases`
+
+A site's releases, newest first: the ten newest are kept to return to
+
+```sh
+palbase hosting:releases [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:rollback`
+
+Serve an earlier release of a site again, at once (the one before the serving one, or a named one)
+
+```sh
+palbase hosting:rollback [--site <name>] [--to <release id | #number>]
+```
+
+```text
+      --site <name>   the site (default: web)
+      --to <release>  the release: its id, or its number (#3)
+```
+
+### `palbase hosting:builds`
+
+A site's newest builds (a site built from GitHub), or one with its log
+
+```sh
+palbase hosting:builds [build] [--site <name>] [--wait]
+```
+
+```text
+      --site <name>  the site (default: web)
+      --wait         with a build: follow it until it ends
+```
+
+### `palbase hosting:build`
+
+Build a site's branch head now and serve it, as a push does
+
+```sh
+palbase hosting:build [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:previews`
+
+A site's pull request previews, newest first: where each answers, and whether it is built
+
+```sh
+palbase hosting:previews [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:domains`
+
+A site's own domains: whether each answers, and what its DNS still needs
+
+```sh
+palbase hosting:domains [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:domains:add`
+
+Have a site answer at a domain of your own too (www.example.com, or example.com)
+
+```sh
+palbase hosting:domains:add <host> [--site <name>]
+```
+
+It answers once its DNS points at the platform (the CNAME) and says it is this environment's (the TXT record): both are printed.
+Cloudflare issues its certificate; a domain is one environment's until it is removed there.
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:domains:remove`
+
+Stop a site answering at a domain: at once, and another environment may add it
+
+```sh
+palbase hosting:domains:remove <host> [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
 ```
 
 ## `databases`
@@ -11170,6 +11452,8 @@ export class OrderNotices {
 
 A send is **queued**, not delivered: it answers `202` with the message's id, and the message ends `sent` or `failed` later — each emits `notification.sent` or `notification.failed` to the project's webhook ([Webhooks](/docs/server/webhooks)).
 
+**A sign-in code never waits for a campaign.** A topic's or an audience's push — a campaign — is sent in a lane of its own, and every other message in another: auth's codes and links first, then your other sends. However many pushes a campaign has queued, and however slowly its providers answer, a code — your project's own or another project's — is taken at once and sent in a slot no campaign holds. Two projects' campaigns at once go side by side, neither waiting for the other to end.
+
 ## Every channel but one needs a provider of yours
 
 | Channel | Goes through |
@@ -11178,7 +11462,7 @@ A send is **queued**, not delivered: it answers `202` with the message's id, and
 | Push | Your own FCM, APNs or Expo account — a browser's through its own push service, with the project's Web Push key (nothing to set up). |
 | Inbox, in-app messages | Palbase itself: nothing to set up. |
 | SMS | Your own SMS providers — Twilio, Vonage or Azure Communication Services — in failover order. |
-| One-time codes | Your own verification service (Twilio Verify), or your SMS providers. |
+| One-time codes | Your own verification service (Twilio Verify), or your SMS providers — and with neither, **Palbase's Twilio Verify**: nothing to set up, billed at Twilio's price and 10% past $4 a month (`notify.sms.shared`, [Usage & Limits](/docs/getting-started/usage-and-limits)). |
 | WhatsApp | Your own WhatsApp Business account (Meta). |
 
 An email the shared sender may not send is refused with `403 own_provider_required`; past the shared sender's limits a send is `429 send_limit_reached`. A project with an active email provider sends all its email through it.
@@ -11461,7 +11745,7 @@ Palbase is not an İYS integrator: the account is yours, and İYS's records are 
 | Call | What it does |
 |---|---|
 | `sendSms({ body: { to, body } })` | A text to one number in E.164 form (`+14155551212`): a body, or a `template` with `variables`. A number gets one text a minute and ten a day. It answers the segments and encoding the text takes. |
-| `startVerification({ body: { to } })` | Has your verification service generate a one-time code and text it. |
+| `startVerification({ body: { to } })` | Has your verification service — Palbase's when you have none — generate a one-time code and text it. A number Twilio cannot text is refused (`400 verification_refused`); past a free environment's $4 of Palbase's codes a month, `429 quota_exceeded`. |
 | `checkVerification({ body: { to, code } })` | `{ approved }`: whether the code is the one it sent. |
 | `sendWhatsApp({ body: { to, template_slug, variables } })` | A WhatsApp message: a text inside a conversation the user opened in the last 24 hours, a template approved on your Meta account, or one of your slugs. |
 
@@ -13932,7 +14216,9 @@ A translation is used as it is written: read the files' diff before you commit i
 
 # Test Users
 
-A **test user** is a real user of the project — it signs in, gets tokens, owns rows and files — made with the project's secret key for testing, and marked as such everywhere it goes. Test users are created email-verified, skip the breach check and the password's minimum length, are not counted as active users, and only test users can be deleted through the test-user route, so a cleanup that goes wrong cannot take a real account with it. Your backend sees the mark: `user.test` is `true` on a test user's requests.
+A **test user** is a real user of the project — it signs in, gets tokens, owns rows and files — made with the project's secret key for testing, and marked as such everywhere it goes. Test users skip the breach check and the password's minimum length, are not counted as active users, and only test users can be deleted through the test-user route, so a cleanup that goes wrong cannot take a real account with it. Your backend sees the mark: `user.test` is `true` on a test user's requests.
+
+Whatever sign-in your app uses, a test user can go through it: it is made of the kind the sign-in asks for (passwordless, unverified, with a second factor, with a phone), and **what the platform sends it is kept for it** — its sign-in link, its verification and second factor's codes, your project's own mail and texts — in its [test inbox](#its-mail-and-texts), where a test reads the code or the link.
 
 ## Quick example
 
@@ -13961,17 +14247,68 @@ for (const u of made.data.users) {
 | `{ users: [{ email, password, phone, otp }] }` | Also a verified phone, and the fixed six-digit code that phone accepts at sign-in — so a phone sign-in can be tested without a text being sent. |
 | `with_tokens: true` | Also an access token per user, for calls made as them. |
 
-Each answered user carries `user_id`, `email`, `password` and, with `with_tokens`, `access_token`.
+An entry of `users` says the kind of user; what it leaves out is made — an address (`test-…@test.invalid`, which receives no mail: its mail is kept in its test inbox), a password, a phone's fixed code:
+
+| Field | The user it makes |
+|---|---|
+| `email` | Its own address. One of yours gets its mail too — and the copy is kept. |
+| `password` / `passwordless: true` | A password of yours, or none: it signs in by a link, a code or a passkey. |
+| `email_verified: false` | Unverified: your app's verification is tested on it. |
+| `phone` (+ `otp`) | A verified phone, texted nothing: it accepts its fixed six-digit code (made when `otp` is left out) at a phone sign-in and as an SMS second factor. |
+| `email_otp` | A fixed six-digit code its email accepts — its verification code and its email second factor — for a person with no inbox to read, such as an app store's reviewer. The mail is still sent, carrying it. |
+| `mfa: "totp" \| "sms" \| "email"` | A second factor from the start. `totp` answers its key once (`totp_secret`, `totp_url`): a test makes its codes with it. `sms` is its phone. |
+
+Each answered user carries `user_id`, `email`, `email_verified`, its `password` (none when passwordless), what else it was made with (`phone`, `otp`, `email_otp`, `mfa`, `totp_secret`) and, with `with_tokens`, `access_token` — shown this once.
+
+```ts
+// scripts/make-reviewer.ts — an account an app store's reviewer signs in with:
+// a password, and an email second factor whose code they are given.
+import { createServer } from "palbase/server";
+
+const palbase = createServer({ url: process.env.PALBASE_URL!, secretKey: process.env.PALBASE_SECRET_KEY! });
+const [reviewer] = (await palbase.auth.adminCreateTestUsers({
+  body: { users: [{ email: "review@yourapp.com", password: "a-long-review-password", mfa: "email", email_otp: "246802" }] },
+})).data.users;
+console.log(reviewer.user_id, reviewer.email_otp); // what the reviewer is given
+```
 
 | Refusal | Why |
 |---|---|
 | `409 user_exists` | An email is already taken (nothing was made). |
-| `409 test_user_cap_exceeded` | The batch would take the project past its test-user cap. |
-| `400 invalid_request` | Neither a positive `count` nor complete `users`; a phone without its six-digit code. |
+| `409 test_user_cap_exceeded` | The batch would take the project past its test-user cap (its test users and its unused sign-up addresses). |
+| `400 invalid_request` | Neither a positive `count` nor `users`; a kind no user can have — passwordless with a password, a fixed code that is not six digits, a phone's code with no phone, a second factor it cannot have (`sms` with no phone, `email` unverified). |
 
 Send an `Idempotency-Key` header to make the creation safe to retry: the same key and the same request answer the first result again instead of creating twice. A fixture made with chosen emails is easy to make *if missing* — treat `409 user_exists` as "already there".
 
 `PUT /admin/test-users/phone` (`adminSetTestUserPhone`) gives an existing test user, found by email, a verified phone and its fixed code; setting the same again succeeds, and an email that is not a test user's is `404 test_user_not_found`.
+
+## Its mail and texts
+
+Every email and text the project sends a test user is kept for it for 7 days — auth's sign-in links and codes, its resets and verifications, your project's own sends — and read with the secret key: `GET /notify/test-users/{user_id}/messages` (`notify.listTestUserMessages`, `palbase auth:test-users:messages <id>`, Studio's **Messages** of a test account). Each message answers what it said (`subject`, `text`, `html`), the `variables` its template had, and the `code` and `link` it carried, picked out.
+
+A made address (`…@test.invalid`) is mailed nothing, and a test user's phone is texted nothing — the kept copy is the message; an address of yours is mailed as well (`delivered: true`). A user who is not a test user is refused, `403 not_a_test_user`: no one else's mail is kept.
+
+```ts
+// scripts/read-a-sign-in-link.ts
+import { createServer } from "palbase/server";
+
+const palbase = createServer({ url: process.env.PALBASE_URL!, secretKey: process.env.PALBASE_SECRET_KEY! });
+const [user] = (await palbase.auth.adminCreateTestUsers({ body: { users: [{ passwordless: true }] } })).data.users;
+await fetch(`${process.env.PALBASE_URL}/auth/magic-link`, { method: "POST", headers: { apikey: process.env.PALBASE_PUBLISHABLE_KEY!, "content-type": "application/json" }, body: JSON.stringify({ email: user.email }) });
+const [mail] = (await palbase.notify.listTestUserMessages({ path: { user_id: user.user_id }, query: { channel: "email" } })).data.messages;
+const token = new URL(mail.link!).searchParams.get("token"); // the link the user would tap
+console.log(mail.code, token);
+```
+
+## Testing a sign-up
+
+Your app's sign-up form opens a new account — a real one, counted, its mail sent. A **sign-up address** makes it a test user instead: `POST /admin/test-users/addresses` (`palbase auth:test-users:address`, Studio's **Sign-up address**) answers `signup-…@test.invalid`; typed into the form, the account it opens is a test user — its token says `test`, it is not counted as an active user, and its verification mail is kept in its test inbox, never sent.
+
+Only the secret key makes one: each holds a place of the project's test-user cap until it is used — once — or lapses, a day after it was made. A sign-up with any other address opens an ordinary user.
+
+## Sign-in with Google, Apple and others
+
+A provider's sign-in goes through the provider's own screen, which a test user cannot pass: test it with the provider's own test accounts (Google's OAuth test users, an Apple sandbox account). What comes after the sign-in — your app as a signed-in user — is tested with a test user's token.
 
 ## In a route
 
@@ -14022,7 +14359,7 @@ They sign in like anyone else, too — with `palbase/web`'s `pb.auth.signIn(emai
 | `adminListTestUsers()` | Every test user of the project, newest first, whole: their number is capped, so the list is one answer. Each carries `is_test: true`. |
 | `adminDeleteTestUser({ path: { uid } })` | Deletes a test user and everything that belongs to it. A user who is not a test user is refused, `403 not_a_test_user`. |
 
-Deleting a test user is a user deletion like any other: it emits `user.deleted` (with `is_test: true`), so your backend forgets them as it forgets anyone ([Event Hooks](/docs/backend/hooks)), and storage objects owned by them go with them.
+Deleting a test user is a user deletion like any other: it emits `user.deleted` (with `is_test: true`), so your backend forgets them as it forgets anyone ([Event Hooks](/docs/backend/hooks)), and storage objects owned by them go with them — its kept mail too.
 
 ## Made for a test run
 
@@ -14030,7 +14367,7 @@ A test run makes the users its tests act as, and deletes them when it ends: `pal
 
 ## From Studio
 
-Studio's **Test accounts** tab under Authentication makes test logins, lists them, and searches them, for the environment you are in.
+Studio's **Test accounts** tab under Authentication makes test logins of the kind a sign-in asks for, lists and searches them, shows each one's **Messages**, and makes a **Sign-up address**, for the environment you are in.
 
 ## Related
 
@@ -14210,6 +14547,10 @@ describe.skipIf(!testRun.stack)("notes, over HTTP", () => {
 - `api.signInAs(name)` acts as the run's test user of that name; `api.asAnonymous()` as no one. `api.signIn({ email, password })` signs in at the project's auth (it needs a publishable key: `PALBASE_TEST_API_KEY`).
 - A refusal throws `TestApiError`: its `status`, its code (`error`), its `data` and the whole `body`, the platform's envelope.
 - `testRun.minted("alice")` says whether the run made that user. `createTestApi({ baseUrl, identities, … })` is a client of your own, for a test that calls two apps.
+
+### A sign-in's link or code
+
+What the project sends a test user — a magic link, a verification or second factor's code, a password reset — is kept for it, never sent to a made address: a test reads it with the secret key or an environment token (`GET /notify/test-users/{user_id}/messages`, `palbase auth:test-users:messages <id>`) and goes on with the `link` or `code` it picks out — see [Its mail and texts](/docs/backend/test-users#its-mail-and-texts). A test of your app's sign-up form types in a sign-up address (`palbase auth:test-users:address`): the account it opens is a test user, not a counted one — see [Testing a sign-up](/docs/backend/test-users#testing-a-sign-up).
 
 ## Running them
 
@@ -14818,7 +15159,7 @@ if (result.mfaRequired) console.log("a second factor is needed");
 else console.log("signed in", result.user.id);
 ```
 
-Phone sign-in must be enabled for the project (`provider_not_enabled` otherwise). A code is texted through the project's own SMS provider, or its verification service when the phone settings say so (`PUT /admin/providers/phone/settings`). The answer is the same whether or not the number has an account, and sending is limited per number and per address.
+Phone sign-in must be enabled for the project (`provider_not_enabled` otherwise). A code is texted through the project's own SMS provider, or its verification service when the phone settings say so (`PUT /admin/providers/phone/settings`) — with neither, through Palbase's Twilio Verify. The answer is the same whether or not the number has an account, and sending is limited per number and per address.
 
 ## Social sign-in
 
@@ -20163,7 +20504,7 @@ when (val result = pb.auth.phone.verifyCode("+905551234567", "482913")) {
 }
 ```
 
-Phone sign-in must be enabled for the project (`provider_not_enabled` otherwise). The code is texted through the project's own SMS provider.
+Phone sign-in must be enabled for the project (`provider_not_enabled` otherwise). The code is texted through the project's own SMS provider or verification service — with neither, through Palbase's Twilio Verify.
 
 ## Passwords
 
@@ -22423,7 +22764,7 @@ The emails are sent through the environment's notifications ([Auth's emails and 
 
 ## Phone
 
-A phone number signs in with a code texted to it (`POST /auth/otp`, then `POST /auth/otp/verify`), and a text can be a second factor. Phone sign-in needs a way to send texts: the environment's own SMS provider, or its verification service, set up in the notifications module ([SMS, codes and WhatsApp](/docs/backend/notifications#sms-codes-and-whatsapp)).
+A phone number signs in with a code texted to it (`POST /auth/otp`, then `POST /auth/otp/verify`), and a text can be a second factor. Its codes go through the environment's own SMS provider or verification service, set up in the notifications module ([SMS, codes and WhatsApp](/docs/backend/notifications#sms-codes-and-whatsapp)) — and, with neither, through Palbase's Twilio Verify, with nothing to set up, at Twilio's price and 10% past $4 a month ([Usage & Limits](/docs/getting-started/usage-and-limits)).
 
 ```sh
 palbase auth:providers:set phone --enable
@@ -25319,7 +25660,13 @@ With the secret key, your server makes conversations for people, adds and remove
 
 Your organization's owners and admins read the same in Studio (**Messaging › Conversations**, a person's conversations by their user ID) and with the CLI (`palbase messaging:conversations:list --user <id>`, `palbase messaging:messages:list <conversation_id>`). A member of your team sees the conversations, not what was said: the platform refuses them. Every read of people's messages — a file opened too — is recorded with who read it: a developer by name, a key or a token by its id. Studio's **Access log** and `GET /messaging/admin/access-log` (`palbase messaging:access-log`) list them, 400 days.
 
-**Who may write to whom** is everyone, unless the project's hook says otherwise: set `hook` in the settings and the project's endpoint is asked, signed as a webhook is, before a direct conversation is opened or someone is added to a group — `messaging.can_message`, answering whether they may. When it does not answer, `on_error` says what happens: deny (the default; the app tries again) or allow.
+**Who may write to whom** is everyone, unless the project's hook says otherwise: set `hook` in the settings and the project's endpoint is asked, signed as a webhook is, before a direct conversation is opened or someone is added to a group — `messaging.can_message`, answering whether they may. When it does not answer, `on_error` says what happens: deny (the default; the app tries again) or allow. The hook is not asked for each message: a conversation already open stays open until your server closes it.
+
+**Closing a conversation.** When what let two people write ends — one unfollows the other, a booking is over, an event ended — your server makes their conversation read-only: its people still read what was said in it, and nobody writes in it — no message, reaction, edit, file or screenshot notice, no change to its title, picture, timer or vanish mode, nobody added to it or given a role, and a message scheduled in it fails (`read_only`) — while your server still may say and change anything in it, and a group's admins still remove people from it. It is told in the conversation, and undone the same way:
+
+- the direct conversation of two people: `GET /messaging/admin/conversations?user_id=<one>&with=<the other>`;
+- read-only, or writable again: `PATCH /messaging/admin/conversations/{conversation_id}` with `{"read_only": true}` (or `false`); the app sees `settings.read_only`, and a write answers `403 read_only`;
+- the same call changes what a group's admins may: its title, description, picture and timer, and who writes in it, edits it and adds people (`send_policy`, `edit_policy`, `add_policy`) — a group your server made, too.
 
 ## Moderation
 
@@ -25331,6 +25678,19 @@ A person reports a message, someone or a conversation from your app. What the re
 - **Your server**: `GET /messaging/admin/reports`, `GET /messaging/admin/reports/{report_id}` (a file's link: `…/attachments/{attachment_id}`), `POST /messaging/admin/reports/{report_id}/resolve`.
 
 A report is kept 190 days once resolved — the EU's Digital Services Act keeps a decision open to complaint at least six months, and six calendar months reach 184 days — and two years when never resolved; its copies and files go with it.
+
+## A deleted account
+
+When a person's account is deleted, messaging forgets them at once: their profile, their blocks, their reactions, their scheduled messages and what they hid for themselves go, and they leave every conversation. Their id goes from everything that is kept: where it stood — their messages, what others' messages say of them (a mention, "added", "left"), what a report copied of their messages, the access log's reads — a deleted user stands, `deleted_…`, the same one everywhere, with nothing personal kept. What is kept, for your privacy policy:
+
+| What | Kept | How long |
+|---|---|---|
+| Their messages | as `deleted_user_messages` says: kept with no one's name on them, or removed | `keep`: as long as the project keeps messages; `delete`: gone at once |
+| What went from screens before | what it said, for a report alone | 14 days |
+| Reports of their messages | what the messages said, the writer a deleted user | 190 days once resolved, two years when never resolved |
+| The access log | reads of their messages, naming a deleted user | 400 days |
+| The answer to a request an app sent again (its retry) | as it was given, sealed | 2 days |
+| That the account was deleted | its id, so nothing brings them back: a profile, a conversation, a group, a block or a mention for them is refused (`409 user_deleted`, or `user_deleted` among those a group did not take) — a backend syncing as the deletion runs too | 7 days |
 
 ## The project's settings
 
@@ -27003,7 +27363,7 @@ What a project's machines and databases reserve between them is held to the proj
 
 ## Copies
 
-A machine runs **one copy** unless you give it more (`replicas`, **Copies** in Studio, 1 to 5). Each copy runs on a node of its own, a request goes to one of them, and a copy or a node that goes leaves the others serving. Every copy is of the machine's size and counts as one against the project's limits and its machine time.
+A machine runs **one copy** unless you give it more (`replicas`, **Copies** in Studio, 1 to 5). Each copy runs on a node of its own, a request goes to one of them, and a copy or a node that goes leaves the others serving. A node taken for maintenance or given back is emptied one copy at a time, and a machine of one copy is moved, not stopped: its copy starts on another node and takes requests before the old one stops. Every copy is of the machine's size and counts as one against the project's limits and its machine time.
 
 What a copy keeps in its own memory or on its own disk, the others do not see — a session, a counter, a cache, a rate-limit window. A machine with more than one copy keeps those where every copy reaches them: its database, or the project's [cache](/docs/backend/cache). A long-lived connection (a WebSocket) stays with the copy that took it. The machine finds its number of copies in `PALBASE_REPLICAS`.
 
@@ -27692,6 +28052,115 @@ palbase db:copy --from main --to staging                     # one environment's
 - [Schema](/docs/backend/schema) · [Schema changes](/docs/backend/migrations) — the schema a release migrates
 - [Row-Level Security](/docs/backend/row-level-security) — what the app login cannot bypass
 - [Machines](/docs/machines/overview) — the machines a database is given to
+
+
+
+<!-- ===== machines/hosting ===== -->
+
+# Sites, Previews & Domains
+
+A **site** is a static website an environment serves: a folder of files — what Vite, Next.js with `output: "export"`, Astro, SvelteKit's static adapter, Nuxt, Docusaurus or VitePress writes. Sites never sleep and cost nothing to serve: they are answered by the platform's own servers behind a CDN, not by a machine, and what they send is not counted as the environment's outbound traffic.
+
+Every site answers at `<name>-<ref>.palbase.app` — the environment's `web` site at `<ref>.palbase.app` — and, once added, at a domain of your own.
+
+## Deploy a folder
+
+```sh
+npm run build
+palbase hosting:deploy dist            # the site "web": opened on the first deploy
+palbase hosting:deploy dist --site docs
+```
+
+The CLI lists every file of the folder with its SHA-256 and sends only those the environment does not have yet: a release that changes one file sends one file. Once every file is there the release is finished and the site serves it at once. Hidden files (`.env`, `.git`) and `node_modules` are left out; `/.well-known` is kept.
+
+A folder whose only page is `index.html` is taken for a single-page app: a path no file answers is answered with `/index.html`. Say so yourself with `palbase hosting:sites:create <name> --spa` (or `hosting:sites:update <name> --spa | --no-spa`). Otherwise a path no file answers is `/404.html` when there is one, and a 404.
+
+| Limit | |
+|---|---|
+| Sites per environment | 10 |
+| Files per release | 20,000 |
+| One file | 25 MiB |
+| One release | 1 GiB |
+| Releases kept to return to | the 10 newest |
+
+## Built from GitHub
+
+A site can be built on every push instead, as a machine is (see [Connecting GitHub](/docs/machines/github)):
+
+```sh
+palbase hosting:sites:create web --repo acme/shop --branch main --path apps/web
+palbase hosting:builds                 # its builds, newest first
+palbase hosting:builds <build> --wait  # one build, its log, followed to its end
+palbase hosting:build                  # build the branch's head now
+```
+
+The platform reads the lockfile next to the site (or at the repository's root, for a workspace) and installs with pnpm, yarn, npm or bun, runs the `build` script of its `package.json`, and serves the folder its framework writes (`dist` for Vite and Astro, `out` for Next.js, `build` for SvelteKit, `.output/public` for Nuxt …). Say otherwise with `--install-command`, `--build-command` and `--output <dir>`. `--build-env KEY=VALUE` (repeatable) sets what the build runs with — what your pages are sent, such as `VITE_PALBASE_URL` — never a secret: whatever a build bakes into a page, every visitor reads.
+
+A build counts against the environment's builds for the day, with its machines'. A failed build changes nothing: the site serves what it served, and `hosting:builds <build>` shows why.
+
+## Releases and rollback
+
+```sh
+palbase hosting:releases              # newest first; the one serving is marked
+palbase hosting:rollback              # the release before the one serving
+palbase hosting:rollback --to '#3'    # or a release by its number or id
+```
+
+A rollback, like a deploy, is at once: the next request is answered by the release named. In Studio: **Cloud › Sites › a site › Releases › Serve this release**.
+
+## Caching
+
+A page is kept by the CDN for one minute; a file whose name holds its content's hash (`/assets/index-Bf3k2.js`, `/_next/static/…`, `/_astro/…`) is kept by browsers for a year and by the CDN for an hour. When a site serves another release, is taken down or deleted, what the CDN keeps of it is let go of within seconds. You do not purge anything yourself.
+
+## Pull request previews
+
+A site or a machine built from GitHub can preview its pull requests: each pull request opened against its branch is built at its head, **in the same environment, with that environment's settings and secrets**, and answers at `<name>-pr<number>-<ref>` until the pull request closes. The platform writes the address in a comment on the pull request and keeps it current as the pull request is pushed to.
+
+```sh
+palbase hosting:sites:update web --previews
+palbase machines:update api --previews
+palbase hosting:previews                # each pull request's address, head and state
+palbase machines:previews api
+```
+
+Turn previews on in an environment kept for them — `staging`, built from the same repository — never in production: a pull request's code runs with the environment's settings. Studio offers the switch only outside the production environment.
+
+- A **site's** preview is a release of its own. The site never serves it, and it is none of the releases `hosting:releases` lists or a rollback returns to.
+- A **machine's** preview is a machine of its own, `<name>-pr<number>`: one copy, the machine's size, settings, secrets and database — without its migrations, which only the machine runs. It counts as one of the environment's machines, and at most three previews of a machine run at once. It is deleted when its pull request closes, and with the machine.
+- A pull request from a **fork** — another account's copy of the repository, which anyone can open — is previewed only with `--preview-forks`: its author's code would run with the environment's settings.
+
+The platform's GitHub App, **Palbase Cloud**, asks for the *Pull requests* permission to hear pull requests and write its comment; GitHub asks each installation's owner to accept it.
+
+## Your own domain
+
+A site or a machine answers at a domain of your own too:
+
+```sh
+palbase hosting:domains:add www.example.com            # the site "web"
+palbase hosting:domains:add example.com --site web
+palbase machines:domains:add api.example.com --machine api
+palbase hosting:domains                                # each domain's state, and what its DNS still needs
+palbase hosting:domains:remove www.example.com
+```
+
+Adding one prints the two records to add to the domain's DNS:
+
+| Type | Name | Value |
+|---|---|---|
+| `CNAME` | `www.example.com` | `domains.palbase.app` |
+| `TXT` | `_palbase.www.example.com` | `palbase-domain=<a token of its own>` |
+
+The CNAME points the domain at the platform; the TXT record says it is this environment's. At the apex (`example.com`) most DNS hosts take no CNAME: add an `ALIAS` or `ANAME` record — or, on Cloudflare's DNS, a CNAME, which it flattens — with the same value. The certificate is issued for you once the CNAME is in place. A domain answers once both records are there, usually within minutes; `hosting:domains` says what is still missing.
+
+A domain is one environment's at a time, across the platform: another environment — anyone's — is told it is taken until it is removed here. An environment has 20 domains at most.
+
+## Keeping a machine awake
+
+A machine of a shared size sleeps when it has had no request for a while, and the next request wakes it. In an environment on **Pay as you go**, `palbase machines:update <name> --always-on` keeps it awake: never put to sleep, started again at once if it ever stops, and every hour of it paid. On the Free plan the setting is refused, and the machine sleeps as any. A dedicated size never sleeps.
+
+## Abuse
+
+A site that breaks the [terms of use](/legal/terms) — phishing, malware, content that is not yours to publish — is taken down by the platform: its addresses answer with a page saying so, and the owners and admins of its organization are mailed why. Report one to **abuse@palbase.app**.
 
 
 

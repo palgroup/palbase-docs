@@ -68,7 +68,7 @@ What a project's machines and databases reserve between them is held to the proj
 
 ## Copies
 
-A machine runs **one copy** unless you give it more (`replicas`, **Copies** in Studio, 1 to 5). Each copy runs on a node of its own, a request goes to one of them, and a copy or a node that goes leaves the others serving. Every copy is of the machine's size and counts as one against the project's limits and its machine time.
+A machine runs **one copy** unless you give it more (`replicas`, **Copies** in Studio, 1 to 5). Each copy runs on a node of its own, a request goes to one of them, and a copy or a node that goes leaves the others serving. A node taken for maintenance or given back is emptied one copy at a time, and a machine of one copy is moved, not stopped: its copy starts on another node and takes requests before the old one stops. Every copy is of the machine's size and counts as one against the project's limits and its machine time.
 
 What a copy keeps in its own memory or on its own disk, the others do not see — a session, a counter, a cache, a rate-limit window. A machine with more than one copy keeps those where every copy reaches them: its database, or the project's [cache](https://palbase.studio/docs/backend/cache). A long-lived connection (a WebSocket) stays with the copy that took it. The machine finds its number of copies in `PALBASE_REPLICAS`.
 

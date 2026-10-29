@@ -205,7 +205,7 @@ if (result.mfaRequired) console.log("a second factor is needed");
 else console.log("signed in", result.user.id);
 ```
 
-Phone sign-in must be enabled for the project (`provider_not_enabled` otherwise). A code is texted through the project's own SMS provider, or its verification service when the phone settings say so (`PUT /admin/providers/phone/settings`). The answer is the same whether or not the number has an account, and sending is limited per number and per address.
+Phone sign-in must be enabled for the project (`provider_not_enabled` otherwise). A code is texted through the project's own SMS provider, or its verification service when the phone settings say so (`PUT /admin/providers/phone/settings`) — with neither, through Palbase's Twilio Verify. The answer is the same whether or not the number has an account, and sending is limited per number and per address.
 
 ## Social sign-in
 

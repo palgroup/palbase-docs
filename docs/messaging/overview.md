@@ -89,7 +89,13 @@ With the secret key, your server makes conversations for people, adds and remove
 
 Your organization's owners and admins read the same in Studio (**Messaging › Conversations**, a person's conversations by their user ID) and with the CLI (`palbase messaging:conversations:list --user <id>`, `palbase messaging:messages:list <conversation_id>`). A member of your team sees the conversations, not what was said: the platform refuses them. Every read of people's messages — a file opened too — is recorded with who read it: a developer by name, a key or a token by its id. Studio's **Access log** and `GET /messaging/admin/access-log` (`palbase messaging:access-log`) list them, 400 days.
 
-**Who may write to whom** is everyone, unless the project's hook says otherwise: set `hook` in the settings and the project's endpoint is asked, signed as a webhook is, before a direct conversation is opened or someone is added to a group — `messaging.can_message`, answering whether they may. When it does not answer, `on_error` says what happens: deny (the default; the app tries again) or allow.
+**Who may write to whom** is everyone, unless the project's hook says otherwise: set `hook` in the settings and the project's endpoint is asked, signed as a webhook is, before a direct conversation is opened or someone is added to a group — `messaging.can_message`, answering whether they may. When it does not answer, `on_error` says what happens: deny (the default; the app tries again) or allow. The hook is not asked for each message: a conversation already open stays open until your server closes it.
+
+**Closing a conversation.** When what let two people write ends — one unfollows the other, a booking is over, an event ended — your server makes their conversation read-only: its people still read what was said in it, and nobody writes in it — no message, reaction, edit, file or screenshot notice, no change to its title, picture, timer or vanish mode, nobody added to it or given a role, and a message scheduled in it fails (`read_only`) — while your server still may say and change anything in it, and a group's admins still remove people from it. It is told in the conversation, and undone the same way:
+
+- the direct conversation of two people: `GET /messaging/admin/conversations?user_id=<one>&with=<the other>`;
+- read-only, or writable again: `PATCH /messaging/admin/conversations/{conversation_id}` with `{"read_only": true}` (or `false`); the app sees `settings.read_only`, and a write answers `403 read_only`;
+- the same call changes what a group's admins may: its title, description, picture and timer, and who writes in it, edits it and adds people (`send_policy`, `edit_policy`, `add_policy`) — a group your server made, too.
 
 ## Moderation
 
@@ -101,6 +107,19 @@ A person reports a message, someone or a conversation from your app. What the re
 - **Your server**: `GET /messaging/admin/reports`, `GET /messaging/admin/reports/{report_id}` (a file's link: `…/attachments/{attachment_id}`), `POST /messaging/admin/reports/{report_id}/resolve`.
 
 A report is kept 190 days once resolved — the EU's Digital Services Act keeps a decision open to complaint at least six months, and six calendar months reach 184 days — and two years when never resolved; its copies and files go with it.
+
+## A deleted account
+
+When a person's account is deleted, messaging forgets them at once: their profile, their blocks, their reactions, their scheduled messages and what they hid for themselves go, and they leave every conversation. Their id goes from everything that is kept: where it stood — their messages, what others' messages say of them (a mention, "added", "left"), what a report copied of their messages, the access log's reads — a deleted user stands, `deleted_…`, the same one everywhere, with nothing personal kept. What is kept, for your privacy policy:
+
+| What | Kept | How long |
+|---|---|---|
+| Their messages | as `deleted_user_messages` says: kept with no one's name on them, or removed | `keep`: as long as the project keeps messages; `delete`: gone at once |
+| What went from screens before | what it said, for a report alone | 14 days |
+| Reports of their messages | what the messages said, the writer a deleted user | 190 days once resolved, two years when never resolved |
+| The access log | reads of their messages, naming a deleted user | 400 days |
+| The answer to a request an app sent again (its retry) | as it was given, sealed | 2 days |
+| That the account was deleted | its id, so nothing brings them back: a profile, a conversation, a group, a block or a mention for them is refused (`409 user_deleted`, or `user_deleted` among those a group did not take) — a backend syncing as the deletion runs too | 7 days |
 
 ## The project's settings
 

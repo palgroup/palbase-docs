@@ -18,7 +18,7 @@ The emails are sent through the environment's notifications ([Auth's emails and 
 
 ## Phone
 
-A phone number signs in with a code texted to it (`POST /auth/otp`, then `POST /auth/otp/verify`), and a text can be a second factor. Phone sign-in needs a way to send texts: the environment's own SMS provider, or its verification service, set up in the notifications module ([SMS, codes and WhatsApp](https://palbase.studio/docs/backend/notifications#sms-codes-and-whatsapp)).
+A phone number signs in with a code texted to it (`POST /auth/otp`, then `POST /auth/otp/verify`), and a text can be a second factor. Its codes go through the environment's own SMS provider or verification service, set up in the notifications module ([SMS, codes and WhatsApp](https://palbase.studio/docs/backend/notifications#sms-codes-and-whatsapp)) — and, with neither, through Palbase's Twilio Verify, with nothing to set up, at Twilio's price and 10% past $4 a month ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
 
 ```sh
 palbase auth:providers:set phone --enable

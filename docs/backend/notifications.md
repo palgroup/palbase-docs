@@ -27,6 +27,8 @@ export class OrderNotices {
 
 A send is **queued**, not delivered: it answers `202` with the message's id, and the message ends `sent` or `failed` later — each emits `notification.sent` or `notification.failed` to the project's webhook ([Webhooks](https://palbase.studio/docs/server/webhooks)).
 
+**A sign-in code never waits for a campaign.** A topic's or an audience's push — a campaign — is sent in a lane of its own, and every other message in another: auth's codes and links first, then your other sends. However many pushes a campaign has queued, and however slowly its providers answer, a code — your project's own or another project's — is taken at once and sent in a slot no campaign holds. Two projects' campaigns at once go side by side, neither waiting for the other to end.
+
 ## Every channel but one needs a provider of yours
 
 | Channel | Goes through |
@@ -35,7 +37,7 @@ A send is **queued**, not delivered: it answers `202` with the message's id, and
 | Push | Your own FCM, APNs or Expo account — a browser's through its own push service, with the project's Web Push key (nothing to set up). |
 | Inbox, in-app messages | Palbase itself: nothing to set up. |
 | SMS | Your own SMS providers — Twilio, Vonage or Azure Communication Services — in failover order. |
-| One-time codes | Your own verification service (Twilio Verify), or your SMS providers. |
+| One-time codes | Your own verification service (Twilio Verify), or your SMS providers — and with neither, **Palbase's Twilio Verify**: nothing to set up, billed at Twilio's price and 10% past $4 a month (`notify.sms.shared`, [Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)). |
 | WhatsApp | Your own WhatsApp Business account (Meta). |
 
 An email the shared sender may not send is refused with `403 own_provider_required`; past the shared sender's limits a send is `429 send_limit_reached`. A project with an active email provider sends all its email through it.
@@ -318,7 +320,7 @@ Palbase is not an İYS integrator: the account is yours, and İYS's records are 
 | Call | What it does |
 |---|---|
 | `sendSms({ body: { to, body } })` | A text to one number in E.164 form (`+14155551212`): a body, or a `template` with `variables`. A number gets one text a minute and ten a day. It answers the segments and encoding the text takes. |
-| `startVerification({ body: { to } })` | Has your verification service generate a one-time code and text it. |
+| `startVerification({ body: { to } })` | Has your verification service — Palbase's when you have none — generate a one-time code and text it. A number Twilio cannot text is refused (`400 verification_refused`); past a free environment's $4 of Palbase's codes a month, `429 quota_exceeded`. |
 | `checkVerification({ body: { to, code } })` | `{ approved }`: whether the code is the one it sent. |
 | `sendWhatsApp({ body: { to, template_slug, variables } })` | A WhatsApp message: a text inside a conversation the user opened in the last 24 hours, a template approved on your Meta account, or one of your slugs. |
 
