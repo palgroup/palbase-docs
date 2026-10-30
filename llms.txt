@@ -73,6 +73,7 @@
 - [Flags](https://palbase.studio/docs/web/flags): pb.flags — the project's flags and remote configuration for this reader, read without the network, kept current over realtime, with experiments' exposures.
 - [Realtime](https://palbase.studio/docs/web/realtime): Channels over the project's one socket: join, listen to broadcasts, leave — and who may join what.
 - [Messaging](https://palbase.studio/docs/web/messaging): pb.messaging — the person's conversations kept in IndexedDB and current over the socket: lists, timelines and threads to subscribe to, an outbox that sends once, files encrypted in the browser, and onIncoming for the page's own banner.
+- [Calls](https://palbase.studio/docs/web/calls): pb.calls — voice and video calls in the browser: making, answering and joining one, the session's state to draw, microphone, camera and audio output, the media between devices or through the media server, palbase/web/calls-ui's ready-made screens, ringing through the service worker, history, permissions and errors.
 - [Gateways](https://palbase.studio/docs/web/gateways): Your backend's gateways from the generated module: join, typed events, messages and their acks, GatewayError's reasons, durable history, and a chat gateway's state.
 - [Analytics](https://palbase.studio/docs/web/analytics): pb.analytics — events, page views, person properties and the browser's own measures, held to the person's consent — and the people, places and audiences the project reads back.
 - [Consent](https://palbase.studio/docs/web/consent): pb.consent — what the person allowed, key by key: the platform's keys, starting values, a consent screen, Global Privacy Control, and the calls under it.
@@ -87,6 +88,7 @@
 - [Gateways](https://palbase.studio/docs/ios/gateways): Your backend's gateways from Swift: join, the Event, Send and Reply enums, PBGatewayError's reasons, durable history, and a chat gateway's PBChat for SwiftUI.
 - [Realtime](https://palbase.studio/docs/ios/realtime): pb.realtime: channels on the project's one socket, broadcasts, the state every member shares, presence, who may join, and the socket's observable status.
 - [Messaging](https://palbase.studio/docs/ios/messaging): PalbaseMessaging: @Observable conversations, timelines and threads, an outbox that sends once, incoming() for the app's own banner, and the notification service extension that brings a message onto the phone while the app is closed.
+- [Calls](https://palbase.studio/docs/ios/calls): PalbaseCalls: calls that ring on the lock screen through CallKit and PushKit, configure(.init(callKit:)), the APNs key and the VoIP token, pb.calls.call/callGroup/join/history, the @Observable PBCall's phase and controls, and PalbaseCallsUI's .callScreens(pb.calls).
 - [Flags](https://palbase.studio/docs/ios/flags): pb.flags: feature flags read without waiting, observable in SwiftUI, kept current over realtime, a signed-in user's values, and experiments' $flag_exposure.
 - [Analytics](https://palbase.studio/docs/ios/analytics): pb.analytics: events, screens, the person's properties, the app's own events such as $install and $app_open, timings, diagnostics, and App Tracking Transparency.
 - [Consent](https://palbase.studio/docs/ios/consent): pb.consent: the platform's keys and the app's own, starting values, the person's choices, region and needsAsking, and whose the choices are across sign-in and sign-out.
@@ -104,6 +106,7 @@
 - [Gateways](https://palbase.studio/docs/android/gateways): A backend's @Gateway classes from the generated Kotlin client: join, typed events, messages and their acks, PBGatewayError, durable gateways, and a chat gateway's state in Compose.
 - [Realtime](https://palbase.studio/docs/android/realtime): pb.realtime channels on Android: broadcasts, a shared state and presence, who may join, and the one socket's connection as a StateFlow.
 - [Messaging](https://palbase.studio/docs/android/messaging): palbase-messaging: conversations, timelines and threads as StateFlows, an outbox that sends once, incoming for the app's own banner, pushes that bring a message onto the phone while the app is closed, and FLAG_SECURE for what is seen once.
+- [Calls](https://palbase.studio/docs/android/calls): palbase-calls: a ring over the lock screen from a high-priority FCM message, CallStyle and Telecom, the permissions and canRingFullScreen, pb.calls.call/callGroup/join/open/history/current, PBCall's StateFlows and actions, and palbase-calls-ui's CallHost and PalbaseCallActivity.
 - [Flags](https://palbase.studio/docs/android/flags): pb.flags on Android: values read without waiting from what the device kept, typed reads, Compose state, per-user values, and live updates over the socket.
 - [Analytics](https://palbase.studio/docs/android/analytics): pb.analytics on Android: events, screens, timings and diagnostics, each behind its consent category, batched and kept on the device until sent.
 - [Notifications](https://palbase.studio/docs/android/notifications): FCM push on Android: the project's FCM provider, pb.notify.register for the signed-in user, showing the data message a push arrives as, preferences and topics.
@@ -148,6 +151,14 @@
 ## Messaging
 
 - [Overview](https://palbase.studio/docs/messaging/overview): Chat between a project's people: direct conversations and groups, threads, files, timers, seen once, vanish mode; history that belongs to the account, encrypted per conversation; pushes, screenshots, your server's reads, moderation, settings and prices.
+
+## Calls
+
+- [Overview](https://palbase.studio/docs/calls/overview): Voice and video calls between a project's people: direct calls device to device with a relay to fall back on, groups of up to 100 on the media server, huddles; who may call whom, a call's life from ring to end, history, settings and prices.
+- [Calls over HTTP](https://palbase.studio/docs/calls/http): What the SDKs send for a person's device: making, answering, declining, joining and leaving a call, the heartbeat, the media (ICE servers or a media-server ticket), a direct call's signals, the calls:<ref>:<user_id> channel and the call's shape.
+- [Ringing](https://palbase.studio/docs/calls/ringing): How a call rings a locked phone: a PushKit VoIP push and CallKit on iOS, a high-priority data message and a full-screen CallStyle notification on Android, a notification in a browser; missed calls, and what each push carries.
+- [Your Server](https://palbase.studio/docs/calls/server): The secret key's calls: the module's settings, the calls.can_call hook that decides who may call whom and its signature, reading and ending the project's calls, and the calls.* webhooks.
+- [Agents](https://palbase.studio/docs/calls/agents): Letting your own agent into a call with a ticket: the media server's url and token, each speaker's audio as a track named by their user id, publishing its own voice, and when to send it in.
 
 ## Analytics
 

@@ -108,6 +108,10 @@ A machine's connection is a client like any other: it wakes a database that slee
 
 A change of `database` gives it whole: `migrations` left out is `false`. `{ name: "" }` gives the machine none. A database that is not the project's is refused (`400 database_not_found`).
 
+## A pull request preview's own
+
+A machine that runs its database's migrations and previews its pull requests ([Pull request previews](https://palbase.studio/docs/machines/hosting#pull-request-previews)) has each preview given a database of its own, `<database>-pr<number>`, of the `preview` size: 0.25 vCPU, 512 MiB and 500 MB, asleep when idle, with **no backups** — no moment of it can be brought back. It is opened empty with its preview, migrated by the preview's releases, and deleted — at once, with no restore window — when its preview goes: its pull request closed, three days without a push, or the machine deleted. It is listed with the environment's databases, counts against none of them, and is not billed. No database is opened at the `preview` size, moved to it or from it, or named `<name>-pr<number>` by hand.
+
 ## Passwords
 
 A password is shown once — when the database is opened, and when it is made new. **Make a new password** on the database's page (**New owner password**, **New app password**), or `changeDatabasePassword` (`POST /databases/{name}/password` with `role: "owner"` or `"app"`), answers the credentials with the new one; the other login carries `[YOUR-PASSWORD]`. The new password works once the database has taken it, a few seconds later.

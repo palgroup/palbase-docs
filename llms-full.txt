@@ -1435,6 +1435,7 @@ Every member of the organization reads it ([Organizations](/docs/getting-started
 | `realtime.connections` | Realtime connections open at once, the month's largest |
 | `messaging.messages` | **Chat messages**: each message the project's people, or its server, sent in its conversations; one sent again with the same client id is one |
 | `messaging.bytes` | **Chat message storage**: what the project's messages weigh where they are kept — each one's sealed text and 768 bytes for its row and indexes — the month's largest |
+| `calls.audio.seconds`, `calls.video.seconds` | **Voice call time** and **Video call time**: the seconds each person, and each agent, was in the project's calls, a voice call's and a video call's apart — a minute of a call of three is three participant-minutes ([Calls](/docs/calls/overview#what-it-costs)) |
 | `flags.reads` | The flag reads clients made, answered in full or not modified |
 | `analytics.events` | **Analytics events**: captures, identifies, aliases, screens and page views (setting a person's properties is not counted) |
 | `analytics.perf`, `analytics.traces`, `analytics.console` | Performance samples kept, request traces taken, console records kept ([Analytics](/docs/analytics/overview)) |
@@ -1479,6 +1480,7 @@ When a limit that refuses is reached, that use is refused until the month ends, 
 | Realtime messages or connections | A new socket: `429 quota_exceeded`, with `Retry-After: 3600` (an hour, not the month's end); and a server's broadcast: `429 quota_exceeded` |
 | Flag reads | Reading the flags: `429 quota_exceeded` |
 | Chat messages, or what they weigh | Sending a message, a person's or the server's: `429 quota_exceeded` |
+| Voice or video call time | Starting a call of that kind: `429 quota_exceeded`. Calls going on go on to their end |
 | Analytics events, samples, traces or console records | Sending that kind: `429 quota_exceeded` |
 | Machine hours | The machines: they are stopped, dedicated sizes too, and a request to one, a new machine, a cron or a task is `429 quota_exceeded` |
 
@@ -1491,6 +1493,7 @@ An environment is free while it is on the Free plan — every environment starts
 - **Sizes.** Its machines are of the `shared-256` size, the one free machine size, and it has one database at most, of the `free` size: a project holds one database of a free size at a time ([Databases](/docs/machines/databases#sizes)). Every other size is paid for: opening a machine or a database of one, or moving one to it, is `403 size_not_available`. `palbase machines:sizes` and `palbase databases:sizes` list the sizes and which of them the environment may open now ([Machines](/docs/machines/overview#sizes)).
 - **Traffic.** It sends 5 GB a month at full speed: its machines' internet traffic and its response traffic together. Past it, until the month ends, its machines' traffic and answers and the files its storage hands out go at about 256 kbit/s; nothing is stopped, and the API's other answers are not slowed. A slowed project's downloads are paced, and one more than it may have under way at once is `429 rate_limited` with `Retry-After`. A file the CDN answers from its own copy never reaches the project, and is neither counted nor slowed ([The CDN](/docs/backend/storage#the-cdn)). See [Reaching the internet](/docs/machines/overview#reaching-the-internet).
 - **Chat messages.** 1 million messages a month, and 1 GiB of them kept. Past either, until the month ends, the project's messages go at about one a second, all its people and its server together: a send waits its turn, 10 seconds at the most, and one whose turn is further off is `429 slowed` with `Retry-After` — the SDKs keep it in their outbox and send it again. No message is lost, and reading, syncing and everything else go on at full speed. What is kept counts at its month's largest, so a project that keeps more than 1 GiB is slowed again early each month: remove old messages, or set the project's retention ([Messaging](/docs/messaging/overview#the-projects-settings)), to stay under it.
+- **Calls.** 10,000 voice and 2,000 video participant-minutes a month. Past either, until the month ends, a call of that kind does not start (`429 quota_exceeded`); calls going on go on to their end ([Calls](/docs/calls/overview#what-it-costs)).
 - **A free database** is awake 400 hours a month at most. Past them it sleeps until the month ends, refusing connections, with its data kept; from then its next connection wakes it.
 - **AI.** $1.00 of Palbase's models a month, at the provider's price and 10%. Past it, until the month ends, a call to them is `402 ai_payment_required`; a call under the project's own provider key goes on ([AI](/docs/backend/ai#what-it-costs)).
 
@@ -1506,6 +1509,7 @@ An environment on Pay as you go with credit is never slowed for its traffic, and
 | Machines | 5 machines, 1 to 5 copies each, 50 builds a day, logs kept 7 days ([Machines](/docs/machines/overview#limits)) |
 | Databases | 3 a project, one of them of a free size at a time; a database full to its size's storage turns read-only ([Databases](/docs/machines/databases#sizes)) |
 | Analytics | Events kept 90 days unless changed, 365 at most ([Analytics](/docs/analytics/overview#how-long-it-is-kept)) |
+| Calls | 100 people a call, agents included; a person starts 10 calls a minute, and 60 an hour unless the project says otherwise; ended calls kept 400 days ([Calls](/docs/calls/overview#the-projects-settings)) |
 
 ## Related
 
@@ -1706,9 +1710,9 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.26.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.30.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-403 commands in 33 groups.
+417 commands in 34 groups.
 
 ## Global flags
 
@@ -3210,7 +3214,7 @@ palbase analytics:summary [--window <24h>]
 
 ### `palbase messaging:settings:get`
 
-How the environment runs its conversations: how long messages are kept, whether a push says what one says, what becomes of a deleted user's messages, whether they are found by what they mean, the hook
+How the environment runs its conversations: how long messages are kept, whether a push says what one says, what becomes of a deleted user's messages, whether they are found by what they mean, whether a message's event says what it says, the hook
 
 ```sh
 palbase messaging:settings:get
@@ -3221,12 +3225,13 @@ palbase messaging:settings:get
 Change how the environment runs its conversations: a setting left out is left as it is
 
 ```sh
-palbase messaging:settings:set [--retention-days <days>|off] [--push-preview on|off] [--deleted-user-messages keep|delete] [--search-by-meaning on|off]
+palbase messaging:settings:set [--retention-days <days>|off] [--push-preview on|off] [--deleted-user-messages keep|delete] [--search-by-meaning on|off] [--event-text on|off]
 ```
 
 A shorter retention removes the messages older than it, in every conversation. A deleted user's messages are kept or deleted as the setting is when the user is deleted.
 Deleted, what of theirs had already gone from screens (seen once, its time up, vanish mode, taken back) stays its 14 days, sealed, for reports, then goes.
 Search by meaning on: the app's search({ by: 'meaning' }) finds the messages nearest what a question means, no word of it needed. Each message's text (not a system message's, one seen a limited number of times, nor one of vanish mode) is embedded by the project's embedding model through the AI module and billed as the project's AI use; the messages written before are embedded in the background (seconds to minutes), a new one is found ~5 s after it is sent. Off: no message goes to a model, and the vectors are removed.
+Event text on: messaging.message.created — told to the backend's webhooks and @On handlers that name it — carries the message's text (not a vanish-mode message's, one seen a limited number of times, nor one that goes after a time). The words leave the sealed store and stay on the event stream 7 days. Off: the backend reads the message with the secret key.
 Only what changes is sent: a change made beside this one to another setting stays.
 
 ```text
@@ -3234,6 +3239,7 @@ Only what changes is sent: a change made beside this one to another setting stay
       --push-preview <on|off>                a push says what the message says (on), or only that one came (off)
       --deleted-user-messages <keep|delete>  a deleted user's messages: kept, their writer anonymous, or deleted (what went from screens before stays its 14 days for reports)
       --search-by-meaning <on|off>           messages are found by what they mean too (on: each embedded through the AI module, billed as AI use), or by their words alone (off)
+      --event-text <on|off>                  messaging.message.created says what the message says (on), or who wrote to whom alone (off)
 ```
 
 ### `palbase messaging:hook:get`
@@ -3252,7 +3258,7 @@ Set the hook asked whom one may reach, or change it; a new hook's signing secret
 palbase messaging:hook:set [--url <url>] [--timeout-ms <ms>] [--on-error allow|deny] [--secret-to <NAME> [--dev]]
 ```
 
-Before a direct conversation opens or people are added to a group, the hook is POSTed {"event": "messaging.can_message", "action": "direct" | "group_add", "from_user_id", "to_user_ids", "conversation_id"}, signed as Standard Webhooks sign (webhook-id, webhook-timestamp, webhook-signature), and answers 200 {"allowed_user_ids": […]}.
+Before a direct conversation opens, people are added to a group, someone makes or opens an open group, a space's open groups are listed or one is joined, the hook is POSTed {"event": "messaging.can_message", "action": "direct" | "group_add" | "open_group" | "list_open" | "join", "from_user_id", "to_user_ids", "conversation_id", "space"}, signed as Standard Webhooks sign (webhook-id, webhook-timestamp, webhook-signature), and answers 200 {"allowed_user_ids": […]}: whom of to_user_ids from_user_id may reach — for open_group, list_open and join, to_user_ids is [from_user_id], and naming them lets them in. space is the conversation's (absent: none).
 A new hook takes --url (an https URL on the public internet). Its signing secret is printed this once, or kept in the environment's secrets with --secret-to (production; --dev: development) and printed nowhere. A hook changed keeps its secret: palbase messaging:hook:secret:rotate makes a new one.
 
 ```text
@@ -3339,14 +3345,15 @@ palbase messaging:access-log [--limit <n>] [--cursor <cursor>]
 
 ### `palbase messaging:conversations:list`
 
-The project's conversations, or a person's with --user, the latest first: whose, how many people, when it last moved
+The project's conversations, or a person's with --user, or a space's with --space, the latest first: whose, how many people, when it last moved
 
 ```sh
-palbase messaging:conversations:list [--user <user id>] [--limit <n>] [--cursor <cursor>]
+palbase messaging:conversations:list [--user <user id>] [--space <space>] [--limit <n>] [--cursor <cursor>]
 ```
 
 ```text
       --user <user id>   only this person's conversations
+      --space <space>    only the conversations of this space (as org:<id>)
       --limit <n>        at most this many (1–100, default 30)
       --cursor <cursor>  the next page, as the last one said it
 ```
@@ -3377,11 +3384,128 @@ palbase messaging:messages:delete <conversation id> <message id>
 
 It is not undone: asked before it is done, whatever the environment (-y confirms).
 
+## `calls`
+
+### `palbase calls:settings:get`
+
+How the environment runs its calls: how many a call holds, whether every direct call goes through the relay, how many calls a person may start in an hour, the hook
+
+```sh
+palbase calls:settings:get
+```
+
+### `palbase calls:settings:set`
+
+Change how the environment runs its calls: a setting left out is left as it is
+
+```sh
+palbase calls:settings:set [--max-participants <n>] [--relay-all on|off] [--calls-per-hour <n>]
+```
+
+A call holds at most --max-participants, people and the project's bots together, as the setting was when the call was made: a change holds for the calls made after it.
+Relay all on: every direct call's media goes through the relay (TURN), so neither device learns the other's address, at the price of a hop. Off: the two devices reach each other directly when they can. A group call goes through the media server either way.
+A person who has started --calls-per-hour calls in the last hour is refused another (too_many_calls).
+Only what changes is sent: a change made beside this one to another setting stays.
+
+```text
+      --max-participants <n>  how many a call holds, people and bots together (2–100)
+      --relay-all <on|off>    every direct call's media through the relay: no one learns another's address, at the price of a hop (on), or between the devices when they can (off)
+      --calls-per-hour <n>    how many calls one person may start in an hour (1–1000)
+```
+
+### `palbase calls:hook:get`
+
+The hook asked whom one may call: where it is, how long it is waited for, what is done when it does not answer (never its secret)
+
+```sh
+palbase calls:hook:get
+```
+
+### `palbase calls:hook:set`
+
+Set the hook asked whom one may call, or change it; a new hook's signing secret is printed this once, or kept in a secret with --secret-to
+
+```sh
+palbase calls:hook:set [--url <url>] [--timeout-ms <ms>] [--on-error allow|deny] [--secret-to <NAME> [--dev]]
+```
+
+Before a call is made, or more people are asked into one, the hook is POSTed {"event": "calls.can_call", "action": "start" | "invite", "from_user_id", "to_user_ids", "video", "call_id", "conversation_id"}, signed as Standard Webhooks sign (webhook-id, webhook-timestamp, webhook-signature), and answers 200 {"allowed_user_ids": […]}: only those are called, and with none the call is refused.
+A new hook takes --url (a URL on the public internet). Its signing secret is printed this once, or kept in the environment's secrets with --secret-to (production; --dev: development) and printed nowhere. A hook changed keeps its secret: palbase calls:hook:secret:rotate makes a new one.
+
+```text
+      --url <url>              where the hook is asked
+      --timeout-ms <ms>        how long it is waited for: 100 to 5000 (a new hook: 2000)
+      --on-error <allow|deny>  when it does not answer: allow everyone, or deny and the call is refused (a new hook: deny)
+      --secret-to <NAME>       keep the new signing secret in the environment's secret NAME instead of printing it
+      --dev                    with --secret-to: the development secrets, not production
+```
+
+### `palbase calls:hook:remove`
+
+Remove the hook: anyone may call anyone (blocks aside), and its signing secret is forgotten
+
+```sh
+palbase calls:hook:remove
+```
+
+### `palbase calls:hook:secret:rotate`
+
+Make the hook's signing secret anew: printed this once, or kept in a secret with --secret-to; the old one signs nothing more
+
+```sh
+palbase calls:hook:secret:rotate [--secret-to <NAME> [--dev]]
+```
+
+The hook's calls are signed with the new secret alone from now: the endpoint verifies them with it (a machine reads a secret kept with --secret-to at its next start).
+
+```text
+      --secret-to <NAME>  keep the new signing secret in the environment's secret NAME instead of printing it
+      --dev               with --secret-to: the development secrets, not production
+```
+
+### `palbase calls:list`
+
+The project's calls, or a person's with --user, newest first: kind, voice or video, state, why it ended, who called, how many were in it, how long
+
+```sh
+palbase calls:list [--user <user id> [--missed]] [--state ringing|active|ended] [--limit <n>] [--cursor <cursor>]
+```
+
+A call's length is from its answer to its end, in seconds: a group call, which no one answers, has its people's seconds in calls:get.
+
+```text
+      --user <user id>   only this person's calls
+      --missed           with --user: only the calls they missed (or were busy for)
+      --state <state>    only the calls ringing, going on (active), or over (ended)
+      --limit <n>        at most this many (1–100, default 20)
+      --cursor <cursor>  the next page, as the last one said it
+```
+
+### `palbase calls:get`
+
+One call with its people and bots: how each was in it (rung, joined, left, declined, missed, busy) and for how many seconds
+
+```sh
+palbase calls:get <call id>
+```
+
+--json carries the call whole: its people's names and pictures, the caller's app's words about it (metadata).
+
+### `palbase calls:end`
+
+End a call for everyone in it (asked before it is done, whatever the environment)
+
+```sh
+palbase calls:end <call id>
+```
+
+It is not undone: asked before it is done, whatever the environment (-y confirms). A call already over is left as it is.
+
 ## `config`
 
 ### `palbase config:diff`
 
-How two environments' module settings differ (auth, storage, flags, notify, realtime, analytics, messaging; machines, databases when named)
+How two environments' module settings differ (auth, storage, flags, notify, realtime, analytics, messaging, calls; machines, databases when named)
 
 ```sh
 palbase config:diff --from <env> --to <env> [--only <modules>]
@@ -3393,7 +3517,7 @@ Exit code 0 when they are the same, 1 when they differ. --json gives each differ
 ```text
       --from <env>      the environment compared from (slug or ref)
       --to <env>        the environment compared to (slug or ref)
-      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging (the default), and databases,machines when named
+      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging,calls (the default), and databases,machines when named
 ```
 
 ### `palbase config:copy`
@@ -3413,7 +3537,7 @@ Exit code 0 when the two are the same afterwards, 1 when a difference remains.
 ```text
       --from <env>      the environment compared from (slug or ref)
       --to <env>        the environment compared to (slug or ref)
-      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging (the default), and databases,machines when named
+      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging,calls (the default), and databases,machines when named
 ```
 
 ## `secrets`
@@ -6020,8 +6144,8 @@ The environment needs its GitHub link first: palbase github:connect.
       --no-always-on                      let it sleep when idle again
       --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
       --no-previews                       preview no pull request from now on
-      --preview-forks                     preview pull requests from forks too: anyone's code runs with this environment's settings
-      --no-preview-forks                  preview no pull request from a fork from now on
+      --preview-forks                     preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
+      --no-preview-forks                  a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize
       --health <path>                     where it answers 2xx while well; a release that does not is not rolled out
       --openapi-path <path>               where its app serves its OpenAPI contract, when it is not a Palbase backend (apps:sync makes its client from it); "" for a Palbase backend's own
       --db <database>                     a database of the environment it is given (PALBASE_DB_URL); "" for none
@@ -6053,8 +6177,8 @@ palbase machines:update [name] [--size …] [--replicas …] [--db …] [--repo 
       --no-always-on                      let it sleep when idle again
       --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
       --no-previews                       preview no pull request from now on
-      --preview-forks                     preview pull requests from forks too: anyone's code runs with this environment's settings
-      --no-preview-forks                  preview no pull request from a fork from now on
+      --preview-forks                     preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
+      --no-preview-forks                  a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize
       --health <path>                     where it answers 2xx while well; a release that does not is not rolled out
       --openapi-path <path>               where its app serves its OpenAPI contract, when it is not a Palbase backend (apps:sync makes its client from it); "" for a Palbase backend's own
       --db <database>                     a database of the environment it is given (PALBASE_DB_URL); "" for none
@@ -6113,6 +6237,36 @@ A machine's pull request previews, newest first: each a machine of its own while
 palbase machines:previews [name]
 ```
 
+### `palbase machines:previews:authorize`
+
+Build a fork's pull request's preview of a machine: its code runs with this environment's settings and secrets
+
+```sh
+palbase machines:previews:authorize <pull request> [--machine <name>]
+```
+
+A pull request from a fork waits for an admin of the environment (fork protection): look at what it changes first. The head shown is the one built; a push since asks again.
+A person authorizes it, signed in with palbase login: an environment's token (PALBASE_TOKEN) cannot.
+
+```text
+      --machine <name>  the machine (default: the environment's only one)
+```
+
+### `palbase machines:previews:open`
+
+Open a machine's pull request preview again — one closed after 3 days with no push, or refused — at the pull request's head
+
+```sh
+palbase machines:previews:open <pull request> [--machine <name>]
+```
+
+Its machine is made again and built at the pull request's head; a machine that runs its database's migrations has its preview given a new, empty database of its own, migrated by the preview's release.
+A preview that is open goes on as it is, and its 3 days start again. A fork's, under fork protection, opens at a head an admin authorized (previews:authorize).
+
+```text
+      --machine <name>  the machine (default: the environment's only one)
+```
+
 ### `palbase machines:domains`
 
 A machine's own domains: whether each answers, and what its DNS still needs
@@ -6127,17 +6281,38 @@ palbase machines:domains [--machine <name>]
 
 ### `palbase machines:domains:add`
 
-Have a machine answer at a domain of your own too (www.example.com, or example.com)
+Have a machine answer at a domain of your own too (www.example.com, or example.com — with its www)
 
 ```sh
-palbase machines:domains:add <host> [--machine <name>]
+palbase machines:domains:add <host> [--machine <name>] [--primary www|apex | --only] [--redirect-status 301|302|307|308]
 ```
 
-It answers once its DNS points at the platform (the CNAME) and says it is this environment's (the TXT record): both are printed.
-Cloudflare issues its certificate; a domain is one environment's until it is removed there.
+It answers once its DNS points at the platform and says it is this environment's (the TXT record): both are printed.
+At an apex (example.com) its www is added too, and one redirects to the other, as Vercel does: the apex to www.example.com unless --primary apex; --only adds the domain alone.
+An apex takes an A record at the platform's address, which any DNS host has; a subdomain a CNAME. A domain is one environment's until it is removed there.
+
+```text
+      --machine <name>          the machine (default: the environment's only one)
+      --primary <www|apex>      at an apex: the address visitors end up at, the other redirecting to it (default: www)
+      --only                    add the domain alone: no www, no redirect
+      --redirect-status <code>  the redirect's status: 301, 302, 307 or 308 (default: 308)
+```
+
+### `palbase machines:domains:redirect`
+
+Send a domain's visitors to another domain of the machine's — the same path and query there — or, with --none, have it answer itself
+
+```sh
+palbase machines:domains:redirect <host> (--to <host> [--status 301|302|307|308] | --none) [--machine <name>]
+```
+
+It holds at once. A domain redirects to one that answers itself, and one others redirect to answers itself.
 
 ```text
       --machine <name>  the machine (default: the environment's only one)
+      --to <host>       another domain of the machine's
+      --status <code>   301, 302, 307 or 308 (default: 308)
+      --none            redirect nowhere: the domain answers itself
 ```
 
 ### `palbase machines:domains:remove`
@@ -6403,7 +6578,7 @@ The environment needs its GitHub link first: palbase github:connect.
       --output <dir>               the folder the build writes (default: what its builder writes — dist, build, out, …)
       --build-env <K=V>            a setting the build runs with (repeat it): what its pages are sent (VITE_*), never a secret
       --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
-      --preview-forks              preview pull requests from forks too: anyone's code runs with this environment's settings
+      --preview-forks              preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
 ```
 
 ### `palbase hosting:sites:update`
@@ -6427,8 +6602,8 @@ palbase hosting:sites:update <name> [--spa | --no-spa] [--repo … --branch … 
       --no-source                  build it from no repository any more: deploy folders alone
       --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
       --no-previews                preview no pull request from now on
-      --preview-forks              preview pull requests from forks too: anyone's code runs with this environment's settings
-      --no-preview-forks           preview no pull request from a fork from now on
+      --preview-forks              preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
+      --no-preview-forks           a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize
 ```
 
 ### `palbase hosting:sites:delete`
@@ -6501,6 +6676,21 @@ palbase hosting:previews [--site <name>]
       --site <name>  the site (default: web)
 ```
 
+### `palbase hosting:previews:authorize`
+
+Build a fork's pull request's preview of a site: its code runs with this environment's settings and secrets
+
+```sh
+palbase hosting:previews:authorize <pull request> [--site <name>]
+```
+
+A pull request from a fork waits for an admin of the environment (fork protection): look at what it changes first. The head shown is the one built; a push since asks again.
+A person authorizes it, signed in with palbase login: an environment's token (PALBASE_TOKEN) cannot.
+
+```text
+      --site <name>  the site (default: web)
+```
+
 ### `palbase hosting:domains`
 
 A site's own domains: whether each answers, and what its DNS still needs
@@ -6515,17 +6705,38 @@ palbase hosting:domains [--site <name>]
 
 ### `palbase hosting:domains:add`
 
-Have a site answer at a domain of your own too (www.example.com, or example.com)
+Have a site answer at a domain of your own too (www.example.com, or example.com — with its www)
 
 ```sh
-palbase hosting:domains:add <host> [--site <name>]
+palbase hosting:domains:add <host> [--site <name>] [--primary www|apex | --only] [--redirect-status 301|302|307|308]
 ```
 
-It answers once its DNS points at the platform (the CNAME) and says it is this environment's (the TXT record): both are printed.
-Cloudflare issues its certificate; a domain is one environment's until it is removed there.
+It answers once its DNS points at the platform and says it is this environment's (the TXT record): both are printed.
+At an apex (example.com) its www is added too, and one redirects to the other, as Vercel does: the apex to www.example.com unless --primary apex; --only adds the domain alone.
+An apex takes an A record at the platform's address, which any DNS host has; a subdomain a CNAME. A domain is one environment's until it is removed there.
 
 ```text
-      --site <name>  the site (default: web)
+      --site <name>             the site (default: web)
+      --primary <www|apex>      at an apex: the address visitors end up at, the other redirecting to it (default: www)
+      --only                    add the domain alone: no www, no redirect
+      --redirect-status <code>  the redirect's status: 301, 302, 307 or 308 (default: 308)
+```
+
+### `palbase hosting:domains:redirect`
+
+Send a domain's visitors to another domain of the site's — the same path and query there — or, with --none, have it answer itself
+
+```sh
+palbase hosting:domains:redirect <host> (--to <host> [--status 301|302|307|308] | --none) [--site <name>]
+```
+
+It holds at once. A domain redirects to one that answers itself, and one others redirect to answers itself.
+
+```text
+      --site <name>    the site (default: web)
+      --to <host>      another domain of the site's
+      --status <code>  301, 302, 307 or 308 (default: 308)
+      --none           redirect nowhere: the domain answers itself
 ```
 
 ### `palbase hosting:domains:remove`
@@ -12054,7 +12265,7 @@ Your backend never subscribes: `palbase/server` has no socket. What a client sen
 
 ## Channel names
 
-A channel is `:`-separated segments: `orders:<user_id>`, `board:7f3a`, `game:42:chat`, 255 bytes at most. The namespaces `roles:`, `flags:`, `messaging:` and `debug:` are the platform's — flags' live updates travel on `flags:<ref>` and `flags:<ref>:<user_id>`, a user's permission set on `roles:<ref>:<user_id>`. A channel the declaration does not match belongs to no one, and no client may join it.
+A channel is `:`-separated segments: `orders:<user_id>`, `board:7f3a`, `game:42:chat`, 255 bytes at most. The namespaces `roles:`, `flags:`, `messaging:`, `calls:` and `debug:` are the platform's — flags' live updates travel on `flags:<ref>` and `flags:<ref>:<user_id>`, a user's permission set on `roles:<ref>:<user_id>`. A channel the declaration does not match belongs to no one, and no client may join it.
 
 ## The `Realtime` service
 
@@ -12230,7 +12441,7 @@ A pattern is `:`-separated segments, as a channel's name is. A segment written `
 | `room:{roomId}` | `room:42` | `room`, `room:42:chat` |
 | `game:{gameId}:team:{team}` | `game:7:team:red` | `game:7:team` |
 
-A pattern is 255 bytes at most, has no `/` and no control character, and names each `{param}` once. The namespaces `roles:`, `flags:`, `messaging:` and `debug:` are the platform's. A pattern that breaks one of these rules is refused when its class is declared.
+A pattern is 255 bytes at most, has no `/` and no control character, and names each `{param}` once. The namespaces `roles:`, `flags:`, `messaging:`, `calls:` and `debug:` are the platform's. A pattern that breaks one of these rules is refused when its class is declared.
 
 When two of an app's patterns match one channel, the more specific one decides it: a named segment beats a `{param}`, from the left, so `lobby:staff` decides `lobby:staff` and `lobby:{id}` every other lobby. Two gateways of the same channels (`room:{roomId}` and `room:{id}`) are refused at boot. Two of the project's machines that declare the same channels have neither: the channel is refused until one of them gives it up.
 
@@ -12513,7 +12724,7 @@ Put the narrow patterns before the wide ones: written the other way round, `room
 
 ## The platform's channels
 
-Four namespaces are the platform's and cannot be declared: `roles:`, `flags:`, `messaging:` and `debug:`. Of them, clients join:
+Five namespaces are the platform's and cannot be declared: `roles:`, `flags:`, `messaging:`, `calls:` and `debug:`. Of them, clients join:
 
 | Channel | Who | What it carries |
 |---|---|---|
@@ -14038,7 +14249,9 @@ export class ProductsService {
 
 ### When the cache cannot be reached
 
-The app is not stopped by a cache that is away. A call that cannot reach it, or that is refused for now (`429`, `503`), is treated by what it is for:
+The cache keeps three copies of the entries, one in each zone of the region. When the copy that takes the writes is lost, or stops answering, another takes over within a few seconds: a call made meanwhile waits for it, up to six seconds, and is answered then, instead of failing. An `incr` waited through a takeover is counted once. A copy that stops for maintenance hands over first, and an entry written before it is there after. A copy lost all at once has not handed over: the others receive each write a moment after it is answered, so a write answered in its last moment may be missing from the copy that takes over, an `incr`'s count among them. A count that must be exact belongs in a database.
+
+The app is not stopped by a cache that is away either. A call that cannot reach it, or that is refused for now (`429`, `503`), is treated by what it is for:
 
 | Call | When the cache is away |
 |---|---|
@@ -14837,6 +15050,7 @@ The package's web entry points:
 | `palbase/web/vite` | The Vite plugin: builds each mode against the environment you name for it, from what `palbase apps:sync` wrote, and type-checks the app against that environment's backend first. See [Calling Your Backend](/docs/web/backend-calls#building-for-an-environment). |
 | `palbase/web/palbe` | What the module `palbase apps:sync` writes registers your backend with. Your own code does not import it. |
 | `palbase/web/push-sw.js` | The service worker that shows the project's pushes. See [Notifications](/docs/web/notifications#the-service-worker). |
+| `palbase/web/calls-ui` | The call screens, ready-made: `mountCallUI(pb.calls, options)`. See [Calls](/docs/web/calls#ready-made-screens). |
 | `palbase/web/paywall` | A paywall's definition resolved and drawn in the page (`renderPaywall`), and its prices formatted: what `pb.purchases.paywall(placement)` draws with (its `render(container, options)`), for an app that draws one itself. |
 | `palbase/web/message` | An in-app message's definition resolved and drawn: over the page (`presentMessage`) or as an inbox card (`renderMessage`). What `pb.notify` draws with, for an app that draws one itself. |
 
@@ -14854,6 +15068,7 @@ The package's web entry points:
 | `webauthn` | `CredentialsLike` | What passkeys call. Default: `navigator.credentials`. |
 | `retry` | `RetryPolicy` | `{ attempts, maxWaitSeconds }`. Default: 3 attempts, and a `Retry-After` longer than 30 s is not waited for. See [Error Handling](/docs/web/errors). |
 | `analytics` | `boolean \| AnalyticsOptions` | Starts the browser's own measures: a page view per address (`pageViews`), web vitals (`webVitals`) and each `fetch` the page makes (`network`), all on once started; `appVersion` is kept with every event. Left out, none of them starts, and `pb.analytics.capture` still sends what you capture. See [Analytics](/docs/web/analytics). |
+| `calls` | `CallsOptions` | How the person's calls go: every call's media through the relay (`forceRelay`), and the others' voices played by themselves (`playAudio`, the default) or left to the app. See [Calls](/docs/web/calls). |
 | `consent` | `ConsentOptions` | What is collected before the person chooses (`start`), the version of the consent text the app shows (`textVersion`), and the app's own keys (`customKeys`). See [Consent](/docs/web/consent). |
 | `appVersion` | `string` | The app's version as its users see it (`"2.4.1"`), sent with flag reads and paywall requests for the conditions that read it. Nothing is sent without one. |
 | `appId` | `string` | The registered app's id, a UUID, as `palbase apps:sync` writes it into the app's settings: sent with paywall requests for placement rules that name an app. A slug throws `TypeError`. |
@@ -14868,6 +15083,7 @@ What comes back:
 | `pb.analytics` | Events the app captures, page views, the person's properties, and the browser's own measures once started. See [Analytics](/docs/web/analytics). |
 | `pb.consent` | What the person allowed, key by key: their choices, kept in the browser and sent to the project. See [Consent](/docs/web/consent). |
 | `pb.notify` | This browser's pushes (`push`), the signed-in person's inbox (`inbox`) and the project's in-app campaigns (`inApp`). See [Notifications](/docs/web/notifications). |
+| `pb.calls` | The signed-in person's voice and video calls: made, rung, answered — one to one or in a group. See [Calls](/docs/web/calls). |
 | `pb.purchases` | What the signed-in customer has, kept current; the catalog's offerings and paywalls; buying on the web with Stripe Checkout. See [Purchases on the web](/docs/purchases/web). |
 | `pb.installation` | This browser's install of the app: `pb.installation.id`, the same until the site's storage is cleared. Analytics, flags, consent and pushes say it with what they send. |
 | `pb.socket` | The project's realtime socket. It is opened the first time a channel is joined, never before. See [Realtime](/docs/web/realtime). |
@@ -16436,10 +16652,12 @@ stopList();
 
 | Call | What it is |
 |---|---|
-| `conversations()` | The person's conversations, the latest first: `items`, `unread` across them, and `synced` once the device's copy caught up |
+| `conversations({ spaces })` | The person's conversations, the latest first: `items`, `unread` across them, and `synced` once the device's copy caught up — of some spaces alone when it names any ([Spaces and open groups](#spaces-and-open-groups)) |
 | `conversation(id)` | One conversation: `conversation`, `entries` (its timeline, the oldest first, then what is on its way), `members`, `typing`, `hasEarlier`; opened at a message (`{ at }`), `focus` and `hasLater` too ([Search](#search)) |
-| `direct(userId)` | The direct conversation with someone |
-| `group({ title, memberIds, description, photo, settings })` | A new group, the person its owner; `notAdded` names whom the project's hook kept out |
+| `direct(userId, { space })` | The direct conversation with someone — in a space, when it names one |
+| `group({ title, memberIds, description, photo, settings, space, visibility })` | A new group, the person its owner; `notAdded` names whom the project's hook kept out |
+| `openGroups(space, { limit, cursor })` | A space's open groups, each with whether the person is in it (`joined`) |
+| `join(conversationId)` | Joins an open group: the conversation, the person in it |
 | `thread(conversationId, rootId)` | A message's thread: `root`, `entries`, `thread` (its count, its last answer, who answered, its unread count) |
 | `threads()` | The threads the person follows |
 | `scheduled()` | The person's messages for later |
@@ -16456,6 +16674,26 @@ view.subscribe(() => console.log(view.state.members.length, "members,", view.sta
 if (view.state.hasEarlier) await view.loadEarlier();
 await pb.messaging.update(view.id, { title: "Design team" });
 ```
+
+## Spaces and open groups
+
+A person is often in several places of your app's — organizations, workspaces, projects. A conversation belongs to one when it is made with a `space` your app names (`org:<id>`, `project:<id>`; 1 to 128 letters, digits and `: _ . / @ -`), and stays there: the same two people have one direct conversation in each space, and one with none. `conversations({ spaces: [...] })` is a space's list, its `unread` that space's; `search(q, { space })` searches it. Each conversation says its `space` (`null`: none).
+
+A group made with `visibility: 'open'` is found in its space's open groups and joined by the person themselves — a channel; a closed one (the default) is joined when someone adds you. Your server decides who may make one, find a space's groups and join them: the project's hook is asked (`open_group`, `list_open`, `join`, the space named) and its refusal is a `PalbaseError`, code `not_allowed`. An open group names its `space` (`space_required` otherwise). One an admin removed does not join again by themselves (`removed`); a full group is `group_full`.
+
+```ts
+// src/channels.ts
+import { pb } from "./lib/palbase";
+
+const org = "org:2f6c0c1e-8a3b-4c1d-9e5f-0a1b2c3d4e5f";
+const sidebar = pb.messaging.conversations({ spaces: [org] });
+const general = await pb.messaging.group({ title: "general", space: org, visibility: "open" });
+const channels = await pb.messaging.openGroups(org);
+for (const c of channels.items) if (!c.joined) await pb.messaging.join(c.id);
+const dm = await pb.messaging.direct("usr_01a1684c796e7394aa8ec75d893a8fe2", { space: org });
+```
+
+A message your server wrote as someone (an assistant sending their words) says so: `message.via` names what wrote it (`"pal"`) — draw it beside the message, as "sent by Pal".
 
 ## Writing
 
@@ -16493,7 +16731,7 @@ A message waits in the outbox while the browser is offline or the server is away
 
 ## Search
 
-`search(query, { conversationId, limit, cursor })` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one. Each hit carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, `peer`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 code units, as a string's. The first page also lists the person's conversations whose name says it (`conversations`), from their own list. What the module finds and never finds: [Messaging](/docs/messaging/overview#search).
+`search(query, { conversationId, space, limit, cursor })` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one. Each hit carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, `peer`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 code units, as a string's. The first page also lists the person's conversations whose name says it (`conversations`), from their own list. What the module finds and never finds: [Messaging](/docs/messaging/overview#search).
 
 A find opens where it was said: `conversation(id, { at })` is the conversation's stretch around the message, `focus` naming it to scroll to and mark. `loadEarlier()` reads back from there and `loadLater()` forward; once it reaches the newest, `hasLater` is false and it is the conversation's timeline again. An answer the conversation's timeline does not show has a `threadRootId`: open its thread at it.
 
@@ -16589,6 +16827,236 @@ A direct conversation in vanish mode (`update(id, { settings: { vanish: true } }
 ## Signing out
 
 When the person signs out, what the browser kept of their conversations is dropped and nothing of theirs is followed — unless `keepOnSignOut` is true, when it is theirs again the next time they sign in here, and no one else who signs in reads it. `storage` replaces where it is kept (IndexedDB, unless given).
+
+
+
+<!-- ===== web/calls ===== -->
+
+# Calls
+
+`pb.calls` is the signed-in person's voice and video calls in the browser: it rings the people called, hears the calls that ring this person, and runs a call's media — between the two devices, or through the media server for a group. An app draws what a call's state says and calls what the person does; it opens no peer connection, sends no signal and keeps no heartbeat itself. `palbase/web/calls-ui` draws the screens for an app that wants them ready-made. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](/docs/calls/overview).
+
+## Quick example
+
+```ts
+// src/lib/palbase.ts
+import { createClient } from "palbase/web";
+
+export const pb = createClient({
+  url: "https://k3xq81w4m.palbase.studio",
+  publishableKey: "pb_k3xq81w4m_cZ8yX7wV6uT5",
+  // Every call's media through the relay, never straight between the devices: false unless the app says so.
+  calls: { forceRelay: false },
+});
+```
+
+```ts
+// src/call.ts
+import { pb } from "./lib/palbase";
+
+// The microphone is asked for first; once it is allowed, every device of theirs rings.
+const call = await pb.calls.voice("usr_01a1684c796e7394aa8ec75d893a8fe2");
+
+const stop = call.subscribe(() => {
+  const { phase, remote, endReason } = call.state;
+  if (phase === "connected") console.log("talking with", remote.map((r) => r.name ?? r.userId).join(", "));
+  if (phase === "ended") {
+    console.log("ended:", endReason);
+    stop();
+  }
+});
+
+await call.setMicrophone(false); // muted
+await call.leave(); // hung up — or, while it rings, canceled
+```
+
+```ts
+// src/incoming.ts
+import { pb } from "./lib/palbase";
+
+// The calls that ring this person while the page is open — and the one ringing as a tap on its notification opens it.
+pb.calls.onIncoming((call) => {
+  const { call: c, phase } = call.state;
+  if (phase !== "incoming") return; // "invited": a huddle, joined with call.join()
+  const caller = c.participants.find((p) => p.user_id === c.caller_id);
+  if (confirm(`${caller?.name ?? c.caller_id} is calling. Answer?`)) void call.accept();
+  else void call.decline();
+});
+```
+
+## Making a call
+
+| Call | What it does |
+|---|---|
+| `voice(userIds, options)` | A voice call: one person (a direct call) or several (a group) |
+| `video(userIds, options)` | A video call |
+| `start(userIds, options)` | Either, `video` saying which |
+| `join(callId, options)` | Comes into a group call this person was asked to — a huddle, one they declined or left — on this device |
+
+Each answers the call's `CallSession` once it rings. This device's microphone (and camera) is asked for first, and a refusal rings no one ([Permissions and errors](#permissions-and-errors)). A call to someone who is calling this person that very moment is their call, answered.
+
+| Option | What it is |
+|---|---|
+| `video` | A video call (`start` alone) |
+| `ring` | Ring the people asked (the default); `false`: a group call they join when they like (a huddle) |
+| `group` | A group call even with one person asked: others may be asked later |
+| `conversationId` | The conversation it is made from: its members alone may be called, and it keeps the call as a message |
+| `metadata` | The app's own words about the call, shown to those rung: 32 strings, 2 KiB at most |
+| `callerName`, `callerImageUrl` | What those rung see of the caller; else their messaging profile's name and picture |
+| `forceRelay` | This call's media through the relay alone |
+| `media` | A microphone (and camera) stream the app opened already: used as it is, and left open when the call ends |
+
+## A call that rings
+
+`pb.calls.onIncoming(listener)` hears each call that rings this person while the page is open, and the calls ringing as it opens — the person tapped the call's notification ([Ringing while the page is away](#ringing-while-the-page-is-away)). It answers the unsubscribe. A group call that rings no one comes too, in the phase `invited`.
+
+| On the session | What it does |
+|---|---|
+| `accept(options)` | Answers on this device. The first of the person's devices (or tabs) to answer has the call; the others go to `elsewhere`. `accept({ video: false })` answers a video call by voice; `{ video: true }` a voice call with the camera on |
+| `decline()` | Turns the call down on every device of the person's: a direct call ends; a group goes on, and may still be joined |
+| `join(options)` | Comes into a group call this person was asked to: a huddle (`invited`). A session that is over joins nothing: `pb.calls.join(callId)` comes into the call again |
+
+`accept` and `join` take `video`, `forceRelay` and `media` as making a call does.
+
+`pb.calls.onCall(listener)` hears each call this page comes into — made, answered or joined here; `pb.calls.current` is the one it is in, or `null`. `pb.calls.ready()` follows the person's calls without making one (`start`, `join` and `onIncoming` do it themselves), and rejects when no one is signed in.
+
+## What to draw
+
+A session's `state` is what the app draws, and `subscribe(listener)` tells each change of it (it answers the unsubscribe):
+
+| Field | What it is |
+|---|---|
+| `phase` | `calling` (the person called is rung), `incoming` (this person is rung), `invited` (asked into a huddle), `connecting` (answered, the media on its way), `connected`, `reconnecting` (the network dropped for a moment), `elsewhere` (answered on another device or tab), `ended` |
+| `endReason` | Why it ended for this device: the call's `end_reason` ([A call's life](/docs/calls/overview#a-calls-life)), or `left` (this person left a group that goes on), `declined`, `missed`, `answered_elsewhere` |
+| `call` | The call as the module last said it ([A call](/docs/calls/http#a-call)) |
+| `me` | This person, as the call lists them |
+| `outgoing` | This person rang, or started the group |
+| `mode` | `p2p` (between the two devices) or `sfu` (through the media server) |
+| `local` | This device's microphone and camera, while it is in the call: for its own preview |
+| `microphone`, `camera` | Whether this device's microphone is heard and its camera on |
+| `remote` | The others in the call (below) |
+| `error` | The last thing that went wrong with this device's media: a camera refused, the media server not reached |
+
+Each of `remote` is `userId` (an agent's is `bot:<identity>`), `name`, `imageUrl`, `bot`, `stream` — their audio and video, one `MediaStream` for the whole call, the same object whichever way the media flows — and whether they are heard (`audio`) and seen (`video`).
+
+The others' voices play by themselves. With `calls: { playAudio: false }` in `createClient`'s options, each one's `stream` is the app's to play.
+
+```ts
+// src/call-view.ts
+import type { CallSession } from "palbase/web";
+
+/** Draws the others' video in a grid, and this device's camera in a corner. */
+export function drawCall(session: CallSession, grid: HTMLElement, self: HTMLVideoElement): () => void {
+  return session.subscribe(() => {
+    const { remote, local } = session.state;
+    self.srcObject = local;
+    grid.replaceChildren(
+      ...remote.map((r) => {
+        const video = document.createElement("video");
+        video.autoplay = true;
+        video.playsInline = true;
+        video.muted = true; // their voice already plays
+        video.srcObject = r.stream;
+        video.hidden = !r.video;
+        return video;
+      }),
+    );
+  });
+}
+```
+
+## In the call
+
+| On the session | What it does |
+|---|---|
+| `setMicrophone(on)` | The microphone heard, or muted |
+| `setCamera(on)` | The camera on or off: off, it is closed and its light goes out; on, opened again — a voice call's too |
+| `switchCamera(deviceId)` | Another camera: the one named (a `videoinput`'s `deviceId`), or, with none named, the other facing one |
+| `setAudioOutput(deviceId)` | Where the others' voices play: an `audiooutput`'s `deviceId`, in a browser that can choose one |
+| `invite(userIds, { ring })` | Asks more people in, ringing them unless `ring` is `false`: a direct call becomes a group, going on |
+| `leave()` | Hangs up — or, while it rings, cancels: a direct call ends for both; a group goes on for the others |
+| `refresh()` | Reads the call as it is now |
+
+A page that goes away — closed, reloaded, navigated off — leaves its call at once.
+
+## The media
+
+A direct call's media goes between the two devices (WebRTC), through the relay only when they cannot reach each other — or always, with the project's `relay_all`, the client's `calls: { forceRelay: true }` or one call's `forceRelay`. When the connection fails it is made again with fresh relay credentials, and the session is `reconnecting` meanwhile.
+
+A group's media, or a direct call's once a third person or the project's agent came into it, goes through the platform's media server, through the LiveKit client the package depends on (`livekit-client`). It is loaded only when a call goes there: an app whose calls stay between two devices never downloads it. A call that moves keeps its sessions and its streams: what the app drew goes on playing.
+
+## Ready-made screens
+
+`palbase/web/calls-ui` draws the call screens in the page, with no framework: a sheet for a call that rings — who calls, by voice or with video, Decline and Accept, and for a video call Accept by voice too — and the view of the call this page is in: the others' video (their picture while their camera is off), this device's camera, how long it has gone on, and the microphone, the camera, the other camera and hang up.
+
+```ts
+// src/calls-ui.ts
+import { mountCallUI } from "palbase/web/calls-ui";
+import { pb } from "./lib/palbase";
+
+const ui = mountCallUI(pb.calls, {
+  theme: { accent: "#7c3aed", radius: 12 },
+  texts: { incomingVoice: "Sesli arama", incomingVideo: "Görüntülü arama", accept: "Aç", decline: "Reddet" },
+  ringtone: true,
+  // A call from support is drawn by the app's own screen; the rest by these.
+  incoming: (call) => call.metadata?.["kind"] !== "support",
+  onError: (error) => console.warn("call:", error),
+});
+
+// Takes the screens away; a call going on goes on.
+ui.unmount();
+```
+
+| Option | What it is |
+|---|---|
+| `container` | The element the screens are drawn in (positioned); the whole page unless given |
+| `texts` | Every word the screens show, each replaced as given (`CALL_UI_TEXTS` has them all): the sheet's, the phases', and each way a call ends |
+| `labels` | What a screen reader says of the buttons and views (`CALL_UI_LABELS`) |
+| `theme` | `accent`, `background`, `foreground`, `danger`, `radius`, `font`, set as `--pb-call-<name>` on the screens' root; the system's light and dark colors unless given |
+| `className` | Added to the root element's classes |
+| `ringtone` | A soft ring while a sheet shows (the default); silent where the page may not play sound yet |
+| `incoming(call, session)` | Asked once for each call that rings: `false` leaves it to the app's own screen, the session headless |
+| `onError(error, session)` | An answer, a microphone or a camera that failed |
+
+The newest ringing call is shown, the others wait behind it; a huddle rings no one and shows no sheet. The view goes two seconds after its call ends. What people say of themselves — a name, a picture — is set as text and as an image's address, never as markup.
+
+## Ringing while the page is away
+
+While no tab of the app is in front, a call rings this browser as a notification — the caller's name, and "Incoming voice call" or "Incoming video call" — shown by the SDK's service worker, `palbase-sw.js`, through the browser's push service. The browser must take the project's pushes: copy the worker into your site and subscribe it, as every web push needs ([Notifications](/docs/web/notifications#the-service-worker)). `pb.calls.deviceId` is the device the pushes are registered with.
+
+- **A tab in front rings itself.** The worker shows no notification for a ringing call while a tab of the app is focused: `onIncoming` has it, and the app (or `palbase/web/calls-ui`) rings.
+- **A tap on the notification** focuses a tab of the app, or opens one, and `onIncoming` hears the call ringing as the page opens: the person answers there.
+- **When it stops ringing** — missed, or the caller gave up — the missed-call push takes the ringing notification away; a page that is open takes it away as soon as the call no longer rings there (answered on another device too).
+
+How a call rings each platform, the push's data and the missed call are [Ringing](/docs/calls/ringing).
+
+## History
+
+`pb.calls.history(options)` lists this person's calls, the newest first, each with how it went for them (their participant's `state`, `missed` among them): `missed: true` for the ones they missed or were busy for, `state` for those ringing, going on or ended, `limit` (1 to 100, 20 by default) and `cursor` (the previous page's `next_cursor`). `pb.calls.get(callId)` reads one of theirs as it is now.
+
+```ts
+// src/missed.ts
+import { pb } from "./lib/palbase";
+
+const { calls, next_cursor } = await pb.calls.history({ missed: true, limit: 50 });
+for (const c of calls) console.log(c.created_at, c.video ? "video" : "voice", "from", c.caller_id);
+if (next_cursor) console.log("more:", next_cursor);
+```
+
+## Permissions and errors
+
+- **The microphone.** Making, answering or joining a call asks for the microphone (and, for video, the camera) first. A refusal rejects with the browser's own error (`NotAllowedError`), and no one is rung, nothing answered. A video call with no camera, or a busy one, goes on by voice.
+- **The module's refusals** are a `PalbaseError` (from `palbase/web`), its `code` saying which: `not_allowed` (403: blocks, a conversation's members, your hook), `in_another_call` (409), `too_many_calls` and `quota_exceeded` (429), `invalid_user_ids` and `call_full` (400). Answering a call that is no longer this device's is a `409` too — `answered_elsewhere`, `call_ended`, `not_ringing` — and the session's state shows the call as it is.
+- **Not signed in**: `401 not_signed_in`. Calls are the signed-in person's.
+- **No WebRTC** (a server, a test without a browser): a `TypeError`. A browser that cannot choose where audio plays (no `setSinkId`) refuses `setAudioOutput` with a `TypeError`.
+- **The media later on** — a camera turned on and refused, the media server not reached — is the session's `state.error`, and the call goes on.
+
+## Related
+
+- [Calls](/docs/calls/overview) — kinds of call, who may call whom, a call's life, prices
+- [Calls over HTTP](/docs/calls/http) — what the SDK sends
+- [Notifications](/docs/web/notifications) — web push and the service worker
+- [Error Handling](/docs/web/errors) — `PalbaseError`
 
 
 
@@ -17864,7 +18332,7 @@ In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/pa
 | `PalbaseDebug` | The [in-app debug console](/docs/ios/debug-console)'s screens. |
 | `Palbe` | What the [backend clients](/docs/ios/backend-calls) `palbase apps:sync` generates compile against. Link it when the project has a backend. |
 
-A chat's live voice is a package of its own, [palbase-swift-voice](https://github.com/palgroup/palbase-swift-voice), because it brings WebRTC: see [Voice](/docs/ios/voice).
+A chat's live voice is a package of its own, [palbase-swift-voice](https://github.com/palgroup/palbase-swift-voice), because it brings WebRTC: see [Voice](/docs/ios/voice). So are voice and video calls, [palbase-swift-calls](https://github.com/palgroup/palbase-swift-calls) (`PalbaseCalls`, and `PalbaseCallsUI` for the ready screens): see [Calls](/docs/ios/calls).
 
 ## Connect the app to the project
 
@@ -18937,6 +19405,23 @@ struct Chat: View {
 
 `pb.messaging.direct(with: userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message); `group(title:memberIds:)` makes a group. `ConversationView` has `entries`, `members`, `typing`, `hasEarlier` and `loadEarlier()`; `thread(_:)` is a message's thread, `scheduled()` the person's messages for later.
 
+## Spaces and open groups
+
+A conversation may belong to a place of your app's — an organization, a workspace — when it is made with a `space` your app names (`org:<id>`), for good: `direct(with: userId, space: org)` opens the pair's conversation there (the two have one in each space, and one with none), `group(title:space:visibility:)` makes a group there, `conversations(spaces: [org])` lists a space's — its `unread` that space's — and `search(_:space:)` searches one. Each conversation says its `space` (`nil`: none).
+
+An open group (`visibility: .open`; `isOpen` on the conversation) is a channel: `openGroups(space:)` lists a space's, each with whether the person is in it (`joined`), and `join(_:)` lets the person in — the group then in their list at once. Making one, listing and joining ask the project's hook (`open_group`, `list_open`, `join`): refused, a `PalbaseError` with code `not_allowed`; an open group names its space (`space_required`). One an admin removed does not join again by themselves (`removed`).
+
+```swift
+// Sources/Workspace/Channels.swift
+let org = "org:2f6c0c1e-8a3b-4c1d-9e5f-0a1b2c3d4e5f"
+let sidebar = pb.messaging.conversations(spaces: [org])
+let channels = try await pb.messaging.openGroups(space: org)
+for c in channels.items where !c.joined { _ = try await pb.messaging.join(c.id) }
+let dm = try await pb.messaging.direct(with: "usr_01a1684c796e7394aa8ec75d893a8fe2", space: org)
+```
+
+A message your server wrote as someone (an assistant sending their words) says what wrote it: `message.via` (`"pal"`) — show it beside the message.
+
 ## Writing
 
 `send(_:_:)` takes text, or `SendOptions`: `replyTo`, `threadId` and `alsoInConversation`, `mentions`, `files` (encrypted on the phone before they are uploaded), `expiresIn` with `expiresFrom`, `viewOnce`, and `sendAt` for a message the server sends later. A message waits in the outbox while the phone is offline and goes once it can, once. `edit`, `remove`, `react`, `unreact`, `markRead`, `typing`, `cancelScheduled` and `editScheduled` change what was said; `open(_:attachment:)` downloads and decrypts a file, and a message seen once gives its files by `viewOnce(_:)` alone — held by the app, never by the phone's copy.
@@ -19066,6 +19551,175 @@ The title is the one the device had; it is nil when the device no longer had the
 ## Signing out
 
 When the person signs out, what the phone kept of their conversations is dropped, unless `pb.messaging.keepOnSignOut` is true — then it is theirs again when they sign back in. Kept or not, no one else who signs in on the phone reads it.
+
+
+
+<!-- ===== ios/calls ===== -->
+
+# Calls
+
+`pb.calls` is the signed-in person's voice and video calls on iOS. A call rings the phone as any call does — the system's own call screen through CallKit, on the lock screen and with the app closed, woken by a VoIP push — and an `@Observable` `PBCall` is what the app draws: where the call is, its cameras, its controls. A direct call's media goes between the two phones (WebRTC); a group's — or a direct call a third person joined — through the project's media server. `PalbaseCallsUI` draws the screens for an app that wants them ready-made. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](/docs/calls/overview).
+
+## Install
+
+The calls are a Swift package of their own, so an app that makes no calls takes none of their weight. Add `https://github.com/palgroup/palbase-swift-calls` with Swift Package Manager, at the same version as `palbase-swift`:
+
+```swift
+.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.14.1")
+```
+
+Link `PalbaseCalls` (the calls, headless) and, for the ready screens, `PalbaseCallsUI`. They bring Palbase's core and `PalbaseNotify` of the same version, and LiveKit's WebRTC and client SDK, which the media server's calls go through. **Do not add LiveKit's own Swift package beside them**: its client SDK is already inside `PalbaseCalls`. It needs iOS 18 and Xcode 16.3 or newer.
+
+The app:
+
+- says why it asks for the microphone (`NSMicrophoneUsageDescription`) and, for video calls, the camera (`NSCameraUsageDescription`) in its `Info.plist`;
+- has the **Push Notifications** capability, and the **Background Modes** `voip` (Voice over IP) and `audio` (Audio, AirPlay, and Picture in Picture).
+
+## A call rings the phone
+
+A call that comes while the app is closed, in the background or the phone is locked rings by a **VoIP push** (PushKit), which wakes the app, and is handed to **CallKit** at once: iOS draws its own call screen — the caller's name, the app's name and icon, its ringtone — and the call is answered or declined there.
+
+- **The APNs key.** VoIP pushes go through the project's APNs key, the same `.p8` its notifications use ([Notifications](/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)): the platform sends them to the app's bundle id with `.voip` after it. Nothing else is set up.
+- **The token.** `PalbaseCalls` registers the app's PushKit token with the project's notifications as a device of its own (platform `ios_voip`), beside the app's notification token, for the person signed in. The app writes no PushKit code.
+- **Configure at launch.** `pb.calls.configure(_:)` sets the system's call screen and the VoIP pushes up. Call it once, before `application(_:didFinishLaunchingWithOptions:)` returns — a VoIP push that launched the app must find it there: iOS stops sending VoIP pushes to an app that does not report each one to CallKit at once.
+
+```swift
+import Palbase
+import PalbaseCalls
+import UIKit
+
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // A 40-point template image of the app's assets, shown on the system's call screen.
+        pb.calls.configure(.init(callKit: .inBackground, iconTemplateImageName: "CallIcon"))
+        return true
+    }
+}
+```
+
+`Calls.Configuration`:
+
+| Field | What it is |
+|---|---|
+| `callKit` | Whether the system's call screen carries the calls: `.inBackground` (the default) — a call that comes while the app is in the background, locked or closed rings on the system's screen, and in the open app the app's own screen rings; `.always` — every call, in the app too; `.never` — none: calls ring in the app alone, while it runs, and no VoIP push is taken |
+| `iconTemplateImageName` | A 40-point template image of the app's assets, on the system's call screen |
+| `ringtoneSound` | A sound file of the app's bundle the system rings with — and the app's own ring; the system's ringtone when `nil` |
+| `includesCallsInRecents` | The calls are listed in the Phone app's recents (`true` by default) |
+
+## Making a call
+
+```swift
+import PalbaseCalls
+import SwiftUI
+
+struct CallButton: View {
+    let userId: String
+
+    var body: some View {
+        Button("Video call") {
+            Task {
+                // Rings every device of theirs; the media goes between the two phones.
+                let call = try await pb.calls.call(userId, video: true)
+                call.setMuted(true)
+            }
+        }
+    }
+}
+```
+
+| Call | What it does |
+|---|---|
+| `call(_ userId:, video:, conversationId:, metadata:, name:, imageURL:)` | Rings one person: a direct call. `name` and `imageURL` are what they see of the caller (else the caller's messaging profile's) |
+| `callGroup(_ userIds:, video:, ring:, conversationId:, metadata:, name:, imageURL:)` | A group call, through the media server — several people, or one others may be asked to later. `ring: false` rings no one: the people asked join when they like (a huddle) |
+| `join(_ callId:)` | Comes into a group call the person was asked to — rung, missed, declined, or in before |
+| `history(missed:, limit:, cursor:)` | The person's calls, the newest first, with how each went for them; `missed: true` the ones they missed |
+| `call(id:)` | The call by its id, while it is on the device |
+
+Each that makes or joins a call answers its `PBCall` and throws the module's refusal as a `PalbaseError`: `not_allowed`, `in_another_call`, `too_many_calls`, `quota_exceeded` and the rest of [Calls over HTTP](/docs/calls/http#making-a-call); `not_signed_in` when no one is. A call to someone who is calling this person that very moment is their call, answered.
+
+`pb.calls` is `@Observable` too: `live` (the calls on the device — ringing, being made, going on; one that ends stays a moment, for its screen to say so), `ringing` (a call ringing in the app, not on the system's screen) and `current` (the call the person is in on this device, or makes). `deviceId` is the install's device, as the server names it.
+
+## The call
+
+A `PBCall` is `@Observable`: a SwiftUI view that reads it is drawn again as it changes.
+
+| Property | What it is |
+|---|---|
+| `phase` | `.ringing` (someone calls them), `.invited` (asked into a huddle: `join()` comes in), `.calling` (they call; the other side rings), `.connecting`, `.connected`, `.reconnecting` (the media dropped and is coming back), `.elsewhere` (in it on another of their devices), `.ended(CallEndReason)`; `phase.isHere` while they are in it on this device |
+| `snapshot` | The call as the server last told it ([A call](/docs/calls/http#a-call)) |
+| `isIncoming`, `isVideo`, `isGroup` | Someone called them; a video call; a group |
+| `title`, `imageURL` | What a screen names the call by — the others' names — and the other person's picture in a direct call |
+| `others`, `joinedOthers` | The other people (and agents) in the call; those in it now |
+| `media` | `.idle`, `.connecting`, `.connected`, `.reconnecting`, `.failed` |
+| `isMuted`, `isCameraOn`, `isSpeakerOn`, `isFrontCamera` | The controls' state |
+| `localVideo`, `remoteVideos`, `video(of:)` | This phone's camera while it is on, the others' cameras each with whose it is (`CallVideoTrack.userId`), and one person's |
+| `connectedAt` | When it was answered (a direct call) or the person came in (a group): what a duration counts from |
+| `problem` | The last thing that went wrong here — a refusal, the media failing: what a screen may show |
+| `onSystem` | The system's call screen carries it |
+
+`CallEndReason` is the server's `end_reason` — `.hungUp`, `.canceled`, `.declined`, `.missed`, `.busy`, `.failed`, `.ended` — or the person's own in a group that goes on (`.left`), and `.answeredElsewhere` when another of their devices took it.
+
+| Action | What it does |
+|---|---|
+| `accept()` | Answers on this device — through the system's screen when it rings there. Throws the server's refusal: `answered_elsewhere` when another of the person's devices took it first |
+| `join()` | Comes into a group call the person was asked to: a huddle, or one they declined or missed |
+| `decline()` | Turns a ringing call down: a direct call ends; a group goes on without them |
+| `hangUp()` | Hangs up — or cancels the call they are making, or turns down one ringing |
+| `setMuted(_:)`, `setSpeaker(_:)` | The microphone muted; the sound through the speaker |
+| `setCamera(_:)`, `flipCamera()` | The camera on or off, and the other camera — a video call's |
+| `invite(_ userIds:, ring:)` | Asks more people in: a direct call moves to the media server, going on |
+
+`CallVideoView(track, fill: true, mirrored: nil)` draws a camera in SwiftUI: filling its frame or fitted in it, this phone's own camera mirrored unless said otherwise.
+
+## Ready-made screens
+
+`PalbaseCallsUI` shows the calls over the app: an incoming call that rings in the app (who calls, voice or video, Decline and Accept), then the call the person is in — the others' cameras or their picture, this phone's camera in a corner, how long it has gone on, and mute, speaker, camera, flip and hang up.
+
+```swift
+import PalbaseCalls
+import PalbaseCallsUI
+import SwiftUI
+
+@main
+struct MyApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .callScreens(pb.calls)
+                .callTexts(turkish)
+        }
+    }
+
+    private var turkish: CallTexts {
+        var t = CallTexts()
+        t.incomingVoice = "Sesli arama"
+        t.incomingVideo = "Görüntülü arama"
+        t.accept = "Aç"
+        t.decline = "Reddet"
+        t.hangUp = "Kapat"
+        return t
+    }
+}
+```
+
+- `.callScreens(pb.calls)` — the ready screens, `IncomingCallView` and `InCallView`.
+- `.callScreens(pb.calls, incoming: { call in … }, inCall: { call in … })` — the app's own screen for either or both, each given the `PBCall`.
+- `.callTexts(_:)` — every word they say (`CallTexts`: `incomingVoice`, `incomingVideo`, `calling`, `connecting`, `reconnecting`, `elsewhere`, `ended`, `accept`, `decline`, `hangUp`, `mute`, `speaker`, `camera`, `flip`).
+- The parts, for a screen of the app's own: `CallStatus(call:)` (where the call is, in words, and its duration), `CallControls(call:)`, `CallAvatar(call:size:)`.
+
+A call on the system's screen is answered there; the app's screens show it once the app is in front.
+
+## Permissions
+
+The first time a call is made or answered, the SDK asks for the microphone — and the camera for a video call — with the reasons the `Info.plist` gives. It does not refuse a call the person said no to: ask before, and send someone who refused to the app's Settings, where they allow it.
+
+## Related
+
+- [Calls](/docs/calls/overview) — kinds of call, who may call whom, a call's life, prices
+- [Ringing](/docs/calls/ringing) — how a call rings each platform, and what its push carries
+- [Notifications](/docs/ios/notifications) — the APNs key and the app's pushes
 
 
 
@@ -20112,10 +20766,12 @@ dependencies {
 | `palbase-palbe` | Your backends' generated clients, their gateways and chats | `pb.<name>` ([Calling Your Backend](/docs/android/backend-calls), [Gateways](/docs/android/gateways)) |
 | `palbase-debug` | The debug console's screens, in Compose | `PalbaseConsole(pb.debug)` ([Debug Console](/docs/android/debug-console)) |
 | `palbase-voice` | A chat's live voice over WebRTC | `PBVoice.connect(…)` ([Voice](/docs/android/voice)) |
+| `palbase-calls` | Voice and video calls between the project's people, rung over the lock screen | `pb.calls` ([Calls](/docs/android/calls)) |
+| `palbase-calls-ui` | A call's screens in Compose, and the activity a ring opens | `CallHost`, `PalbaseCallActivity` ([Calls](/docs/android/calls#ready-made-screens)) |
 | `palbase-runtime` | The types every generated client calls into; `palbase` brings it | — |
 | `palbase-bom` | One version for all of them | `platform(…)` |
 
-WebRTC comes only with `palbase-voice`, Play Billing only with `palbase-purchases` and Compose only with `palbase-debug`, so an app that takes none of them carries none of them.
+WebRTC comes only with `palbase-voice` and `palbase-calls`, Play Billing only with `palbase-purchases` and Compose only with `palbase-debug` and the `-ui` modules, so an app that takes none of them carries none of them.
 
 Each module is an extension of the client (a property, and for analytics a function), imported from the module's package: `import studio.palbase.flags.flags`, `studio.palbase.notify.notify`, `studio.palbase.storage.storage`, `studio.palbase.realtime.realtime`, `studio.palbase.purchases.purchases`, `studio.palbase.analytics.analytics`.
 
@@ -21162,6 +21818,23 @@ fun Chat(pb: PalbaseClient, id: String) {
 
 `pb.messaging.direct(userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message). A message waits in the outbox while the phone is offline and goes once it can, once. Files are encrypted on the phone (AES-256-GCM) before they are uploaded; `pb.messaging.open(message, attachment)` downloads and decrypts one, and a message seen once gives its files by `pb.messaging.viewOnce(message)` alone.
 
+## Spaces and open groups
+
+A conversation may belong to a place of your app's — an organization, a workspace — when it is made with a `space` your app names (`org:<id>`), for good: `direct(userId, space = org)` opens the pair's conversation there (the two have one in each space, and one with none), `group(title, space = org, visibility = …)` makes a group there, `conversations(spaces = listOf(org))` lists a space's — its `unread` that space's — and `search(query, space = org)` searches one. Each conversation says its `space` (`null`: none).
+
+An open group (`visibility` open) is a channel: `openGroups(space)` lists a space's, each with whether the person is in it (`joined`), and `join(conversationId)` lets the person in — the group then in their list at once. Making one, listing and joining ask the project's hook (`open_group`, `list_open`, `join`): refused, a `PalbaseError` with code `not_allowed`; an open group names its space (`space_required`). One an admin removed does not join again by themselves (`removed`).
+
+```kotlin
+// app/src/main/java/com/example/workspace/Channels.kt
+val org = "org:2f6c0c1e-8a3b-4c1d-9e5f-0a1b2c3d4e5f"
+val sidebar = pb.messaging.conversations(spaces = listOf(org))
+val channels = pb.messaging.openGroups(org)
+for (c in channels.items) if (!c.joined) pb.messaging.join(c.id)
+val dm = pb.messaging.direct("usr_01a1684c796e7394aa8ec75d893a8fe2", space = org)
+```
+
+A message your server wrote as someone (an assistant sending their words) says what wrote it: `message.via` (`"pal"`) — show it beside the message.
+
 ## Search
 
 `pb.messaging.search(query)` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one (`conversationId`). Each `SearchHit` carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 offsets, as a `String`'s. The first page also lists the person's conversations whose name says it (`conversations`), found on the phone. What the module finds and never finds: [Messaging](/docs/messaging/overview#search).
@@ -21268,6 +21941,156 @@ The title is the one the device had; it is null when the device no longer had th
 ## Signing out
 
 The phone's copy is kept in the app's own SQLite, in files not backed up. When the person signs out it is dropped, unless `pb.messaging.keepOnSignOut = true` — then it is theirs again when they come back. Whoever signs in next never reads it; and unless copies are kept, the person who signs in drops any other's left there.
+
+
+
+<!-- ===== android/calls ===== -->
+
+# Calls
+
+`pb.calls` (`studio.palbase:palbase-calls`) is the signed-in person's voice and video calls on Android. A call rings the phone as a phone call does — over the lock screen and with the app closed, woken by a high-priority FCM message — and lives in the system's call integration (Telecom): its audio route, Bluetooth, a watch or a car answering. A `PBCall` is what the app draws, its state as `StateFlow`s. A direct call's media goes between the two phones (WebRTC); a group's — or a direct call a third person joined — through the project's media server. `palbase-calls-ui` draws the screens in Compose. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](/docs/calls/overview).
+
+## Install
+
+```kotlin
+// app/build.gradle.kts
+dependencies {
+    implementation(platform("studio.palbase:palbase-bom:0.14.1"))
+    implementation("studio.palbase:palbase")
+    implementation("studio.palbase:palbase-notify")     // the FCM token, and the service a ring arrives through
+    implementation("studio.palbase:palbase-calls")      // pb.calls, headless
+    implementation("studio.palbase:palbase-calls-ui")   // the call screens and the activity a ring opens
+}
+```
+
+Palbase's packages come from its own repository, as every module's do ([Android Overview](/docs/android/overview)).
+
+- **Push.** A call rings through the project's FCM provider and the app's Firebase project, as every push does ([Notifications](/docs/android/notifications#setting-up-push)). palbase-notify's messaging service (`PalbaseMessagingService`, declared by its manifest) hands a call's push to the calls — no code. An app with a `FirebaseMessagingService` of its own subclasses `PalbaseMessagingService`, calling `super` first, or a ring never reaches the calls.
+- **The client in the `Application`.** Make the client there and touch `pb.calls`: the person's calls channel is followed from then on, and a process FCM starts for a ring uses the app's own client.
+- **What the manifests add.** palbase-calls declares its permissions (`RECORD_AUDIO`, `CAMERA`, `POST_NOTIFICATIONS`, `USE_FULL_SCREEN_INTENT`, `MANAGE_OWN_CALLS`, the foreground service types `phoneCall`, `microphone` and `camera` …), the foreground service a call holds the app with, and the receiver a notification's Decline and Hang up go to; palbase-calls-ui the activity a ring opens. An app that makes voice calls alone may remove `CAMERA` and the camera service type (`tools:node="remove"`). The app declares the foreground service types in Google Play's declaration (phone call, microphone, camera).
+
+## A call rings the phone
+
+The project rings an Android phone with a **high-priority FCM data message**. The SDK posts at once a **CallStyle** notification on its own channel — the ringtone, looping until the call is answered, declined, answered on another device or missed — with a **full-screen intent** that opens the call's screen over the lock screen. The call is in Telecom, and a foreground service of type `phoneCall` holds the app while it rings and goes on (with `microphone`, and `camera` in a video call, once it is answered).
+
+- **Ask for the permissions.** On Android 13 and newer the app asks for `POST_NOTIFICATIONS` at runtime, as for any push: a missed call's notification needs it. The microphone (`RECORD_AUDIO`) — and the camera for a video call (`CAMERA`) — are asked before a call is made or answered: without the microphone, a call is refused with `microphone_denied`. palbase-calls-ui's Accept asks for them itself.
+- **Full screen over the lock screen.** From Android 14, Google Play grants `USE_FULL_SCREEN_INTENT` to calling apps alone, and the person may turn it off. `pb.calls.canRingFullScreen` says whether it is granted — without it a ring is a heads-up notification with Answer and Decline — and `pb.calls.fullScreenSettings()` is the system's page where the person allows it.
+- **A closed app rings; a force-stopped one does not.** A process the system ended — or `adb shell am kill` — still gets the ring: FCM starts it. An app the person force-stopped (Settings › Force stop, or `adb shell am force-stop`) gets no FCM message at all, Android's rule, until it is opened again.
+
+```kotlin
+// Before the first call: what the phone needs to ring.
+if (!pb.calls.canRingFullScreen) {
+    // Explain why, then:
+    context.startActivity(pb.calls.fullScreenSettings())
+}
+```
+
+## Making a call
+
+```kotlin
+val scope = rememberCoroutineScope()
+Button(onClick = {
+    scope.launch {
+        // Rings every device of theirs; the media goes between the two phones.
+        val call = pb.calls.call(userId, video = true)
+        call.setMicrophone(false)
+    }
+}) { Text("Video call") }
+```
+
+| Call | What it does |
+|---|---|
+| `call(userId, video, conversationId, metadata, callerName, callerImageUrl)` | Rings one person: a direct call. `callerName` and `callerImageUrl` are what they see of the caller (else the caller's messaging profile's) |
+| `callGroup(userIds, video, ring, conversationId, metadata, callerName, callerImageUrl)` | A group call, through the media server — several people, or one others may be asked to later. `ring = false` rings no one: the people asked join when they like (a huddle) |
+| `join(callId)` | Comes into a group call the person was asked to — rung, missed, declined, or in before |
+| `open(callId)` | The call on this device: the one held, or read from the server — what a notification's tap opens in a process that holds none. `null` when it is not this person's, or over |
+| `history(limit, cursor, missedOnly)` | The person's calls, the newest first, with how each went for them; `missedOnly` the ones they missed or were busy for |
+
+Each that makes or joins a call answers its `PBCall` and throws the module's refusal as a `PalbaseError`: `not_allowed`, `in_another_call`, `too_many_calls`, `quota_exceeded` and the rest of [Calls over HTTP](/docs/calls/http#making-a-call). A call to someone who is calling this person that very moment is their call, answered; their being in another call ends it at once (`endReason` `busy`).
+
+`pb.calls.current` is a `StateFlow` of the call on this device — ringing here, calling out, going on — or `null`; `pb.calls.rung` a `SharedFlow` of each call as it starts ringing here. `deviceId` is this install's device, as notify registered it.
+
+## The call
+
+| `StateFlow` | What it is |
+|---|---|
+| `status` | `RINGING`, `CALLING`, `CONNECTING`, `CONNECTED`, `RECONNECTING` (the media was lost and is coming back), `ENDED` |
+| `endReason` | Why it ended: the server's `hung_up`, `canceled`, `declined`, `missed`, `busy`, `failed`, `ended` — or this device's `answered_elsewhere` and `declined_elsewhere` |
+| `snapshot` | The call as the server last told it ([A call](/docs/calls/http#a-call)); `null` until read, for a call rung by push |
+| `peers` | The other people (and agents): `userId`, `name`, `imageUrl`, `state`, `bot`, and their `video` while their camera is on |
+| `localVideo` | This phone's camera, while it is on |
+| `microphoneOn`, `cameraOn` | The controls' state |
+| `group` | Through the media server: more than two people, or a call people join |
+| `connectedAt` | When the media first flowed: the call's clock starts here |
+| `audioRoute`, `audioRoutes` | Where the sound plays now, and where it may: `EARPIECE`, `SPEAKER`, `WIRED_HEADSET`, `BLUETOOTH` … each with its name |
+
+And as plain values: `id`, `incoming` (this device was rung for it), `video`, `caller` (`userId`, `name`, `imageUrl`).
+
+| Action | What it does |
+|---|---|
+| `accept()` | Answers on this device; the person's other devices stop ringing. Needs the microphone |
+| `decline()` | Turns it down on every device of the person's: a direct call ends; a group goes on without them |
+| `hangUp()` | Leaves it: a direct call ends for both (`canceled` while it rings); a group goes on while someone is in it |
+| `invite(userIds, ring)` | Asks more people in: a direct call becomes a group, going on |
+| `setMicrophone(on)` | The microphone heard, or muted |
+| `setCamera(on)`, `flipCamera()` | The camera on or off in a video call, and the front or the back one |
+| `setSpeaker(on)`, `setAudioRoute(route)` | The speaker or the earpiece (a headset when one is connected), or any route of `audioRoutes` |
+
+A camera is drawn by `PBVideoView` (a `View`: set its `track`) or palbase-calls-ui's `CallVideo(track, mirror = …)`.
+
+## Ready-made screens
+
+palbase-calls-ui draws a call in Compose: `IncomingCallScreen` (who calls, Accept and Decline — Accept asks for the microphone, and the camera for video, then answers), `InCallScreen` (the other's video filling the screen and this phone's camera in a corner, or their picture in a voice call; a group in a grid; the call's state and clock; `CallControls`: mute, camera, flip, speaker, hang up) and `CallEndedScreen`. `CallScreen(call)` shows the right one; each takes its parts as slots (`avatar`, `controls`, a person's tile) and `CallColors`.
+
+**Over the app**, while it is open:
+
+```kotlin
+setContent {
+    CallHost(pb.calls) {
+        MyApp()
+    }
+}
+```
+
+**The activity a call opens** — over the lock screen as it rings, Answer from the notification, a tap on the call going on — is palbase-calls-ui's `PalbaseCallActivity`, declared for `Calls.ACTION_CALL`. It draws `CallScreen`, and ends itself a moment after the call does. To draw your own screen in it, set its content in the `Application`, before a ring can come:
+
+```kotlin
+class App : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        pb.calls // the calls channel followed from launch
+        PalbaseCallActivity.content = { call -> CallScreen(call, incoming = { MyIncoming(it) }) }
+    }
+}
+```
+
+**An activity of your own** replaces it: declare it for the action, and the SDK opens it instead. It reads the call's id and whether the person tapped Answer from its intent:
+
+```xml
+<activity android:name=".CallActivity" android:exported="false" android:showWhenLocked="true" android:turnScreenOn="true">
+    <intent-filter>
+        <action android:name="studio.palbase.calls.action.CALL" />
+        <category android:name="android.intent.category.DEFAULT" />
+    </intent-filter>
+</activity>
+```
+
+```kotlin
+val id = intent.getStringExtra(Calls.EXTRA_CALL_ID) ?: return finish()
+val answer = intent.getBooleanExtra(Calls.EXTRA_ANSWER, false)
+lifecycleScope.launch {
+    val call = pb.calls.open(id) ?: return@launch finish()
+    if (answer) call.accept()
+}
+```
+
+**The words** the screens say are string resources: an app gives its own with strings of the same names (`values-tr/strings.xml`) — `palbase_calls_ui_accept`, `palbase_calls_ui_decline`, `palbase_calls_ui_incoming_voice`, `palbase_calls_ui_incoming_video`, `palbase_calls_ui_calling`, `palbase_calls_ui_connecting`, `palbase_calls_ui_reconnecting`, `palbase_calls_ui_ended`, `palbase_calls_ui_busy`, `palbase_calls_ui_declined`, `palbase_calls_ui_missed`, `palbase_calls_ui_elsewhere`, `palbase_calls_ui_failed`, `palbase_calls_ui_mute`, `palbase_calls_ui_camera`, `palbase_calls_ui_speaker`, `palbase_calls_ui_flip`, `palbase_calls_ui_hang_up`, `palbase_calls_ui_someone`.
+
+## Related
+
+- [Calls](/docs/calls/overview) — kinds of call, who may call whom, a call's life, prices
+- [Ringing](/docs/calls/ringing) — how a call rings each platform, and what its push carries
+- [Notifications](/docs/android/notifications) — FCM and the app's pushes
 
 
 
@@ -22122,6 +22945,7 @@ It answers a `PalbaseServer`:
 | `flags` | definitions, users' values, publishing | flags |
 | `analytics` | captures, and reading events back | analytics |
 | `realtime` | broadcast, state, the channel declaration, limits | realtime |
+| `calls` | the calls settings and hook, the project's calls read and ended, an agent's ticket ([Calls](/docs/calls/server)) | calls |
 | `machines` | machines, builds, logs, databases | machines |
 | `transport` | the one transport every call goes through | — |
 
@@ -22284,7 +23108,7 @@ Any `2xx` is delivery. Anything else — another status, a timeout, a refused co
 
 ## Endpoints
 
-An endpoint is an `https` URL on the public internet and the event types it takes — up to 50 of them, each dotted lowercase words such as `user.deleted`; an endpoint that names none takes every type. A project has **5 endpoints at most**, besides the ones the platform keeps for its machines. When an endpoint is made, its secret (`whsec_` and 64 hex characters) is answered **once**; keep it in the receiving server's secrets.
+An endpoint is an `https` URL on the public internet and the event types it takes — up to 50 of them, each dotted lowercase words such as `user.deleted`; an endpoint that names none takes every type, but `messaging.message.created` and `messaging.conversation.read` — one a message, one a read — which go only to an endpoint that names them. A project has **5 endpoints at most**, besides the ones the platform keeps for its machines. When an endpoint is made, its secret (`whsec_` and 64 hex characters) is answered **once**; keep it in the receiving server's secrets.
 
 Manage a project's endpoints in Studio, under an environment's **Settings › Webhooks**: add an endpoint (its secret is shown once, with a copy button), change its address or events, or delete it. Reading the list is open to the organization's members; adding, changing and deleting are an admin's — a person, or an admin [access token](/docs/getting-started/access-tokens). Each endpoint shows who made it: a person, an access token or an environment token, by the name it had then. An endpoint stays when the token that made it is deleted. Palbase's own environment is shown read-only. A `palbase/backend` app on a machine needs none of this: the platform gives the machine its `PALBASE_WEBHOOK_SECRET` and keeps an endpoint for exactly the events its app takes, listed as the machine's — not changed or deleted from here, and gone with the machine ([Event Hooks](/docs/backend/hooks)).
 
@@ -22346,7 +23170,11 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `journey.event` | A journey's `event` step told the project's backend. | `{ journey, journey_id, run_id, user_id, step, name, data, test }` |
 | `journey.ended` | A person's run ended: `completed`, `converted`, `exited`, `stopped`. | `{ journey, journey_id, run_id, user_id, reason, test }` |
 | `messaging.report.created` | A person reported a conversation, someone in it or messages of it. Read what it carries with the secret key (`GET /messaging/admin/reports/{report_id}`); an organization that runs its customers' apps passes it on to them from here ([Messaging](/docs/messaging/overview#moderation)). | `{ report_id, conversation_id, reporter_id, reported_user_id, reason, message_count }` |
-| `messaging.conversation.created` / `messaging.conversation.deleted` | A conversation was made — by a person, or the project's server — or deleted for everyone. | `{ conversation_id, kind, created_by, member_ids }` / `{ conversation_id, deleted_by }` |
+| `messaging.conversation.created` / `messaging.conversation.deleted` | A conversation was made — by a person, or the project's server — or deleted for everyone. | `{ conversation_id, kind, created_by, member_ids, space }` / `{ conversation_id, deleted_by }` |
+| `messaging.message.created` | A message reached a conversation — a person's, or the project's server's (`via`) — with whom it is for and whom it names; its text only with the setting `event_text`. Sent only to an endpoint that names it, never to one of every event ([Messaging](/docs/messaging/overview#your-server)). | `{ conversation_id, conversation_kind, space, message_id, seq, kind, sender_id, via, thread_id, mention_ids, recipient_ids, has_attachments, text?, created_at }` |
+| `messaging.conversation.read` | A person read a conversation, or a thread of it, further. Sent only to an endpoint that names it. | `{ conversation_id, space, user_id, read_seq, thread_id }` |
+| `calls.call.started` / `calls.call.ended` | A call was made — ringing, or a group going on — or ended (`end_reason` says why) ([Calls](/docs/calls/server#webhooks)). | `{ call_id, kind, video, mode, state, caller_id, conversation_id, room }`, and `end_reason` when it ended |
+| `calls.participant.joined` / `calls.participant.left` | A person answered or joined a call, or left it; or the project's agent came into it, or left ([Agents](/docs/calls/agents)). | the same fields, and `user_id`, `participant_kind` (`user` or `bot`) |
 | `audience.entered` / `audience.exited` | A person came to be in an analytics audience, or left it. | `{ audience_id, audience_name, person_id, user_id }` |
 | `machine.created` / `machine.updated` / `machine.deleted` | A machine was opened, changed, or taken away. | `{ name, source, size, replicas, port, version }` |
 | `stores.apple.changed` | The Apple account was connected, checked (and Apple's answer changed) or disconnected. The key is never in the event. | `{ change, issuer_id, key_id, status, capabilities }` |
@@ -25594,6 +26422,8 @@ Every conversation has a key of its own, kept wrapped by the project's key: its 
 ## What people do
 
 - **Direct conversations and groups.** The direct conversation of two people is one, whoever opens it (`POST /messaging/conversations/direct`); a group has up to 1,000 members, an owner, admins, and policies for who writes, who adds people and who changes it.
+- **Spaces.** A conversation made with a `space` your app names (`org:<id>`, `project:<id>`) belongs to that place of the app's, for good: the same two people have one direct conversation in each space, and one with none. A person's list, your server's list and search are narrowed to spaces (`?space=`). Your hook is told the space, so it says who may reach whom there.
+- **Open groups.** A group is open (`visibility: "open"`, in a space) — found in its space's open groups (`GET /messaging/groups/open?space=`) and joined by the person themselves (`POST /messaging/conversations/{conversation_id}/join`), as a channel — or closed (the default): joined when someone adds you. Your hook says who may make or open one in a space, and who may find and join its groups. One an admin removed does not join again by themselves. An open group stays when its last person leaves, to be found and joined — with no owner or admin left, your server moderates it (`PATCH /messaging/admin/conversations/{conversation_id}`, its members, its messages). Opening a closed group lets whoever joins read what its history shows newcomers.
 - **Answers and threads.** A message answers another inline, or in its thread: one level deep, with its count of answers, its last one and who answered, each thread's unread count, and the threads a person follows (`GET /messaging/threads`). A thread's answer may be shown in the conversation too.
 - **Changing what was said.** A message is edited within 15 minutes, and removed for everyone by its writer within 48 hours (by a group's admin at any time), or for oneself.
 - **Reactions**, several a person to a message; **mentions**; **read receipts** and **typing**; **presence** (online, last seen).
@@ -25660,7 +26490,18 @@ With the secret key, your server makes conversations for people, adds and remove
 
 Your organization's owners and admins read the same in Studio (**Messaging › Conversations**, a person's conversations by their user ID) and with the CLI (`palbase messaging:conversations:list --user <id>`, `palbase messaging:messages:list <conversation_id>`). A member of your team sees the conversations, not what was said: the platform refuses them. Every read of people's messages — a file opened too — is recorded with who read it: a developer by name, a key or a token by its id. Studio's **Access log** and `GET /messaging/admin/access-log` (`palbase messaging:access-log`) list them, 400 days.
 
-**Who may write to whom** is everyone, unless the project's hook says otherwise: set `hook` in the settings and the project's endpoint is asked, signed as a webhook is, before a direct conversation is opened or someone is added to a group — `messaging.can_message`, answering whether they may. When it does not answer, `on_error` says what happens: deny (the default; the app tries again) or allow. The hook is not asked for each message: a conversation already open stays open until your server closes it.
+**Who may write to whom** is everyone, unless the project's hook says otherwise: set `hook` in the settings and the project's endpoint is asked, signed as a webhook is, before a direct conversation is opened, someone is added to a group, a space's open groups are listed or one is joined — `messaging.can_message`, answering whether they may. When it does not answer, `on_error` says what happens: deny (the default; the app tries again) or allow — for a direct conversation and people added to a group alone: a space's open groups (making one, listing, joining) are refused while the hook is silent, whatever `on_error` says, as the hook is all that keeps one organization's groups from another's people. The hook is not asked for each message: a conversation already open stays open until your server closes it.
+
+The hook is POSTed `{ event: "messaging.can_message", action, from_user_id, to_user_ids, conversation_id, space }` and answers `200 { allowed_user_ids: [...] }`: whom of `to_user_ids` the person may reach — `direct` (a direct conversation), `group_add` (people added to a group); or, `to_user_ids` being the person alone, whether they may have an open group in a space (`open_group`: making one, or opening theirs), find a space's open groups (`list_open`) or join one (`join`) — naming them lets them in. `space` is the conversation's (absent: none). A workspace app answers "only people of the same organization".
+
+**Writing as someone.** An assistant your server runs (no session of the person's) sends their words when they ask: `POST /messaging/admin/conversations/{conversation_id}/messages` with `as_user_id` and `via` (`"pal"`; required with `as_user_id`, so the others always know it was not their own hand). The message is theirs as if they sent it — what they may send there, the others' unread counts and pushes from them ("Ayşe (via pal): …", the push's `data.via`) — though not their reading: what they had not read stays unread. Every app shows `via` with it. `thread_id` answers in a thread. Not one of the conversation's people: `403 not_a_member`. Each is in the access log, the person named. From `palbase/server`: `palbase.messaging.adminSendMessage(…)`.
+
+**Events.** Your backend hears of each message and each read, to keep an activity feed — "Ayşe wrote to you", "you were mentioned in #general" — and clear it once the person read the conversation:
+
+- `messaging.message.created`: `{ conversation_id, conversation_kind, space, message_id, seq, kind, sender_id, via, thread_id, mention_ids, recipient_ids, has_attachments, created_at }` — `recipient_ids` are the conversation's people but its writer. With the setting `event_text` on, `text` too: never a message meant to go (vanish mode, seen once, living a while), and the words then stay on the event stream 7 days, outside the sealed store; off (the default), your server reads the message with the secret key.
+- `messaging.conversation.read`: `{ conversation_id, space, user_id, read_seq, thread_id }` — a person read a conversation, or a thread of it, further. Their own message is read by them: `sender_id` says it.
+
+One a message, one a read: they go only to what names them — an `@On("messaging.message.created")` handler of `palbase/backend`, a webhook endpoint listing them ([Webhooks](/docs/server/webhooks)) — never to an endpoint that takes every event, and are written only while one does (an endpoint made now hears them within 15 seconds).
 
 **Closing a conversation.** When what let two people write ends — one unfollows the other, a booking is over, an event ended — your server makes their conversation read-only: its people still read what was said in it, and nobody writes in it — no message, reaction, edit, file or screenshot notice, no change to its title, picture, timer or vanish mode, nobody added to it or given a role, and a message scheduled in it fails (`read_only`) — while your server still may say and change anything in it, and a group's admins still remove people from it. It is told in the conversation, and undone the same way:
 
@@ -25703,6 +26544,7 @@ In Studio (**Messaging**), with the CLI (`palbase messaging:settings:set`, `palb
 | `deleted_user_messages` | A deleted user's messages: `keep` (the default), their writer shown as a deleted user with nothing personal kept, or `delete` — save what went from screens before, kept its 14 days for a report |
 | `hook` | Who may write to whom (above); none: anyone to anyone |
 | `search_by_meaning` | Messages are found by what they mean too ([Search](#by-meaning)); off (the default): by their words alone, and no message goes to a model |
+| `event_text` | `messaging.message.created` says what the message says ([Events](#your-server)); off (the default): who wrote to whom, not what |
 
 ## What it costs
 
@@ -25714,6 +26556,518 @@ In Studio (**Messaging**), with the CLI (`palbase messaging:settings:set`, `palb
 A message weighs its sealed text and 768 bytes for its row and indexes: a GiB holds over a million short messages. Its files are the project's storage, its deliveries to people's sockets realtime messages, and its pushes push notifications — each on the bill as they are ([Usage & Limits](/docs/getting-started/usage-and-limits)). A message sent again with the same `client_message_id` is one.
 
 A free project past either is slowed, never stopped: its messages go at about one a second, all its people together. A send waits its turn, 10 seconds at the most; one that would wait longer is `429 slowed` with `Retry-After`, and the clients keep it in their outbox and send it again. Reading, syncing and everything else go on at full speed.
+
+
+
+<!-- ===== calls/overview ===== -->
+
+# Calls
+
+Calls are voice and video calls between a project's people: one to one, or a group of up to 100. It is a module every project has, like messaging: there is no server to run. A person's phone rings on the lock screen as any call does, and they answer on whichever of their devices they pick up. Your server, with the secret key, sets the module up, reads and ends calls, and lets its own agent into one.
+
+The web, iOS and Android SDKs run a call for the app — ringing, answering, the media, the heartbeat — through the HTTP API this section describes ([Calls over HTTP](/docs/calls/http)):
+
+- **Web**: `pb.calls`, and `palbase/web/calls-ui` for ready-made screens ([Web Calls](/docs/web/calls))
+- **iOS**: the `PalbaseCalls` product, and `PalbaseCallsUI` for ready-made screens ([iOS Calls](/docs/ios/calls))
+- **Android**: `studio.palbase:palbase-calls`, and `palbase-calls-ui` for ready-made screens ([Android Calls](/docs/android/calls))
+
+## Kinds of call
+
+- **A direct call** rings one person (`POST /calls` with one user id). Its sound and picture go straight between the two devices (WebRTC), and through a relay (TURN) only when the devices cannot reach each other — behind a strict firewall, or on some mobile networks. With the project's `relay_all` on, every direct call goes through the relay: neither device learns the other's address, at the price of a hop.
+- **A group call** asks several people in (`POST /calls` with up to 99 user ids, or `group: true` with one). Its media goes through Palbase's media server, so each device sends its own sound and picture once, however many listen. A person who missed or declined it may still join while it lasts.
+- **A huddle** is a group call that rings no one (`ring: false`): the people asked see it and join when they like.
+- **A direct call grows.** Asking a third person in — or letting the project's agent in — moves a direct call to the media server, going on: the two devices are told, and move without dropping the call.
+
+A call is voice or video (`video`) from its start, and is billed as it was made ([What it costs](#what-it-costs)).
+
+## Who may call whom
+
+Anyone in the project may call anyone, except:
+
+- **Blocks.** No one who blocked the caller, nor whom the caller blocked — the same blocks as messaging's ([Messaging](/docs/messaging/overview)).
+- **Deleted accounts.** A deleted person cannot be called.
+- **A conversation's members.** A call made from a conversation (`conversation_id`) reaches its members alone, and is kept in it as a `call` message: who called, voice or video, how it ended and how long it lasted.
+- **Your hook.** With the project's hook set, your endpoint is asked before a call rings and before someone is asked into one (`calls.can_call`), and narrows who may be reached ([Your Server](/docs/calls/server#who-may-call-whom)).
+
+A call to no one the caller may reach is `403 not_allowed`. A person starts 10 calls a minute at most, and the project's `calls_per_hour` an hour (60 unless it says otherwise): past either, `429 too_many_calls`.
+
+## A call's life
+
+1. **It rings.** The people called are rung on every device of theirs: a call screen on iOS and Android, even locked; a notification and a ring in a browser ([Ringing](/docs/calls/ringing)). The caller's app shows it ringing.
+2. **Someone answers.** The first of a person's devices to answer has the call; their other devices stop ringing. A person in a call on one device cannot answer another call on a second device (`409 in_another_call`); an app that lost its call — killed, crashed — answers the next one on the same device, and the lost call ends.
+3. **It goes on.** Each device in the call says so every 15 seconds (its heartbeat). A device silent for 45 seconds — its app gone, its network lost for good — is taken for gone: a direct call ends (`failed`), and a person leaves a group.
+4. **It ends.** Every device in it is told how (`end_reason`), and the call is in each person's history.
+
+| How a call ends | `end_reason` |
+|---|---|
+| Someone in an answered direct call hung up | `hung_up` |
+| The caller gave up before an answer (the person called missed it) | `canceled` |
+| The person called turned it down | `declined` |
+| No one answered in 45 seconds | `missed` |
+| The person called was in another call, or being rung by one | `busy` |
+| A device in a direct call went silent | `failed` |
+| Your server ended it, or everyone left a group | `ended` |
+
+`ended_by` names who hung up, canceled or declined, or whose device went silent.
+
+- **Busy.** A call to someone in another call ends at once (`busy`), and they are told they missed it. In a group, a busy person is not rung, and may join later.
+- **Missed.** A person rung for 45 seconds without answering missed the call, and gets a missed-call notification; so do the people a caller stopped calling before they answered. A direct call ends; a group goes on without them.
+- **Declined.** A direct call ends. In a group, the person is not rung any more, and may still join.
+- **Calling each other at once.** When two people call each other in the same moment, the second call is the first one, answered: they are in one call, not two that refuse each other.
+- **A group ends** when no person is in it or being rung: an agent alone does not keep it going.
+
+## History
+
+A person's calls are theirs to list, the newest first, each with how it went for them — `missed`, `declined`, `left` … (`GET /calls`; `missed=true` for the calls they missed). Studio lists the project's calls (**Calls › Calls**), any person's by their user id; your server reads them with the secret key (`GET /calls/admin/calls`).
+
+A call's record is who called whom, when, how long each was in it and how it ended. Its sound and picture never pass through the API and are never kept. Ended calls are kept 400 days.
+
+When a person's account is deleted, the direct calls they were in go from the history, their place in a group's record goes, and a group they started names `deleted-user` as its caller. The minutes they were in calls stay counted, under `deleted-user`.
+
+## The project's settings
+
+In Studio (**Calls**), or with the secret key (`GET` and `PUT /calls/settings`; [Your Server](/docs/calls/server#settings)):
+
+| Setting | What it does |
+|---|---|
+| `max_participants` | How many people a call holds, agents included: 2 to 100 (the default) |
+| `relay_all` | Every direct call's media goes through the relay (off by default) |
+| `calls_per_hour` | How many calls one person may start in an hour: 1 to 1,000 (60 by default); 10 a minute whatever it says |
+| `hook` | Who may call whom ([Your Server](/docs/calls/server#who-may-call-whom)); none: blocks alone decide |
+
+## Webhooks
+
+Your backend hears of the project's calls ([Webhooks](/docs/server/webhooks#the-events)):
+
+| Event | Sent when |
+|---|---|
+| `calls.call.started` | A call was made — ringing, or a group going on |
+| `calls.call.ended` | A call ended (`end_reason` says why) |
+| `calls.participant.joined` | A person answered or joined, or an agent came into the call |
+| `calls.participant.left` | A person or an agent left the call |
+
+`calls.call.started` and `calls.participant.joined` are when to send your agent in ([Agents](/docs/calls/agents)).
+
+## What it costs
+
+A call is billed by the participant-minute: one person, or one agent, in a call for a minute. A 10-minute call of three people is 30 participant-minutes. Direct calls and group calls cost the same.
+
+| | Free each month | Past it |
+|---|---|---|
+| Voice calls | 10,000 participant-minutes | $0.0003 a participant-minute |
+| Video calls | 2,000 participant-minutes | $0.0015 a participant-minute |
+
+A caller is counted from the answer, not while the call rings. Past a free project's minutes of a kind, until the month ends, no new call of that kind starts (`429 quota_exceeded`): calls going on go on to their end. A project on Pay as you go goes on, paying for what is past them ([Billing](/docs/getting-started/billing)).
+
+
+
+<!-- ===== calls/http ===== -->
+
+# Calls over HTTP
+
+The SDKs make these calls for an app, on each of a person's devices. This page is what they do, for an app of your own making or to read what an SDK sends. Every call here is a person's: it carries the publishable key in the `apikey` header and the signed-in user's access token as `Authorization: Bearer …`, at the project's address, `https://<ref>.palbase.studio`. What your server does with the secret key is on [Your Server](/docs/calls/server).
+
+## A device
+
+A person may have the app on several devices, and a call is in one of them. Every call that acts on a device names it: `device_id`, the app's own id for its install — 1 to 128 characters, no space — kept across launches. The device that answers has the call; its heartbeat, its media and its signals are that device's.
+
+## Making a call
+
+`POST /calls` from the caller's device:
+
+| Field | What it is |
+|---|---|
+| `user_ids` | Who to call: one person (a direct call), or up to 99 (a group) |
+| `device_id` | The device the call is made on |
+| `video` | A video call; else voice |
+| `ring` | Ring them (the default); `false`: a group call they join when they like (a huddle) |
+| `group` | A group call even with one person asked, on the media server: others may be asked later |
+| `conversation_id` | The conversation it is made from: its members alone may be called, and it keeps the call |
+| `metadata` | Your app's own words about the call, shown to the people rung: 32 strings, 2 KiB at most |
+| `caller_name`, `caller_image_url` | What those rung see of the caller; else the caller's messaging profile's name and picture |
+
+```bash
+curl -s "https://<ref>.palbase.studio/calls" \
+  -H "apikey: $PALBASE_PUBLISHABLE_KEY" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"user_ids": ["usr_bob"], "video": true, "device_id": "ios-6f1c"}'
+```
+
+It answers the call ([A call](#a-call)):
+
+- `201`: the call, ringing — or a direct call already over, `busy`, when the person called is in another call.
+- `200`: the person called was calling the caller that very moment: the answer is their call, answered on this device.
+
+| Refusal | Why |
+|---|---|
+| `400 invalid_user_ids` | Not 1 to 99 other people |
+| `400 call_full` | More people than the project lets a call hold (`max_participants`) |
+| `400 invalid_device_id`, `invalid_conversation_id`, `invalid_metadata`, `invalid_caller` | That field is not one |
+| `403 not_allowed` | The caller may reach none of them: blocks, deleted accounts, a conversation's members, your hook |
+| `404 conversation_not_found` | The caller is not in the conversation named |
+| `409 in_another_call` | The caller is in another call on another device |
+| `429 too_many_calls` | 10 calls this minute, or the project's `calls_per_hour` this hour |
+| `429 quota_exceeded` | A free project's call minutes of this kind are used up this month: calls going on go on, no new one starts |
+
+## Answering, declining, joining, leaving
+
+| Call | What it does |
+|---|---|
+| `POST /calls/{call_id}/accept` with `{ "device_id" }` | Answers on this device. The first of the person's devices to answer has the call; the others stop ringing. Sent again from the same device, it is the same answer |
+| `POST /calls/{call_id}/decline` | Turns the call down on every device of the person's: a direct call ends (`declined`); in a group, they are not rung any more and may still join |
+| `POST /calls/{call_id}/join` with `{ "device_id" }` | Comes into a group call the person was asked to — rung, missed, declined, busy, or in it before. A direct call is answered, not joined (`409 not_joinable`) |
+| `POST /calls/{call_id}/leave` | Takes the person out. A direct call ends for both: `canceled` while it rings (the person called missed it), `hung_up` once answered. A group goes on while a person is in it or being rung. Leaving a call that is over is done |
+| `POST /calls/{call_id}/participants` with `{ "user_ids", "ring" }` | Asks more people into a call the person is in, ringing them unless `ring` is `false`. A direct call becomes a group on the media server, going on. A call not answered yet does not grow (`409 not_in_call`) |
+
+Each answers the call as it is now. When the call is not what the request needs, the refusal is `409` and carries the call too (`{ "error", "error_description", "call" }`), so the app draws what is true: `call_ended`, `answered_elsewhere` (in on another of the person's devices), `not_ringing`, `call_full`. Asking more people in may also be `403 not_allowed` and `400 invalid_user_ids` (no one new to ask), as making a call is.
+
+## Staying in the call
+
+A device in a call says so every 15 seconds: `POST /calls/{call_id}/heartbeat` with `{ "device_id" }`. A device silent for 45 seconds is taken for gone: a direct call ends (`failed`, or `canceled` when the caller's device went silent while it rang), and a person leaves a group.
+
+The heartbeat answers the call's `state`, its `version`, its `end_reason`, and whether this device is still in it (`in_call`). An app whose snapshot's `version` is lower than the heartbeat's missed a word on its channel: it reads the call again (`GET /calls/{call_id}`).
+
+## The media
+
+`POST /calls/{call_id}/media` with `{ "device_id" }`, once the device is in the call, says how its media flows. The answer's `mode`:
+
+**`p2p`** — a direct call, device to device (WebRTC):
+
+| Field | What it is |
+|---|---|
+| `ice_servers` | The STUN server, and the relay (TURN) with a credential of this device's own: it is revoked as the device leaves the call, and lasts 12 hours at most |
+| `ice_transport_policy` | `relay` when the project's `relay_all` is on (give it to the peer connection as its `iceTransportPolicy`); else `all` |
+| `offerer` | This device makes the offer — the caller's; the other answers it |
+| `peer_user_id`, `peer_device_id` | The other person, and the device they answered on |
+
+**`sfu`** — a group, or a direct call that moved there:
+
+| Field | What it is |
+|---|---|
+| `url` | The media server's address (`wss://`) |
+| `token` | The device's ticket into the call's room: 6 hours, and back in after a lost connection |
+| `room` | The call's room |
+
+The media server is LiveKit (open source): a device connects to `url` with `token` through LiveKit's client SDK, which the Palbase SDKs use. When a direct call moves to the media server — someone was asked in, or an agent let in — the call's snapshot says `mode: "sfu"`: each device asks for its media again and moves, the call going on.
+
+Refused: `409 not_in_call` or `answered_elsewhere` (this device is not the one in the call), `409 call_ended`.
+
+### Signals
+
+A direct call's two devices tell each other what WebRTC needs — an offer, an answer, their candidates, a goodbye — through Palbase: `POST /calls/{call_id}/signals` with `{ "device_id", "type", "sdp", "candidate" }`, `type` one of `offer`, `answer`, `candidate`, `bye`. It answers `202` with the signal's place in the call's order (`seq`), and the other device hears it on its channel as it is sent (`signal`, [below](#the-channel)).
+
+- **Nothing goes before the call is answered.** No address of a device leaves it for someone who did not pick up: before the answer, and in a call on the media server, a signal is `409 no_peer`.
+- **What was missed is kept.** A device that was away reads the signals for it after the last it has: `GET /calls/{call_id}/signals?device_id=<its id>&after=<seq>`. They are kept a day.
+- **Within reason.** An SDP is 32 KiB at most (`413 request_too_large` past it); a call has 2,000 signals at most (`429 too_many_signals`).
+
+```json
+{
+  "type": "candidate",
+  "device_id": "ios-6f1c",
+  "candidate": { "candidate": "candidate:1 1 udp 2122260223 192.0.2.10 54400 typ host", "sdp_mid": "0", "sdp_m_line_index": 0 }
+}
+```
+
+## The channel
+
+Each person hears their calls on their own realtime channel, `calls:<ref>:<user_id>`, joined on the project's socket by their apps ([Web Realtime](/docs/web/realtime)). Two events come on it:
+
+| Event | What it carries |
+|---|---|
+| `call` | A call of theirs as it is now — the same object `GET /calls/{call_id}` answers — each time it changes: rung, answered, declined, joined, left, moved to the media server, ended |
+| `signal` | A signal from the other device of their direct call: `call_id`, `seq`, `from_user_id`, `from_device_id`, `to_device_id`, `type`, `created_at`, and its `sdp` (an offer or an answer) or `candidate` (a candidate). Every device of the person's hears it; the one `to_device_id` names takes it |
+
+Each `call` carries the call's `version`, which grows with every change: keep the highest seen, and drop an older snapshot that arrives late. What the channel tells is told once, as it happens: an app that was not listening reads the call (`GET /calls/{call_id}`) and its signals (`GET /calls/{call_id}/signals`), and the heartbeat's `version` says when it missed something.
+
+## History
+
+`GET /calls` lists the person's calls, the newest first, each with how it went for them (their participant's `state`): `limit` (1 to 100, 20 by default) and `cursor` (the previous page's `next_cursor`) page through them, `missed=true` keeps the ones they missed or were busy for, `state` the ones ringing, going on or ended. `GET /calls/{call_id}` reads one of theirs — what an app reads when it missed a word on its channel.
+
+## A call
+
+| Field | What it is |
+|---|---|
+| `id` | The call's id |
+| `kind` | `direct` (two people) or `group` |
+| `video` | A video call; else voice |
+| `ring` | Whether it rings the people asked; `false`: a huddle |
+| `state` | `ringing` (a direct call not answered yet), `active`, `ended` |
+| `mode` | `p2p` (between two devices) or `sfu` (through the media server) |
+| `caller_id` | Who called |
+| `conversation_id` | The conversation it was made from, or null |
+| `metadata` | The caller's app's own words about it |
+| `max_participants` | How many it holds |
+| `created_at`, `answered_at`, `ended_at` | When it was made, answered (a direct call) and ended |
+| `end_reason`, `ended_by` | How it ended ([A call's life](/docs/calls/overview#a-calls-life)), and who ended it |
+| `ring_until` | When a direct call's ring ends, unanswered |
+| `version` | Grows with every change |
+| `participants` | Its people and agents (below) |
+
+A participant: `user_id` (an agent's is `bot:<identity>`), `kind` (`user` or `bot`), `role` (`caller`, `callee` — the one called in a direct call — or `member`), `state` (`ringing`, `invited` — asked to a huddle —, `joined`, `left`, `declined`, `missed`, `busy`), `device_id` (the device they are in it on), `name` and `image_url` as their profile shows them, `invited_at`, `joined_at` (when their present stretch in it began), `left_at`, and `seconds` (how long they were in it before the present stretch).
+
+
+
+<!-- ===== calls/ringing ===== -->
+
+# Ringing
+
+A call rings every device of the people called — the app open, in the background or closed, the phone locked — through the project's notifications. Set up an APNs key for iOS, and Firebase for Android and the web, first ([Notifications](/docs/backend/notifications)); with neither, a call rings only the apps that are open and listening on their channel. The SDKs register each device for its pushes and draw the call on it: this page is what they rely on.
+
+## iOS
+
+A call rings an iPhone with a **VoIP push** (PushKit). The app registers its PushKit token as an `ios_voip` device (`POST /notify/devices`), beside its notification token, and the push wakes it even when it was closed.
+
+The app hands the call to **CallKit** the moment the push arrives, and iOS draws it: on the lock screen it is Apple's own call screen, with the caller's name, the app's name and icon, and its ringtone. Apple stops sending VoIP pushes to an app that does not report each one to CallKit at once, so the app does so even for a call it then ends — one already answered elsewhere, or over.
+
+Answering or declining from CallKit is `POST /calls/{call_id}/accept` or `/decline` from that iPhone. How the app sets it up — the background modes, `configure`, the APNs key — is [iOS Calls](/docs/ios/calls#a-call-rings-the-phone). When the call is answered on another of the person's devices, or the caller gives up, the app hears it on its channel and ends the CallKit call: the phone stops ringing.
+
+## Android
+
+A call rings an Android phone with a **high-priority data message** (FCM). It carries no notification of its own: the app's messaging service wakes, and the SDK draws a **CallStyle** notification with a **full-screen intent** — the incoming-call screen over the lock screen — and its answer and decline buttons. From Android 14, the full-screen intent needs its own permission, which Google Play gives apps whose core function is calling and the person may take back; without it, Android shows the call as a heads-up notification.
+
+When the call is answered on another of the person's devices, or the caller gives up, a second data message tells the phone to stop ringing. The permissions it needs, and the full-screen intent's, are [Android Calls](/docs/android/calls#a-call-rings-the-phone).
+
+## The web
+
+A call rings a browser with a **notification** — the caller's name, and "Incoming voice call" or "Incoming video call" in the person's language — through the browser's push service, as the project's web pushes go ([Notifications](/docs/backend/notifications)). While a tab of the app is in front, no notification is shown: the page hears the call itself (`pb.calls.onIncoming`) and rings — `palbase/web/calls-ui` draws the call and plays a soft ring ([Web Calls](/docs/web/calls#ringing-while-the-page-is-away)). A tap on the notification brings a tab of the app forward, where the person answers.
+
+## A missed call
+
+A person rung for 45 seconds without answering — or whose caller gave up before they answered, or who was busy in another call — is sent a missed-call notification on every device: the caller's name, and "Missed voice call" or "Missed video call". The call is in their history as one they missed — their participant's `state` is `missed`, or `busy` (`GET /calls?missed=true`).
+
+## What a push carries
+
+An app that draws calls itself reads them from the push's data:
+
+| Key | What it is |
+|---|---|
+| `pb_call` | `incoming` (ring), `silence` (stop ringing: answered elsewhere, or over) or `missed` |
+| `call_id` | The call |
+| `caller_id`, `caller_name`, `caller_image_url` | Who is calling, as those rung see them |
+| `video` | `true` or `false` |
+| `kind` | `direct` or `group` |
+| `conversation_id` | The conversation it was made from, when it was |
+| `ring_until` | When the ring ends, unanswered (RFC 3339) |
+
+A ring push is worth delivering only until the ring ends: a phone that comes online later is not rung for a call that is over. A call's ring and the push that silences it replace each other on the device.
+
+An app woken by a push reads the call (`GET /calls/{call_id}`) before it draws it: it may have been answered elsewhere, or ended, meanwhile. Once it is up, it hears the call change on its channel ([The channel](/docs/calls/http#the-channel)).
+
+
+
+<!-- ===== calls/server ===== -->
+
+# Your Server
+
+With the project's secret key in the `apikey` header ([Server SDK](/docs/server/overview#the-secret-key)), your server sets the calls module up, decides who may call whom, reads and ends calls, and lets its agent into one ([Agents](/docs/calls/agents)). A publishable key is refused here (`403 secret_key_required`). From TypeScript, `palbase/server`'s `palbase.calls` makes each call below, typed ([Server SDK](/docs/server/overview)). Your organization's owners and admins do the same in Studio, under **Calls**, and with the CLI's `calls:*` commands; a member of your team reads the settings and the calls there, and changes nothing.
+
+## Settings
+
+`GET /calls/settings` reads them; `PUT /calls/settings` changes what it names, and answers them all:
+
+| Setting | What it does |
+|---|---|
+| `max_participants` | How many people a call holds, agents included: 2 to 100 (the default). A call that would hold more is refused (`call_full`) |
+| `relay_all` | Every direct call's media goes through the relay, so neither device learns the other's address, at the price of a hop. Off (the default): device to device, through the relay only when they cannot reach each other |
+| `calls_per_hour` | How many calls one person may start in an hour: 1 to 1,000 (60 by default). 10 a minute, whatever it says |
+| `hook` | The endpoint asked who may call whom (below): `{ url, timeout_ms, on_error }`; `null` removes it |
+
+```bash
+curl -s -X PUT "https://<ref>.palbase.studio/calls/settings" \
+  -H "apikey: $PALBASE_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"max_participants": 8, "relay_all": true}'
+```
+
+From a terminal, as one of your organization's owners or admins — `palbase config:diff` and `palbase config:copy` compare and copy the settings between environments:
+
+```bash
+palbase calls:settings:get
+palbase calls:settings:set --max-participants 8 --relay-all on --calls-per-hour 30
+```
+
+## Who may call whom
+
+Anyone in the project may call anyone who has not blocked them and whom they have not blocked, and a call from a conversation reaches its members alone ([Calls](/docs/calls/overview#who-may-call-whom)). Your hook narrows it further: a follower calls only whom they follow, a booking's customer only its host, a patient only their doctor during the appointment.
+
+Set it with `PUT /calls/settings`:
+
+```json
+{ "hook": { "url": "https://api.example.com/palbase/can-call", "timeout_ms": 2000, "on_error": "deny" } }
+```
+
+The first time a hook is set, the answer carries its signing secret, `hook_secret` (`whsec_…`): **here once**, never read back. Keep it where your endpoint checks the signature. `POST /calls/settings/hook-secret` makes a new one, given once the same way, and the old one signs nothing more (`409 no_hook` when there is no hook). Changing the hook's address keeps its secret; removing the hook (`"hook": null`) drops it.
+
+The CLI sets it the same way, and keeps the secret in the environment's secrets instead of printing it with `--secret-to` — where a machine of yours reads it:
+
+```bash
+palbase calls:hook:set --url https://api.example.com/palbase/can-call --on-error deny --secret-to CALLS_HOOK_SECRET
+palbase calls:hook:get
+palbase calls:hook:secret:rotate --secret-to CALLS_HOOK_SECRET
+palbase calls:hook:remove
+```
+
+Before a call rings — and before someone is asked into a call going on — your endpoint is sent a `POST`, after blocks, deleted accounts and a conversation's members are taken out:
+
+```json
+{
+  "event": "calls.can_call",
+  "action": "start",
+  "from_user_id": "usr_ada",
+  "to_user_ids": ["usr_bob", "usr_cem"],
+  "video": true,
+  "conversation_id": "5f0e…"
+}
+```
+
+`action` is `start` (making a call) or `invite` (asking people into one, its `call_id` then given); `conversation_id` is there when the call is made from one. It is signed as the [Standard Webhooks](https://www.standardwebhooks.com) spec signs: `webhook-id`, `webhook-timestamp` (Unix seconds) and `webhook-signature`, `v1,<base64 HMAC-SHA256>` of `<webhook-id>.<webhook-timestamp>.<body>` with the secret's bytes (the base64 after `whsec_`). The libraries of Standard Webhooks check it as they are.
+
+It answers `200` with the people the caller may reach:
+
+```json
+{ "allowed_user_ids": ["usr_bob"] }
+```
+
+Those it leaves out are not rung; when it leaves out everyone, the call is `403 not_allowed`. Anything but a `200` with that body — another status, a body it cannot read, no answer within `timeout_ms` (100 to 5,000; 2,000 by default) — is no answer, and `on_error` says what happens: `deny` (the default) refuses the call, `allow` lets it ring everyone blocks allow. The hook is asked again for each call: what it allowed once is not remembered. Redirects are not followed.
+
+## Reading and ending calls
+
+| Call | What it does |
+|---|---|
+| `GET /calls/admin/calls` | The project's calls, the newest first: `user_id` a person's (with `missed=true`, the ones they missed or were busy for), `state` those `ringing`, `active` or `ended`, `limit` (1 to 100, 20 by default) and `cursor` to page |
+| `GET /calls/admin/calls/{call_id}` | A call as it is now |
+| `POST /calls/admin/calls/{call_id}/end` | Ends the call for everyone in it (`ended`): their apps are told, and its room on the media server closes |
+
+Each answers calls as a person's apps read them ([A call](/docs/calls/http#a-call)); a call that is not the project's is `404 call_not_found`. Studio's **Calls › Calls** is the same list: a person's calls by their user id, and **End call** on one going on. With the CLI:
+
+```bash
+palbase calls:list --user usr_ada --missed
+palbase calls:list --state active
+palbase calls:get 8a1e2f40-5c7d-4b8e-9a61-3f2d7c0b9e15
+palbase calls:end 8a1e2f40-5c7d-4b8e-9a61-3f2d7c0b9e15
+```
+
+## Webhooks
+
+Your backend's webhook endpoints hear of the project's calls ([Webhooks](/docs/server/webhooks)):
+
+| Event | Sent when |
+|---|---|
+| `calls.call.started` | A call was made — ringing, or a group going on |
+| `calls.call.ended` | A call ended |
+| `calls.participant.joined` | A person answered or joined, or an agent came into the call |
+| `calls.participant.left` | A person or an agent left the call |
+
+Each one's `data` says of the call: `call_id`, `kind`, `video`, `mode`, `state`, `caller_id`, `conversation_id`, and `room` — its room on the media server, once it is there; a participant's event adds `user_id` and `participant_kind` (`user` or `bot`), and `calls.call.ended` its `end_reason`.
+
+```json
+{
+  "id": "0b7c…",
+  "type": "calls.participant.joined",
+  "project_id": "2b7d…",
+  "created_at": "2026-10-29T09:41:22Z",
+  "data": { "call_id": "8a1e…", "kind": "group", "video": false, "mode": "sfu", "state": "active", "caller_id": "usr_ada", "conversation_id": null, "room": "2b7d…_8a1e…", "user_id": "usr_bob", "participant_kind": "user" }
+}
+```
+
+
+
+<!-- ===== calls/agents ===== -->
+
+# Agents
+
+Your project's own agent can be in a call: a bot that transcribes it, takes notes, answers in a support line, translates. Your server lets it in with a ticket, and it joins as a participant everyone in the call hears (and sees), listed as an agent. Palbase runs no agent of its own: what the agent does with what it hears — and which model or service it uses — is yours.
+
+## A ticket
+
+`POST /calls/admin/calls/{call_id}/tickets`, with the secret key:
+
+| Field | What it is |
+|---|---|
+| `identity` | The agent's identity in the call: 1 to 64 letters, digits, `_`, `.` or `-`, starting with a letter or a digit. It is in the call as `bot:<identity>` |
+| `name` | Its name, as the call lists it |
+| `can_publish` | It speaks (and shows) too — the default; `false`: it only listens |
+| `metadata` | Its own words: 32 strings, 2 KiB at most |
+
+```bash
+curl -s "https://<ref>.palbase.studio/calls/admin/calls/$CALL_ID/tickets" \
+  -H "apikey: $PALBASE_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"identity": "notes", "name": "Notes", "can_publish": false}'
+```
+
+From TypeScript, `palbase/server`:
+
+```ts
+// src/agent-ticket.ts
+import { createServer } from "palbase/server";
+
+const palbase = createServer({ url: process.env.PALBASE_URL!, secretKey: process.env.PALBASE_SECRET_KEY! });
+
+/** Lets the note taker into a call: the media server's address and a token it connects with. */
+export async function letNotesIn(callId: string): Promise<{ url: string; token: string }> {
+  const { data } = await palbase.calls.createCallTicket({
+    path: { call_id: callId },
+    body: { identity: "notes", name: "Notes", can_publish: false },
+  });
+  return { url: data.url, token: data.token };
+}
+```
+
+It answers `201`:
+
+| Field | What it is |
+|---|---|
+| `url` | The media server's address (`wss://`) |
+| `token` | The access token the agent connects with |
+| `room` | The call's room |
+| `identity` | `bot:<identity>` |
+| `expires_at` | When the token ends: 6 hours on, or sooner when the credential that asked for it ends sooner. Until then it lets the agent back in after a lost connection |
+| `call` | The call, with the agent among its participants ([A call](/docs/calls/http#a-call)) |
+
+- **A direct call moves for it.** A call between two devices moves to the media server as the ticket is given, going on: the two devices are told, and move without dropping the call.
+- **It counts as a person** against the project's `max_participants` (`409 call_full`), and its minutes are billed as a person's ([What it costs](/docs/calls/overview#what-it-costs)).
+- **The same identity again** is the same agent: a new ticket for it is its way back in.
+- Refused: `409 call_ended`; `409 invalid_identity` when the identity is a person's in the call; `400` for a field that is not one; `404 call_not_found`.
+
+## In the call
+
+The media server is LiveKit (open source), and the ticket is what its own client and agent libraries connect with, as they are: [LiveKit Agents](https://docs.livekit.io/agents/) for a voice agent, or its real-time SDKs (Python, Node.js, Go, Rust …) for anything else.
+
+- **Each person's audio is a track of its own**, published by a participant whose identity is their user id: the agent knows who said what, and transcribes each speaker apart.
+- **The agent publishes its own**: a voice that answers, a video, as `can_publish` allows.
+- **It is in the call** from when it connects, and the call lists it so (`kind: "bot"`, `state: "joined"`); it has left when it disconnects. `calls.participant.joined` and `calls.participant.left` tell your backend, with `participant_kind: "bot"`.
+- **It does not keep a call going.** A group ends when no person is in it or being rung, an agent still connected or not; your server may end a call itself (`POST /calls/admin/calls/{call_id}/end`).
+
+```python
+import asyncio
+from livekit import rtc
+
+async def listen(url: str, token: str) -> None:
+    room = rtc.Room()
+
+    @room.on("track_subscribed")
+    def on_track(track: rtc.Track, publication: rtc.RemoteTrackPublication, participant: rtc.RemoteParticipant):
+        if track.kind == rtc.TrackKind.KIND_AUDIO:
+            # participant.identity is the speaker's user id.
+            asyncio.ensure_future(transcribe(participant.identity, rtc.AudioStream(track)))
+
+    await room.connect(url, token)
+
+async def transcribe(user_id: str, stream: rtc.AudioStream) -> None:
+    async for event in stream:
+        ...  # event.frame: this person's audio, to your speech-to-text
+```
+
+## When to send it
+
+Your webhooks say when ([Your Server](/docs/calls/server#webhooks)):
+
+- `calls.call.started` — a call was made: an agent that should hear it from the first word is sent in now.
+- `calls.participant.joined` — someone answered or joined: send the agent in once a call has the people it is for — a support line's customer, a meeting's host.
+
+A ticket is asked for a call that is not over; one asked for an ended call is `409 call_ended`.
 
 
 
@@ -27991,6 +29345,10 @@ A machine's connection is a client like any other: it wakes a database that slee
 
 A change of `database` gives it whole: `migrations` left out is `false`. `{ name: "" }` gives the machine none. A database that is not the project's is refused (`400 database_not_found`).
 
+## A pull request preview's own
+
+A machine that runs its database's migrations and previews its pull requests ([Pull request previews](/docs/machines/hosting#pull-request-previews)) has each preview given a database of its own, `<database>-pr<number>`, of the `preview` size: 0.25 vCPU, 512 MiB and 500 MB, asleep when idle, with **no backups** — no moment of it can be brought back. It is opened empty with its preview, migrated by the preview's releases, and deleted — at once, with no restore window — when its preview goes: its pull request closed, three days without a push, or the machine deleted. It is listed with the environment's databases, counts against none of them, and is not billed. No database is opened at the `preview` size, moved to it or from it, or named `<name>-pr<number>` by hand.
+
 ## Passwords
 
 A password is shown once — when the database is opened, and when it is made new. **Make a new password** on the database's page (**New owner password**, **New app password**), or `changeDatabasePassword` (`POST /databases/{name}/password` with `role: "owner"` or `"app"`), answers the credentials with the new one; the other login carries `[YOUR-PASSWORD]`. The new password works once the database has taken it, a few seconds later.
@@ -28123,11 +29481,26 @@ palbase hosting:previews                # each pull request's address, head and 
 palbase machines:previews api
 ```
 
-Turn previews on in an environment kept for them — `staging`, built from the same repository — never in production: a pull request's code runs with the environment's settings. Studio offers the switch only outside the production environment.
+Turn previews on in an environment kept for them — `staging`, built from the same repository. A project's production environment (its first, `main`) previews nothing: a pull request's code would run with production's settings, secrets and data, so turning previews on there is refused (`previews_in_production`), as Vercel's previews never run in production either.
 
 - A **site's** preview is a release of its own. The site never serves it, and it is none of the releases `hosting:releases` lists or a rollback returns to.
-- A **machine's** preview is a machine of its own, `<name>-pr<number>`: one copy, the machine's size, settings, secrets and database — without its migrations, which only the machine runs. It counts as one of the environment's machines, and at most three previews of a machine run at once. It is deleted when its pull request closes, and with the machine.
-- A pull request from a **fork** — another account's copy of the repository, which anyone can open — is previewed only with `--preview-forks`: its author's code would run with the environment's settings.
+- A **machine's** preview is a machine of its own, `<name>-pr<number>`: one copy, the machine's size, settings and secrets. It counts as one of the environment's machines, and at most three previews of a machine run at once. It is deleted when its pull request closes, and with the machine.
+- A machine that runs its database's migrations has each preview given a **database of its own**, `<database>-pr<number>` — empty, migrated by the preview's release to the pull request's schema, so a pull request that adds a table or renames a column is previewed with it, and the environment's database is never touched by it. It is of the `preview` size (0.25 vCPU, 512 MiB, 500 MB, asleep when idle), keeps no backups, counts against none of the environment's databases — the Free plan's one free database included — costs nothing, and goes with its preview. It starts empty: a preview's tests make their own data (`palbase test` makes their users). A machine that another machine migrates the database for has its preview given that database, without migrations, as the machine is.
+- A machine's preview whose pull request has had **no push for 3 days** is taken down — its machine and its database — and reads `idle`; the pull request's comment says so. The next push opens it again, with a new database, or:
+
+  ```sh
+  palbase machines:previews:open 12 --machine api
+  ```
+
+  On a preview that is open, `previews:open` starts its 3 days again. A preview the environment's limits refuse — no room for one more machine, or the storage the previews' databases are made on filling up — reads `refused`, with why, on `machines:previews` and the pull request; the next push or `previews:open` tries again.
+- A pull request from a **fork** — another account's copy of the repository, which anyone can open — waits for an admin of the environment (**fork protection**, as Vercel's Git Fork Protection): nothing of it is built until one authorizes its head, and each new push asks again. Its comment says so, with a link to the site's or machine's page in Studio, where **Authorize** builds it; or from the CLI:
+
+  ```sh
+  palbase hosting:previews:authorize 12 --site web     # the head its preview shows: look at what it changes first
+  palbase machines:previews:authorize 12 --machine api
+  ```
+
+  A person authorizes it — signed in to Studio, or to the CLI with `palbase login` — never a key or an environment's token (`person_required`). The head authorized must be the pull request's newest: one pushed to since is refused (`preview_head_moved`). `--preview-forks` turns fork protection off — a fork's pull request is previewed at once, its author's code running with the environment's settings; a person's to do, as authorizing is — and `--no-preview-forks` turns it on again: a fork's preview built while it was off waits for an admin again.
 
 The platform's GitHub App, **Palbase Cloud**, asks for the *Pull requests* permission to hear pull requests and write its comment; GitHub asks each installation's owner to accept it.
 
@@ -28136,21 +29509,38 @@ The platform's GitHub App, **Palbase Cloud**, asks for the *Pull requests* permi
 A site or a machine answers at a domain of your own too:
 
 ```sh
-palbase hosting:domains:add www.example.com            # the site "web"
-palbase hosting:domains:add example.com --site web
+palbase hosting:domains:add example.com              # the site "web": example.com and www.example.com, example.com redirecting to www
+palbase hosting:domains:add example.com --primary apex   # www.example.com redirecting to example.com instead
+palbase hosting:domains:add docs.example.com --site docs  # a subdomain: itself alone
+palbase hosting:domains:add example.com --only       # the apex alone: no www, no redirect
 palbase machines:domains:add api.example.com --machine api
-palbase hosting:domains                                # each domain's state, and what its DNS still needs
+palbase hosting:domains                              # each domain's state, where it redirects, and what its DNS still needs
 palbase hosting:domains:remove www.example.com
 ```
 
-Adding one prints the two records to add to the domain's DNS:
+An apex (`example.com`) comes with its www, as Vercel adds it: visitors type both, so both answer and one redirects to the other — to `www.example.com` unless you choose the apex. In Studio, adding an apex asks the same: **Add www.example.com and redirect example.com to it** (recommended), **Add www.example.com and redirect it to example.com**, or **Add example.com only**.
+
+Adding one prints the records to add to the domain's DNS:
 
 | Type | Name | Value |
 |---|---|---|
+| `A` | `example.com` | the platform's address for apexes, as printed |
 | `CNAME` | `www.example.com` | `domains.palbase.app` |
-| `TXT` | `_palbase.www.example.com` | `palbase-domain=<a token of its own>` |
+| `TXT` | `_palbase.<domain>` | `palbase-domain=<a token of its own>` |
 
-The CNAME points the domain at the platform; the TXT record says it is this environment's. At the apex (`example.com`) most DNS hosts take no CNAME: add an `ALIAS` or `ANAME` record — or, on Cloudflare's DNS, a CNAME, which it flattens — with the same value. The certificate is issued for you once the CNAME is in place. A domain answers once both records are there, usually within minutes; `hosting:domains` says what is still missing.
+An apex takes an **A record** at the platform's address for apexes, which any DNS host has — GoDaddy's, Namecheap's, your registrar's. Its certificate is issued for you by Let's Encrypt; remove any other A record and any AAAA record of the apex, or Let's Encrypt may ask an address that is not ours. A subdomain takes a **CNAME**, and is served through the CDN. Where your DNS host has an `ALIAS`, `ANAME` or flattened CNAME (Cloudflare's DNS does), the apex may point at `domains.palbase.app` with one instead, and is served through the CDN too — what matters only when the apex is the address visitors end up at. The TXT record shows the domain is this environment's. A domain answers once its records are there and its certificate is issued, usually within minutes; `hosting:domains` says what is still missing.
+
+### Redirects
+
+A domain may send its visitors to another domain of the same site or machine — the same path and query there — with a status of its own: `308` (permanent, the default), `301`, `307` or `302`.
+
+```sh
+palbase hosting:domains:redirect example.com --to www.example.com
+palbase hosting:domains:redirect www.example.com --to example.com --status 301
+palbase hosting:domains:redirect example.com --none   # it answers itself again
+```
+
+A redirect holds at once; the CDN keeps none, a browser keeps a permanent one as it would anywhere. A domain redirects to one that answers itself, and a domain others redirect to is not deleted until their redirect changes. In Studio: **Domains › Redirect**.
 
 A domain is one environment's at a time, across the platform: another environment — anyone's — is told it is taken until it is removed here. An environment has 20 domains at most.
 

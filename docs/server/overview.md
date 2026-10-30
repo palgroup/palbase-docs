@@ -59,6 +59,7 @@ It answers a `PalbaseServer`:
 | `flags` | definitions, users' values, publishing | flags |
 | `analytics` | captures, and reading events back | analytics |
 | `realtime` | broadcast, state, the channel declaration, limits | realtime |
+| `calls` | the calls settings and hook, the project's calls read and ended, an agent's ticket ([Calls](https://palbase.studio/docs/calls/server)) | calls |
 | `machines` | machines, builds, logs, databases | machines |
 | `transport` | the one transport every call goes through | — |
 

@@ -69,10 +69,12 @@ dependencies {
 | `palbase-palbe` | Your backends' generated clients, their gateways and chats | `pb.<name>` ([Calling Your Backend](https://palbase.studio/docs/android/backend-calls), [Gateways](https://palbase.studio/docs/android/gateways)) |
 | `palbase-debug` | The debug console's screens, in Compose | `PalbaseConsole(pb.debug)` ([Debug Console](https://palbase.studio/docs/android/debug-console)) |
 | `palbase-voice` | A chat's live voice over WebRTC | `PBVoice.connect(…)` ([Voice](https://palbase.studio/docs/android/voice)) |
+| `palbase-calls` | Voice and video calls between the project's people, rung over the lock screen | `pb.calls` ([Calls](https://palbase.studio/docs/android/calls)) |
+| `palbase-calls-ui` | A call's screens in Compose, and the activity a ring opens | `CallHost`, `PalbaseCallActivity` ([Calls](https://palbase.studio/docs/android/calls#ready-made-screens)) |
 | `palbase-runtime` | The types every generated client calls into; `palbase` brings it | — |
 | `palbase-bom` | One version for all of them | `platform(…)` |
 
-WebRTC comes only with `palbase-voice`, Play Billing only with `palbase-purchases` and Compose only with `palbase-debug`, so an app that takes none of them carries none of them.
+WebRTC comes only with `palbase-voice` and `palbase-calls`, Play Billing only with `palbase-purchases` and Compose only with `palbase-debug` and the `-ui` modules, so an app that takes none of them carries none of them.
 
 Each module is an extension of the client (a property, and for analytics a function), imported from the module's package: `import studio.palbase.flags.flags`, `studio.palbase.notify.notify`, `studio.palbase.storage.storage`, `studio.palbase.realtime.realtime`, `studio.palbase.purchases.purchases`, `studio.palbase.analytics.analytics`.
 

@@ -66,6 +66,7 @@ The package's web entry points:
 | `palbase/web/vite` | The Vite plugin: builds each mode against the environment you name for it, from what `palbase apps:sync` wrote, and type-checks the app against that environment's backend first. See [Calling Your Backend](https://palbase.studio/docs/web/backend-calls#building-for-an-environment). |
 | `palbase/web/palbe` | What the module `palbase apps:sync` writes registers your backend with. Your own code does not import it. |
 | `palbase/web/push-sw.js` | The service worker that shows the project's pushes. See [Notifications](https://palbase.studio/docs/web/notifications#the-service-worker). |
+| `palbase/web/calls-ui` | The call screens, ready-made: `mountCallUI(pb.calls, options)`. See [Calls](https://palbase.studio/docs/web/calls#ready-made-screens). |
 | `palbase/web/paywall` | A paywall's definition resolved and drawn in the page (`renderPaywall`), and its prices formatted: what `pb.purchases.paywall(placement)` draws with (its `render(container, options)`), for an app that draws one itself. |
 | `palbase/web/message` | An in-app message's definition resolved and drawn: over the page (`presentMessage`) or as an inbox card (`renderMessage`). What `pb.notify` draws with, for an app that draws one itself. |
 
@@ -83,6 +84,7 @@ The package's web entry points:
 | `webauthn` | `CredentialsLike` | What passkeys call. Default: `navigator.credentials`. |
 | `retry` | `RetryPolicy` | `{ attempts, maxWaitSeconds }`. Default: 3 attempts, and a `Retry-After` longer than 30 s is not waited for. See [Error Handling](https://palbase.studio/docs/web/errors). |
 | `analytics` | `boolean \| AnalyticsOptions` | Starts the browser's own measures: a page view per address (`pageViews`), web vitals (`webVitals`) and each `fetch` the page makes (`network`), all on once started; `appVersion` is kept with every event. Left out, none of them starts, and `pb.analytics.capture` still sends what you capture. See [Analytics](https://palbase.studio/docs/web/analytics). |
+| `calls` | `CallsOptions` | How the person's calls go: every call's media through the relay (`forceRelay`), and the others' voices played by themselves (`playAudio`, the default) or left to the app. See [Calls](https://palbase.studio/docs/web/calls). |
 | `consent` | `ConsentOptions` | What is collected before the person chooses (`start`), the version of the consent text the app shows (`textVersion`), and the app's own keys (`customKeys`). See [Consent](https://palbase.studio/docs/web/consent). |
 | `appVersion` | `string` | The app's version as its users see it (`"2.4.1"`), sent with flag reads and paywall requests for the conditions that read it. Nothing is sent without one. |
 | `appId` | `string` | The registered app's id, a UUID, as `palbase apps:sync` writes it into the app's settings: sent with paywall requests for placement rules that name an app. A slug throws `TypeError`. |
@@ -97,6 +99,7 @@ What comes back:
 | `pb.analytics` | Events the app captures, page views, the person's properties, and the browser's own measures once started. See [Analytics](https://palbase.studio/docs/web/analytics). |
 | `pb.consent` | What the person allowed, key by key: their choices, kept in the browser and sent to the project. See [Consent](https://palbase.studio/docs/web/consent). |
 | `pb.notify` | This browser's pushes (`push`), the signed-in person's inbox (`inbox`) and the project's in-app campaigns (`inApp`). See [Notifications](https://palbase.studio/docs/web/notifications). |
+| `pb.calls` | The signed-in person's voice and video calls: made, rung, answered — one to one or in a group. See [Calls](https://palbase.studio/docs/web/calls). |
 | `pb.purchases` | What the signed-in customer has, kept current; the catalog's offerings and paywalls; buying on the web with Stripe Checkout. See [Purchases on the web](https://palbase.studio/docs/purchases/web). |
 | `pb.installation` | This browser's install of the app: `pb.installation.id`, the same until the site's storage is cleared. Analytics, flags, consent and pushes say it with what they send. |
 | `pb.socket` | The project's realtime socket. It is opened the first time a channel is joined, never before. See [Realtime](https://palbase.studio/docs/web/realtime). |

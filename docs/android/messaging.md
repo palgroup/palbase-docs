@@ -63,6 +63,23 @@ fun Chat(pb: PalbaseClient, id: String) {
 
 `pb.messaging.direct(userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message). A message waits in the outbox while the phone is offline and goes once it can, once. Files are encrypted on the phone (AES-256-GCM) before they are uploaded; `pb.messaging.open(message, attachment)` downloads and decrypts one, and a message seen once gives its files by `pb.messaging.viewOnce(message)` alone.
 
+## Spaces and open groups
+
+A conversation may belong to a place of your app's — an organization, a workspace — when it is made with a `space` your app names (`org:<id>`), for good: `direct(userId, space = org)` opens the pair's conversation there (the two have one in each space, and one with none), `group(title, space = org, visibility = …)` makes a group there, `conversations(spaces = listOf(org))` lists a space's — its `unread` that space's — and `search(query, space = org)` searches one. Each conversation says its `space` (`null`: none).
+
+An open group (`visibility` open) is a channel: `openGroups(space)` lists a space's, each with whether the person is in it (`joined`), and `join(conversationId)` lets the person in — the group then in their list at once. Making one, listing and joining ask the project's hook (`open_group`, `list_open`, `join`): refused, a `PalbaseError` with code `not_allowed`; an open group names its space (`space_required`). One an admin removed does not join again by themselves (`removed`).
+
+```kotlin
+// app/src/main/java/com/example/workspace/Channels.kt
+val org = "org:2f6c0c1e-8a3b-4c1d-9e5f-0a1b2c3d4e5f"
+val sidebar = pb.messaging.conversations(spaces = listOf(org))
+val channels = pb.messaging.openGroups(org)
+for (c in channels.items) if (!c.joined) pb.messaging.join(c.id)
+val dm = pb.messaging.direct("usr_01a1684c796e7394aa8ec75d893a8fe2", space = org)
+```
+
+A message your server wrote as someone (an assistant sending their words) says what wrote it: `message.via` (`"pal"`) — show it beside the message.
+
 ## Search
 
 `pb.messaging.search(query)` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one (`conversationId`). Each `SearchHit` carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 offsets, as a `String`'s. The first page also lists the person's conversations whose name says it (`conversations`), found on the phone. What the module finds and never finds: [Messaging](https://palbase.studio/docs/messaging/overview#search).

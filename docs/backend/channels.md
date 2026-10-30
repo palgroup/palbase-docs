@@ -86,7 +86,7 @@ Put the narrow patterns before the wide ones: written the other way round, `room
 
 ## The platform's channels
 
-Four namespaces are the platform's and cannot be declared: `roles:`, `flags:`, `messaging:` and `debug:`. Of them, clients join:
+Five namespaces are the platform's and cannot be declared: `roles:`, `flags:`, `messaging:`, `calls:` and `debug:`. Of them, clients join:
 
 | Channel | Who | What it carries |
 |---|---|---|

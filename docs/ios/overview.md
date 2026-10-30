@@ -55,7 +55,7 @@ In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/pa
 | `PalbaseDebug` | The [in-app debug console](https://palbase.studio/docs/ios/debug-console)'s screens. |
 | `Palbe` | What the [backend clients](https://palbase.studio/docs/ios/backend-calls) `palbase apps:sync` generates compile against. Link it when the project has a backend. |
 
-A chat's live voice is a package of its own, [palbase-swift-voice](https://github.com/palgroup/palbase-swift-voice), because it brings WebRTC: see [Voice](https://palbase.studio/docs/ios/voice).
+A chat's live voice is a package of its own, [palbase-swift-voice](https://github.com/palgroup/palbase-swift-voice), because it brings WebRTC: see [Voice](https://palbase.studio/docs/ios/voice). So are voice and video calls, [palbase-swift-calls](https://github.com/palgroup/palbase-swift-calls) (`PalbaseCalls`, and `PalbaseCallsUI` for the ready screens): see [Calls](https://palbase.studio/docs/ios/calls).
 
 ## Connect the app to the project
 

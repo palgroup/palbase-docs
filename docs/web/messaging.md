@@ -50,10 +50,12 @@ stopList();
 
 | Call | What it is |
 |---|---|
-| `conversations()` | The person's conversations, the latest first: `items`, `unread` across them, and `synced` once the device's copy caught up |
+| `conversations({ spaces })` | The person's conversations, the latest first: `items`, `unread` across them, and `synced` once the device's copy caught up — of some spaces alone when it names any ([Spaces and open groups](#spaces-and-open-groups)) |
 | `conversation(id)` | One conversation: `conversation`, `entries` (its timeline, the oldest first, then what is on its way), `members`, `typing`, `hasEarlier`; opened at a message (`{ at }`), `focus` and `hasLater` too ([Search](#search)) |
-| `direct(userId)` | The direct conversation with someone |
-| `group({ title, memberIds, description, photo, settings })` | A new group, the person its owner; `notAdded` names whom the project's hook kept out |
+| `direct(userId, { space })` | The direct conversation with someone — in a space, when it names one |
+| `group({ title, memberIds, description, photo, settings, space, visibility })` | A new group, the person its owner; `notAdded` names whom the project's hook kept out |
+| `openGroups(space, { limit, cursor })` | A space's open groups, each with whether the person is in it (`joined`) |
+| `join(conversationId)` | Joins an open group: the conversation, the person in it |
 | `thread(conversationId, rootId)` | A message's thread: `root`, `entries`, `thread` (its count, its last answer, who answered, its unread count) |
 | `threads()` | The threads the person follows |
 | `scheduled()` | The person's messages for later |
@@ -70,6 +72,26 @@ view.subscribe(() => console.log(view.state.members.length, "members,", view.sta
 if (view.state.hasEarlier) await view.loadEarlier();
 await pb.messaging.update(view.id, { title: "Design team" });
 ```
+
+## Spaces and open groups
+
+A person is often in several places of your app's — organizations, workspaces, projects. A conversation belongs to one when it is made with a `space` your app names (`org:<id>`, `project:<id>`; 1 to 128 letters, digits and `: _ . / @ -`), and stays there: the same two people have one direct conversation in each space, and one with none. `conversations({ spaces: [...] })` is a space's list, its `unread` that space's; `search(q, { space })` searches it. Each conversation says its `space` (`null`: none).
+
+A group made with `visibility: 'open'` is found in its space's open groups and joined by the person themselves — a channel; a closed one (the default) is joined when someone adds you. Your server decides who may make one, find a space's groups and join them: the project's hook is asked (`open_group`, `list_open`, `join`, the space named) and its refusal is a `PalbaseError`, code `not_allowed`. An open group names its `space` (`space_required` otherwise). One an admin removed does not join again by themselves (`removed`); a full group is `group_full`.
+
+```ts
+// src/channels.ts
+import { pb } from "./lib/palbase";
+
+const org = "org:2f6c0c1e-8a3b-4c1d-9e5f-0a1b2c3d4e5f";
+const sidebar = pb.messaging.conversations({ spaces: [org] });
+const general = await pb.messaging.group({ title: "general", space: org, visibility: "open" });
+const channels = await pb.messaging.openGroups(org);
+for (const c of channels.items) if (!c.joined) await pb.messaging.join(c.id);
+const dm = await pb.messaging.direct("usr_01a1684c796e7394aa8ec75d893a8fe2", { space: org });
+```
+
+A message your server wrote as someone (an assistant sending their words) says so: `message.via` names what wrote it (`"pal"`) — draw it beside the message, as "sent by Pal".
 
 ## Writing
 
@@ -107,7 +129,7 @@ A message waits in the outbox while the browser is offline or the server is away
 
 ## Search
 
-`search(query, { conversationId, limit, cursor })` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one. Each hit carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, `peer`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 code units, as a string's. The first page also lists the person's conversations whose name says it (`conversations`), from their own list. What the module finds and never finds: [Messaging](https://palbase.studio/docs/messaging/overview#search).
+`search(query, { conversationId, space, limit, cursor })` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one. Each hit carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, `peer`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 code units, as a string's. The first page also lists the person's conversations whose name says it (`conversations`), from their own list. What the module finds and never finds: [Messaging](https://palbase.studio/docs/messaging/overview#search).
 
 A find opens where it was said: `conversation(id, { at })` is the conversation's stretch around the message, `focus` naming it to scroll to and mark. `loadEarlier()` reads back from there and `loadLater()` forward; once it reaches the newest, `hasLater` is false and it is the conversation's timeline again. An answer the conversation's timeline does not show has a `threadRootId`: open its thread at it.
 

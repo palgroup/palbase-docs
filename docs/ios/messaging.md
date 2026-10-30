@@ -61,6 +61,23 @@ struct Chat: View {
 
 `pb.messaging.direct(with: userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message); `group(title:memberIds:)` makes a group. `ConversationView` has `entries`, `members`, `typing`, `hasEarlier` and `loadEarlier()`; `thread(_:)` is a message's thread, `scheduled()` the person's messages for later.
 
+## Spaces and open groups
+
+A conversation may belong to a place of your app's — an organization, a workspace — when it is made with a `space` your app names (`org:<id>`), for good: `direct(with: userId, space: org)` opens the pair's conversation there (the two have one in each space, and one with none), `group(title:space:visibility:)` makes a group there, `conversations(spaces: [org])` lists a space's — its `unread` that space's — and `search(_:space:)` searches one. Each conversation says its `space` (`nil`: none).
+
+An open group (`visibility: .open`; `isOpen` on the conversation) is a channel: `openGroups(space:)` lists a space's, each with whether the person is in it (`joined`), and `join(_:)` lets the person in — the group then in their list at once. Making one, listing and joining ask the project's hook (`open_group`, `list_open`, `join`): refused, a `PalbaseError` with code `not_allowed`; an open group names its space (`space_required`). One an admin removed does not join again by themselves (`removed`).
+
+```swift
+// Sources/Workspace/Channels.swift
+let org = "org:2f6c0c1e-8a3b-4c1d-9e5f-0a1b2c3d4e5f"
+let sidebar = pb.messaging.conversations(spaces: [org])
+let channels = try await pb.messaging.openGroups(space: org)
+for c in channels.items where !c.joined { _ = try await pb.messaging.join(c.id) }
+let dm = try await pb.messaging.direct(with: "usr_01a1684c796e7394aa8ec75d893a8fe2", space: org)
+```
+
+A message your server wrote as someone (an assistant sending their words) says what wrote it: `message.via` (`"pal"`) — show it beside the message.
+
 ## Writing
 
 `send(_:_:)` takes text, or `SendOptions`: `replyTo`, `threadId` and `alsoInConversation`, `mentions`, `files` (encrypted on the phone before they are uploaded), `expiresIn` with `expiresFrom`, `viewOnce`, and `sendAt` for a message the server sends later. A message waits in the outbox while the phone is offline and goes once it can, once. `edit`, `remove`, `react`, `unreact`, `markRead`, `typing`, `cancelScheduled` and `editScheduled` change what was said; `open(_:attachment:)` downloads and decrypts a file, and a message seen once gives its files by `viewOnce(_:)` alone — held by the app, never by the phone's copy.

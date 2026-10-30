@@ -44,7 +44,9 @@ export class ProductsService {
 
 ### When the cache cannot be reached
 
-The app is not stopped by a cache that is away. A call that cannot reach it, or that is refused for now (`429`, `503`), is treated by what it is for:
+The cache keeps three copies of the entries, one in each zone of the region. When the copy that takes the writes is lost, or stops answering, another takes over within a few seconds: a call made meanwhile waits for it, up to six seconds, and is answered then, instead of failing. An `incr` waited through a takeover is counted once. A copy that stops for maintenance hands over first, and an entry written before it is there after. A copy lost all at once has not handed over: the others receive each write a moment after it is answered, so a write answered in its last moment may be missing from the copy that takes over, an `incr`'s count among them. A count that must be exact belongs in a database.
+
+The app is not stopped by a cache that is away either. A call that cannot reach it, or that is refused for now (`429`, `503`), is treated by what it is for:
 
 | Call | When the cache is away |
 |---|---|

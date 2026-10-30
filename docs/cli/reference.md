@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.26.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.30.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-403 commands in 33 groups.
+417 commands in 34 groups.
 
 ## Global flags
 
@@ -1506,7 +1506,7 @@ palbase analytics:summary [--window <24h>]
 
 ### `palbase messaging:settings:get`
 
-How the environment runs its conversations: how long messages are kept, whether a push says what one says, what becomes of a deleted user's messages, whether they are found by what they mean, the hook
+How the environment runs its conversations: how long messages are kept, whether a push says what one says, what becomes of a deleted user's messages, whether they are found by what they mean, whether a message's event says what it says, the hook
 
 ```sh
 palbase messaging:settings:get
@@ -1517,12 +1517,13 @@ palbase messaging:settings:get
 Change how the environment runs its conversations: a setting left out is left as it is
 
 ```sh
-palbase messaging:settings:set [--retention-days <days>|off] [--push-preview on|off] [--deleted-user-messages keep|delete] [--search-by-meaning on|off]
+palbase messaging:settings:set [--retention-days <days>|off] [--push-preview on|off] [--deleted-user-messages keep|delete] [--search-by-meaning on|off] [--event-text on|off]
 ```
 
 A shorter retention removes the messages older than it, in every conversation. A deleted user's messages are kept or deleted as the setting is when the user is deleted.
 Deleted, what of theirs had already gone from screens (seen once, its time up, vanish mode, taken back) stays its 14 days, sealed, for reports, then goes.
 Search by meaning on: the app's search({ by: 'meaning' }) finds the messages nearest what a question means, no word of it needed. Each message's text (not a system message's, one seen a limited number of times, nor one of vanish mode) is embedded by the project's embedding model through the AI module and billed as the project's AI use; the messages written before are embedded in the background (seconds to minutes), a new one is found ~5 s after it is sent. Off: no message goes to a model, and the vectors are removed.
+Event text on: messaging.message.created — told to the backend's webhooks and @On handlers that name it — carries the message's text (not a vanish-mode message's, one seen a limited number of times, nor one that goes after a time). The words leave the sealed store and stay on the event stream 7 days. Off: the backend reads the message with the secret key.
 Only what changes is sent: a change made beside this one to another setting stays.
 
 ```text
@@ -1530,6 +1531,7 @@ Only what changes is sent: a change made beside this one to another setting stay
       --push-preview <on|off>                a push says what the message says (on), or only that one came (off)
       --deleted-user-messages <keep|delete>  a deleted user's messages: kept, their writer anonymous, or deleted (what went from screens before stays its 14 days for reports)
       --search-by-meaning <on|off>           messages are found by what they mean too (on: each embedded through the AI module, billed as AI use), or by their words alone (off)
+      --event-text <on|off>                  messaging.message.created says what the message says (on), or who wrote to whom alone (off)
 ```
 
 ### `palbase messaging:hook:get`
@@ -1548,7 +1550,7 @@ Set the hook asked whom one may reach, or change it; a new hook's signing secret
 palbase messaging:hook:set [--url <url>] [--timeout-ms <ms>] [--on-error allow|deny] [--secret-to <NAME> [--dev]]
 ```
 
-Before a direct conversation opens or people are added to a group, the hook is POSTed {"event": "messaging.can_message", "action": "direct" | "group_add", "from_user_id", "to_user_ids", "conversation_id"}, signed as Standard Webhooks sign (webhook-id, webhook-timestamp, webhook-signature), and answers 200 {"allowed_user_ids": […]}.
+Before a direct conversation opens, people are added to a group, someone makes or opens an open group, a space's open groups are listed or one is joined, the hook is POSTed {"event": "messaging.can_message", "action": "direct" | "group_add" | "open_group" | "list_open" | "join", "from_user_id", "to_user_ids", "conversation_id", "space"}, signed as Standard Webhooks sign (webhook-id, webhook-timestamp, webhook-signature), and answers 200 {"allowed_user_ids": […]}: whom of to_user_ids from_user_id may reach — for open_group, list_open and join, to_user_ids is [from_user_id], and naming them lets them in. space is the conversation's (absent: none).
 A new hook takes --url (an https URL on the public internet). Its signing secret is printed this once, or kept in the environment's secrets with --secret-to (production; --dev: development) and printed nowhere. A hook changed keeps its secret: palbase messaging:hook:secret:rotate makes a new one.
 
 ```text
@@ -1635,14 +1637,15 @@ palbase messaging:access-log [--limit <n>] [--cursor <cursor>]
 
 ### `palbase messaging:conversations:list`
 
-The project's conversations, or a person's with --user, the latest first: whose, how many people, when it last moved
+The project's conversations, or a person's with --user, or a space's with --space, the latest first: whose, how many people, when it last moved
 
 ```sh
-palbase messaging:conversations:list [--user <user id>] [--limit <n>] [--cursor <cursor>]
+palbase messaging:conversations:list [--user <user id>] [--space <space>] [--limit <n>] [--cursor <cursor>]
 ```
 
 ```text
       --user <user id>   only this person's conversations
+      --space <space>    only the conversations of this space (as org:<id>)
       --limit <n>        at most this many (1–100, default 30)
       --cursor <cursor>  the next page, as the last one said it
 ```
@@ -1673,11 +1676,128 @@ palbase messaging:messages:delete <conversation id> <message id>
 
 It is not undone: asked before it is done, whatever the environment (-y confirms).
 
+## `calls`
+
+### `palbase calls:settings:get`
+
+How the environment runs its calls: how many a call holds, whether every direct call goes through the relay, how many calls a person may start in an hour, the hook
+
+```sh
+palbase calls:settings:get
+```
+
+### `palbase calls:settings:set`
+
+Change how the environment runs its calls: a setting left out is left as it is
+
+```sh
+palbase calls:settings:set [--max-participants <n>] [--relay-all on|off] [--calls-per-hour <n>]
+```
+
+A call holds at most --max-participants, people and the project's bots together, as the setting was when the call was made: a change holds for the calls made after it.
+Relay all on: every direct call's media goes through the relay (TURN), so neither device learns the other's address, at the price of a hop. Off: the two devices reach each other directly when they can. A group call goes through the media server either way.
+A person who has started --calls-per-hour calls in the last hour is refused another (too_many_calls).
+Only what changes is sent: a change made beside this one to another setting stays.
+
+```text
+      --max-participants <n>  how many a call holds, people and bots together (2–100)
+      --relay-all <on|off>    every direct call's media through the relay: no one learns another's address, at the price of a hop (on), or between the devices when they can (off)
+      --calls-per-hour <n>    how many calls one person may start in an hour (1–1000)
+```
+
+### `palbase calls:hook:get`
+
+The hook asked whom one may call: where it is, how long it is waited for, what is done when it does not answer (never its secret)
+
+```sh
+palbase calls:hook:get
+```
+
+### `palbase calls:hook:set`
+
+Set the hook asked whom one may call, or change it; a new hook's signing secret is printed this once, or kept in a secret with --secret-to
+
+```sh
+palbase calls:hook:set [--url <url>] [--timeout-ms <ms>] [--on-error allow|deny] [--secret-to <NAME> [--dev]]
+```
+
+Before a call is made, or more people are asked into one, the hook is POSTed {"event": "calls.can_call", "action": "start" | "invite", "from_user_id", "to_user_ids", "video", "call_id", "conversation_id"}, signed as Standard Webhooks sign (webhook-id, webhook-timestamp, webhook-signature), and answers 200 {"allowed_user_ids": […]}: only those are called, and with none the call is refused.
+A new hook takes --url (a URL on the public internet). Its signing secret is printed this once, or kept in the environment's secrets with --secret-to (production; --dev: development) and printed nowhere. A hook changed keeps its secret: palbase calls:hook:secret:rotate makes a new one.
+
+```text
+      --url <url>              where the hook is asked
+      --timeout-ms <ms>        how long it is waited for: 100 to 5000 (a new hook: 2000)
+      --on-error <allow|deny>  when it does not answer: allow everyone, or deny and the call is refused (a new hook: deny)
+      --secret-to <NAME>       keep the new signing secret in the environment's secret NAME instead of printing it
+      --dev                    with --secret-to: the development secrets, not production
+```
+
+### `palbase calls:hook:remove`
+
+Remove the hook: anyone may call anyone (blocks aside), and its signing secret is forgotten
+
+```sh
+palbase calls:hook:remove
+```
+
+### `palbase calls:hook:secret:rotate`
+
+Make the hook's signing secret anew: printed this once, or kept in a secret with --secret-to; the old one signs nothing more
+
+```sh
+palbase calls:hook:secret:rotate [--secret-to <NAME> [--dev]]
+```
+
+The hook's calls are signed with the new secret alone from now: the endpoint verifies them with it (a machine reads a secret kept with --secret-to at its next start).
+
+```text
+      --secret-to <NAME>  keep the new signing secret in the environment's secret NAME instead of printing it
+      --dev               with --secret-to: the development secrets, not production
+```
+
+### `palbase calls:list`
+
+The project's calls, or a person's with --user, newest first: kind, voice or video, state, why it ended, who called, how many were in it, how long
+
+```sh
+palbase calls:list [--user <user id> [--missed]] [--state ringing|active|ended] [--limit <n>] [--cursor <cursor>]
+```
+
+A call's length is from its answer to its end, in seconds: a group call, which no one answers, has its people's seconds in calls:get.
+
+```text
+      --user <user id>   only this person's calls
+      --missed           with --user: only the calls they missed (or were busy for)
+      --state <state>    only the calls ringing, going on (active), or over (ended)
+      --limit <n>        at most this many (1–100, default 20)
+      --cursor <cursor>  the next page, as the last one said it
+```
+
+### `palbase calls:get`
+
+One call with its people and bots: how each was in it (rung, joined, left, declined, missed, busy) and for how many seconds
+
+```sh
+palbase calls:get <call id>
+```
+
+--json carries the call whole: its people's names and pictures, the caller's app's words about it (metadata).
+
+### `palbase calls:end`
+
+End a call for everyone in it (asked before it is done, whatever the environment)
+
+```sh
+palbase calls:end <call id>
+```
+
+It is not undone: asked before it is done, whatever the environment (-y confirms). A call already over is left as it is.
+
 ## `config`
 
 ### `palbase config:diff`
 
-How two environments' module settings differ (auth, storage, flags, notify, realtime, analytics, messaging; machines, databases when named)
+How two environments' module settings differ (auth, storage, flags, notify, realtime, analytics, messaging, calls; machines, databases when named)
 
 ```sh
 palbase config:diff --from <env> --to <env> [--only <modules>]
@@ -1689,7 +1809,7 @@ Exit code 0 when they are the same, 1 when they differ. --json gives each differ
 ```text
       --from <env>      the environment compared from (slug or ref)
       --to <env>        the environment compared to (slug or ref)
-      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging (the default), and databases,machines when named
+      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging,calls (the default), and databases,machines when named
 ```
 
 ### `palbase config:copy`
@@ -1709,7 +1829,7 @@ Exit code 0 when the two are the same afterwards, 1 when a difference remains.
 ```text
       --from <env>      the environment compared from (slug or ref)
       --to <env>        the environment compared to (slug or ref)
-      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging (the default), and databases,machines when named
+      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging,calls (the default), and databases,machines when named
 ```
 
 ## `secrets`
@@ -4316,8 +4436,8 @@ The environment needs its GitHub link first: palbase github:connect.
       --no-always-on                      let it sleep when idle again
       --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
       --no-previews                       preview no pull request from now on
-      --preview-forks                     preview pull requests from forks too: anyone's code runs with this environment's settings
-      --no-preview-forks                  preview no pull request from a fork from now on
+      --preview-forks                     preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
+      --no-preview-forks                  a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize
       --health <path>                     where it answers 2xx while well; a release that does not is not rolled out
       --openapi-path <path>               where its app serves its OpenAPI contract, when it is not a Palbase backend (apps:sync makes its client from it); "" for a Palbase backend's own
       --db <database>                     a database of the environment it is given (PALBASE_DB_URL); "" for none
@@ -4349,8 +4469,8 @@ palbase machines:update [name] [--size …] [--replicas …] [--db …] [--repo 
       --no-always-on                      let it sleep when idle again
       --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
       --no-previews                       preview no pull request from now on
-      --preview-forks                     preview pull requests from forks too: anyone's code runs with this environment's settings
-      --no-preview-forks                  preview no pull request from a fork from now on
+      --preview-forks                     preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
+      --no-preview-forks                  a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize
       --health <path>                     where it answers 2xx while well; a release that does not is not rolled out
       --openapi-path <path>               where its app serves its OpenAPI contract, when it is not a Palbase backend (apps:sync makes its client from it); "" for a Palbase backend's own
       --db <database>                     a database of the environment it is given (PALBASE_DB_URL); "" for none
@@ -4409,6 +4529,36 @@ A machine's pull request previews, newest first: each a machine of its own while
 palbase machines:previews [name]
 ```
 
+### `palbase machines:previews:authorize`
+
+Build a fork's pull request's preview of a machine: its code runs with this environment's settings and secrets
+
+```sh
+palbase machines:previews:authorize <pull request> [--machine <name>]
+```
+
+A pull request from a fork waits for an admin of the environment (fork protection): look at what it changes first. The head shown is the one built; a push since asks again.
+A person authorizes it, signed in with palbase login: an environment's token (PALBASE_TOKEN) cannot.
+
+```text
+      --machine <name>  the machine (default: the environment's only one)
+```
+
+### `palbase machines:previews:open`
+
+Open a machine's pull request preview again — one closed after 3 days with no push, or refused — at the pull request's head
+
+```sh
+palbase machines:previews:open <pull request> [--machine <name>]
+```
+
+Its machine is made again and built at the pull request's head; a machine that runs its database's migrations has its preview given a new, empty database of its own, migrated by the preview's release.
+A preview that is open goes on as it is, and its 3 days start again. A fork's, under fork protection, opens at a head an admin authorized (previews:authorize).
+
+```text
+      --machine <name>  the machine (default: the environment's only one)
+```
+
 ### `palbase machines:domains`
 
 A machine's own domains: whether each answers, and what its DNS still needs
@@ -4423,17 +4573,38 @@ palbase machines:domains [--machine <name>]
 
 ### `palbase machines:domains:add`
 
-Have a machine answer at a domain of your own too (www.example.com, or example.com)
+Have a machine answer at a domain of your own too (www.example.com, or example.com — with its www)
 
 ```sh
-palbase machines:domains:add <host> [--machine <name>]
+palbase machines:domains:add <host> [--machine <name>] [--primary www|apex | --only] [--redirect-status 301|302|307|308]
 ```
 
-It answers once its DNS points at the platform (the CNAME) and says it is this environment's (the TXT record): both are printed.
-Cloudflare issues its certificate; a domain is one environment's until it is removed there.
+It answers once its DNS points at the platform and says it is this environment's (the TXT record): both are printed.
+At an apex (example.com) its www is added too, and one redirects to the other, as Vercel does: the apex to www.example.com unless --primary apex; --only adds the domain alone.
+An apex takes an A record at the platform's address, which any DNS host has; a subdomain a CNAME. A domain is one environment's until it is removed there.
+
+```text
+      --machine <name>          the machine (default: the environment's only one)
+      --primary <www|apex>      at an apex: the address visitors end up at, the other redirecting to it (default: www)
+      --only                    add the domain alone: no www, no redirect
+      --redirect-status <code>  the redirect's status: 301, 302, 307 or 308 (default: 308)
+```
+
+### `palbase machines:domains:redirect`
+
+Send a domain's visitors to another domain of the machine's — the same path and query there — or, with --none, have it answer itself
+
+```sh
+palbase machines:domains:redirect <host> (--to <host> [--status 301|302|307|308] | --none) [--machine <name>]
+```
+
+It holds at once. A domain redirects to one that answers itself, and one others redirect to answers itself.
 
 ```text
       --machine <name>  the machine (default: the environment's only one)
+      --to <host>       another domain of the machine's
+      --status <code>   301, 302, 307 or 308 (default: 308)
+      --none            redirect nowhere: the domain answers itself
 ```
 
 ### `palbase machines:domains:remove`
@@ -4699,7 +4870,7 @@ The environment needs its GitHub link first: palbase github:connect.
       --output <dir>               the folder the build writes (default: what its builder writes — dist, build, out, …)
       --build-env <K=V>            a setting the build runs with (repeat it): what its pages are sent (VITE_*), never a secret
       --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
-      --preview-forks              preview pull requests from forks too: anyone's code runs with this environment's settings
+      --preview-forks              preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
 ```
 
 ### `palbase hosting:sites:update`
@@ -4723,8 +4894,8 @@ palbase hosting:sites:update <name> [--spa | --no-spa] [--repo … --branch … 
       --no-source                  build it from no repository any more: deploy folders alone
       --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
       --no-previews                preview no pull request from now on
-      --preview-forks              preview pull requests from forks too: anyone's code runs with this environment's settings
-      --no-preview-forks           preview no pull request from a fork from now on
+      --preview-forks              preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
+      --no-preview-forks           a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize
 ```
 
 ### `palbase hosting:sites:delete`
@@ -4797,6 +4968,21 @@ palbase hosting:previews [--site <name>]
       --site <name>  the site (default: web)
 ```
 
+### `palbase hosting:previews:authorize`
+
+Build a fork's pull request's preview of a site: its code runs with this environment's settings and secrets
+
+```sh
+palbase hosting:previews:authorize <pull request> [--site <name>]
+```
+
+A pull request from a fork waits for an admin of the environment (fork protection): look at what it changes first. The head shown is the one built; a push since asks again.
+A person authorizes it, signed in with palbase login: an environment's token (PALBASE_TOKEN) cannot.
+
+```text
+      --site <name>  the site (default: web)
+```
+
 ### `palbase hosting:domains`
 
 A site's own domains: whether each answers, and what its DNS still needs
@@ -4811,17 +4997,38 @@ palbase hosting:domains [--site <name>]
 
 ### `palbase hosting:domains:add`
 
-Have a site answer at a domain of your own too (www.example.com, or example.com)
+Have a site answer at a domain of your own too (www.example.com, or example.com — with its www)
 
 ```sh
-palbase hosting:domains:add <host> [--site <name>]
+palbase hosting:domains:add <host> [--site <name>] [--primary www|apex | --only] [--redirect-status 301|302|307|308]
 ```
 
-It answers once its DNS points at the platform (the CNAME) and says it is this environment's (the TXT record): both are printed.
-Cloudflare issues its certificate; a domain is one environment's until it is removed there.
+It answers once its DNS points at the platform and says it is this environment's (the TXT record): both are printed.
+At an apex (example.com) its www is added too, and one redirects to the other, as Vercel does: the apex to www.example.com unless --primary apex; --only adds the domain alone.
+An apex takes an A record at the platform's address, which any DNS host has; a subdomain a CNAME. A domain is one environment's until it is removed there.
 
 ```text
-      --site <name>  the site (default: web)
+      --site <name>             the site (default: web)
+      --primary <www|apex>      at an apex: the address visitors end up at, the other redirecting to it (default: www)
+      --only                    add the domain alone: no www, no redirect
+      --redirect-status <code>  the redirect's status: 301, 302, 307 or 308 (default: 308)
+```
+
+### `palbase hosting:domains:redirect`
+
+Send a domain's visitors to another domain of the site's — the same path and query there — or, with --none, have it answer itself
+
+```sh
+palbase hosting:domains:redirect <host> (--to <host> [--status 301|302|307|308] | --none) [--site <name>]
+```
+
+It holds at once. A domain redirects to one that answers itself, and one others redirect to answers itself.
+
+```text
+      --site <name>    the site (default: web)
+      --to <host>      another domain of the site's
+      --status <code>  301, 302, 307 or 308 (default: 308)
+      --none           redirect nowhere: the domain answers itself
 ```
 
 ### `palbase hosting:domains:remove`

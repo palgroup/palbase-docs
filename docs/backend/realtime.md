@@ -98,7 +98,7 @@ Your backend never subscribes: `palbase/server` has no socket. What a client sen
 
 ## Channel names
 
-A channel is `:`-separated segments: `orders:<user_id>`, `board:7f3a`, `game:42:chat`, 255 bytes at most. The namespaces `roles:`, `flags:`, `messaging:` and `debug:` are the platform's — flags' live updates travel on `flags:<ref>` and `flags:<ref>:<user_id>`, a user's permission set on `roles:<ref>:<user_id>`. A channel the declaration does not match belongs to no one, and no client may join it.
+A channel is `:`-separated segments: `orders:<user_id>`, `board:7f3a`, `game:42:chat`, 255 bytes at most. The namespaces `roles:`, `flags:`, `messaging:`, `calls:` and `debug:` are the platform's — flags' live updates travel on `flags:<ref>` and `flags:<ref>:<user_id>`, a user's permission set on `roles:<ref>:<user_id>`. A channel the declaration does not match belongs to no one, and no client may join it.
 
 ## The `Realtime` service
 

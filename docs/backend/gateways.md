@@ -146,7 +146,7 @@ A pattern is `:`-separated segments, as a channel's name is. A segment written `
 | `room:{roomId}` | `room:42` | `room`, `room:42:chat` |
 | `game:{gameId}:team:{team}` | `game:7:team:red` | `game:7:team` |
 
-A pattern is 255 bytes at most, has no `/` and no control character, and names each `{param}` once. The namespaces `roles:`, `flags:`, `messaging:` and `debug:` are the platform's. A pattern that breaks one of these rules is refused when its class is declared.
+A pattern is 255 bytes at most, has no `/` and no control character, and names each `{param}` once. The namespaces `roles:`, `flags:`, `messaging:`, `calls:` and `debug:` are the platform's. A pattern that breaks one of these rules is refused when its class is declared.
 
 When two of an app's patterns match one channel, the more specific one decides it: a named segment beats a `{param}`, from the left, so `lobby:staff` decides `lobby:staff` and `lobby:{id}` every other lobby. Two gateways of the same channels (`room:{roomId}` and `room:{id}`) are refused at boot. Two of the project's machines that declare the same channels have neither: the channel is refused until one of them gives it up.
 
