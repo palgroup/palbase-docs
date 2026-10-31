@@ -38,7 +38,7 @@ Every member of the organization reads it ([Organizations](https://palbase.studi
 | `realtime.connections` | Realtime connections open at once, the month's largest |
 | `messaging.messages` | **Chat messages**: each message the project's people, or its server, sent in its conversations; one sent again with the same client id is one |
 | `messaging.bytes` | **Chat message storage**: what the project's messages weigh where they are kept — each one's sealed text and 768 bytes for its row and indexes — the month's largest |
-| `calls.audio.seconds`, `calls.video.seconds` | **Voice call time** and **Video call time**: the seconds each person, and each agent, was in the project's calls, a voice call's and a video call's apart — a minute of a call of three is three participant-minutes ([Calls](https://palbase.studio/docs/calls/overview#what-it-costs)) |
+| `calls.bytes` | **Call data**: what the media server sent the people, and the agents, of the project's calls — their sound, picture and data from the others, voice and video alike ([Calls](https://palbase.studio/docs/calls/overview#what-it-costs)) |
 | `flags.reads` | The flag reads clients made, answered in full or not modified |
 | `analytics.events` | **Analytics events**: captures, identifies, aliases, screens and page views (setting a person's properties is not counted) |
 | `analytics.perf`, `analytics.traces`, `analytics.console` | Performance samples kept, request traces taken, console records kept ([Analytics](https://palbase.studio/docs/analytics/overview)) |
@@ -91,16 +91,16 @@ A limit that counts refuses nothing: the use goes on and is metered.
 
 ## What a free project gets
 
-An environment is free while it is on the Free plan — every environment starts on it — and while its credit has run out or its month is at its monthly limit ([Billing](https://palbase.studio/docs/getting-started/billing)). Each environment is free on its own: one running out holds no other.
+An environment is free while it is on the Free plan — every environment starts on it — while the payment account that pays for it is held for a charge unpaid, and while its month is at its monthly limit ([Billing](https://palbase.studio/docs/getting-started/billing)). Each environment's limit is its own: one at its limit holds no other.
 
 - **Sizes.** Its machines are of the `shared-256` size, the one free machine size, and it has one database at most, of the `free` size: a project holds one database of a free size at a time ([Databases](https://palbase.studio/docs/machines/databases#sizes)). Every other size is paid for: opening a machine or a database of one, or moving one to it, is `403 size_not_available`. `palbase machines:sizes` and `palbase databases:sizes` list the sizes and which of them the environment may open now ([Machines](https://palbase.studio/docs/machines/overview#sizes)).
 - **Traffic.** It sends 5 GB a month at full speed: its machines' internet traffic and its response traffic together. Past it, until the month ends, its machines' traffic and answers and the files its storage hands out go at about 256 kbit/s; nothing is stopped, and the API's other answers are not slowed. A slowed project's downloads are paced, and one more than it may have under way at once is `429 rate_limited` with `Retry-After`. A file the CDN answers from its own copy never reaches the project, and is neither counted nor slowed ([The CDN](https://palbase.studio/docs/backend/storage#the-cdn)). See [Reaching the internet](https://palbase.studio/docs/machines/overview#reaching-the-internet).
 - **Chat messages.** 1 million messages a month, and 1 GiB of them kept. Past either, until the month ends, the project's messages go at about one a second, all its people and its server together: a send waits its turn, 10 seconds at the most, and one whose turn is further off is `429 slowed` with `Retry-After` — the SDKs keep it in their outbox and send it again. No message is lost, and reading, syncing and everything else go on at full speed. What is kept counts at its month's largest, so a project that keeps more than 1 GiB is slowed again early each month: remove old messages, or set the project's retention ([Messaging](https://palbase.studio/docs/messaging/overview#the-projects-settings)), to stay under it.
-- **Calls.** 10,000 voice and 2,000 video participant-minutes a month. Past either, until the month ends, a call of that kind does not start (`429 quota_exceeded`); calls going on go on to their end ([Calls](https://palbase.studio/docs/calls/overview#what-it-costs)).
+- **Calls.** 25 GB of call data a month. Past it, until the month ends, no call starts (`429 quota_exceeded`); calls going on go on to their end ([Calls](https://palbase.studio/docs/calls/overview#what-it-costs)).
 - **A free database** is awake 400 hours a month at most. Past them it sleeps until the month ends, refusing connections, with its data kept; from then its next connection wakes it.
 - **AI.** $1.00 of Palbase's models a month, at the provider's price and 10%. Past it, until the month ends, a call to them is `402 ai_payment_required`; a call under the project's own provider key goes on ([AI](https://palbase.studio/docs/backend/ai#what-it-costs)).
 
-An environment on Pay as you go with credit is never slowed for its traffic, and its machines and databases may be of any size; a database of the `free` size keeps its 400 hours whoever holds it. What it uses past its own free quotas is charged from its own credit ([Billing](https://palbase.studio/docs/getting-started/billing)).
+An environment on Pay as you go is never slowed for its traffic, and its machines and databases may be of any size; a database of the `free` size keeps its 400 hours whoever holds it. What it uses past its own free quotas is charged to the payment account that pays for its organization ([Billing](https://palbase.studio/docs/getting-started/billing)).
 
 ## Each module's own limits
 
@@ -116,7 +116,7 @@ An environment on Pay as you go with credit is never slowed for its traffic, and
 
 ## Related
 
-- [Billing](https://palbase.studio/docs/getting-started/billing) — each environment's plan and credit, and what is charged
+- [Billing](https://palbase.studio/docs/getting-started/billing) — each environment's plan, the payment account, and what is charged
 - [Logs](https://palbase.studio/docs/getting-started/logs) — every request, with its status
 - [Organizations](https://palbase.studio/docs/getting-started/organizations) — who sees the usage page, and who is mailed
 - [Machines](https://palbase.studio/docs/machines/overview) — sizes, sleep, and traffic to the internet

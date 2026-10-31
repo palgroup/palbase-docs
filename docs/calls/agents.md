@@ -51,8 +51,8 @@ It answers `201`:
 | `expires_at` | When the token ends: 6 hours on, or sooner when the credential that asked for it ends sooner. Until then it lets the agent back in after a lost connection |
 | `call` | The call, with the agent among its participants ([A call](https://palbase.studio/docs/calls/http#a-call)) |
 
-- **A direct call moves for it.** A call between two devices moves to the media server as the ticket is given, going on: the two devices are told, and move without dropping the call.
-- **It counts as a person** against the project's `max_participants` (`409 call_full`), and its minutes are billed as a person's ([What it costs](https://palbase.studio/docs/calls/overview#what-it-costs)).
+- **A direct call stays one.** The agent joins the call's room beside its two people; the call goes on as it was.
+- **It counts as a person** against the project's `max_participants` (`409 call_full`), and what the media server sends it is billed as a person's ([What it costs](https://palbase.studio/docs/calls/overview#what-it-costs)).
 - **The same identity again** is the same agent: a new ticket for it is its way back in.
 - Refused: `409 call_ended`; `409 invalid_identity` when the identity is a person's in the call; `400` for a field that is not one; `404 call_not_found`.
 

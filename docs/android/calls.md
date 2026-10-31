@@ -2,7 +2,7 @@
 
 # Calls
 
-`pb.calls` (`studio.palbase:palbase-calls`) is the signed-in person's voice and video calls on Android. A call rings the phone as a phone call does — over the lock screen and with the app closed, woken by a high-priority FCM message — and lives in the system's call integration (Telecom): its audio route, Bluetooth, a watch or a car answering. A `PBCall` is what the app draws, its state as `StateFlow`s. A direct call's media goes between the two phones (WebRTC); a group's — or a direct call a third person joined — through the project's media server. `palbase-calls-ui` draws the screens in Compose. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](https://palbase.studio/docs/calls/overview).
+`pb.calls` (`studio.palbase:palbase-calls`) is the signed-in person's voice and video calls on Android. A call rings the phone as a phone call does — over the lock screen and with the app closed, woken by a high-priority FCM message — and lives in the system's call integration (Telecom): its audio route, Bluetooth, a watch or a car answering. A `PBCall` is what the app draws, its state as `StateFlow`s. Every call's media — one to one or in a group — goes through the platform's media server (LiveKit): a third person or the project's agent comes into the same room, and where UDP is shut it goes over TCP to port 443. `palbase-calls-ui` draws the screens in Compose. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](https://palbase.studio/docs/calls/overview).
 
 ## Install
 
@@ -45,7 +45,7 @@ if (!pb.calls.canRingFullScreen) {
 val scope = rememberCoroutineScope()
 Button(onClick = {
     scope.launch {
-        // Rings every device of theirs; the media goes between the two phones.
+        // Rings every device of theirs; the media goes through the media server.
         val call = pb.calls.call(userId, video = true)
         call.setMicrophone(false)
     }
@@ -55,7 +55,7 @@ Button(onClick = {
 | Call | What it does |
 |---|---|
 | `call(userId, video, conversationId, metadata, callerName, callerImageUrl)` | Rings one person: a direct call. `callerName` and `callerImageUrl` are what they see of the caller (else the caller's messaging profile's) |
-| `callGroup(userIds, video, ring, conversationId, metadata, callerName, callerImageUrl)` | A group call, through the media server — several people, or one others may be asked to later. `ring = false` rings no one: the people asked join when they like (a huddle) |
+| `callGroup(userIds, video, ring, conversationId, metadata, callerName, callerImageUrl)` | A group call — several people, or one others may be asked to later. `ring = false` rings no one: the people asked join when they like (a huddle) |
 | `join(callId)` | Comes into a group call the person was asked to — rung, missed, declined, or in before |
 | `open(callId)` | The call on this device: the one held, or read from the server — what a notification's tap opens in a process that holds none. `null` when it is not this person's, or over |
 | `history(limit, cursor, missedOnly)` | The person's calls, the newest first, with how each went for them; `missedOnly` the ones they missed or were busy for |
@@ -74,7 +74,7 @@ Each that makes or joins a call answers its `PBCall` and throws the module's ref
 | `peers` | The other people (and agents): `userId`, `name`, `imageUrl`, `state`, `bot`, and their `video` while their camera is on |
 | `localVideo` | This phone's camera, while it is on |
 | `microphoneOn`, `cameraOn` | The controls' state |
-| `group` | Through the media server: more than two people, or a call people join |
+| `group` | A group call: more than two people, or a call people join |
 | `connectedAt` | When the media first flowed: the call's clock starts here |
 | `audioRoute`, `audioRoutes` | Where the sound plays now, and where it may: `EARPIECE`, `SPEAKER`, `WIRED_HEADSET`, `BLUETOOTH` … each with its name |
 

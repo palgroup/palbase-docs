@@ -12,12 +12,14 @@ The web, iOS and Android SDKs run a call for the app — ringing, answering, the
 
 ## Kinds of call
 
-- **A direct call** rings one person (`POST /calls` with one user id). Its sound and picture go straight between the two devices (WebRTC), and through a relay (TURN) only when the devices cannot reach each other — behind a strict firewall, or on some mobile networks. With the project's `relay_all` on, every direct call goes through the relay: neither device learns the other's address, at the price of a hop.
-- **A group call** asks several people in (`POST /calls` with up to 99 user ids, or `group: true` with one). Its media goes through Palbase's media server, so each device sends its own sound and picture once, however many listen. A person who missed or declined it may still join while it lasts.
+- **A direct call** rings one person (`POST /calls` with one user id).
+- **A group call** asks several people in (`POST /calls` with up to 99 user ids, or `group: true` with one). A person who missed or declined it may still join while it lasts.
 - **A huddle** is a group call that rings no one (`ring: false`): the people asked see it and join when they like.
-- **A direct call grows.** Asking a third person in — or letting the project's agent in — moves a direct call to the media server, going on: the two devices are told, and move without dropping the call.
+- **A direct call grows.** Asking a third person in — or letting the project's agent in — makes it a group, going on in the same room.
 
-A call is voice or video (`video`) from its start, and is billed as it was made ([What it costs](#what-it-costs)).
+Every call's sound and picture go through Palbase's media server (LiveKit, open source), one to one too: each device sends its own once, however many listen, and gets the others' from the server. A device's address reaches no one else in the call. Where a network lets no UDP out, the media goes over TCP on port 443 (straight to the media server: a network that lets the web out only through an HTTPS proxy does not pass it). The server sees the media as it passes it on; nothing of it is kept.
+
+A call is voice or video (`video`) from its start; a person may still turn their camera on or off in it. What a call costs is the data the media server sent its people ([What it costs](#what-it-costs)).
 
 ## Who may call whom
 
@@ -61,7 +63,7 @@ A person's calls are theirs to list, the newest first, each with how it went for
 
 A call's record is who called whom, when, how long each was in it and how it ended. Its sound and picture never pass through the API and are never kept. Ended calls are kept 400 days.
 
-When a person's account is deleted, the direct calls they were in go from the history, their place in a group's record goes, and a group they started names `deleted-user` as its caller. The minutes they were in calls stay counted, under `deleted-user`.
+When a person's account is deleted, the direct calls they were in go from the history, their place in a group's record goes, and a group they started names `deleted-user` as its caller. What the media server sent them stays counted, under `deleted-user`.
 
 ## The project's settings
 
@@ -70,7 +72,6 @@ In Studio (**Calls**), or with the secret key (`GET` and `PUT /calls/settings`; 
 | Setting | What it does |
 |---|---|
 | `max_participants` | How many people a call holds, agents included: 2 to 100 (the default) |
-| `relay_all` | Every direct call's media goes through the relay (off by default) |
 | `calls_per_hour` | How many calls one person may start in an hour: 1 to 1,000 (60 by default); 10 a minute whatever it says |
 | `hook` | Who may call whom ([Your Server](https://palbase.studio/docs/calls/server#who-may-call-whom)); none: blocks alone decide |
 
@@ -89,11 +90,10 @@ Your backend hears of the project's calls ([Webhooks](https://palbase.studio/doc
 
 ## What it costs
 
-A call is billed by the participant-minute: one person, or one agent, in a call for a minute. A 10-minute call of three people is 30 participant-minutes. Direct calls and group calls cost the same.
+A call is billed by the data the media server sent its people: each person's, and each agent's, sound, picture and data from the others, and the server's own word to their app — as the server counts its packets, without the network's own headers. Voice and video, one to one and in a group, cost the same per GB; a voice call sends far less than a video one, and a picture sends less when it is small on the screen.
 
 | | Free each month | Past it |
 |---|---|---|
-| Voice calls | 10,000 participant-minutes | $0.0003 a participant-minute |
-| Video calls | 2,000 participant-minutes | $0.0015 a participant-minute |
+| Call data | 25 GB | $0.12 a GB |
 
-A caller is counted from the answer, not while the call rings. Past a free project's minutes of a kind, until the month ends, no new call of that kind starts (`429 quota_exceeded`): calls going on go on to their end. A project on Pay as you go goes on, paying for what is past them ([Billing](https://palbase.studio/docs/getting-started/billing)).
+A GB is 1,000,000,000 bytes. A caller alone in a call that rings is sent little: the server's word to their app, no one's sound or picture. What each person was sent is in the call's record (`bytes`, a minute behind at most), and the month's total in the project's usage. Past a free project's 25 GB, until the month ends, no new call starts (`429 quota_exceeded`): calls going on go on to their end. A project on Pay as you go goes on, paying for what is past them ([Billing](https://palbase.studio/docs/getting-started/billing)).

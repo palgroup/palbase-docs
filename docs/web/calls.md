@@ -2,7 +2,7 @@
 
 # Calls
 
-`pb.calls` is the signed-in person's voice and video calls in the browser: it rings the people called, hears the calls that ring this person, and runs a call's media — between the two devices, or through the media server for a group. An app draws what a call's state says and calls what the person does; it opens no peer connection, sends no signal and keeps no heartbeat itself. `palbase/web/calls-ui` draws the screens for an app that wants them ready-made. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](https://palbase.studio/docs/calls/overview).
+`pb.calls` is the signed-in person's voice and video calls in the browser: it rings the people called, hears the calls that ring this person, and runs a call's media — every call's, one to one or in a group, through the platform's media server. An app draws what a call's state says and calls what the person does; it opens no peer connection, sends no signal and keeps no heartbeat itself. `palbase/web/calls-ui` draws the screens for an app that wants them ready-made. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](https://palbase.studio/docs/calls/overview).
 
 ## Quick example
 
@@ -13,8 +13,8 @@ import { createClient } from "palbase/web";
 export const pb = createClient({
   url: "https://k3xq81w4m.palbase.studio",
   publishableKey: "pb_k3xq81w4m_cZ8yX7wV6uT5",
-  // Every call's media through the relay, never straight between the devices: false unless the app says so.
-  calls: { forceRelay: false },
+  // The others' voices play by themselves: true unless the app plays each stream itself.
+  calls: { playAudio: true },
 });
 ```
 
@@ -71,7 +71,6 @@ Each answers the call's `CallSession` once it rings. This device's microphone (a
 | `conversationId` | The conversation it is made from: its members alone may be called, and it keeps the call as a message |
 | `metadata` | The app's own words about the call, shown to those rung: 32 strings, 2 KiB at most |
 | `callerName`, `callerImageUrl` | What those rung see of the caller; else their messaging profile's name and picture |
-| `forceRelay` | This call's media through the relay alone |
 | `media` | A microphone (and camera) stream the app opened already: used as it is, and left open when the call ends |
 
 ## A call that rings
@@ -84,7 +83,7 @@ Each answers the call's `CallSession` once it rings. This device's microphone (a
 | `decline()` | Turns the call down on every device of the person's: a direct call ends; a group goes on, and may still be joined |
 | `join(options)` | Comes into a group call this person was asked to: a huddle (`invited`). A session that is over joins nothing: `pb.calls.join(callId)` comes into the call again |
 
-`accept` and `join` take `video`, `forceRelay` and `media` as making a call does.
+`accept` and `join` take `video` and `media` as making a call does.
 
 `pb.calls.onCall(listener)` hears each call this page comes into — made, answered or joined here; `pb.calls.current` is the one it is in, or `null`. `pb.calls.ready()` follows the person's calls without making one (`start`, `join` and `onIncoming` do it themselves), and rejects when no one is signed in.
 
@@ -99,7 +98,6 @@ A session's `state` is what the app draws, and `subscribe(listener)` tells each 
 | `call` | The call as the module last said it ([A call](https://palbase.studio/docs/calls/http#a-call)) |
 | `me` | This person, as the call lists them |
 | `outgoing` | This person rang, or started the group |
-| `mode` | `p2p` (between the two devices) or `sfu` (through the media server) |
 | `local` | This device's microphone and camera, while it is in the call: for its own preview |
 | `microphone`, `camera` | Whether this device's microphone is heard and its camera on |
 | `remote` | The others in the call (below) |
@@ -149,9 +147,9 @@ A page that goes away — closed, reloaded, navigated off — leaves its call at
 
 ## The media
 
-A direct call's media goes between the two devices (WebRTC), through the relay only when they cannot reach each other — or always, with the project's `relay_all`, the client's `calls: { forceRelay: true }` or one call's `forceRelay`. When the connection fails it is made again with fresh relay credentials, and the session is `reconnecting` meanwhile.
+Every call's media — one to one or in a group — goes through the platform's media server (LiveKit), through the LiveKit client the package depends on (`livekit-client`), loaded when the page's first call starts. The caller is in the call's room while it rings, so the media flows the moment it is answered; a third person or the project's agent comes into the same room, and the call goes on as it was. Where UDP is shut (a strict office or hotel network), the media goes over TCP to port 443 of the media server. When the network drops, the session is `reconnecting` while the client comes back into the room — with a new ticket if the room was lost — and what the app drew goes on playing.
 
-A group's media, or a direct call's once a third person or the project's agent came into it, goes through the platform's media server, through the LiveKit client the package depends on (`livekit-client`). It is loaded only when a call goes there: an app whose calls stay between two devices never downloads it. A call that moves keeps its sessions and its streams: what the app drew goes on playing.
+What a call costs is the data the media server sent its people ([What it costs](https://palbase.studio/docs/calls/overview)): a voice call is a small part of a video call's.
 
 ## Ready-made screens
 

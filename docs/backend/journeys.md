@@ -91,7 +91,7 @@ A journey's page draws it top to bottom: who enters at the top, each step under 
 
 `POST /journeys/{key}/publish` makes a draft live: people enter it from then on (a `members_of` journey enrolls the audience's members now). A live journey does not change (`409 journey_published`): copy it into a new draft (`POST /journeys/{key}/copy` with `{ "key": "…", "name": "…" }`), publish that, and stop the old one. `POST /journeys/{key}/stop` lets no one in any more and ends the runs in it; its report stays. `DELETE /journeys/{key}` deletes a journey with its runs and its report.
 
-A project keeps 500 journeys and runs 50 at once. An environment without its paid rights — on Free, out of credit, or at its monthly limit — runs 2 at once (`402 live_journeys_limit`); on Pay as you go, the people who enter its journeys are billed by the month ([Billing](https://palbase.studio/docs/getting-started/billing)): the first 1,000 people a month are free, then $2 for each 1,000 more.
+A project keeps 500 journeys and runs 50 at once. An environment without its paid rights — on Free, held for its payment account's charge unpaid, or at its monthly limit — runs 2 at once (`402 live_journeys_limit`); on Pay as you go, the people who enter its journeys are billed by the month ([Billing](https://palbase.studio/docs/getting-started/billing)): the first 1,000 people a month are free, then $2 for each 1,000 more.
 
 ## The report
 

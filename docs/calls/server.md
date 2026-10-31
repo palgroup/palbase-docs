@@ -11,7 +11,6 @@ With the project's secret key in the `apikey` header ([Server SDK](https://palba
 | Setting | What it does |
 |---|---|
 | `max_participants` | How many people a call holds, agents included: 2 to 100 (the default). A call that would hold more is refused (`call_full`) |
-| `relay_all` | Every direct call's media goes through the relay, so neither device learns the other's address, at the price of a hop. Off (the default): device to device, through the relay only when they cannot reach each other |
 | `calls_per_hour` | How many calls one person may start in an hour: 1 to 1,000 (60 by default). 10 a minute, whatever it says |
 | `hook` | The endpoint asked who may call whom (below): `{ url, timeout_ms, on_error }`; `null` removes it |
 
@@ -19,14 +18,14 @@ With the project's secret key in the `apikey` header ([Server SDK](https://palba
 curl -s -X PUT "https://<ref>.palbase.studio/calls/settings" \
   -H "apikey: $PALBASE_SECRET_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"max_participants": 8, "relay_all": true}'
+  -d '{"max_participants": 8}'
 ```
 
 From a terminal, as one of your organization's owners or admins — `palbase config:diff` and `palbase config:copy` compare and copy the settings between environments:
 
 ```bash
 palbase calls:settings:get
-palbase calls:settings:set --max-participants 8 --relay-all on --calls-per-hour 30
+palbase calls:settings:set --max-participants 8 --calls-per-hour 30
 ```
 
 ## Who may call whom

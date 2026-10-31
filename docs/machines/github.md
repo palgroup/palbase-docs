@@ -122,6 +122,36 @@ await cloud.project(ref).machines.deployMachine({ path: { name: "backend" }, bod
 
 A machine read with tokens is deployed by its platform: no push GitHub delivers to Palbase builds it (your app hears the push — its `push` webhook — and deploys the commit), no check is put on its commits, and it does not wait for checks (`deploy_after_checks` is refused). Everything else is a machine's like any other: its builds, their logs, its own logs, rollbacks and its settings ([Builds, Logs & Rollback](https://palbase.studio/docs/machines/builds)). A change of its branch is built at its next deploy. How it is read is chosen when it is made.
 
+### Pull request previews, for platforms
+
+No pull request of a machine read with tokens is heard by Palbase, so its platform previews them itself: as your app hears a pull request opened or pushed to (its `pull_request` webhook), it puts the preview at the head of the pull request's branch, with a new token; as the pull request closes, it closes it. The preview is any machine's preview ([Pull request previews](https://palbase.studio/docs/machines/hosting#pull-request-previews)): a machine of its own, `<name>-pr<number>`, a database of its own when the machine runs its database's migrations, the environment's settings and secrets, 3 days without a put before it is taken down — a put opens it again. Turn previews on in an environment kept for them, never production's (refused there: `previews_in_production`):
+
+```ts
+// platform-server.ts — the pull request webhook your app hears
+import { PalbaseCloud } from "palbase/cloud";
+
+const cloud = new PalbaseCloud({ token: process.env.PALBASE_TOKEN! });
+const ref = process.env.CUSTOMER_ENV_REF!;
+// Your GitHub App's installation token for this repository alone, read-only.
+const token = process.env.REPOSITORY_TOKEN!;
+
+await cloud.project(ref).machines.updateMachine({ path: { name: "backend" }, body: { previews: true } });
+
+// Opened, or pushed to: the head of its branch, read with a new token.
+await cloud.project(ref).machines.putMachinePreview({
+  path: { name: "backend", pull_request: 12 },
+  body: { branch: "feature/log-workouts", commit: "9c1b2d4e6f7a9c0b1d2e3f4f6e1c2a9b0d7e3f5a", git_access_token: token },
+});
+
+// Its address and state — building, ready, idle, refused (with why), closed:
+const { data } = await cloud.project(ref).machines.listMachinePreviews({ path: { name: "backend" } });
+
+// Closed:
+await cloud.project(ref).machines.deleteMachinePreview({ path: { name: "backend", pull_request: 12 } });
+```
+
+The branch must be one of the repository's own: a fork's pull request is not built with the environment's secrets (`branch_not_found`) — who may open one is yours to decide before you put it. A commit named must be the branch's head: a put heard after a newer push answers `commit_not_head`, and a commit already built is not built again. Your app writes on its pull request itself; Palbase writes nothing there. A put takes an admin's full credential: no narrowed environment token puts one. `palbase machines:previews:open` reopens no preview of a machine read with tokens (`preview_needs_token`): put it again.
+
 ## What GitHub shows
 
 Each build puts a check on its commit, named **Palbase Cloud · `<ref>`** for the `backend` machine and **Palbase Cloud · `<name>-<ref>`** for another: *Queued*, *Building*, *Waiting for configuration*, then *Rolled out*, *Build failed* or *Did not come up* — or *Left behind* when a newer commit of the branch is built first. The commit's checks are the quickest way to see what a push did; Studio's machine page has the same builds with their logs ([Builds, Logs & Rollback](https://palbase.studio/docs/machines/builds)).

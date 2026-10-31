@@ -2,7 +2,7 @@
 
 # Calls
 
-`pb.calls` is the signed-in person's voice and video calls on iOS. A call rings the phone as any call does — the system's own call screen through CallKit, on the lock screen and with the app closed, woken by a VoIP push — and an `@Observable` `PBCall` is what the app draws: where the call is, its cameras, its controls. A direct call's media goes between the two phones (WebRTC); a group's — or a direct call a third person joined — through the project's media server. `PalbaseCallsUI` draws the screens for an app that wants them ready-made. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](https://palbase.studio/docs/calls/overview).
+`pb.calls` is the signed-in person's voice and video calls on iOS. A call rings the phone as any call does — the system's own call screen through CallKit, on the lock screen and with the app closed, woken by a VoIP push — and an `@Observable` `PBCall` is what the app draws: where the call is, its cameras, its controls. Every call's media — one to one or in a group — goes through the platform's media server (LiveKit): a third person or the project's agent comes into the same room, and where UDP is shut it goes over TCP to port 443. `PalbaseCallsUI` draws the screens for an app that wants them ready-made. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](https://palbase.studio/docs/calls/overview).
 
 ## Install
 
@@ -62,7 +62,7 @@ struct CallButton: View {
     var body: some View {
         Button("Video call") {
             Task {
-                // Rings every device of theirs; the media goes between the two phones.
+                // Rings every device of theirs; the media goes through the media server.
                 let call = try await pb.calls.call(userId, video: true)
                 call.setMuted(true)
             }
@@ -74,7 +74,7 @@ struct CallButton: View {
 | Call | What it does |
 |---|---|
 | `call(_ userId:, video:, conversationId:, metadata:, name:, imageURL:)` | Rings one person: a direct call. `name` and `imageURL` are what they see of the caller (else the caller's messaging profile's) |
-| `callGroup(_ userIds:, video:, ring:, conversationId:, metadata:, name:, imageURL:)` | A group call, through the media server — several people, or one others may be asked to later. `ring: false` rings no one: the people asked join when they like (a huddle) |
+| `callGroup(_ userIds:, video:, ring:, conversationId:, metadata:, name:, imageURL:)` | A group call — several people, or one others may be asked to later. `ring: false` rings no one: the people asked join when they like (a huddle) |
 | `join(_ callId:)` | Comes into a group call the person was asked to — rung, missed, declined, or in before |
 | `history(missed:, limit:, cursor:)` | The person's calls, the newest first, with how each went for them; `missed: true` the ones they missed |
 | `call(id:)` | The call by its id, while it is on the device |
@@ -111,7 +111,7 @@ A `PBCall` is `@Observable`: a SwiftUI view that reads it is drawn again as it c
 | `hangUp()` | Hangs up — or cancels the call they are making, or turns down one ringing |
 | `setMuted(_:)`, `setSpeaker(_:)` | The microphone muted; the sound through the speaker |
 | `setCamera(_:)`, `flipCamera()` | The camera on or off, and the other camera — a video call's |
-| `invite(_ userIds:, ring:)` | Asks more people in: a direct call moves to the media server, going on |
+| `invite(_ userIds:, ring:)` | Asks more people in: a direct call becomes a group in the same room, going on |
 
 `CallVideoView(track, fill: true, mirrored: nil)` draws a camera in SwiftUI: filling its frame or fitted in it, this phone's own camera mirrored unless said otherwise.
 

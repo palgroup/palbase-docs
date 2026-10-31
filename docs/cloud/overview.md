@@ -2,7 +2,7 @@
 
 # Overview
 
-`palbase/cloud` is Palbase run from your own server: one client, made with your **organization's access token**, that does everything Studio and the CLI do through the API — open projects and environments, put them on Pay as you go and top up their credit from your card, read their usage and invoices, build machines and databases — and reaches every project's modules at its own address: its users, files, analytics, purchases and their charts, AI, messaging and the rest. It is for a product that opens a Palbase project for each of its own customers and keeps Palbase out of their sight: your customers sign in to your product, and your server does the rest with one token.
+`palbase/cloud` is Palbase run from your own server: one client, made with your **organization's access token**, that does everything Studio and the CLI do through the API — open organizations, projects and environments, put them on Pay as you go and have your payment account pay for them, read their usage and invoices, build machines and databases — and reaches every project's modules at its own address: its users, files, analytics, purchases and their charts, AI, messaging and the rest. It is for a product that opens a Palbase project for each of its own customers and keeps Palbase out of their sight: your customers sign in to your product, and your server does the rest with one token.
 
 Use it from a server you control. It refuses to run in a browser — the token can open, change and pay for every project of your organization, so it never belongs in an app or a web page. An app keeps using `palbase/web`, the iOS or Android SDK, with its project's publishable key.
 
@@ -14,6 +14,39 @@ Make an access token in Studio (**Organization → Access tokens**) with the **a
 - It does what its role does, in your organization alone. Another organization's project answers `404`, the same as a project that does not exist.
 - It ends on its date, when it is removed, and when the person who made it leaves the organization or is made less than its role.
 
+## An organization for each customer: account tokens
+
+An **account token** (`pbu_…`) is yours, not one organization's: with it your server opens an organization for each of your customers, and their projects in it. Make one in Studio (**Account → Tokens**) or with the CLI — it is shown once — and keep it in your server's secrets:
+
+```bash
+palbase account:tokens:create my-product --days 365
+palbase account:tokens:list      # each by its hint (pbu_…a1b2), with the organizations it opened
+palbase account:tokens:revoke <id>
+```
+
+- It reaches the organizations it opened, and only those: you are their owner, the token an admin of each. Every other organization answers `404`.
+- In them it does what an admin does — projects, environments, their modules, billing — and renames an organization or deletes an empty one; never more than your own role there now. Members, invitations, tokens and project keys stay yours, in person.
+- It stops at once, everywhere, when you delete it, when you leave one of its organizations (there, for good), or when your account is deleted. The keys of the environments it opened go with it.
+
+One payment account pays for every organization you link to it: you are charged once a month for all of them, and its report is each organization's month, item by item — what you bill your own customers by.
+
+```ts
+// customers.ts
+import { PalbaseCloud } from "palbase/cloud";
+
+const cloud = new PalbaseCloud({ token: process.env.PALBASE_ACCOUNT_TOKEN! });
+
+// An organization for a new customer, paid for by your own organization's payment account.
+const { data: customer } = await cloud.orgs.create({ body: { name: "Customer 1042" } });
+await cloud.billing.payer({ path: { id: customer.id }, body: { account: process.env.PALBASE_PAYER_ORG_ID! } });
+const { data: made } = await cloud.projects.create({ path: { id: customer.id }, body: { name: "shop" } });
+await cloud.projects.addEnvironment({ path: { id: made.project.id }, body: { name: "main", slug: "main" } });
+
+// At the month's end: what each customer's organization owed, environment by environment.
+const { data: month } = await cloud.billing.report({ path: { id: process.env.PALBASE_PAYER_ORG_ID! }, query: { period: "2026-11" } });
+for (const org of month.organizations) console.log(org.name, org.owed_micros / 1_000_000);
+```
+
 ## Quick example
 
 ```ts
@@ -22,18 +55,16 @@ import { PalbaseCloud } from "palbase/cloud";
 
 const cloud = new PalbaseCloud({ token: process.env.PALBASE_TOKEN! });
 
-// One project for one of your customers, and its environment — Free until its first top-up.
+// One project for one of your customers, and its environment — Free until you move it to Pay as you go.
 // A project opened by the API has no environment yet; its keys are shown once, as the environment is added.
 const org = process.env.PALBASE_ORG_ID!;
 const { data: made } = await cloud.projects.create({ path: { id: org }, body: { name: "customer-1042" } });
 const { data: added } = await cloud.projects.addEnvironment({ path: { id: made.project.id }, body: { name: "main", slug: "main" } });
 const ref = added.environment.ref;
 
-// Its first top-up, from the organization's default card, moves it to Pay as you go.
-await cloud.billing.topUp({ path: { id: org, ref }, body: { amount_micros: 20_000_000, plan: "pay_as_you_go" } });
-
-// Topped up again by itself: $20 whenever it falls under $5.
-await cloud.billing.steer({ path: { id: org, ref }, body: { auto_topup: true, auto_threshold_micros: 5_000_000, auto_amount_micros: 20_000_000 } });
+// On Pay as you go: what it uses past its free quota is charged to the payment account that pays for the organization,
+// at the month's end — at most $200 a month.
+await cloud.billing.steer({ path: { id: org, ref }, body: { plan: "pay_as_you_go", monthly_limit_micros: 200_000_000 } });
 
 // What it used, and its users — at the project's own address.
 const usage = await cloud.projects.usage({ path: { ref } });
@@ -50,7 +81,7 @@ The client's own namespaces are Studio's API — the same calls Studio's screens
 | Namespace | What it does |
 | --- | --- |
 | `orgs`, `projects` | the organization, its members and audit log; projects and their environments, usage, keys' hints, GitHub installations shared to a new environment |
-| `billing` | the bill, cards, invoices and charges; an environment's plan, monthly limit, automatic top-up, balance and ledger; top-ups and bank transfers |
+| `billing` | the bill, cards, invoices and charges; an environment's plan and monthly limit; the payment account that pays for the organization |
 | `webhooks`, `orgWebhooks` | an environment's webhook endpoints and deliveries; the organization's own endpoints for its projects' billing events |
 | `environmentTokens` | tokens for one environment: an agent's, or one of your users' (below) |
 | `apps`, `snippets`, `chartViews`, `accessRequests`, `docs` | client apps, saved database snippets and chart views, access requests, the docs' search |
@@ -102,7 +133,7 @@ Ask your user before you confirm, with the plan's own summary: the hash makes su
 
 ## Billing events to your server
 
-Register your organization's endpoint once, and each of your projects' balance events reaches it as it happens — with its `ref`, its name and the amounts:
+Register your organization's endpoint once, and each of your projects' billing events reaches it as it happens — with its `ref`, its name and the amounts:
 
 ```ts
 import { PalbaseCloud } from "palbase/cloud";
@@ -112,7 +143,7 @@ const org = process.env.PALBASE_ORG_ID!;
 
 const { data: endpoint } = await cloud.orgWebhooks.add({
   path: { id: org },
-  body: { url: "https://api.example.com/palbase/billing", events: ["org.billing.low_balance", "org.billing.balance_exhausted", "org.billing.limit_reached", "org.billing.topup_failed"] },
+  body: { url: "https://api.example.com/palbase/billing", events: ["org.billing.limit_reached"] },
 });
 // endpoint.secret is shown once: verify each delivery's Palbase-Signature with it.
 ```

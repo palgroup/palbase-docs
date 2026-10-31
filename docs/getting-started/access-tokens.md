@@ -106,8 +106,9 @@ Test users, and the sign-ins made for them, are open: they are test fixtures, an
 
 | Scope | What it reaches |
 |---|---|
-| `machines:read` | The environment's machines, their builds, crons and queues (not a task's payload), contracts and metrics |
+| `machines:read` | The environment's machines, their builds, crons and queues (not a task's payload), contracts, metrics and pull requests' previews |
 | `machines:logs` | A machine's logs and its builds' logs |
+| `machines:previews` | A machine's pull request preview opened again (`palbase machines:previews:open`): what a push to the pull request would build anyway — never a commit the token's holder chooses |
 | `apps:sync` | What `palbase apps:sync` reads: the project's apps as they are in this environment, their client settings, the machines' contracts |
 | `auth:test-users` | The environment's test users: made with their sign-ins, listed, deleted, their kept mail and texts read (`palbase auth:test-users:messages`), a sign-up address made (`palbase auth:test-users:address`). Not other users |
 | `support` | A question to Palbase's support line (`palbase support:ask`, `POST /ai/support-questions`): an agent asks Palbase what it cannot find out, not the person it works for |

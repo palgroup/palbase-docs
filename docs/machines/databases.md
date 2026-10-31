@@ -47,7 +47,7 @@ A project has **3 databases** at most — a deleted one counts until it is purge
 | `dedicated-1x` | 1 vCPU of its own | 4 GiB | 25 GB | never |
 | `dedicated-2x` | 2 vCPU of its own | 8 GiB | 50 GB | never |
 
-`free` is the size every project may open. The others are sizes that are paid for: open to an environment on Pay as you go with credit ([Billing](https://palbase.studio/docs/getting-started/billing)); another is refused one with `403 size_not_available`.
+`free` is the size every project may open. The others are sizes that are paid for: open to an environment on Pay as you go whose payment account is not held ([Billing](https://palbase.studio/docs/getting-started/billing)); another is refused one with `403 size_not_available`.
 
 A size that sleeps is put to sleep when it is idle and **woken by the next connection**, in about 10 seconds; the client's connection waits for it. A `free` database awake for its 400 hours sleeps until the month ends, and a client is told so; one asleep for a week is **archived**, and its next connection brings it back from its backup. The other sizes never sleep and live on a disk of their own.
 
@@ -110,7 +110,7 @@ A change of `database` gives it whole: `migrations` left out is `false`. `{ name
 
 ## A pull request preview's own
 
-A machine that runs its database's migrations and previews its pull requests ([Pull request previews](https://palbase.studio/docs/machines/hosting#pull-request-previews)) has each preview given a database of its own, `<database>-pr<number>`, of the `preview` size: 0.25 vCPU, 512 MiB and 500 MB, asleep when idle, with **no backups** — no moment of it can be brought back. It is opened empty with its preview, migrated by the preview's releases, and deleted — at once, with no restore window — when its preview goes: its pull request closed, three days without a push, or the machine deleted. It is listed with the environment's databases, counts against none of them, and is not billed. No database is opened at the `preview` size, moved to it or from it, or named `<name>-pr<number>` by hand.
+A machine that runs its database's migrations and previews its pull requests ([Pull request previews](https://palbase.studio/docs/machines/hosting#pull-request-previews)) has each preview given a database of its own, `<database>-pr<number>`, of the `preview` size: 0.25 vCPU, 512 MiB and 500 MB, asleep when idle, with **no backup to bring it back from**: no base backup is taken of it, and no moment of it can be restored. It is opened empty with its preview, migrated by the preview's releases, and deleted — at once, with no restore window — when its preview goes: its pull request closed, three days without a push, or the machine deleted. It is listed with the environment's databases, counts against none of them, and is not billed. No database is opened at the `preview` size, moved to it or from it, or named `<name>-pr<number>` by hand.
 
 ## Passwords
 

@@ -45,7 +45,7 @@ It answers the call ([A call](#a-call)):
 | `404 conversation_not_found` | The caller is not in the conversation named |
 | `409 in_another_call` | The caller is in another call on another device |
 | `429 too_many_calls` | 10 calls this minute, or the project's `calls_per_hour` this hour |
-| `429 quota_exceeded` | A free project's call minutes of this kind are used up this month: calls going on go on, no new one starts |
+| `429 quota_exceeded` | A free project's call data is used up this month: calls going on go on, no new one starts |
 
 ## Answering, declining, joining, leaving
 
@@ -67,18 +67,7 @@ The heartbeat answers the call's `state`, its `version`, its `end_reason`, and w
 
 ## The media
 
-`POST /calls/{call_id}/media` with `{ "device_id" }`, once the device is in the call, says how its media flows. The answer's `mode`:
-
-**`p2p`** — a direct call, device to device (WebRTC):
-
-| Field | What it is |
-|---|---|
-| `ice_servers` | The STUN server, and the relay (TURN) with a credential of this device's own: it is revoked as the device leaves the call, and lasts 12 hours at most |
-| `ice_transport_policy` | `relay` when the project's `relay_all` is on (give it to the peer connection as its `iceTransportPolicy`); else `all` |
-| `offerer` | This device makes the offer — the caller's; the other answers it |
-| `peer_user_id`, `peer_device_id` | The other person, and the device they answered on |
-
-**`sfu`** — a group, or a direct call that moved there:
+Every call's media goes through the media server, one to one too. `POST /calls/{call_id}/media` with `{ "device_id" }`, once the device is in the call, is its ticket into the call's room:
 
 | Field | What it is |
 |---|---|
@@ -86,36 +75,15 @@ The heartbeat answers the call's `state`, its `version`, its `end_reason`, and w
 | `token` | The device's ticket into the call's room: 6 hours, and back in after a lost connection |
 | `room` | The call's room |
 
-The media server is LiveKit (open source): a device connects to `url` with `token` through LiveKit's client SDK, which the Palbase SDKs use. When a direct call moves to the media server — someone was asked in, or an agent let in — the call's snapshot says `mode: "sfu"`: each device asks for its media again and moves, the call going on.
+The media server is LiveKit (open source): a device connects to `url` with `token` through LiveKit's client SDK, which the Palbase SDKs use. The caller is in a call from its start, so the caller's device joins the room as the call rings — it is sent no one's sound or picture until someone answers; a person called joins once they answered (or joined a group). A direct call that grows — someone asked in, an agent let in — goes on in the same room. Where a network lets no UDP out, LiveKit's client reaches the server over TCP on port 443 (straight, not through an HTTPS proxy).
 
 Refused: `409 not_in_call` or `answered_elsewhere` (this device is not the one in the call), `409 call_ended`.
 
-### Signals
-
-A direct call's two devices tell each other what WebRTC needs — an offer, an answer, their candidates, a goodbye — through Palbase: `POST /calls/{call_id}/signals` with `{ "device_id", "type", "sdp", "candidate" }`, `type` one of `offer`, `answer`, `candidate`, `bye`. It answers `202` with the signal's place in the call's order (`seq`), and the other device hears it on its channel as it is sent (`signal`, [below](#the-channel)).
-
-- **Nothing goes before the call is answered.** No address of a device leaves it for someone who did not pick up: before the answer, and in a call on the media server, a signal is `409 no_peer`.
-- **What was missed is kept.** A device that was away reads the signals for it after the last it has: `GET /calls/{call_id}/signals?device_id=<its id>&after=<seq>`. They are kept a day.
-- **Within reason.** An SDP is 32 KiB at most (`413 request_too_large` past it); a call has 2,000 signals at most (`429 too_many_signals`).
-
-```json
-{
-  "type": "candidate",
-  "device_id": "ios-6f1c",
-  "candidate": { "candidate": "candidate:1 1 udp 2122260223 192.0.2.10 54400 typ host", "sdp_mid": "0", "sdp_m_line_index": 0 }
-}
-```
-
 ## The channel
 
-Each person hears their calls on their own realtime channel, `calls:<ref>:<user_id>`, joined on the project's socket by their apps ([Web Realtime](https://palbase.studio/docs/web/realtime)). Two events come on it:
+Each person hears their calls on their own realtime channel, `calls:<ref>:<user_id>`, joined on the project's socket by their apps ([Web Realtime](https://palbase.studio/docs/web/realtime)). One event comes on it, `call`: a call of theirs as it is now — the same object `GET /calls/{call_id}` answers — each time it changes: rung, answered, declined, joined, left, grown into a group, ended.
 
-| Event | What it carries |
-|---|---|
-| `call` | A call of theirs as it is now — the same object `GET /calls/{call_id}` answers — each time it changes: rung, answered, declined, joined, left, moved to the media server, ended |
-| `signal` | A signal from the other device of their direct call: `call_id`, `seq`, `from_user_id`, `from_device_id`, `to_device_id`, `type`, `created_at`, and its `sdp` (an offer or an answer) or `candidate` (a candidate). Every device of the person's hears it; the one `to_device_id` names takes it |
-
-Each `call` carries the call's `version`, which grows with every change: keep the highest seen, and drop an older snapshot that arrives late. What the channel tells is told once, as it happens: an app that was not listening reads the call (`GET /calls/{call_id}`) and its signals (`GET /calls/{call_id}/signals`), and the heartbeat's `version` says when it missed something.
+Each `call` carries the call's `version`, which grows with every change: keep the highest seen, and drop an older snapshot that arrives late. What the channel tells is told once, as it happens: an app that was not listening reads the call (`GET /calls/{call_id}`), and the heartbeat's `version` says when it missed something.
 
 ## History
 
@@ -130,7 +98,6 @@ Each `call` carries the call's `version`, which grows with every change: keep th
 | `video` | A video call; else voice |
 | `ring` | Whether it rings the people asked; `false`: a huddle |
 | `state` | `ringing` (a direct call not answered yet), `active`, `ended` |
-| `mode` | `p2p` (between two devices) or `sfu` (through the media server) |
 | `caller_id` | Who called |
 | `conversation_id` | The conversation it was made from, or null |
 | `metadata` | The caller's app's own words about it |
@@ -141,4 +108,4 @@ Each `call` carries the call's `version`, which grows with every change: keep th
 | `version` | Grows with every change |
 | `participants` | Its people and agents (below) |
 
-A participant: `user_id` (an agent's is `bot:<identity>`), `kind` (`user` or `bot`), `role` (`caller`, `callee` — the one called in a direct call — or `member`), `state` (`ringing`, `invited` — asked to a huddle —, `joined`, `left`, `declined`, `missed`, `busy`), `device_id` (the device they are in it on), `name` and `image_url` as their profile shows them, `invited_at`, `joined_at` (when their present stretch in it began), `left_at`, and `seconds` (how long they were in it before the present stretch).
+A participant: `user_id` (an agent's is `bot:<identity>`), `kind` (`user` or `bot`), `role` (`caller`, `callee` — the one called in a direct call — or `member`), `state` (`ringing`, `invited` — asked to a huddle —, `joined`, `left`, `declined`, `missed`, `busy`), `device_id` (the device they are in it on), `name` and `image_url` as their profile shows them, `invited_at`, `joined_at` (when their present stretch in it began), `left_at`, `seconds` (how long they were in it before the present stretch), and `bytes` (what the media server sent them in it — what the call is billed by — a minute behind at most).

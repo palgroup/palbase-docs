@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.30.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.33.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-417 commands in 34 groups.
+419 commands in 35 groups.
 
 ## Global flags
 
@@ -163,13 +163,13 @@ With an environment's token (PALBASE_TOKEN, scope auth:test-users) the test user
 
 ### `palbase billing`
 
-An organization's card and each environment's plan, balance, month and limit
+Who pays for an organization, how its payment account stands, and each environment's plan, month and limit
 
 ```sh
 palbase billing [--org <org>]
 ```
 
-A member reads the plans and what was used; the money (balances, amounts) is an owner's or an admin's.
+A member reads the plans, what was used and who pays; the money (amounts, the card) is an owner's or an admin's.
 
 ```text
       --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
@@ -223,11 +223,11 @@ palbase env:tokens:create [--scope <scope>[,<scope>]] [--minutes <n>] [--name <n
 ```
 
 It does in this environment what your role does — as your own CLI would — but never makes or shows a standing credential (a key, a token), changes people or roles, or deletes a project or an environment; nothing beyond this environment.
---scope narrows it to: machines:read, machines:logs, apps:sync, auth:test-users, support — machines:read reads the machines, their builds, crons and queues; machines:logs their logs; apps:sync what palbase apps:sync reads; auth:test-users makes and deletes test users; support asks Palbase's support line (palbase support:ask).
+--scope narrows it to: machines:read, machines:logs, machines:previews, apps:sync, auth:test-users, support — machines:read reads the machines, their builds, crons, queues and pull requests' previews; machines:logs their logs; machines:previews opens a pull request's preview again (machines:previews:open: what a push to it would build anyway); apps:sync what palbase apps:sync reads; auth:test-users makes and deletes test users; support asks Palbase's support line (palbase support:ask).
 Give it to the program as PALBASE_TOKEN: the CLI acts in this environment alone with it. It ends after --minutes (default 60, at most 240), and with what minted it.
 
 ```text
-      --scope <scope>  narrow it to: machines:read, machines:logs, apps:sync, auth:test-users, support (comma-separated, or given again); none: your role
+      --scope <scope>  narrow it to: machines:read, machines:logs, machines:previews, apps:sync, auth:test-users, support (comma-separated, or given again); none: your role
       --minutes <n>    how long it lives (default 60, at most 240)
       --name <name>    what it is for, as the environment lists it
 ```
@@ -274,6 +274,8 @@ Make an organization; you are its owner
 ```sh
 palbase orgs:create <name>
 ```
+
+With an account token in PALBASE_TOKEN, the token's maker is its owner and the token its admin: one organization more the token reaches.
 
 ### `palbase orgs:members:list`
 
@@ -370,6 +372,39 @@ palbase tokens:revoke <name|id>
       --org <org>  the organization (name or id)
 ```
 
+## `account`
+
+### `palbase account:tokens:list`
+
+Your account tokens (for a program that opens organizations): name, how many organizations they reach, when they end and were last used — never their values
+
+```sh
+palbase account:tokens:list
+```
+
+### `palbase account:tokens:create`
+
+Make an account token for a program that opens organizations; its value is shown this once
+
+```sh
+palbase account:tokens:create <name> [--days <n>]
+```
+
+Give it to the program as its secret (PALBASE_TOKEN, or palbase/cloud's token): it opens organizations — you their owner, the token their admin — and builds projects and environments there.
+It reaches only the organizations it opened, never your others; it makes no token or key and changes no one's place. It ends after --days (default 90, at most 365), when it is revoked, and, in an organization, when you leave it.
+
+```text
+      --days <n>  how many days it is good for (default 90)
+```
+
+### `palbase account:tokens:revoke`
+
+Revoke one of your account tokens (by its name or id): refused from its next request on; the organizations it opened stay yours
+
+```sh
+palbase account:tokens:revoke <name|id>
+```
+
 ## `billing`
 
 ### `palbase billing:charges`
@@ -380,92 +415,87 @@ A month's charges, by environment and item — used, at the price table, charged
 palbase billing:charges [--period <YYYY-MM>] [--csv] [--org <org>]
 ```
 
---csv prints the CSV Studio downloads: what an organization bills its own customers by.
+--csv prints the CSV Studio downloads.
 
 ```text
       --org <org>         the organization (name or id; the one of the environment chosen here, or your only one)
       --period <YYYY-MM>  the month (this one by default)
-      --csv               print the charges as CSV
+      --csv               print it as CSV
 ```
 
 ### `palbase billing:invoices`
 
-The invoices of an organization's top-ups, each of an environment: Stripe makes one of each, and emails it
+The invoices of an organization's payment account — each month's charge, and each charge at its threshold: Stripe makes one of each, and emails it
 
 ```sh
-palbase billing:invoices [<project/env | ref>] [--org <org>]
+palbase billing:invoices [--org <org>]
 ```
 
 ```text
       --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
 ```
 
-### `palbase billing:ledger`
-
-Every change of an environment's balance, newest first: top-ups, usage taken, credit moved, refunds, what expired
-
-```sh
-palbase billing:ledger [<project/env | ref>] [--limit <n>]
-```
-
-```text
-      --limit <n>  how many at most (default 50)
-```
-
 ### `palbase billing:env`
 
-An environment's place in the bill — its plan, frozen, its month's limit, its automatic top-up — read, or changed
+An environment's place in the bill — its plan, frozen, its month's limit — read, or changed
 
 ```sh
-palbase billing:env [<project/env | ref>] [--plan free|pay_as_you_go] [--limit <usd>|none] [--frozen yes|no] [--auto-topup yes|no] [--threshold <usd>] [--amount <usd>] [--low-balance-days <n>] [-y]
+palbase billing:env [<project/env | ref>] [--plan free|pay_as_you_go] [--limit <usd>|none] [--frozen yes|no] [-y]
 ```
 
-With no flag it shows the environment: its plan, balance, automatic top-up and month.
-Each environment pays for itself: at its limit, or its balance run out, it is Free until the month ends or a top-up comes; the organization's other environments go on. Moved to Pay as you go it needs credit to pay from: its first top-up (palbase billing:topup) moves it.
+With no flag it shows the environment: its plan, limit and month.
+Pay as you go: what it uses past its free quota is owed to the payment account that pays for its organization (palbase billing:payer), charged at the month's end and as it comes to the account's threshold. An environment is moved to it only while its organization is paid for by an account with a card.
+At its limit it is Free until the month ends; the organization's other environments go on.
 Frozen, its requests are refused and its machines and databases stopped, its data kept; only what it stores is charged. Freezing asks first; -y does not.
 
 ```text
-      --plan <free|pay_as_you_go>  Free (charged nothing, held to the free quotas, its credit kept) or Pay as you go (paid from its balance)
+      --plan <free|pay_as_you_go>  Free (charged nothing, held to the free quotas) or Pay as you go (what it uses past its free quota is charged)
       --limit <usd|none>           at most this much a month; none for no limit
       --frozen <yes|no>            frozen: its requests refused, its machines and databases stopped, its data kept
-      --auto-topup <yes|no>        take a top-up from the organization's card when the balance is under the threshold
-      --threshold <usd>            the balance under which it is taken
-      --amount <usd>               how much it takes ($10 at least)
-      --low-balance-days <n>       email the owners when the balance lasts fewer than n days of spend (1 to 60)
 ```
 
-### `palbase billing:topup`
+### `palbase billing:payer`
 
-Put money on an environment's balance now — from what the organization's bank transfers left, else its saved card: $10 to $10,000, the tax on top, an invoice made of it
+Link an organization to the payment account that pays for it — an organization of yours whose account it is — or to none
 
 ```sh
-palbase billing:topup [<project/env | ref>] <usd> [-y]
+palbase billing:payer <account org | none> [--org <org>]
 ```
 
-It takes the money: it asks first, and -y does not. An environment on Free is moved to Pay as you go by it (its first top-up).
-With no card saved yet, the first top-up is on Stripe's page, in Studio.
+One payment account pays for many organizations: it is charged for what each one's environments on Pay as you go owe, in one invoice a month (palbase billing:report).
+An admin of the organization who also manages the account (an owner or an admin of its organization) links it — or their account token. With none, its environments on Pay as you go go Free; what they owed so far stays the account's.
 
-### `palbase billing:bank-transfer`
+```text
+      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
+```
 
-An invoice of an environment's top-up to pay by bank transfer, to the organization's own bank details: credited as the money arrives
+### `palbase billing:paid`
+
+The organizations an organization's payment account pays for — its managers'
 
 ```sh
-palbase billing:bank-transfer [<project/env | ref>] <usd>
+palbase billing:paid [--org <org>]
 ```
 
-Stripe emails the invoice with the bank details; nothing is taken until the transfer arrives.
-A transfer of more than the invoice stays with the organization and pays its environments' next top-ups, before any card — for 75 days, then Stripe sends what is left back.
+```text
+      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
+```
 
-### `palbase billing:transfer`
+### `palbase billing:report`
 
-Move credit from one of an organization's environments to another — all of it, or an amount — each part with its expiry
+A payment account's month: each organization it paid for, each environment, what it owes — as a table or as CSV (item by item)
 
 ```sh
-palbase billing:transfer <from project/env | ref> <to project/env | ref> [<usd>] [-y]
+palbase billing:report [--period <YYYY-MM>] [--csv] [--org <org>]
 ```
 
-An owner's or an admin's (an admin's access token too); never to another organization's environment. It asks first, and -y does not.
-A deleted environment keeps its credit until it is purged (a week): move it before then, or it is lost.
+What an organization that pays for its own customers' organizations bills them by: --csv gives each item of each environment, and what the account is charged for it (owed).
+
+```text
+      --org <org>         the organization (name or id; the one of the environment chosen here, or your only one)
+      --period <YYYY-MM>  the month (this one by default)
+      --csv               print it as CSV
+```
 
 ## `projects`
 
@@ -1680,7 +1710,7 @@ It is not undone: asked before it is done, whatever the environment (-y confirms
 
 ### `palbase calls:settings:get`
 
-How the environment runs its calls: how many a call holds, whether every direct call goes through the relay, how many calls a person may start in an hour, the hook
+How the environment runs its calls: how many a call holds, how many calls a person may start in an hour, the hook
 
 ```sh
 palbase calls:settings:get
@@ -1691,17 +1721,16 @@ palbase calls:settings:get
 Change how the environment runs its calls: a setting left out is left as it is
 
 ```sh
-palbase calls:settings:set [--max-participants <n>] [--relay-all on|off] [--calls-per-hour <n>]
+palbase calls:settings:set [--max-participants <n>] [--calls-per-hour <n>]
 ```
 
 A call holds at most --max-participants, people and the project's bots together, as the setting was when the call was made: a change holds for the calls made after it.
-Relay all on: every direct call's media goes through the relay (TURN), so neither device learns the other's address, at the price of a hop. Off: the two devices reach each other directly when they can. A group call goes through the media server either way.
+Every call's media, one to one or in a group, goes through the platform's media server: no device learns another's address.
 A person who has started --calls-per-hour calls in the last hour is refused another (too_many_calls).
 Only what changes is sent: a change made beside this one to another setting stays.
 
 ```text
       --max-participants <n>  how many a call holds, people and bots together (2–100)
-      --relay-all <on|off>    every direct call's media through the relay: no one learns another's address, at the price of a hop (on), or between the devices when they can (off)
       --calls-per-hour <n>    how many calls one person may start in an hour (1–1000)
 ```
 
@@ -1775,13 +1804,14 @@ A call's length is from its answer to its end, in seconds: a group call, which n
 
 ### `palbase calls:get`
 
-One call with its people and bots: how each was in it (rung, joined, left, declined, missed, busy) and for how many seconds
+One call with its people and bots: how each was in it (rung, joined, left, declined, missed, busy), for how many seconds, and what the media server sent them
 
 ```sh
 palbase calls:get <call id>
 ```
 
---json carries the call whole: its people's names and pictures, the caller's app's words about it (metadata).
+Every call's media goes through the platform's media server, and a call is billed by the data it sent the call's people: each one's, in bytes, is as its meter last told it (up to a minute behind).
+--json carries the call whole: its people's names and pictures, the caller's app's words about it (metadata), each one's bytes.
 
 ### `palbase calls:end`
 
