@@ -2,17 +2,17 @@
 
 # Calls
 
-`pb.calls` is the signed-in person's voice and video calls on iOS. A call rings the phone as any call does — the system's own call screen through CallKit, on the lock screen and with the app closed, woken by a VoIP push — and an `@Observable` `PBCall` is what the app draws: where the call is, its cameras, its controls. Every call's media — one to one or in a group — goes through the platform's media server (LiveKit): a third person or the project's agent comes into the same room, and where UDP is shut it goes over TCP to port 443. `PalbaseCallsUI` draws the screens for an app that wants them ready-made. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](https://palbase.studio/docs/calls/overview).
+`pb.calls` is the signed-in person's voice and video calls on iOS. A call rings the phone as any call does — the system's own call screen through CallKit, on the lock screen and with the app closed, woken by a VoIP push — and an `@Observable` `PBCall` is what the app draws, in its own design: where the call is, its cameras and shared screens, who is speaking, its controls. Palbase gives the data, not the screens. Every call's media — one to one or in a group — goes through the platform's media server (LiveKit): a third person or the project's agent comes into the same room, and where UDP is shut it goes over TCP to port 443. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](https://palbase.studio/docs/calls/overview).
 
 ## Install
 
 The calls are a Swift package of their own, so an app that makes no calls takes none of their weight. Add `https://github.com/palgroup/palbase-swift-calls` with Swift Package Manager, at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.14.1")
+.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.16.0")
 ```
 
-Link `PalbaseCalls` (the calls, headless) and, for the ready screens, `PalbaseCallsUI`. They bring Palbase's core and `PalbaseNotify` of the same version, and LiveKit's WebRTC and client SDK, which the media server's calls go through. **Do not add LiveKit's own Swift package beside them**: its client SDK is already inside `PalbaseCalls`. It needs iOS 18 and Xcode 16.3 or newer.
+Link `PalbaseCalls` to the app — and `PalbaseCallsBroadcast` to its Broadcast Upload Extension alone, when it shares the whole screen ([Sharing a screen](#sharing-a-screen)). `PalbaseCalls` brings Palbase's core and `PalbaseNotify` of the same version, and LiveKit's WebRTC and client SDK, which the media server's calls go through. **Do not add LiveKit's own Swift package beside them**: its client SDK is already inside `PalbaseCalls`. It needs iOS 18 and Xcode 16.3 or newer.
 
 The app:
 
@@ -74,8 +74,9 @@ struct CallButton: View {
 | Call | What it does |
 |---|---|
 | `call(_ userId:, video:, conversationId:, metadata:, name:, imageURL:)` | Rings one person: a direct call. `name` and `imageURL` are what they see of the caller (else the caller's messaging profile's) |
-| `callGroup(_ userIds:, video:, ring:, conversationId:, metadata:, name:, imageURL:)` | A group call — several people, or one others may be asked to later. `ring: false` rings no one: the people asked join when they like (a huddle) |
-| `join(_ callId:)` | Comes into a group call the person was asked to — rung, missed, declined, or in before |
+| `callGroup(_ userIds:, video:, ring:, conversationId:, place:, metadata:, name:, imageURL:)` | A group call — several people, or one others may be asked to later. `ring: false` rings no one: the people asked join when they like (a huddle); `place:` holds it at a place, no one need be asked |
+| `join(_ callId:, name:, imageURL:)` | Comes into a group call: one the person was asked to — rung, missed, declined, or in before — or, unasked, one held at a place that lets them in ([A call at a place](#a-call-at-a-place)); `name` and `imageURL` are what the others see of them there |
+| `place(_ name:)` | A place of the app (`channel:42`) and the call going on there ([A call at a place](#a-call-at-a-place)) |
 | `history(missed:, limit:, cursor:)` | The person's calls, the newest first, with how each went for them; `missed: true` the ones they missed |
 | `call(id:)` | The call by its id, while it is on the device |
 
@@ -97,6 +98,9 @@ A `PBCall` is `@Observable`: a SwiftUI view that reads it is drawn again as it c
 | `media` | `.idle`, `.connecting`, `.connected`, `.reconnecting`, `.failed` |
 | `isMuted`, `isCameraOn`, `isSpeakerOn`, `isFrontCamera` | The controls' state |
 | `localVideo`, `remoteVideos`, `video(of:)` | This phone's camera while it is on, the others' cameras each with whose it is (`CallVideoTrack.userId`), and one person's |
+| `isScreenSharing`, `remoteScreens`, `screen(of:)` | This phone shares a screen; the others' shared screens, apart from their cameras (`CallVideoTrack.isScreen`), and one person's |
+| `speaking` | The user ids of those heard speaking now |
+| `place` | The place it is held at, if it is |
 | `connectedAt` | When it was answered (a direct call) or the person came in (a group): what a duration counts from |
 | `problem` | The last thing that went wrong here — a refusal, the media failing: what a screen may show |
 | `onSystem` | The system's call screen carries it |
@@ -112,48 +116,128 @@ A `PBCall` is `@Observable`: a SwiftUI view that reads it is drawn again as it c
 | `setMuted(_:)`, `setSpeaker(_:)` | The microphone muted; the sound through the speaker |
 | `setCamera(_:)`, `flipCamera()` | The camera on or off, and the other camera — a video call's |
 | `invite(_ userIds:, ring:)` | Asks more people in: a direct call becomes a group in the same room, going on |
+| `setScreenShare(_:)` | Shares the screen, or stops sharing it ([Sharing a screen](#sharing-a-screen)) |
 
-`CallVideoView(track, fill: true, mirrored: nil)` draws a camera in SwiftUI: filling its frame or fitted in it, this phone's own camera mirrored unless said otherwise.
+`CallVideoView(track, fill: true, mirrored: nil)` draws a camera — or a shared screen — in SwiftUI: filling its frame or fitted in it, this phone's own camera mirrored unless said otherwise.
 
-## Ready-made screens
+## Drawing the call
 
-`PalbaseCallsUI` shows the calls over the app: an incoming call that rings in the app (who calls, voice or video, Decline and Accept), then the call the person is in — the others' cameras or their picture, this phone's camera in a corner, how long it has gone on, and mute, speaker, camera, flip and hang up.
+The app draws its own screens from `pb.calls`: `ringing` is the call to show ringing in the app (a call on the system's screen is answered there), `current` the call the person is in. Over the whole app:
 
 ```swift
 import PalbaseCalls
-import PalbaseCallsUI
 import SwiftUI
 
-@main
-struct MyApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+struct CallOverlay: ViewModifier {
+    private var call: PBCall? { pb.calls.ringing ?? pb.calls.current }
 
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .callScreens(pb.calls)
-                .callTexts(turkish)
+    func body(content: Content) -> some View {
+        content.fullScreenCover(item: Binding(get: { call }, set: { _ in })) { call in
+            if call.phase == .ringing {
+                VStack(spacing: 24) {
+                    Text(call.title).font(.title)
+                    Text(call.isVideo ? "Video call" : "Voice call")
+                    HStack(spacing: 64) {
+                        Button("Decline") { Task { await call.decline() } }
+                        Button("Accept") { Task { try? await call.accept() } }
+                    }
+                }
+            } else {
+                InCall(call: call)
+            }
         }
     }
+}
 
-    private var turkish: CallTexts {
-        var t = CallTexts()
-        t.incomingVoice = "Sesli arama"
-        t.incomingVideo = "Görüntülü arama"
-        t.accept = "Aç"
-        t.decline = "Reddet"
-        t.hangUp = "Kapat"
-        return t
+struct InCall: View {
+    let call: PBCall
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            // A shared screen fills the screen; else the other's camera.
+            if let shared = call.remoteScreens.first ?? call.remoteVideos.first {
+                CallVideoView(shared, fill: shared.isScreen == false)
+            } else {
+                Text(call.title).font(.largeTitle)
+            }
+            if let me = call.localVideo { CallVideoView(me).frame(width: 110, height: 160) }
+        }
+        .overlay(alignment: .bottom) {
+            HStack {
+                Button(call.isMuted ? "Unmute" : "Mute") { call.setMuted(!call.isMuted) }
+                Button(call.isScreenSharing ? "Stop sharing" : "Share screen") {
+                    Task { try? await call.setScreenShare(!call.isScreenSharing) }
+                }
+                Button("Hang up") { Task { await call.hangUp() } }
+            }
+        }
     }
 }
 ```
 
-- `.callScreens(pb.calls)` — the ready screens, `IncomingCallView` and `InCallView`.
-- `.callScreens(pb.calls, incoming: { call in … }, inCall: { call in … })` — the app's own screen for either or both, each given the `PBCall`.
-- `.callTexts(_:)` — every word they say (`CallTexts`: `incomingVoice`, `incomingVideo`, `calling`, `connecting`, `reconnecting`, `elsewhere`, `ended`, `accept`, `decline`, `hangUp`, `mute`, `speaker`, `camera`, `flip`).
-- The parts, for a screen of the app's own: `CallStatus(call:)` (where the call is, in words, and its duration), `CallControls(call:)`, `CallAvatar(call:size:)`.
+The example app (`Examples/PalbaseExample`, `CallScreens.swift`) draws the ringing screen and the call this way — the others' tiles framed while `speaking` names them, the call's clock from `connectedAt`, `problem` when something failed.
 
-A call on the system's screen is answered there; the app's screens show it once the app is in front.
+## Sharing a screen
+
+`setScreenShare(true)` sends a screen into the call as a picture of its own, apart from the camera: the others get it as one of their `remoteScreens`; `isScreenSharing` says it, and `setScreenShare(false)` stops it. It goes through the media server as the camera does, and its data is the call's ([What it costs](https://palbase.studio/docs/calls/overview#what-it-costs)). What is shared is the configuration's `screenShare`:
+
+- **`.inApp`** (the default) — the app's own screen, captured in the app (ReplayKit): nothing to set up. iOS asks the person before it records the app's screen.
+- **`.broadcastExtension`** — the whole screen, the app in the background too, through the app's **Broadcast Upload Extension**: sharing shows the system's picker and starts with the broadcast.
+
+```swift
+pb.calls.configure(.init(screenShare: .broadcastExtension))
+```
+
+The extension is the app's own target, set up once in Xcode:
+
+1. **File › New › Target › Broadcast Upload Extension**; its bundle identifier is the app's with `.broadcast` after it (`com.example.app.broadcast`), with **Include UI Extension** left unchecked.
+2. Link **`PalbaseCallsBroadcast`** (palbase-swift-calls) to the extension alone, and make its `SampleHandler` a subclass with nothing in it:
+
+   ```swift
+   import PalbaseCallsBroadcast
+
+   final class SampleHandler: PalbaseBroadcastHandler, @unchecked Sendable {}
+   ```
+
+3. Give the app and the extension the same **App Group** — `group.` and the app's bundle identifier (`group.com.example.app`) — in both targets' Signing & Capabilities. Another group is named by `RTCAppGroupIdentifier` in both `Info.plist`s, and another extension by `RTCScreenSharingExtension` in the app's.
+
+Without the app group, `setScreenShare(true)` is refused with `no_broadcast_extension`. On iOS 27 and newer the system's own picker shares from the app (ScreenCaptureKit), the extension's part all the same.
+
+## A call at a place
+
+`pb.calls.place(_:)` is a place of the app — a channel (`channel:42`), a conversation of Palbase's messaging (`conversation:<id>`) — and the call going on there ([A call at a place](https://palbase.studio/docs/calls/overview#a-call-at-a-place)): a `CallPlace`, `@Observable`, one object for a place while the app holds it.
+
+| | What it is |
+|---|---|
+| `call` | The call going on there (`CallsAPI.Call`), `nil` for none |
+| `isWatching`, `problem` | It is watched; the last thing that went wrong — `not_allowed` where the project's rule does not let the person in |
+| `watch()` | Follows the place while the calling task runs — a view's `.task` — and lets it go when it ends: told as a call starts there, changes and ends, the watch renewed |
+| `startWatching()`, `stopWatching()` | The same, by hand: the last watcher's stop ends the watch |
+| `refresh()` | Reads the place's call as it is now |
+| `start(video:, invite:, ring:, metadata:, name:, imageURL:)` | Starts a call at the place: no one need be invited |
+| `join(name:, imageURL:)` | Comes into the call going on there, unasked |
+
+```swift
+struct ChannelMeetingBar: View {
+    let channelId: String
+    var place: CallPlace { pb.calls.place("channel:\(channelId)") }
+
+    var body: some View {
+        Group {
+            if let call = place.call {
+                Button("Join the meeting (\(call.participants.filter { $0.state == .joined }.count) in it)") {
+                    Task { _ = try? await place.join() }
+                }
+            } else {
+                Button("Start a meeting") { Task { _ = try? await place.start(ring: false) } }
+            }
+        }
+        .task { try? await place.watch() } // watched while the channel is on screen
+    }
+}
+```
+
+One call goes on at a place at a time: starting another there throws a `PalbaseError` with `isPlaceBusy`, its `call` the one going on — and the place's `call` shows it — to join. `isNotAllowed` is the project's rule saying no. A place with no rule — no hook answering places, not a conversation — is the call's label alone: its call is seen by the people asked into it only.
 
 ## Permissions
 

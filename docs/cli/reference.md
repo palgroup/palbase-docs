@@ -2,7 +2,7 @@
 
 # CLI reference
 
-Every command of `palbase` 0.33.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.36.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
 419 commands in 35 groups.
 
@@ -1747,16 +1747,18 @@ palbase calls:hook:get
 Set the hook asked whom one may call, or change it; a new hook's signing secret is printed this once, or kept in a secret with --secret-to
 
 ```sh
-palbase calls:hook:set [--url <url>] [--timeout-ms <ms>] [--on-error allow|deny] [--secret-to <NAME> [--dev]]
+palbase calls:hook:set [--url <url>] [--timeout-ms <ms>] [--on-error allow|deny] [--places on|off] [--secret-to <NAME> [--dev]]
 ```
 
 Before a call is made, or more people are asked into one, the hook is POSTed {"event": "calls.can_call", "action": "start" | "invite", "from_user_id", "to_user_ids", "video", "call_id", "conversation_id"}, signed as Standard Webhooks sign (webhook-id, webhook-timestamp, webhook-signature), and answers 200 {"allowed_user_ids": […]}: only those are called, and with none the call is refused.
+With --places on, the hook is asked of places too ({"action": "place", "place", "from_user_id", "to_user_ids": [that person]}): it says who may see and join the meeting held at a place of the app (a channel). Off (a new hook), places are not asked of it, and a place's meeting is seen only by the people asked into it.
 A new hook takes --url (a URL on the public internet). Its signing secret is printed this once, or kept in the environment's secrets with --secret-to (production; --dev: development) and printed nowhere. A hook changed keeps its secret: palbase calls:hook:secret:rotate makes a new one.
 
 ```text
       --url <url>              where the hook is asked
       --timeout-ms <ms>        how long it is waited for: 100 to 5000 (a new hook: 2000)
       --on-error <allow|deny>  when it does not answer: allow everyone, or deny and the call is refused (a new hook: deny)
+      --places <on|off>        the hook answers places too: who may see and join a channel's meeting (a new hook: off)
       --secret-to <NAME>       keep the new signing secret in the environment's secret NAME instead of printing it
       --dev                    with --secret-to: the development secrets, not production
 ```
@@ -4464,7 +4466,7 @@ The environment needs its GitHub link first: palbase github:connect.
       --port <port>                       the port it listens on (it also finds it in PORT)
       --always-on                         keep it awake: never put to sleep when idle (an environment on Pay as you go pays its every hour; on Free a shared machine sleeps when idle)
       --no-always-on                      let it sleep when idle again
-      --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
+      --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings — production's too
       --no-previews                       preview no pull request from now on
       --preview-forks                     preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
       --no-preview-forks                  a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize
@@ -4497,7 +4499,7 @@ palbase machines:update [name] [--size …] [--replicas …] [--db …] [--repo 
       --port <port>                       the port it listens on (it also finds it in PORT)
       --always-on                         keep it awake: never put to sleep when idle (an environment on Pay as you go pays its every hour; on Free a shared machine sleeps when idle)
       --no-always-on                      let it sleep when idle again
-      --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
+      --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings — production's too
       --no-previews                       preview no pull request from now on
       --preview-forks                     preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
       --no-preview-forks                  a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize
@@ -4899,7 +4901,7 @@ The environment needs its GitHub link first: palbase github:connect.
       --build-command <command>    what builds it (default: its package.json's build script)
       --output <dir>               the folder the build writes (default: what its builder writes — dist, build, out, …)
       --build-env <K=V>            a setting the build runs with (repeat it): what its pages are sent (VITE_*), never a secret
-      --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
+      --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings — production's too
       --preview-forks              preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
 ```
 
@@ -4922,7 +4924,7 @@ palbase hosting:sites:update <name> [--spa | --no-spa] [--repo … --branch … 
       --output <dir>               the folder the build writes (default: what its builder writes — dist, build, out, …)
       --build-env <K=V>            a setting the build runs with (repeat it): what its pages are sent (VITE_*), never a secret
       --no-source                  build it from no repository any more: deploy folders alone
-      --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings (turn it on in a preview environment, not production's)
+      --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings — production's too
       --no-previews                preview no pull request from now on
       --preview-forks              preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
       --no-preview-forks           a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize

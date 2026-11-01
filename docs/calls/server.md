@@ -12,7 +12,7 @@ With the project's secret key in the `apikey` header ([Server SDK](https://palba
 |---|---|
 | `max_participants` | How many people a call holds, agents included: 2 to 100 (the default). A call that would hold more is refused (`call_full`) |
 | `calls_per_hour` | How many calls one person may start in an hour: 1 to 1,000 (60 by default). 10 a minute, whatever it says |
-| `hook` | The endpoint asked who may call whom (below): `{ url, timeout_ms, on_error }`; `null` removes it |
+| `hook` | The endpoint asked who may call whom (below): `{ url, timeout_ms, on_error, places }`; `null` removes it |
 
 ```bash
 curl -s -X PUT "https://<ref>.palbase.studio/calls/settings" \
@@ -44,6 +44,7 @@ The CLI sets it the same way, and keeps the secret in the environment's secrets 
 
 ```bash
 palbase calls:hook:set --url https://api.example.com/palbase/can-call --on-error deny --secret-to CALLS_HOOK_SECRET
+palbase calls:hook:set --places on   # asked of places too
 palbase calls:hook:get
 palbase calls:hook:secret:rotate --secret-to CALLS_HOOK_SECRET
 palbase calls:hook:remove
@@ -62,7 +63,13 @@ Before a call rings — and before someone is asked into a call going on — you
 }
 ```
 
-`action` is `start` (making a call) or `invite` (asking people into one, its `call_id` then given); `conversation_id` is there when the call is made from one. It is signed as the [Standard Webhooks](https://www.standardwebhooks.com) spec signs: `webhook-id`, `webhook-timestamp` (Unix seconds) and `webhook-signature`, `v1,<base64 HMAC-SHA256>` of `<webhook-id>.<webhook-timestamp>.<body>` with the secret's bytes (the base64 after `whsec_`). The libraries of Standard Webhooks check it as they are.
+`action` is `start` (making a call), `invite` (asking people into one, its `call_id` then given) or `place` (may `from_user_id` see and join the calls held at `place` — `to_user_ids` is them alone; your answer lets them in by naming them); `conversation_id` is there when the call is made from one. For a `conversation:<id>` place, only that conversation's members are asked about — your answer narrows them further.
+
+```json
+{ "event": "calls.can_call", "action": "place", "from_user_id": "usr_dan", "to_user_ids": ["usr_dan"], "video": false, "place": "channel:42" }
+```
+
+Your hook is asked of places only once you say it answers them — `"places": true` in its settings (`PUT /calls/settings` with `{ "hook": { "url": "…", "places": true } }`, the CLI's `calls:hook:set --places on`, or **Places** in Studio's hook): a hook written for calls alone is never asked of a place. Without it, a place lets in no one but the people asked into its call (a conversation's members aside). The rule is asked each time someone reads or watches a place and each time they join: someone it stops letting in hears of the place for two minutes at most, and does not come in. It is signed as the [Standard Webhooks](https://www.standardwebhooks.com) spec signs: `webhook-id`, `webhook-timestamp` (Unix seconds) and `webhook-signature`, `v1,<base64 HMAC-SHA256>` of `<webhook-id>.<webhook-timestamp>.<body>` with the secret's bytes (the base64 after `whsec_`). The libraries of Standard Webhooks check it as they are.
 
 It answers `200` with the people the caller may reach:
 

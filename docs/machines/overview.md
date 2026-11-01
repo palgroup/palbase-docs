@@ -16,7 +16,7 @@ In Studio, machines live under **Backend › Machines**. Everything Studio does 
 | Source | A repository, a branch and a directory of it ([Connecting GitHub](https://palbase.studio/docs/machines/github)) |
 | Size | How much CPU and memory it has, and whether it sleeps (below) |
 | Port | The TCP port it listens on, `8080` unless you say otherwise. It also finds it in `PORT`. |
-| Copies | How many copies run while it is awake, 1 to 5 |
+| Copies | How many copies run while it is awake, 1 to 5 — one on Free |
 | Health check | A path that answers 2xx while it serves |
 | Environment | Variables of your own, and the project secret set it starts with |
 | Database | One of the project's [databases](https://palbase.studio/docs/machines/databases), or none |
@@ -62,13 +62,13 @@ A **shared** size has a fraction of a CPU as its ceiling and is **put to sleep w
 
 Sleeping has consequences for code: a machine that sleeps runs nothing while it sleeps. A timer, an in-memory cache or a background loop stops with it, and a request that wakes it pays the start-up. Work that must happen on a schedule is a [cron](#crons-and-tasks), and work to be done once, now or later, a [task](#crons-and-tasks): the platform wakes the machine for either.
 
-`shared-256` is the size every project may open. The others are sizes that are paid for: open to an environment on Pay as you go with credit ([Billing](https://palbase.studio/docs/getting-started/billing)); for another, opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
+`shared-256` is the size every project may open. The others are sizes that are paid for: open to an environment on Pay as you go whose payment account is not held ([Billing](https://palbase.studio/docs/getting-started/billing)); for another, opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
 
 What a project's machines and databases reserve between them is held to the project's limit: a size or a number of copies that does not fit is refused with `409 machines_over_limit`.
 
 ## Copies
 
-A machine runs **one copy** unless you give it more (`replicas`, **Copies** in Studio, 1 to 5). Each copy runs on a node of its own, a request goes to one of them, and a copy or a node that goes leaves the others serving. A node taken for maintenance or given back is emptied one copy at a time, and a machine of one copy is moved, not stopped: its copy starts on another node and takes requests before the old one stops. Every copy is of the machine's size and counts as one against the project's limits and its machine time.
+A machine runs **one copy** unless you give it more (`replicas`, **Copies** in Studio, 1 to 5). More than one copy is open to an environment on Pay as you go: on Free a machine runs one copy (`403 copies_not_available`), and one of an environment that is free again runs one until it pays. Each copy runs on a node of its own, a request goes to one of them, and a copy or a node that goes leaves the others serving. A node taken for maintenance or given back is emptied one copy at a time, and a machine of one copy is moved, not stopped: its copy starts on another node and takes requests before the old one stops. Every copy is of the machine's size and counts as one against the project's limits and its machine time.
 
 What a copy keeps in its own memory or on its own disk, the others do not see — a session, a counter, a cache, a rate-limit window. A machine with more than one copy keeps those where every copy reaches them: its database, or the project's [cache](https://palbase.studio/docs/backend/cache). A long-lived connection (a WebSocket) stays with the copy that took it. The machine finds its number of copies in `PALBASE_REPLICAS`.
 
@@ -249,13 +249,15 @@ Every machine reaches the internet from one small range of addresses, the platfo
 | | |
 |---|---|
 | Machines per project | 5 |
-| Copies per machine | 1 to 5 |
+| Copies per machine | 1 on Free; 1 to 5 on Pay as you go |
 | What machines and databases reserve between them | 2 vCPU and 4096 MiB a project (a shared size reserves a quarter of its CPU ceiling, a dedicated one all of it; memory is reserved whole) |
-| Builds | 50 a day (UTC) per project; one build at a time; 20 minutes at most each |
+| Builds | 50 a day (UTC) per project; one build at a time; 20 minutes at most each. On Free, 500 build minutes a month — builds, sites' builds and test and migration runs together — then no build until the month ends (`429 quota_exceeded`); on Pay as you go, past them, $0.021 a minute |
 | Idle before a shared size sleeps | 15 minutes |
 | Environment variables | 100, 64 KiB in all |
-| Logs kept | 7 days, up to 1,200 lines a minute per machine |
-| Traffic, free project | 5 GB a month at full speed, machine internet traffic and response traffic together; then machines' traffic and answers, and storage's files, at about 256 kbit/s until the month ends (UTC); see [Reaching the internet](#reaching-the-internet) |
+| Logs kept | 7 days, up to 1,200 lines a minute per machine; on Free, 1 GiB a month, then no new line kept until the month ends |
+| Images kept | On Free, 1 GiB: past it the sites' build caches, then the machines' older images are taken back — never the image a machine runs, nor its newest; on Pay as you go $0.2625 a GiB-month past it |
+| Tasks put on the queues | 1 million a month free; past it, on Free no task is put until the month ends (`429 quota_exceeded`), on Pay as you go $0.40 a million |
+| Traffic, free project | 5 GB a month at full speed, machine internet traffic, response traffic, database client traffic and site traffic together; then all of them, and storage's files, at about 256 kbit/s until the month ends (UTC); see [Reaching the internet](#reaching-the-internet) |
 | Connections to the internet open at once | Per copy of a machine, by its memory: 4,096 for 256 MiB, twice that for each doubling — 8,192 (`shared-512`), 16,384 (`shared-1024`), 32,768 (`dedicated-1x` and larger). One more is refused at once (`connection refused` / a reset). Connections to the platform, to your databases and DNS questions to the machine's resolvers are not counted. The cap keeps one machine from taking a server's whole connection table from the machines beside it: close connections you no longer use, and pool those you reuse |
 
 ## Related

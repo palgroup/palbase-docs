@@ -4,11 +4,11 @@
 
 Calls are voice and video calls between a project's people: one to one, or a group of up to 100. It is a module every project has, like messaging: there is no server to run. A person's phone rings on the lock screen as any call does, and they answer on whichever of their devices they pick up. Your server, with the secret key, sets the module up, reads and ends calls, and lets its own agent into one.
 
-The web, iOS and Android SDKs run a call for the app — ringing, answering, the media, the heartbeat — through the HTTP API this section describes ([Calls over HTTP](https://palbase.studio/docs/calls/http)):
+The web, iOS and Android SDKs run a call for the app — ringing, answering, the media, the heartbeat — through the HTTP API this section describes ([Calls over HTTP](https://palbase.studio/docs/calls/http)). They give the data, not the screens: a call's state — who calls, how it goes, each person's camera and shared screen, who is speaking, the microphone and the camera — and its actions, and the app draws its own screens from it, in its own design:
 
-- **Web**: `pb.calls`, and `palbase/web/calls-ui` for ready-made screens ([Web Calls](https://palbase.studio/docs/web/calls))
-- **iOS**: the `PalbaseCalls` product, and `PalbaseCallsUI` for ready-made screens ([iOS Calls](https://palbase.studio/docs/ios/calls))
-- **Android**: `studio.palbase:palbase-calls`, and `palbase-calls-ui` for ready-made screens ([Android Calls](https://palbase.studio/docs/android/calls))
+- **Web**: `pb.calls` ([Web Calls](https://palbase.studio/docs/web/calls))
+- **iOS**: the `PalbaseCalls` product ([iOS Calls](https://palbase.studio/docs/ios/calls))
+- **Android**: `studio.palbase:palbase-calls` ([Android Calls](https://palbase.studio/docs/android/calls))
 
 ## Kinds of call
 
@@ -16,6 +16,8 @@ The web, iOS and Android SDKs run a call for the app — ringing, answering, the
 - **A group call** asks several people in (`POST /calls` with up to 99 user ids, or `group: true` with one). A person who missed or declined it may still join while it lasts.
 - **A huddle** is a group call that rings no one (`ring: false`): the people asked see it and join when they like.
 - **A direct call grows.** Asking a third person in — or letting the project's agent in — makes it a group, going on in the same room.
+- **A shared screen.** Anyone in a call may share their screen: the others get it as a picture of its own, apart from the camera, and its data is the call's like the rest.
+- **A meeting at a place.** A group call may be held at a place your app names — a channel (`channel:42`), a conversation of Palbase's messaging (`conversation:<id>`). Whom the place lets in finds it going on and joins it without being asked, someone added to the channel after it started too ([A call at a place](#a-call-at-a-place)).
 
 Every call's sound and picture go through Palbase's media server (LiveKit, open source), one to one too: each device sends its own once, however many listen, and gets the others' from the server. A device's address reaches no one else in the call. Where a network lets no UDP out, the media goes over TCP on port 443 (straight to the media server: a network that lets the web out only through an HTTPS proxy does not pass it). The server sees the media as it passes it on; nothing of it is kept.
 
@@ -31,6 +33,21 @@ Anyone in the project may call anyone, except:
 - **Your hook.** With the project's hook set, your endpoint is asked before a call rings and before someone is asked into one (`calls.can_call`), and narrows who may be reached ([Your Server](https://palbase.studio/docs/calls/server#who-may-call-whom)).
 
 A call to no one the caller may reach is `403 not_allowed`. A person starts 10 calls a minute at most, and the project's `calls_per_hour` an hour (60 unless it says otherwise): past either, `429 too_many_calls`.
+
+## A call at a place
+
+A Slack-like app holds a channel's meeting at the channel: `POST /calls` with `place: "channel:42"` (and nobody asked, or a few people rung). The place's people see it going on and come in, unasked — and someone who joins the channel while it lasts sees it too.
+
+- **One meeting a place.** A place with a rule holds one call going on at a time: starting another there is `409 place_busy`, with the call going on, to join.
+- **Who it lets in.** The place's rule says who may see and join its call:
+  - a `conversation:<id>` place lets in that conversation's members (Palbase's messaging says who they are — the calls module asks it for such a place alone, and depends on it for nothing else), narrowed by your hook when one is set; a call is started there only by someone who may write in the conversation;
+  - any other place asks your hook (`calls.can_call` with `action: "place"` and the `place` — [Your Server](https://palbase.studio/docs/calls/server#who-may-call-whom)), so your server, which knows your channels, decides — once the hook's settings say it answers places (`places: true`);
+  - with no such hook, a place is the call's label alone: its call is seen and joined by the people asked into it, no one else — it is not found at the place, and holds the place for no one (several may go on under one label) — until you set the rule.
+- **Blocks hold.** No one joins a place's call with someone in it who blocked them, or whom they blocked.
+- **Seen live.** An app showing a place watches it: it reads the place's call and is told, on the person's calls channel, as a call starts there, changes and ends ([Calls over HTTP](https://palbase.studio/docs/calls/http#places)) — the SDKs do it for you while the place is on screen.
+- **Joined unasked.** Someone the place lets in joins its call as anyone asked does, and is one of its people from then on.
+
+Who the rule does not let in neither sees the place's call nor joins it (`403 not_allowed`). As in a channel, who blocked whom does not hide the meeting from the channel's people; it keeps them out of it together. A watcher sees who is in the call and how it goes, not the devices they are on.
 
 ## A call's life
 
@@ -86,11 +103,11 @@ Your backend hears of the project's calls ([Webhooks](https://palbase.studio/doc
 | `calls.participant.joined` | A person answered or joined, or an agent came into the call |
 | `calls.participant.left` | A person or an agent left the call |
 
-`calls.call.started` and `calls.participant.joined` are when to send your agent in ([Agents](https://palbase.studio/docs/calls/agents)).
+`calls.call.started` and `calls.participant.joined` are when to send your agent in ([Agents](https://palbase.studio/docs/calls/agents)). Each carries the call's `place` — which channel's meeting it is — when it is held at one.
 
 ## What it costs
 
-A call is billed by the data the media server sent its people: each person's, and each agent's, sound, picture and data from the others, and the server's own word to their app — as the server counts its packets, without the network's own headers. Voice and video, one to one and in a group, cost the same per GB; a voice call sends far less than a video one, and a picture sends less when it is small on the screen.
+A call is billed by the data the media server sent its people: each person's, and each agent's, sound, picture and data from the others, the packets it sent again after a loss, and its control messages to their app — who is speaking, how good the connection is, who is in the call — as the server counts its packets, without the network's own headers. The control messages are about a seventh of a voice call's data and a few hundredths of a video call's: an app that counts only the sound and picture it got counts less than the call is billed by. Voice and video, one to one and in a group, cost the same per GB; a voice call sends far less than a video one — an hour of it is about 50 MB — and a picture sends less when it is small on the screen.
 
 | | Free each month | Past it |
 |---|---|---|

@@ -28,7 +28,7 @@ palbase account:tokens:revoke <id>
 - In them it does what an admin does — projects, environments, their modules, billing — and renames an organization or deletes an empty one; never more than your own role there now. Members, invitations, tokens and project keys stay yours, in person.
 - It stops at once, everywhere, when you delete it, when you leave one of its organizations (there, for good), or when your account is deleted. The keys of the environments it opened go with it.
 
-One payment account pays for every organization you link to it: you are charged once a month for all of them, and its report is each organization's month, item by item — what you bill your own customers by.
+One payment account pays for every organization you link to it: you are charged once a month for all of them, and its report is each organization's month, item by item — what you bill your own customers by. Save two cards on it, from different banks if you can: a charge its default card declines is taken from the next. Declined by every card, it is tried again each day — and its environments go Free 7 days later, or as soon as what it owes, unpaid and not yet charged, comes to 50 USD: within hours for an account that spends much, at once for one charged at 50.
 
 ```ts
 // customers.ts
@@ -149,3 +149,12 @@ const { data: endpoint } = await cloud.orgWebhooks.add({
 ```
 
 They are signed as a project's events are ([Webhooks](https://palbase.studio/docs/server/webhooks)). An environment's own endpoints get its `billing.*` events with its `ref` and never an amount: the amounts are the organization's.
+
+The organization whose payment account pays for others is told of the account at its own endpoints, once for all the environments it pays for, in whichever organization:
+
+| Event | When | What it carries |
+| --- | --- | --- |
+| `org.billing.payment_failed` | every card declined a charge of the account (each day it is tried again) | `amount_micros`, `attempt`, `free_on` (when its environments go Free if it is still unpaid), `hold_at_micros` (what it owes as they go Free sooner), `hold_eta` (about when, at its pace of the last 24 hours; none when not before `free_on`), and `projects`: each one's `project_id`, `ref`, `name`, `organization_id` |
+| `org.billing.held` | the environments it pays for are held to the free quotas | `reason` (`unpaid` or `disputed`) and `projects` |
+
+Neither carries anything of a card: no card's number or brand, no bank's answer.

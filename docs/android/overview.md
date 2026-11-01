@@ -70,7 +70,6 @@ dependencies {
 | `palbase-debug` | The debug console's screens, in Compose | `PalbaseConsole(pb.debug)` ([Debug Console](https://palbase.studio/docs/android/debug-console)) |
 | `palbase-voice` | A chat's live voice over WebRTC | `PBVoice.connect(…)` ([Voice](https://palbase.studio/docs/android/voice)) |
 | `palbase-calls` | Voice and video calls between the project's people, rung over the lock screen | `pb.calls` ([Calls](https://palbase.studio/docs/android/calls)) |
-| `palbase-calls-ui` | A call's screens in Compose, and the activity a ring opens | `CallHost`, `PalbaseCallActivity` ([Calls](https://palbase.studio/docs/android/calls#ready-made-screens)) |
 | `palbase-runtime` | The types every generated client calls into; `palbase` brings it | — |
 | `palbase-bom` | One version for all of them | `platform(…)` |
 

@@ -66,7 +66,6 @@ The package's web entry points:
 | `palbase/web/vite` | The Vite plugin: builds each mode against the environment you name for it, from what `palbase apps:sync` wrote, and type-checks the app against that environment's backend first. See [Calling Your Backend](https://palbase.studio/docs/web/backend-calls#building-for-an-environment). |
 | `palbase/web/palbe` | What the module `palbase apps:sync` writes registers your backend with. Your own code does not import it. |
 | `palbase/web/push-sw.js` | The service worker that shows the project's pushes. See [Notifications](https://palbase.studio/docs/web/notifications#the-service-worker). |
-| `palbase/web/calls-ui` | The call screens, ready-made: `mountCallUI(pb.calls, options)`. See [Calls](https://palbase.studio/docs/web/calls#ready-made-screens). |
 | `palbase/web/paywall` | A paywall's definition resolved and drawn in the page (`renderPaywall`), and its prices formatted: what `pb.purchases.paywall(placement)` draws with (its `render(container, options)`), for an app that draws one itself. |
 | `palbase/web/message` | An in-app message's definition resolved and drawn: over the page (`presentMessage`) or as an inbox card (`renderMessage`). What `pb.notify` draws with, for an app that draws one itself. |
 

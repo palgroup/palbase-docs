@@ -2,7 +2,7 @@
 
 # Calls
 
-`pb.calls` is the signed-in person's voice and video calls in the browser: it rings the people called, hears the calls that ring this person, and runs a call's media — every call's, one to one or in a group, through the platform's media server. An app draws what a call's state says and calls what the person does; it opens no peer connection, sends no signal and keeps no heartbeat itself. `palbase/web/calls-ui` draws the screens for an app that wants them ready-made. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](https://palbase.studio/docs/calls/overview).
+`pb.calls` is the signed-in person's voice and video calls in the browser: it rings the people called, hears the calls that ring this person, and runs a call's media — every call's, one to one or in a group, through the platform's media server. Palbase gives the data, not the screens: the app draws what a call's state says — who calls, how it goes, each person's camera and shared screen, who is speaking — in its own design, and calls what the person does; it opens no peer connection, sends no signal and keeps no heartbeat itself. What the module is — kinds of call, who may call whom, ringing, history, prices — is [Calls](https://palbase.studio/docs/calls/overview).
 
 ## Quick example
 
@@ -59,7 +59,7 @@ pb.calls.onIncoming((call) => {
 | `voice(userIds, options)` | A voice call: one person (a direct call) or several (a group) |
 | `video(userIds, options)` | A video call |
 | `start(userIds, options)` | Either, `video` saying which |
-| `join(callId, options)` | Comes into a group call this person was asked to — a huddle, one they declined or left — on this device |
+| `join(call, options)` | Comes into a group call on this device: one this person was asked to — a huddle, one they declined or left — or, unasked, one held at a place that lets them in ([A call at a place](#a-call-at-a-place)). `call` is its id, or the call itself |
 
 Each answers the call's `CallSession` once it rings. This device's microphone (and camera) is asked for first, and a refusal rings no one ([Permissions and errors](#permissions-and-errors)). A call to someone who is calling this person that very moment is their call, answered.
 
@@ -69,6 +69,7 @@ Each answers the call's `CallSession` once it rings. This device's microphone (a
 | `ring` | Ring the people asked (the default); `false`: a group call they join when they like (a huddle) |
 | `group` | A group call even with one person asked: others may be asked later |
 | `conversationId` | The conversation it is made from: its members alone may be called, and it keeps the call as a message |
+| `place` | The place it is held at (`channel:42`): a group call, no one need be asked ([A call at a place](#a-call-at-a-place)) |
 | `metadata` | The app's own words about the call, shown to those rung: 32 strings, 2 KiB at most |
 | `callerName`, `callerImageUrl` | What those rung see of the caller; else their messaging profile's name and picture |
 | `media` | A microphone (and camera) stream the app opened already: used as it is, and left open when the call ends |
@@ -100,10 +101,12 @@ A session's `state` is what the app draws, and `subscribe(listener)` tells each 
 | `outgoing` | This person rang, or started the group |
 | `local` | This device's microphone and camera, while it is in the call: for its own preview |
 | `microphone`, `camera` | Whether this device's microphone is heard and its camera on |
+| `screenSharing`, `screen` | Whether this device shares a screen, and the screen it shares — for its own preview; `null` while it shares none |
+| `speaking` | This person is heard speaking now |
 | `remote` | The others in the call (below) |
 | `error` | The last thing that went wrong with this device's media: a camera refused, the media server not reached |
 
-Each of `remote` is `userId` (an agent's is `bot:<identity>`), `name`, `imageUrl`, `bot`, `stream` — their audio and video, one `MediaStream` for the whole call, the same object whichever way the media flows — and whether they are heard (`audio`) and seen (`video`).
+Each of `remote` is `userId` (an agent's is `bot:<identity>`), `name`, `imageUrl`, `bot`, `stream` — their audio and video, one `MediaStream` for the whole call, the same object whichever way the media flows — whether they are heard (`audio`) and seen (`video`), `screen` — the screen they share, a `MediaStream` apart from their camera, `null` while they share none — and whether they are `speaking` now (as the media server tells it, a moment behind).
 
 The others' voices play by themselves. With `calls: { playAudio: false }` in `createClient`'s options, each one's `stream` is the app's to play.
 
@@ -111,21 +114,26 @@ The others' voices play by themselves. With `calls: { playAudio: false }` in `cr
 // src/call-view.ts
 import type { CallSession } from "palbase/web";
 
-/** Draws the others' video in a grid, and this device's camera in a corner. */
+function tile(stream: MediaStream, speaking: boolean): HTMLVideoElement {
+  const video = document.createElement("video");
+  video.autoplay = true;
+  video.playsInline = true;
+  video.muted = true; // their voice already plays
+  video.srcObject = stream;
+  video.style.outline = speaking ? "3px solid #22c55e" : "none";
+  return video;
+}
+
+/** Draws the others' cameras and shared screens in a grid — the one speaking framed — and this device's camera in a corner. */
 export function drawCall(session: CallSession, grid: HTMLElement, self: HTMLVideoElement): () => void {
   return session.subscribe(() => {
     const { remote, local } = session.state;
     self.srcObject = local;
     grid.replaceChildren(
-      ...remote.map((r) => {
-        const video = document.createElement("video");
-        video.autoplay = true;
-        video.playsInline = true;
-        video.muted = true; // their voice already plays
-        video.srcObject = r.stream;
-        video.hidden = !r.video;
-        return video;
-      }),
+      ...remote.flatMap((r) => [
+        ...(r.video ? [tile(r.stream, r.speaking)] : []),
+        ...(r.screen ? [tile(r.screen, false)] : []),
+      ]),
     );
   });
 }
@@ -138,6 +146,7 @@ export function drawCall(session: CallSession, grid: HTMLElement, self: HTMLVide
 | `setMicrophone(on)` | The microphone heard, or muted |
 | `setCamera(on)` | The camera on or off: off, it is closed and its light goes out; on, opened again — a voice call's too |
 | `switchCamera(deviceId)` | Another camera: the one named (a `videoinput`'s `deviceId`), or, with none named, the other facing one |
+| `setScreenShare(on, { audio })` | Shares a screen, a window or a tab — the browser asks the person which — or stops sharing it ([Sharing a screen](#sharing-a-screen)) |
 | `setAudioOutput(deviceId)` | Where the others' voices play: an `audiooutput`'s `deviceId`, in a browser that can choose one |
 | `invite(userIds, { ring })` | Asks more people in, ringing them unless `ring` is `false`: a direct call becomes a group, going on |
 | `leave()` | Hangs up — or, while it rings, cancels: a direct call ends for both; a group goes on for the others |
@@ -151,46 +160,79 @@ Every call's media — one to one or in a group — goes through the platform's 
 
 What a call costs is the data the media server sent its people ([What it costs](https://palbase.studio/docs/calls/overview)): a voice call is a small part of a video call's.
 
-## Ready-made screens
+## Sharing a screen
 
-`palbase/web/calls-ui` draws the call screens in the page, with no framework: a sheet for a call that rings — who calls, by voice or with video, Decline and Accept, and for a video call Accept by voice too — and the view of the call this page is in: the others' video (their picture while their camera is off), this device's camera, how long it has gone on, and the microphone, the camera, the other camera and hang up.
+`setScreenShare(true)` asks the browser for a screen, a window or a tab — the person picks it in the browser's own dialog — and sends it into the call as a picture of its own, apart from the camera: the others see it as their `remote` entry's `screen`, this device as `state.screen`. `{ audio: true }` sends the sound of what is shared too, where the browser offers it (a tab's). `setScreenShare(false)` stops it, and so does the browser's own "Stop sharing". A person who picks nothing rejects it (`NotAllowedError`), and nothing is shared.
 
 ```ts
-// src/calls-ui.ts
-import { mountCallUI } from "palbase/web/calls-ui";
-import { pb } from "./lib/palbase";
+// src/share.ts
+import type { CallSession } from "palbase/web";
 
-const ui = mountCallUI(pb.calls, {
-  theme: { accent: "#7c3aed", radius: 12 },
-  texts: { incomingVoice: "Sesli arama", incomingVideo: "Görüntülü arama", accept: "Aç", decline: "Reddet" },
-  ringtone: true,
-  // A call from support is drawn by the app's own screen; the rest by these.
-  incoming: (call) => call.metadata?.["kind"] !== "support",
-  onError: (error) => console.warn("call:", error),
-});
-
-// Takes the screens away; a call going on goes on.
-ui.unmount();
+/** A Share screen button: on, then off again. */
+export async function toggleShare(session: CallSession): Promise<void> {
+  try {
+    await session.setScreenShare(!session.state.screenSharing);
+  } catch (e) {
+    if ((e as Error).name !== "NotAllowedError") throw e; // the person picked nothing
+  }
+}
 ```
 
-| Option | What it is |
-|---|---|
-| `container` | The element the screens are drawn in (positioned); the whole page unless given |
-| `texts` | Every word the screens show, each replaced as given (`CALL_UI_TEXTS` has them all): the sheet's, the phases', and each way a call ends |
-| `labels` | What a screen reader says of the buttons and views (`CALL_UI_LABELS`) |
-| `theme` | `accent`, `background`, `foreground`, `danger`, `radius`, `font`, set as `--pb-call-<name>` on the screens' root; the system's light and dark colors unless given |
-| `className` | Added to the root element's classes |
-| `ringtone` | A soft ring while a sheet shows (the default); silent where the page may not play sound yet |
-| `incoming(call, session)` | Asked once for each call that rings: `false` leaves it to the app's own screen, the session headless |
-| `onError(error, session)` | An answer, a microphone or a camera that failed |
+A shared screen goes through the media server as the camera does: its data is the call's, billed as the rest ([What it costs](https://palbase.studio/docs/calls/overview#what-it-costs)). A reconnect brings it back into the call.
 
-The newest ringing call is shown, the others wait behind it; a huddle rings no one and shows no sheet. The view goes two seconds after its call ends. What people say of themselves — a name, a picture — is set as text and as an image's address, never as markup.
+## A call at a place
+
+`pb.calls.place(name)` is a place of the app — a channel (`channel:42`), a conversation of Palbase's messaging (`conversation:<id>`) — and the call going on there ([A call at a place](https://palbase.studio/docs/calls/overview#a-call-at-a-place)). Its `state` is `place`, `call` (the call going on there, `null` for none), `watching`, and `error` — the last refusal of reading or watching it: a `PalbaseError` `not_allowed` (403) where the project's rule does not let this person into the place.
+
+| On the place | What it does |
+|---|---|
+| `watch()` | Told of the place's call as it starts, changes and ends, on the person's calls channel — renewed while it is watched; answers the call going on (or `null`) |
+| `unwatch()` | Told no more: the page's last watcher's stop ends the watch |
+| `refresh()` | Reads the place's call as it is now |
+| `subscribe(listener)` | Tells each change of `state`; answers the unsubscribe |
+| `start(options)` | Starts a call at the place from this device: `userIds` to ring (none need be), and `pb.calls.start`'s options |
+| `join({ name, imageUrl })` | Comes into the call going on there, unasked; `name` and `imageUrl` are what the others see of this person where messaging names them not |
+
+```ts
+// src/channel-call.ts
+import { PlaceBusyError } from "palbase/web";
+import { pb } from "./lib/palbase";
+
+const place = pb.calls.place("channel:42");
+
+// While the channel is on screen: a "Join the meeting" bar, live.
+const stop = place.subscribe(() => {
+  const { call } = place.state;
+  const bar = document.querySelector<HTMLElement>("#meeting")!;
+  bar.hidden = !call;
+  if (call) bar.textContent = `Meeting going on — ${call.participants.filter((p) => p.state === "joined").length} in it`;
+});
+await place.watch();
+
+export async function startOrJoin() {
+  try {
+    return await place.start({ ring: false });
+  } catch (e) {
+    // Someone started it a moment before: join theirs.
+    if (e instanceof PlaceBusyError) return pb.calls.join(e.call);
+    throw e;
+  }
+}
+
+// When the channel leaves the screen.
+export async function leaveChannel() {
+  stop();
+  await place.unwatch();
+}
+```
+
+One call goes on at a place at a time: starting another there is refused with a `PlaceBusyError` (`409 place_busy`) carrying the call going on, to join. Someone the place does not let in is refused reading, watching, starting and joining with `not_allowed` (403). A place with no rule — no hook answering places, not a conversation — is the call's label alone: the call is seen by the people asked into it only, and the place is refused to everyone else.
 
 ## Ringing while the page is away
 
 While no tab of the app is in front, a call rings this browser as a notification — the caller's name, and "Incoming voice call" or "Incoming video call" — shown by the SDK's service worker, `palbase-sw.js`, through the browser's push service. The browser must take the project's pushes: copy the worker into your site and subscribe it, as every web push needs ([Notifications](https://palbase.studio/docs/web/notifications#the-service-worker)). `pb.calls.deviceId` is the device the pushes are registered with.
 
-- **A tab in front rings itself.** The worker shows no notification for a ringing call while a tab of the app is focused: `onIncoming` has it, and the app (or `palbase/web/calls-ui`) rings.
+- **A tab in front rings itself.** The worker shows no notification for a ringing call while a tab of the app is focused: `onIncoming` has it, and the app rings.
 - **A tap on the notification** focuses a tab of the app, or opens one, and `onIncoming` hears the call ringing as the page opens: the person answers there.
 - **When it stops ringing** — missed, or the caller gave up — the missed-call push takes the ringing notification away; a page that is open takes it away as soon as the call no longer rings there (answered on another device too).
 
@@ -212,7 +254,7 @@ if (next_cursor) console.log("more:", next_cursor);
 ## Permissions and errors
 
 - **The microphone.** Making, answering or joining a call asks for the microphone (and, for video, the camera) first. A refusal rejects with the browser's own error (`NotAllowedError`), and no one is rung, nothing answered. A video call with no camera, or a busy one, goes on by voice.
-- **The module's refusals** are a `PalbaseError` (from `palbase/web`), its `code` saying which: `not_allowed` (403: blocks, a conversation's members, your hook), `in_another_call` (409), `too_many_calls` and `quota_exceeded` (429), `invalid_user_ids` and `call_full` (400). Answering a call that is no longer this device's is a `409` too — `answered_elsewhere`, `call_ended`, `not_ringing` — and the session's state shows the call as it is.
+- **The module's refusals** are a `PalbaseError` (from `palbase/web`), its `code` saying which: `not_allowed` (403: blocks, a conversation's members, your hook, a place's rule), `in_another_call` (409), `place_busy` (409: a `PlaceBusyError`, its `call` the one going on at the place), `too_many_calls` and `quota_exceeded` (429), `invalid_user_ids`, `invalid_place` and `call_full` (400). Answering a call that is no longer this device's is a `409` too — `answered_elsewhere`, `call_ended`, `not_ringing` — and the session's state shows the call as it is.
 - **Not signed in**: `401 not_signed_in`. Calls are the signed-in person's.
 - **No WebRTC** (a server, a test without a browser): a `TypeError`. A browser that cannot choose where audio plays (no `setSinkId`) refuses `setAudioOutput` with a `TypeError`.
 - **The media later on** — a camera turned on and refused, the media server not reached — is the session's `state.error`, and the call goes on.

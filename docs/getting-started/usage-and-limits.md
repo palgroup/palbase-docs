@@ -38,7 +38,7 @@ Every member of the organization reads it ([Organizations](https://palbase.studi
 | `realtime.connections` | Realtime connections open at once, the month's largest |
 | `messaging.messages` | **Chat messages**: each message the project's people, or its server, sent in its conversations; one sent again with the same client id is one |
 | `messaging.bytes` | **Chat message storage**: what the project's messages weigh where they are kept — each one's sealed text and 768 bytes for its row and indexes — the month's largest |
-| `calls.bytes` | **Call data**: what the media server sent the people, and the agents, of the project's calls — their sound, picture and data from the others, voice and video alike ([Calls](https://palbase.studio/docs/calls/overview#what-it-costs)) |
+| `calls.bytes` | **Call data**: what the media server sent the people, and the agents, of the project's calls — their sound, picture and data from the others and the media server's control messages to their app, voice and video alike ([Calls](https://palbase.studio/docs/calls/overview#what-it-costs)) |
 | `flags.reads` | The flag reads clients made, answered in full or not modified |
 | `analytics.events` | **Analytics events**: captures, identifies, aliases, screens and page views (setting a person's properties is not counted) |
 | `analytics.perf`, `analytics.traces`, `analytics.console` | Performance samples kept, request traces taken, console records kept ([Analytics](https://palbase.studio/docs/analytics/overview)) |
@@ -46,10 +46,17 @@ Every member of the organization reads it ([Organizations](https://palbase.studi
 | `machines.egress` | **Machine internet traffic**: what the machines sent to the internet |
 | `edge.egress` | **Response traffic**: what the environment's answers sent its clients, its modules' and its machines' alike |
 | `machines.builds.seconds` | **Build hours** |
+| `machines.runs.seconds` | **Test and migration runs**: how long a machine's test, migration and contract runs ran, billed as build minutes |
 | `machines.images.bytes`, `machines.logs.bytes` | **Machine images** kept, the month's largest, and **Machine logs** kept |
-| `databases.seconds.<size>` | **Database hours**: how long the databases of each size were awake |
+| `machines.domains` | **Custom domains** of the machines and sites, the month's most |
+| `machines.tasks` | **Tasks** put on the machines' queues |
+| `sites.bytes` | **Site files** kept: every kept release's and preview's, the month's largest |
+| `sites.egress` | **Site traffic**: what the sites sent out that their CDN did not answer from its own copy |
+| `sites.cache.bytes` | What the sites' builds keep between them, the month's largest, priced as machine images |
+| `databases.seconds.<size>` | **Database hours**: how long the databases of each size were awake; `databases.seconds.preview` a pull request preview's own database, at the `free` size's price and from its 400 free hours |
 | `databases.bytes`, `databases.backups` | What the databases hold, and what their backups hold, the month's largest |
-| `databases.traffic` | What the databases read from and wrote to their disks |
+| `databases.disk.idle` | **Database disk while asleep**: the disk of a database that is not awake — asleep, or deleted and kept until it is purged — in GiB-seconds; an awake database's disk is paid for by its hours |
+| `databases.traffic` | What the databases read from and wrote to their disks; `databases.traffic.san` the part of it of the databases on the shared disk (`free`, `hobby` and preview), billed past 100 GB a month |
 | `databases.egress` | **Database client traffic**: what the databases sent clients that connect to them over their own addresses (`psql`, a backend on your computer) |
 | `ai.tokens.<provider>.<model>.<kind>` | **AI tokens** with Palbase's provider keys, by model and kind: `input`, `image_input`, `output`, `cache_read`, `cache_write`. A model used with the project's own provider key is the provider's to count |
 | `ai.images.<provider>.<model>` | **AI images** made, by model |
@@ -94,13 +101,35 @@ A limit that counts refuses nothing: the use goes on and is metered.
 An environment is free while it is on the Free plan — every environment starts on it — while the payment account that pays for it is held for a charge unpaid, and while its month is at its monthly limit ([Billing](https://palbase.studio/docs/getting-started/billing)). Each environment's limit is its own: one at its limit holds no other.
 
 - **Sizes.** Its machines are of the `shared-256` size, the one free machine size, and it has one database at most, of the `free` size: a project holds one database of a free size at a time ([Databases](https://palbase.studio/docs/machines/databases#sizes)). Every other size is paid for: opening a machine or a database of one, or moving one to it, is `403 size_not_available`. `palbase machines:sizes` and `palbase databases:sizes` list the sizes and which of them the environment may open now ([Machines](https://palbase.studio/docs/machines/overview#sizes)).
-- **Traffic.** It sends 5 GB a month at full speed: its machines' internet traffic and its response traffic together. Past it, until the month ends, its machines' traffic and answers and the files its storage hands out go at about 256 kbit/s; nothing is stopped, and the API's other answers are not slowed. A slowed project's downloads are paced, and one more than it may have under way at once is `429 rate_limited` with `Retry-After`. A file the CDN answers from its own copy never reaches the project, and is neither counted nor slowed ([The CDN](https://palbase.studio/docs/backend/storage#the-cdn)). See [Reaching the internet](https://palbase.studio/docs/machines/overview#reaching-the-internet).
+- **Traffic.** It sends 5 GB a month at full speed: its machines' internet traffic, its response traffic, its databases' client traffic and its sites' traffic together. Past it, until the month ends, its machines' traffic and answers, the files its storage hands out, its databases' clients on the internet and its sites go at about 256 kbit/s; nothing is stopped, and the API's other answers are not slowed. A slowed project's downloads are paced, and one more than it may have under way at once is `429 rate_limited` with `Retry-After`. A file the CDN answers from its own copy never reaches the project, and is neither counted nor slowed ([The CDN](https://palbase.studio/docs/backend/storage#the-cdn)). See [Reaching the internet](https://palbase.studio/docs/machines/overview#reaching-the-internet).
 - **Chat messages.** 1 million messages a month, and 1 GiB of them kept. Past either, until the month ends, the project's messages go at about one a second, all its people and its server together: a send waits its turn, 10 seconds at the most, and one whose turn is further off is `429 slowed` with `Retry-After` — the SDKs keep it in their outbox and send it again. No message is lost, and reading, syncing and everything else go on at full speed. What is kept counts at its month's largest, so a project that keeps more than 1 GiB is slowed again early each month: remove old messages, or set the project's retention ([Messaging](https://palbase.studio/docs/messaging/overview#the-projects-settings)), to stay under it.
 - **Calls.** 25 GB of call data a month. Past it, until the month ends, no call starts (`429 quota_exceeded`); calls going on go on to their end ([Calls](https://palbase.studio/docs/calls/overview#what-it-costs)).
-- **A free database** is awake 400 hours a month at most. Past them it sleeps until the month ends, refusing connections, with its data kept; from then its next connection wakes it.
+- **Machines run one copy each.** Asking for more is `403 copies_not_available`; a machine of an environment that is free again runs one copy until it pays.
+- **Builds.** 500 build minutes a month, its machines' builds, its sites' builds and its test and migration runs together. Past them, until the month ends, no build starts: opening a machine, a deploy, a preview or a site's build is `429 quota_exceeded`, and a push is not built (its check says why). What runs goes on running.
+- **Logs and images.** 1 GiB of machine logs a month: past it, until the month ends, no new line of its machines is kept; they run on. 1 GiB of images: past it, its sites' build caches and then its machines' older images are taken back — never the image a machine runs, nor its newest.
+- **Free databases** are awake 400 hours a month at most, every free and preview database of the environment together — one deleted and opened again starts no new hours — and read and write 100 GB of their disk. Past either they all sleep until the month ends, refusing connections, with their data kept; from then their next connection wakes them. A database's backups are kept 7 days at most (`backup_days` past it is `403 backup_days_not_available`).
+- **A free database asleep a week is archived**: what it holds is kept in its backups and its disk is let go. Its next connection brings it back — the same data, as it was — in a few minutes rather than seconds; the client is told to connect again if it waits longer ([Databases](https://palbase.studio/docs/machines/databases#sizes)).
+- **Tasks.** 1,000,000 tasks a month put on its machines' queues: past them, until the month ends, a new one is `429 quota_exceeded`.
 - **AI.** $1.00 of Palbase's models a month, at the provider's price and 10%. Past it, until the month ends, a call to them is `402 ai_payment_required`; a call under the project's own provider key goes on ([AI](https://palbase.studio/docs/backend/ai#what-it-costs)).
 
 An environment on Pay as you go is never slowed for its traffic, and its machines and databases may be of any size; a database of the `free` size keeps its 400 hours whoever holds it. What it uses past its own free quotas is charged to the payment account that pays for its organization ([Billing](https://palbase.studio/docs/getting-started/billing)).
+
+## What compute costs past its free quota
+
+What machines, databases and sites use past each item's free quota is billed on Pay as you go at these prices; on Free the item stops, sleeps or slows as [What a free project gets](#what-a-free-project-gets) says. The whole price table is at [Billing](/legal/billing).
+
+| Item | Free each month | Past it, on Pay as you go |
+|---|---|---|
+| Build minutes: machines' and sites' builds, test and migration runs | 500 minutes | $0.021 a minute |
+| Traffic out: machines, responses, database clients and sites together | 5 GB | $0.126 a GiB |
+| Machine images and sites' build caches | 1 GiB | $0.2625 a GiB-month |
+| Machine logs | 1 GiB | $0.525 a GiB |
+| `free` and preview database hours | 400 hours, between them | $0.041 an hour |
+| A database's disk while asleep, or deleted and kept | — | $0.25 a GiB-month |
+| Disk traffic of the `free`, preview and `hobby` sizes | 100 GB | $0.02 a GB |
+| Site files | 10 GiB | $0.0315 a GiB-month, 100 GiB at most |
+| Custom domains | 20 | $0.25 a domain a month (the month's most), 100 at most |
+| Tasks put on the queues | 1 million | $0.40 a million |
 
 ## Each module's own limits
 
@@ -109,7 +138,8 @@ An environment on Pay as you go is never slowed for its traffic, and its machine
 | Storage | 5 GiB an object unless the bucket says less; a signed URL lives 7 days at most ([Storage](https://palbase.studio/docs/backend/storage)) |
 | Cache | 25 MiB of entries, the ones nearest their end dropped to make room; 512 KiB a value ([Cache](https://palbase.studio/docs/backend/cache)) |
 | Tasks | 100,000 tasks not yet done, or 256 MiB of what they carry ([Tasks](https://palbase.studio/docs/backend/tasks)) |
-| Machines | 5 machines, 1 to 5 copies each, 50 builds a day, logs kept 7 days ([Machines](https://palbase.studio/docs/machines/overview#limits)) |
+| Machines | 5 machines, one copy each on Free and up to 5 on Pay as you go, 50 builds a day, logs kept 7 days; 20 custom domains on Free, 100 on Pay as you go ([Machines](https://palbase.studio/docs/machines/overview#limits)) |
+| Sites | 10 sites; 10 GiB of files on Free, 100 GiB on Pay as you go, past 10 billed ([Hosting](https://palbase.studio/docs/machines/hosting)) |
 | Databases | 3 a project, one of them of a free size at a time; a database full to its size's storage turns read-only ([Databases](https://palbase.studio/docs/machines/databases#sizes)) |
 | Analytics | Events kept 90 days unless changed, 365 at most ([Analytics](https://palbase.studio/docs/analytics/overview#how-long-it-is-kept)) |
 | Calls | 100 people a call, agents included; a person starts 10 calls a minute, and 60 an hour unless the project says otherwise; ended calls kept 400 days ([Calls](https://palbase.studio/docs/calls/overview#the-projects-settings)) |

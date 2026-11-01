@@ -20,6 +20,7 @@ A person may have the app on several devices, and a call is in one of them. Ever
 | `ring` | Ring them (the default); `false`: a group call they join when they like (a huddle) |
 | `group` | A group call even with one person asked, on the media server: others may be asked later |
 | `conversation_id` | The conversation it is made from: its members alone may be called, and it keeps the call |
+| `place` | The place it is held at — a group call — whose people may join it unasked: letters, digits and `. _ : -`, 1 to 128 (`channel:42`, `conversation:<id>`). With a place, `user_ids` may be empty ([A call at a place](https://palbase.studio/docs/calls/overview#a-call-at-a-place)) |
 | `metadata` | Your app's own words about the call, shown to the people rung: 32 strings, 2 KiB at most |
 | `caller_name`, `caller_image_url` | What those rung see of the caller; else the caller's messaging profile's name and picture |
 
@@ -53,7 +54,7 @@ It answers the call ([A call](#a-call)):
 |---|---|
 | `POST /calls/{call_id}/accept` with `{ "device_id" }` | Answers on this device. The first of the person's devices to answer has the call; the others stop ringing. Sent again from the same device, it is the same answer |
 | `POST /calls/{call_id}/decline` | Turns the call down on every device of the person's: a direct call ends (`declined`); in a group, they are not rung any more and may still join |
-| `POST /calls/{call_id}/join` with `{ "device_id" }` | Comes into a group call the person was asked to — rung, missed, declined, busy, or in it before. A direct call is answered, not joined (`409 not_joinable`) |
+| `POST /calls/{call_id}/join` with `{ "device_id" }` (and `name`, `image_url` for one coming in unasked, where nothing else names them) | Comes into a group call the person was asked to — rung, missed, declined, busy, or in it before — or, unasked, a call at a place whose rule lets them in (`403 not_allowed` when it does not). A direct call is answered, not joined (`409 not_joinable`) |
 | `POST /calls/{call_id}/leave` | Takes the person out. A direct call ends for both: `canceled` while it rings (the person called missed it), `hung_up` once answered. A group goes on while a person is in it or being rung. Leaving a call that is over is done |
 | `POST /calls/{call_id}/participants` with `{ "user_ids", "ring" }` | Asks more people into a call the person is in, ringing them unless `ring` is `false`. A direct call becomes a group on the media server, going on. A call not answered yet does not grow (`409 not_in_call`) |
 
@@ -79,9 +80,21 @@ The media server is LiveKit (open source): a device connects to `url` with `toke
 
 Refused: `409 not_in_call` or `answered_elsewhere` (this device is not the one in the call), `409 call_ended`.
 
+## Places
+
+| Call | What it does |
+|---|---|
+| `GET /calls/places/{place}` | The place and its call going on (`{ "place", "call" }`; no `call` when none goes on), for a person the place lets in |
+| `POST /calls/places/{place}/watch` | The same, and the person is told of the place's call — `place` events on their channel — for `watch_seconds` (120): an app showing the place asks again before it runs out |
+| `DELETE /calls/places/{place}/watch` | Told no more (`204`) |
+
+A place that does not let the person in is `403 not_allowed`, to all three; a call started at a place a call goes on at is `409 place_busy`, carrying that call. Who a place lets in is in [A call at a place](https://palbase.studio/docs/calls/overview#a-call-at-a-place).
+
 ## The channel
 
 Each person hears their calls on their own realtime channel, `calls:<ref>:<user_id>`, joined on the project's socket by their apps ([Web Realtime](https://palbase.studio/docs/web/realtime)). One event comes on it, `call`: a call of theirs as it is now — the same object `GET /calls/{call_id}` answers — each time it changes: rung, answered, declined, joined, left, grown into a group, ended.
+
+A place the person watches comes as a second event, `place`: `{ "place", "call" }` as the place's call starts and changes, and its last snapshot, `ended`, as it ends — with its `version`, so a snapshot that comes late is known for older.
 
 Each `call` carries the call's `version`, which grows with every change: keep the highest seen, and drop an older snapshot that arrives late. What the channel tells is told once, as it happens: an app that was not listening reads the call (`GET /calls/{call_id}`), and the heartbeat's `version` says when it missed something.
 
@@ -108,4 +121,4 @@ Each `call` carries the call's `version`, which grows with every change: keep th
 | `version` | Grows with every change |
 | `participants` | Its people and agents (below) |
 
-A participant: `user_id` (an agent's is `bot:<identity>`), `kind` (`user` or `bot`), `role` (`caller`, `callee` — the one called in a direct call — or `member`), `state` (`ringing`, `invited` — asked to a huddle —, `joined`, `left`, `declined`, `missed`, `busy`), `device_id` (the device they are in it on), `name` and `image_url` as their profile shows them, `invited_at`, `joined_at` (when their present stretch in it began), `left_at`, `seconds` (how long they were in it before the present stretch), and `bytes` (what the media server sent them in it — what the call is billed by — a minute behind at most).
+A participant: `user_id` (an agent's is `bot:<identity>`), `kind` (`user` or `bot`), `role` (`caller`, `callee` — the one called in a direct call — or `member`), `state` (`ringing`, `invited` — asked to a huddle —, `joined`, `left`, `declined`, `missed`, `busy`), `device_id` (the device they are in it on), `name` and `image_url` as their profile shows them, `invited_at`, `joined_at` (when their present stretch in it began), `left_at`, `seconds` (how long they were in it before the present stretch), and `bytes` (what the media server sent them in it, its control messages included — what the call is billed by — a minute behind at most).

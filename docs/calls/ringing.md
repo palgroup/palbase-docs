@@ -14,13 +14,13 @@ Answering or declining from CallKit is `POST /calls/{call_id}/accept` or `/decli
 
 ## Android
 
-A call rings an Android phone with a **high-priority data message** (FCM). It carries no notification of its own: the app's messaging service wakes, and the SDK draws a **CallStyle** notification with a **full-screen intent** — the incoming-call screen over the lock screen — and its answer and decline buttons. From Android 14, the full-screen intent needs its own permission, which Google Play gives apps whose core function is calling and the person may take back; without it, Android shows the call as a heads-up notification.
+A call rings an Android phone with a **high-priority data message** (FCM). It carries no notification of its own: the app's messaging service wakes, and the SDK draws a **CallStyle** notification with a **full-screen intent** — the app's own call activity over the lock screen ([Android Calls](https://palbase.studio/docs/android/calls#the-apps-call-activity)) — and its answer and decline buttons. From Android 14, the full-screen intent needs its own permission, which Google Play gives apps whose core function is calling and the person may take back; without it, Android shows the call as a heads-up notification.
 
 When the call is answered on another of the person's devices, or the caller gives up, a second data message tells the phone to stop ringing. The permissions it needs, and the full-screen intent's, are [Android Calls](https://palbase.studio/docs/android/calls#a-call-rings-the-phone).
 
 ## The web
 
-A call rings a browser with a **notification** — the caller's name, and "Incoming voice call" or "Incoming video call" in the person's language — through the browser's push service, as the project's web pushes go ([Notifications](https://palbase.studio/docs/backend/notifications)). While a tab of the app is in front, no notification is shown: the page hears the call itself (`pb.calls.onIncoming`) and rings — `palbase/web/calls-ui` draws the call and plays a soft ring ([Web Calls](https://palbase.studio/docs/web/calls#ringing-while-the-page-is-away)). A tap on the notification brings a tab of the app forward, where the person answers.
+A call rings a browser with a **notification** — the caller's name, and "Incoming voice call" or "Incoming video call" in the person's language — through the browser's push service, as the project's web pushes go ([Notifications](https://palbase.studio/docs/backend/notifications)). While a tab of the app is in front, no notification is shown: the page hears the call itself (`pb.calls.onIncoming`), and the app draws its ringing screen and plays its ring ([Web Calls](https://palbase.studio/docs/web/calls#ringing-while-the-page-is-away)). A tap on the notification brings a tab of the app forward, where the person answers.
 
 ## A missed call
 

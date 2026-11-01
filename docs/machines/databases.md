@@ -17,7 +17,7 @@ In Studio, databases live under **Database › Databases**. Each step below name
 | **Name** | `name` | Lowercase letters, digits and dashes, starting with a letter, 32 at most; `main` when left out. It answers at `<name>-<ref>.db.palbase.studio`. |
 | **Size** | `size` | One of the sizes below; `free` when left out. It can be changed later ([below](#changing-and-removing-one)) |
 | **Allowed addresses** | `allow` | Who may connect, as addresses or CIDRs (`203.0.113.7`, `203.0.113.0/24`), 50 at most. Empty: anyone with the password. |
-| **Backups kept** | `backup_days` | 1 to 35 days: how far back a [restore](https://palbase.studio/docs/machines/backups) reaches |
+| **Backups kept** | `backup_days` | 1 to 35 days — 7 at most on Free: how far back a [restore](https://palbase.studio/docs/machines/backups) reaches |
 
 The database's volume is made and it starts; it answers once its state is `awake`. **The answer that opens it holds both of its passwords — the owner's and the application's — and no answer holds them again.** Studio shows them on the database's page once; copy them then. A password you did not keep is made new, not read back ([below](#passwords)).
 
@@ -37,19 +37,21 @@ A project has **3 databases** at most — a deleted one counts until it is purge
 
 ## Sizes
 
-| Size | CPU | Memory | Storage | Sleeps |
-|---|---|---|---|---|
-| `free` | 0.25 vCPU | 512 MiB | 1 GB | yes — and awake 400 hours a month at most |
-| `hobby` | 0.25 vCPU | 512 MiB | 5 GB | yes |
-| `shared-1g` | up to 1 vCPU | 1 GiB | 10 GB | never |
-| `shared-2g` | up to 2 vCPU | 2 GiB | 25 GB | never |
-| `shared-4g` | up to 2 vCPU | 4 GiB | 50 GB | never |
-| `dedicated-1x` | 1 vCPU of its own | 4 GiB | 25 GB | never |
-| `dedicated-2x` | 2 vCPU of its own | 8 GiB | 50 GB | never |
+| Size | CPU | Memory | Storage | Sessions on `5432` | Transactions at once on `6543` | Sleeps |
+|---|---|---|---|---|---|---|
+| `free` | 0.25 vCPU | 512 MiB | 1 GB | 38 | 12 | yes — and awake 400 hours a month at most |
+| `hobby` | 0.25 vCPU | 512 MiB | 5 GB | 38 | 12 | yes |
+| `shared-1g` | up to 1 vCPU | 1 GiB | 10 GB | 76 | 24 | never |
+| `shared-2g` | up to 2 vCPU | 2 GiB | 25 GB | 152 | 50 | never |
+| `shared-4g` | up to 2 vCPU | 4 GiB | 50 GB | 240 | 80 | never |
+| `dedicated-1x` | 1 vCPU of its own | 4 GiB | 25 GB | 240 | 80 | never |
+| `dedicated-2x` | 2 vCPU of its own | 8 GiB | 50 GB | 240 | 80 | never |
+
+The two connection columns are what each port takes at once ([Connecting](#connecting)); `direct_connections` and `pooled_connections` on each size (`listDatabaseSizes`, `GET /databases/sizes`) and in a database's metrics answer them too.
 
 `free` is the size every project may open. The others are sizes that are paid for: open to an environment on Pay as you go whose payment account is not held ([Billing](https://palbase.studio/docs/getting-started/billing)); another is refused one with `403 size_not_available`.
 
-A size that sleeps is put to sleep when it is idle and **woken by the next connection**, in about 10 seconds; the client's connection waits for it. A `free` database awake for its 400 hours sleeps until the month ends, and a client is told so; one asleep for a week is **archived**, and its next connection brings it back from its backup. The other sizes never sleep and live on a disk of their own.
+A size that sleeps is put to sleep when it is idle and **woken by the next connection**, in about 10 seconds; the client's connection waits for it. A Free environment's `free` and preview databases are awake 400 hours a month between them, and read and write 100 GB of their disk: past either they all sleep until the month ends, and a client is told so (`free_database_hours_spent`, `free_database_traffic_spent`). A `free` database asleep for a week is **archived**: what it holds is kept in its backups and its disk is let go. Its next connection brings it back — the same data — in a few minutes rather than seconds; a client that waits longer is told to connect again. A database's disk while it is asleep, or deleted and kept until it is purged, is billed at $0.25 a GiB-month on Pay as you go ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits#what-compute-costs-past-its-free-quota)); an awake database's hours pay for it. What the `free`, preview and `hobby` sizes read and write on their shared disk is free up to 100 GB a month, then $0.02 a GB on Pay as you go. The other sizes never sleep and live on a disk of their own.
 
 The size is chosen when the database is opened and can be changed later ([below](#changing-and-removing-one)). What a project's machines and databases reserve between them is held to its limit, and a size that does not fit is refused with `409 machines_over_limit`.
 
@@ -70,8 +72,17 @@ and two ways in:
 
 | Port | Through | Use it for |
 |---|---|---|
-| `5432` | Postgres itself | Anything; the only choice for migrations, `LISTEN`, advisory locks and session settings |
-| `6543` | PgBouncer, transaction pooling | Clients that open a connection per request (serverless functions). A session's `SET`, `LISTEN` and advisory locks do not hold here. |
+| `5432` | A session pool (PgBouncer, session mode): each connection holds one of Postgres' own for as long as it stays open | Migrations, `LISTEN`, advisory locks and session settings; a long-lived server with a small pool of its own |
+| `6543` | A transaction pool (PgBouncer, transaction mode): up to 1,000 clients share Postgres' connections, each held only for one transaction | Your application's traffic: many servers or copies, serverless functions, a connection per request. A session's `SET`, `LISTEN` and advisory locks do not hold here. |
+
+### When a port is full
+
+Each port takes so many connections at once — its size's limit, in the [table above](#sizes):
+
+- **`5432`** takes as many open sessions as its size allows (38 on `free`), counted once a client has logged in with its password. One more is **refused at once** with `53300 too many connections`, its message naming the limit; it is not queued. Connect again once a session ends, move your application's traffic to `6543`, or open a larger size.
+- **`6543`** runs as many transactions at once as its size allows (12 on `free`), however many clients are connected. A transaction waits its turn for **20 seconds** at most — longer than a move between sizes holds the ports, shorter than a web request waits for its answer — then is refused with `53300 too many connections`. Keep transactions short: one held open while the application waits on something else holds a place others wait for.
+
+A database's own machines are given their share of `5432` (`PALBASE_DB_CONNECTIONS`, [below](#giving-it-to-a-machine)), counted twice so a new version starts beside the old: they stay within it on their own. A client of its own — a server elsewhere, a BI tool, `psql` — counts against the same sessions: point several servers, or a serverless platform, at `6543`, where their connections are shared.
 
 TLS is required, and the URLs Studio gives check the server's name (`sslmode=verify-full`). A client that sends no TLS server name — libpq before 14, some drivers — connects as the user shown as **User for clients without SNI**, which carries the database's name in it.
 
@@ -110,7 +121,7 @@ A change of `database` gives it whole: `migrations` left out is `false`. `{ name
 
 ## A pull request preview's own
 
-A machine that runs its database's migrations and previews its pull requests ([Pull request previews](https://palbase.studio/docs/machines/hosting#pull-request-previews)) has each preview given a database of its own, `<database>-pr<number>`, of the `preview` size: 0.25 vCPU, 512 MiB and 500 MB, asleep when idle, with **no backup to bring it back from**: no base backup is taken of it, and no moment of it can be restored. It is opened empty with its preview, migrated by the preview's releases, and deleted — at once, with no restore window — when its preview goes: its pull request closed, three days without a push, or the machine deleted. It is listed with the environment's databases, counts against none of them, and is not billed. No database is opened at the `preview` size, moved to it or from it, or named `<name>-pr<number>` by hand.
+A machine that runs its database's migrations and previews its pull requests ([Pull request previews](https://palbase.studio/docs/machines/hosting#pull-request-previews)) has each preview given a database of its own, `<database>-pr<number>`, of the `preview` size: 0.25 vCPU, 512 MiB and 500 MB, asleep when idle, with **no backup to bring it back from**: no base backup is taken of it, and no moment of it can be restored. It is opened empty with its preview, migrated by the preview's releases, and deleted — at once, with no restore window — when its preview goes: its pull request closed, three days without a push, seven days after it was opened, or the machine deleted. It is listed with the environment's databases and counts against none of them; its hours are the `free` size's — from the same 400 free hours, billed at its price past them on Pay as you go. No database is opened at the `preview` size, moved to it or from it, or named `<name>-pr<number>` by hand.
 
 ## Passwords
 

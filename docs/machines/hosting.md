@@ -2,7 +2,7 @@
 
 # Sites, Previews & Domains
 
-A **site** is a static website an environment serves: a folder of files — what Vite, Next.js with `output: "export"`, Astro, SvelteKit's static adapter, Nuxt, Docusaurus or VitePress writes. Sites never sleep and cost nothing to serve: they are answered by the platform's own servers behind a CDN, not by a machine, and what they send is not counted as the environment's outbound traffic.
+A **site** is a static website an environment serves: a folder of files — what Vite, Next.js with `output: "export"`, Astro, SvelteKit's static adapter, Nuxt, Docusaurus or VitePress writes. Sites never sleep: they are answered by the platform's own servers behind a CDN, not by a machine. What they send is the environment's outbound traffic, with its machines' — on Free 5 GB a month at full speed and then slowed, on Pay as you go $0.126 a GiB past it — and the files they keep are billed past 10 GiB ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits#what-compute-costs-past-its-free-quota)).
 
 Every site answers at `<name>-<ref>.palbase.app` — the environment's `web` site at `<ref>.palbase.app` — and, once added, at a domain of your own.
 
@@ -25,6 +25,8 @@ A folder whose only page is `index.html` is taken for a single-page app: a path 
 | One file | 25 MiB |
 | One release | 1 GiB |
 | Releases kept to return to | the 10 newest |
+| Files kept, every site's releases and previews together | 10 GiB on Free; up to 100 GiB on Pay as you go, $0.0315 a GiB-month past the first 10 |
+| Build cache kept between a site's builds | counted with the machines' images: 1 GiB free, then $0.2625 a GiB-month on Pay as you go; on Free, past it, the cache is taken back first |
 
 ## Built from GitHub
 
@@ -66,12 +68,12 @@ palbase hosting:previews                # each pull request's address, head and 
 palbase machines:previews api
 ```
 
-Turn previews on in an environment kept for them — `staging`, built from the same repository. A project's production environment (its first, `main`) previews nothing: a pull request's code would run with production's settings, secrets and data, so turning previews on there is refused (`previews_in_production`), as Vercel's previews never run in production either.
+Any environment previews its pull requests, production's (`main`) too: a pull request against the branch a machine is built from is previewed in that machine's environment. Its code runs there with the environment's settings, secrets and users — its sign-ins, files and notifications are production's when the environment is — while a machine that runs its database's migrations gives it a database of its own, so the pull request's schema never touches the environment's data. Fork protection stays on unless an admin turns it off: a fork's pull request waits for an admin before its code runs with those secrets.
 
 - A **site's** preview is a release of its own. The site never serves it, and it is none of the releases `hosting:releases` lists or a rollback returns to.
 - A **machine's** preview is a machine of its own, `<name>-pr<number>`: one copy, the machine's size, settings and secrets. It counts as one of the environment's machines, and at most three previews of a machine run at once. It is deleted when its pull request closes, and with the machine.
-- A machine that runs its database's migrations has each preview given a **database of its own**, `<database>-pr<number>` — empty, migrated by the preview's release to the pull request's schema, so a pull request that adds a table or renames a column is previewed with it, and the environment's database is never touched by it. It is of the `preview` size (0.25 vCPU, 512 MiB, 500 MB, asleep when idle), keeps no backup to bring it back from, counts against none of the environment's databases — the Free plan's one free database included — costs nothing, and goes with its preview. It starts empty: a preview's tests make their own data (`palbase test` makes their users). A machine that another machine migrates the database for has its preview given that database, without migrations, as the machine is.
-- A machine's preview whose pull request has had **no push for 3 days** is taken down — its machine and its database — and reads `idle`; the pull request's comment says so. The next push opens it again, with a new database, or:
+- A machine that runs its database's migrations has each preview given a **database of its own**, `<database>-pr<number>` — empty, migrated by the preview's release to the pull request's schema, so a pull request that adds a table or renames a column is previewed with it, and the environment's database is never touched by it. It is of the `preview` size (0.25 vCPU, 512 MiB, 500 MB, asleep when idle), keeps no backup to bring it back from, counts against none of the environment's databases — the Free plan's one free database included — and goes with its preview. Its hours are the `free` size's: on Free from the environment's 400 free database hours, on Pay as you go billed at that size's price past them. It starts empty: a preview's tests make their own data (`palbase test` makes their users). A machine that another machine migrates the database for has its preview given no database: the environment's — production's too — is never a pull request's to write. A preview runs no crons or tasks of its own and is sent none of the environment's events: they would run again beside its machine's, with the environment's users.
+- A machine's preview whose pull request has had **no push for 3 days**, or that was opened **7 days ago** however often it is pushed to, is taken down — its machine and its database — and reads `idle`; the pull request's comment says which. A preview checks a change before it is merged, not an environment that lives on. The next push opens it again, with a new database, or:
 
   ```sh
   palbase machines:previews:open 12 --machine api
@@ -127,7 +129,7 @@ palbase hosting:domains:redirect example.com --none   # it answers itself again
 
 A redirect holds at once; the CDN keeps none, a browser keeps a permanent one as it would anywhere. A domain redirects to one that answers itself, and a domain others redirect to is not deleted until their redirect changes. In Studio: **Domains › Redirect**.
 
-A domain is one environment's at a time, across the platform: another environment — anyone's — is told it is taken until it is removed here. An environment has 20 domains at most.
+A domain is one environment's at a time, across the platform: another environment — anyone's — is told it is taken until it is removed here. An environment has 20 domains at most on Free, and 100 on Pay as you go, where each past the first 20 is $0.25 a month (the month's most).
 
 ## Keeping a machine awake
 
