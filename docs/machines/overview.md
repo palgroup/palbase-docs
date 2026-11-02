@@ -21,7 +21,45 @@ In Studio, machines live under **Backend › Machines**. Everything Studio does 
 | Environment | Variables of your own, and the project secret set it starts with |
 | Database | One of the project's [databases](https://palbase.studio/docs/machines/databases), or none |
 
-A project has **5 machines at most**, and a machine's name is that machine's alone. Deleting a machine frees its name at once.
+An environment has **5 machines at most**, and a machine's name is the project's alone: no two machines of a project, in whatever environments, share one. Deleting a machine frees its name at once.
+
+## The project's machines, and the environment each is bound to
+
+A project's machines, [databases](https://palbase.studio/docs/machines/databases) and [sites](https://palbase.studio/docs/machines/hosting) are the **project's**; an environment is where settings live — its secrets, its modules, its apps. Each machine is **bound to one environment**: it starts with that environment's secrets and settings, its key acts as that environment's, and its address names that environment's ref. Three machines from three repositories may be bound to three environments of one project, or all to production.
+
+- **One list.** Studio, `palbase machines:list`, an organization's token and an account token list every environment's machines, each with the environment it is bound to (`environment`, the `env` column). The same holds for `databases:list` and `hosting:sites:list`. `?environment=<ref>` asks for one environment's alone.
+- **Read from any address, changed at its own.** A read that names a machine (`GET /machines/<name>/…`) is answered in the environment it is bound to, from whichever of the project's environments it was sent to — held to the caller's role **in that environment**. A change is made at the address of the environment it is bound to (`palbase … -E <its slug>`), where a change to production is confirmed and kept in that environment's audit: sent elsewhere, it is refused with `409 bound_to_environment`, naming the environment.
+- **An environment's own credentials.** An environment's token, and an environment's secret key, reach what is bound to their environment alone: a machine of another environment is not found with them.
+- **A new one** is bound to the environment the command acts on (`-E`): the one whose address it is made at. Its name is the project's one: `409 name_taken` when another environment holds it.
+
+### Moving to another environment
+
+```bash
+palbase machines:move api --to staging
+palbase databases:move notes --to staging
+palbase hosting:sites:move web --to staging
+```
+
+A machine, a database and a site each move to another environment of the project (`POST /machines/{name}/move`, `/databases/{name}/move`, `/sites/{name}/move` at its environment's address, `202` with `moving_to` until it has; meanwhile a change of it is refused with `409 machine_moving`, `database_moving` or `site_moving`, and a move to its own environment lets the move go). Each answers throughout:
+
+- **A machine** starts in the new environment at the version it serves, with that environment's secrets and settings; what ran where it left answers until it is up there (`moved_from`, ten minutes at most), then stops. Its domains of its own move with it and answer throughout. Its pull requests' previews are closed; the next push opens them there. The database it is given stays where it is kept, given to it across environments as its app.
+- **A database** keeps its data where it is — nothing is copied — and is the new environment's in a few seconds: counted and paid for there, its host naming it. The machines given it are rolled out to the new host, beside the version that serves. Its migrations are the machines' of the environment that keeps it: a machine of another environment that runs them moves to the new environment too (it moves once the database has), or the move is refused (`409 migrations_where_kept`, naming the machines). A pull request's preview database moves with nothing; one being resized, restored or archived moves once that is done (`409 database_busy`).
+- **A site** has its files and releases copied to the new environment while it serves on, then is the new environment's in one step; a build of it going on is stopped and built again there. Its domains of its own move with it.
+
+**Its old address keeps working, for good**: whatever moves answers at the address it had too — a machine's `former_urls`, a database's `former_hosts`, a site's `urls` — so an app in a store, or a server, that names it is not broken by the move. The new address is the one to use from then on. A GitHub installation it is built through is linked to the new environment when it has none. In the month a database moves, what it used until then is counted in the environment it left, and what it uses after in the new one: never twice.
+
+A move needs the admin role in both environments, and the new environment room for what moves, as for one opened there: its machines' and databases' limits and reservations, its sites and their files, its domains (`409 too_many_machines`, `free_database_taken`, `too_many_sites`, `too_many_domains` and the like). Its name is the project's one (`409 name_taken`), and none of its domains may be added in the new environment too (`409 domain_in_environment`). A move that cannot be made by the time it is made — no room there any more, the environment gone — is let go of, and it says why (a machine's `state_reason`, a database's and a site's `move_note`).
+
+### Deleting an environment
+
+Deleting an environment asks what becomes of what is bound to it. With nothing chosen and something bound, it is refused (`409 environment_has_resources`, what is bound in its data), and Studio's **Danger zone** lists it and offers both ways:
+
+```bash
+palbase envs:delete staging --delete-bound      # deleted with it
+palbase envs:delete staging --move-to main      # moved first: its machines, databases and sites
+```
+
+Moved, its machines, databases and sites go to the other environment as `machines:move`, `databases:move` and `hosting:sites:move` move them — keeping their data, answering throughout, their old addresses working — and the environment is deleted once each is up where it moved (the CLI waits; Studio answers `504 machines_still_moving` past a minute and a half, and the deletion is asked again). The passwords the CLI holds for its databases go with them. What cannot be moved is said, and nothing is deleted. Deleted with it, a database it keeps that a machine of another environment is given is not deleted at all (`409 database_given_elsewhere`): take the database from that machine first, or move it. An environment its organization froze answers nothing to ask what is bound to it: it is deleted with what is bound to it (`--delete-bound`). A machine moving into the environment is not moved out of it (`409 machines_moving_in`): let its move end, or go, first.
 
 ## Its address
 
@@ -30,6 +68,8 @@ The machine named `backend` is the project's backend and answers at the project'
 ```text
 https://<ref>.app.palbase.studio          the machine named backend
 https://<name>-<ref>.app.palbase.studio   any other machine
+
+<ref> is the ref of the environment the machine is bound to.
 ```
 
 The `url` field of the machine (Studio shows it as **Address**, with an **Open** button) is the address to use. A request there is your customers' own: no API key is asked for and none is added. Who may call a route is the app's to decide — a `palbase/backend` app checks the caller's access token on every route that needs one ([Authentication](https://palbase.studio/docs/backend/authentication)).
@@ -50,21 +90,27 @@ A path whose first segment is `_palbase` — `/_palbase/health`, `/_palbase/cron
 
 ## Sizes
 
-| Size | CPU | Memory | Sleeps |
-|---|---|---|---|
-| `shared-256` | 0.2 vCPU | 256 MiB | yes |
-| `shared-512` | 0.5 vCPU | 512 MiB | yes |
-| `shared-1024` | 1 vCPU | 1024 MiB | yes |
-| `dedicated-1x` | 1 vCPU of its own | 2048 MiB | never |
-| `dedicated-2x` | 2 vCPU of its own | 4096 MiB | never |
+| Size | CPU | Memory | Sleeps | On Pay as you go |
+|---|---|---|---|---|
+| `shared-256` | 0.2 vCPU | 256 MiB | yes | free — 750 hours a month, then $0.033 an hour |
+| `starter` | 0.5 vCPU | 512 MiB | never | $16 a month |
+| `standard-1x` | 1 vCPU | 2048 MiB | never | $25 a month |
+| `standard-2x` | 2 vCPU | 4096 MiB | never | $85 a month |
+| `standard-4x` | 4 vCPU | 8192 MiB | never | $175 a month |
+| `dedicated-1x` | 1 vCPU of its own | 2048 MiB | never | $94 a month |
+| `dedicated-2x` | 2 vCPU of its own | 4096 MiB | never | $182 a month |
 
-A **shared** size has a fraction of a CPU as its ceiling and is **put to sleep when it is idle** — after 15 minutes without a request — and woken by the next request, which waits for it. A request that waits longer than the wake allows is answered `503 machine_waking` with `Retry-After`, and asking again is what brings the answer. A **dedicated** size has whole CPUs of its own and never sleeps.
+A month is 730 hours, and a machine is billed by the second it runs, each copy counted: a `standard-1x` that ran half the month is $12.50. The standard sizes are Render's at Render's prices; `starter` is $16, not Render's $7, and the dedicated sizes are what their whole CPUs cost us and a quarter more — at Render's prices they would cost less than they cost us. `palbase machines:sizes` (`GET /machines/sizes`) lists every size with its price (`price_micros_per_hour`).
+
+A **shared** size has a fraction of a CPU as its ceiling and is **put to sleep when it is idle** — after 15 minutes without a request — and woken by the next request, which waits for it. A request that waits longer than the wake allows is answered `503 machine_waking` with `Retry-After`, and asking again is what brings the answer. A **standard** size never sleeps: its CPUs are its ceiling, a quarter of them are reserved for it on its node, and it uses the rest while the other machines there leave them — Render's sizes, at Render's prices. A **dedicated** size has whole CPUs of its own and never sleeps. Memory is never shared: a machine's memory is its own whatever its size.
+
+`shared-512` and `shared-1024`, sizes that were paid for and slept, are retired: a machine that has one runs on as it did, billed as `starter` and `standard-1x`, and none is opened at or moved to one.
 
 Sleeping has consequences for code: a machine that sleeps runs nothing while it sleeps. A timer, an in-memory cache or a background loop stops with it, and a request that wakes it pays the start-up. Work that must happen on a schedule is a [cron](#crons-and-tasks), and work to be done once, now or later, a [task](#crons-and-tasks): the platform wakes the machine for either.
 
 `shared-256` is the size every project may open. The others are sizes that are paid for: open to an environment on Pay as you go whose payment account is not held ([Billing](https://palbase.studio/docs/getting-started/billing)); for another, opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
 
-What a project's machines and databases reserve between them is held to the project's limit: a size or a number of copies that does not fit is refused with `409 machines_over_limit`.
+What a project's machines and databases reserve between them is held to the project's limit — 2 vCPU and 4 GiB on Free, 15 vCPU and 64 GiB on Pay as you go, each copy counted (a shared or standard size reserves a quarter of its CPUs, a dedicated one all of them; memory is reserved whole): a size or a number of copies that does not fit is refused with `409 machines_over_limit`.
 
 ## Copies
 
@@ -117,7 +163,7 @@ const palbase = createServer({ url: process.env.PALBASE_URL!, secretKey: process
 const { data: machine } = await palbase.machines.createMachine({
   body: {
     name: "backend",
-    size: "shared-512",
+    size: "shared-256",
     port: 8080,
     source: { repository: "acme/notes", branch: "main", path: "server" },
     secrets: "production",
@@ -258,7 +304,7 @@ Every machine reaches the internet from one small range of addresses, the platfo
 | Images kept | On Free, 1 GiB: past it the sites' build caches, then the machines' older images are taken back — never the image a machine runs, nor its newest; on Pay as you go $0.2625 a GiB-month past it |
 | Tasks put on the queues | 1 million a month free; past it, on Free no task is put until the month ends (`429 quota_exceeded`), on Pay as you go $0.40 a million |
 | Traffic, free project | 5 GB a month at full speed, machine internet traffic, response traffic, database client traffic and site traffic together; then all of them, and storage's files, at about 256 kbit/s until the month ends (UTC); see [Reaching the internet](#reaching-the-internet) |
-| Connections to the internet open at once | Per copy of a machine, by its memory: 4,096 for 256 MiB, twice that for each doubling — 8,192 (`shared-512`), 16,384 (`shared-1024`), 32,768 (`dedicated-1x` and larger). One more is refused at once (`connection refused` / a reset). Connections to the platform, to your databases and DNS questions to the machine's resolvers are not counted. The cap keeps one machine from taking a server's whole connection table from the machines beside it: close connections you no longer use, and pool those you reuse |
+| Connections to the internet open at once | Per copy of a machine, by its memory: 4,096 for 256 MiB, twice that for each doubling — 8,192 (`starter`), 32,768 (`standard-1x`, `dedicated-1x` and larger). One more is refused at once (`connection refused` / a reset). Connections to the platform, to your databases and DNS questions to the machine's resolvers are not counted. The cap keeps one machine from taking a server's whole connection table from the machines beside it: close connections you no longer use, and pool those you reuse |
 
 ## Related
 

@@ -50,8 +50,8 @@ stopList();
 
 | Call | What it is |
 |---|---|
-| `conversations({ spaces })` | The person's conversations, the latest first: `items`, `unread` across them, and `synced` once the device's copy caught up — of some spaces alone when it names any ([Spaces and open groups](#spaces-and-open-groups)) |
-| `conversation(id)` | One conversation: `conversation`, `entries` (its timeline, the oldest first, then what is on its way), `members`, `typing`, `hasEarlier`; opened at a message (`{ at }`), `focus` and `hasLater` too ([Search](#search)) |
+| `conversations({ spaces })` | The person's conversations, the latest first: `items` — each with the last message the person sees in it (`last_message`, kept current as messages come, are edited or removed), `unread` across them, and `synced` once the device's copy caught up — of some spaces alone when it names any ([Spaces and open groups](#spaces-and-open-groups)) |
+| `conversation(id)` | One conversation: `conversation`, `entries` (its timeline, the oldest first, then what is on its way), `members`, `typing`, `hasEarlier` (false once a page says nothing is before, or the device's copy holds every message of it from the first); opened at a message (`{ at }`), `focus` and `hasLater` too ([Search](#search)) |
 | `direct(userId, { space })` | The direct conversation with someone — in a space, when it names one |
 | `group({ title, memberIds, description, photo, settings, space, visibility })` | A new group, the person its owner; `notAdded` names whom the project's hook kept out |
 | `openGroups(space, { limit, cursor })` | A space's open groups, each with whether the person is in it (`joined`) |

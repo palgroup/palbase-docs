@@ -114,6 +114,19 @@ An environment is free while it is on the Free plan — every environment starts
 
 An environment on Pay as you go is never slowed for its traffic, and its machines and databases may be of any size; a database of the `free` size keeps its 400 hours whoever holds it. What it uses past its own free quotas is charged to the payment account that pays for its organization ([Billing](https://palbase.studio/docs/getting-started/billing)).
 
+## What machines and databases cost
+
+On Pay as you go a machine of a paid size is billed by the second it runs, each copy counted, and a database of a paid size by the second it is awake: Render's prices for the same CPU and memory, a month being 730 hours — except where Render's would be under what the size costs us (its smallest machine, and the sizes with whole CPUs of their own), priced at that cost and a quarter more ([Machines](https://palbase.studio/docs/machines/overview#sizes), [Databases](https://palbase.studio/docs/machines/databases#sizes)).
+
+| Machine size | A month | Database size | A month |
+|---|---|---|---|
+| `starter` (0.5 vCPU, 512 MiB) | $16 | `hobby` (asleep when idle) | $11 awake |
+| `standard-1x` (1 vCPU, 2 GiB) | $25 | `starter` (0.5 vCPU, 1 GiB, 10 GB) | $21.70 |
+| `standard-2x` (2 vCPU, 4 GiB) | $85 | `standard-1x` (1 vCPU, 2 GiB, 25 GB) | $47.20 |
+| `standard-4x` (4 vCPU, 8 GiB) | $175 | `standard-2x` (2 vCPU, 4 GiB, 50 GB) | $89.70 |
+| `dedicated-1x` (1 vCPU of its own, 2 GiB) | $94 | `dedicated-1x` (1 vCPU of its own, 4 GiB, 25 GB) | $101 |
+| `dedicated-2x` (2 vCPU of its own, 4 GiB) | $182 | `dedicated-2x` (2 vCPU of its own, 8 GiB, 50 GB) | $193 |
+
 ## What compute costs past its free quota
 
 What machines, databases and sites use past each item's free quota is billed on Pay as you go at these prices; on Free the item stops, sleeps or slows as [What a free project gets](#what-a-free-project-gets) says. The whole price table is at [Billing](/legal/billing).

@@ -258,7 +258,7 @@ A topic is **closed** unless `self_subscribe`: only your backend adds its follow
 
 ## Preferences
 
-A user's preferences are channel → category → whether they take it. `transactional` is always on and not theirs to turn off; a category they never set is on. The app reads and sets its own user's (`GET` and `PUT /notify/preferences`); your backend reads and sets anyone's with `getUserPreferences` and `setUserPreferences({ path: { user_id }, body: { email: { marketing: false } } })`. Every send with a `user_id` and a `category` honours them.
+A user's preferences are channel → category → whether they take it. `transactional` is always on and not theirs to turn off; a category they never set is on. Palbase's messaging sends its pushes as `messaging`, a category the person may switch off like any other ([Messaging](https://palbase.studio/docs/messaging/overview#pushes-and-the-app-in-front)); a call rings as transactional. The app reads and sets its own user's (`GET` and `PUT /notify/preferences`); your backend reads and sets anyone's with `getUserPreferences` and `setUserPreferences({ path: { user_id }, body: { email: { marketing: false } } })`. Every send with a `user_id` and a `category` honours them.
 
 ## When a message goes
 
@@ -275,7 +275,7 @@ A send may say when it goes, with `schedule`: `at`, a moment for everyone, or `l
 
 That push goes at 10:00 in New York to a user whose phone is in New York, and at 10:00 in Istanbul to one in Istanbul. Until then each message is `scheduled`, with `send_at` saying when.
 
-A message that is not transactional also keeps to the project's **send rules**, set with `putNotifySettings` or in Studio (**Notifications › Settings › When marketing goes**). A settings write that names none of the three keeps them as they are, so a client written before them does not wipe them; one named `null` is taken off:
+A message that is not transactional — but a conversation's push (`messaging`), which goes at once — also keeps to the project's **send rules**, set with `putNotifySettings` or in Studio (**Notifications › Settings › When marketing goes**). A settings write that names none of the three keeps them as they are, so a client written before them does not wipe them; one named `null` is taken off:
 
 | Setting | What it does |
 |---|---|

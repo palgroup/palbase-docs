@@ -40,6 +40,8 @@ The tests reach what the machine reaches — its database, the project's storage
 
 They pass, and the version takes traffic. One fails, and the build fails: its `reason` names the tests that failed, its GitHub check shows the end of what they printed (what the run was given that is secret written over), the version never takes traffic, the machine keeps the version it runs, and the migration is taken back. The build's log (`palbase machines:builds:log <build>`) keeps the end of what the tests printed and, under its own heading after it, the end of what **the new version itself** printed while they ran — where a `500` it answered a test with is, with its error, its stack and the request's id (`request_id`, the one the test's `TestApiError` names), secrets written over the same way. Those lines are in the machine's log too, as `source: "test"` (below). A run has 20 minutes. A build is tested as the machine named its tests when the build was released to it. `palbase test --machine <name>` runs the same command, as the same test users, on your computer.
 
+To run them again on the code a machine serves — after a change of its `--test-command` or `--test-users`, or of the Bun its image pins — `palbase machines:deploy <name> --wait` builds its branch's head again, and the new build is tested before it takes traffic as a push's is; `palbase machines:builds:log <build>` shows what they printed. A build that served is not tested again in place: a new one is. A pull request's preview is built again by a push to it, or opened again with `palbase machines:previews:open <number> --machine <name>`.
+
 ### How the image is made
 
 The build reads the machine's directory (its `path`):
@@ -48,6 +50,15 @@ The build reads the machine's directory (its `path`):
 - **Without one**, [Railpack](https://railpack.com) detects what the directory is — Node, Bun, Go, Python, … — and plans the image from it.
 
 A `palbase/backend` app ships a `Dockerfile` (see [Project Structure](https://palbase.studio/docs/getting-started/project-structure)): its decorators need the TypeScript compiler options that Bun reads from `tsconfig.json`, and a Dockerfile says exactly how it is run. A build has 20 minutes, and a repository is built from at most 1 GiB and 100,000 files.
+
+### The Bun it runs
+
+The Bun a machine runs — its program, its `bun install` and the tests a build runs before it takes traffic, all in the build's image — is the image's, and the repository pins it:
+
+- **With a `Dockerfile`**, its `FROM`. `palbase init` writes `FROM oven/bun:1.4.2-alpine`; `FROM oven/bun:1.4.4-alpine` runs 1.4.4. The build's log shows it: `FROM docker.io/oven/bun:1.4.4-alpine` and `bun install v1.4.4`.
+- **Without one**, Railpack's: the `packageManager` field of `package.json` (`"packageManager": "bun@1.4.4"`), else `engines.bun`, else a `.bun-version`, `mise.toml` or `.tool-versions` file. With none, Railpack takes the newest Bun it resolves when it builds, so two builds of the same commit can differ: pin it.
+
+The pin is the repository's, so it takes effect at the next build — a push, or `palbase machines:deploy <name>` to build the branch's head again. A machine's settings carry no Bun version.
 
 ### `.env.example`: what the program must be given
 
@@ -97,7 +108,7 @@ Studio's machine page (**Backend › Machines › `<name>`**) lists its **Builds
 | `waiting_config` | Built, waiting for what `.env.example` names (`missing_env`); rolls out once the machine has it |
 | `succeeded` | Built and rolled out — or a newer build already had |
 | `failed` | Not built, or not up; `reason` says which |
-| `cancelled` | A newer commit was built first, the head of the branch was asked for (a deploy, or a change of source), or the machine was deleted |
+| `cancelled` | A newer commit was built first, the head of the branch was asked for (a deploy, or a change of source), the machine was deleted — or someone cancelled it (`cancelled by the project`) |
 | `skipped` | Its commit's checks did not pass, or did not end in time; nothing of it was built (`reason`) |
 
 | Call | HTTP | What it answers |
@@ -105,6 +116,11 @@ Studio's machine page (**Backend › Machines › `<name>`**) lists its **Builds
 | `listBuilds` | `GET /machines/{name}/builds` | A page of builds, newest first (20 by default, `next_cursor` for the next) |
 | `getBuild` | `GET /machines/{name}/builds/{build}` | One build: its commit and message, state, reason, `missing_env`, whether it runs |
 | `getBuildLog` | `GET /machines/{name}/builds/{build}/log` | The build's log, its last MiB — where a failure is. `404 log_not_ready` before the build has started; `404 no_log` for one that ended before it ran (its `reason` says why) |
+| `cancelBuild` | `POST /machines/{name}/builds/{build}/cancel` | Ends a build that has not rolled out — queued, waiting for its checks or its configuration, building; the machine runs what it ran. `409 build_not_cancellable` for one being tested or ended |
+
+**Cancel** on a build still on its way stops it in Studio; `palbase machines:builds:cancel <build> --machine <name>` from the CLI. Its commit's check says it was cancelled; a push, a deploy or a deploy hook builds again.
+
+A **deploy hook** builds the machine's branch's head when its URL is POSTed to — a CMS's *publish*, another service's schedule — as a site's does ([Deploy hooks](https://palbase.studio/docs/machines/hosting#built-from-github)): `palbase machines:hooks:create <name> --machine <machine>`, **Deploy hooks** on the machine's page. A machine read with its platform's tokens is built with a token, and takes none.
 
 ## Logs
 

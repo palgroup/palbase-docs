@@ -1505,6 +1505,19 @@ An environment is free while it is on the Free plan — every environment starts
 
 An environment on Pay as you go is never slowed for its traffic, and its machines and databases may be of any size; a database of the `free` size keeps its 400 hours whoever holds it. What it uses past its own free quotas is charged to the payment account that pays for its organization ([Billing](/docs/getting-started/billing)).
 
+## What machines and databases cost
+
+On Pay as you go a machine of a paid size is billed by the second it runs, each copy counted, and a database of a paid size by the second it is awake: Render's prices for the same CPU and memory, a month being 730 hours — except where Render's would be under what the size costs us (its smallest machine, and the sizes with whole CPUs of their own), priced at that cost and a quarter more ([Machines](/docs/machines/overview#sizes), [Databases](/docs/machines/databases#sizes)).
+
+| Machine size | A month | Database size | A month |
+|---|---|---|---|
+| `starter` (0.5 vCPU, 512 MiB) | $16 | `hobby` (asleep when idle) | $11 awake |
+| `standard-1x` (1 vCPU, 2 GiB) | $25 | `starter` (0.5 vCPU, 1 GiB, 10 GB) | $21.70 |
+| `standard-2x` (2 vCPU, 4 GiB) | $85 | `standard-1x` (1 vCPU, 2 GiB, 25 GB) | $47.20 |
+| `standard-4x` (4 vCPU, 8 GiB) | $175 | `standard-2x` (2 vCPU, 4 GiB, 50 GB) | $89.70 |
+| `dedicated-1x` (1 vCPU of its own, 2 GiB) | $94 | `dedicated-1x` (1 vCPU of its own, 4 GiB, 25 GB) | $101 |
+| `dedicated-2x` (2 vCPU of its own, 4 GiB) | $182 | `dedicated-2x` (2 vCPU of its own, 8 GiB, 50 GB) | $193 |
+
 ## What compute costs past its free quota
 
 What machines, databases and sites use past each item's free quota is billed on Pay as you go at these prices; on Free the item stops, sleeps or slows as [What a free project gets](#what-a-free-project-gets) says. The whole price table is at [Billing](/legal/billing).
@@ -1734,9 +1747,9 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.36.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.40.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-419 commands in 35 groups.
+435 commands in 35 groups.
 
 ## Global flags
 
@@ -2297,7 +2310,15 @@ Each environment is a project of its own on the platform: its users, data, machi
 Delete an environment of a project, with its data
 
 ```sh
-palbase envs:delete <slug>
+palbase envs:delete <slug> [--delete-bound | --move-to <env>]
+```
+
+A project's machines, databases and sites are the project's, each bound to one environment. What is bound to the environment deleted is deleted with it (--delete-bound), or moved to another environment of the project first (--move-to `<slug>`); with neither and something bound to it, a person at the terminal is asked, and anything else is refused with what is bound.
+Moved, they keep their data and answer throughout, and their old addresses keep working: the environment is deleted once each is up where it moved. The passwords this computer holds for its databases go with them.
+
+```text
+      --delete-bound   delete the machines, databases and sites bound to it with it
+      --move-to <env>  move its machines, databases and sites to this environment of the project (its slug) before it is deleted
 ```
 
 ## `keys`
@@ -2692,6 +2713,7 @@ Its mail and texts are kept for it, read with palbase auth:test-users:messages `
 Of the kind a sign-in asks for: --passwordless (a link, a code or a passkey alone), --unverified (its verification is tested), --phone with its fixed code (--otp, made when left out), --email-otp (a fixed code its email accepts: a reviewer reads no inbox), --mfa (a second factor from the start; totp answers its key once).
 --template `<name>` has the backend write the data of its @TestUserTemplate({ name }) for each user — its seed for one account, in its own code (palbase/backend), run on the machine --machine names or the environment's only one, for test users alone. Each user is answered with the rows written, by table, or why its template was not (no_template, not_a_test_user, template_failed, template_timeout, machine_unavailable): the user is made all the same, and the command then ends with 1. At most 10 users at once with a template.
 palbase auth:test-users:template writes another template for a user made with one; palbase auth:test-users:delete has the template undone before the user is deleted.
+A pull request's preview is a machine of the environment's (`<name>-pr<number>`, as machines:list shows) and signs in the environment's users: --machine backend-pr1 has the preview's code write the template, into the preview's own database (`<database>-pr<number>`).
 
 ```text
       --count <n>             how many (default 1, at most 100; 10 with --template)
@@ -6145,11 +6167,13 @@ palbase machines:sizes
 
 ### `palbase machines:list`
 
-The environment's machines: size, state, the version serving, address
+The project's machines, each with the environment it is bound to: size, state, the version serving, address
 
 ```sh
 palbase machines:list
 ```
+
+A project's machines are the project's: each is bound to one of its environments, whose settings, secrets and modules it takes, and the list is every environment's you reach. An environment's own token lists its environment's alone.
 
 ### `palbase machines:call`
 
@@ -6243,6 +6267,22 @@ palbase machines:update [name] [--size …] [--replicas …] [--db …] [--repo 
       --var <K=V>                         a setting it is started with (repeat it); secrets go in secrets:set
       --test-command <command>            what each new build runs before it takes traffic, in its image, against the new version itself once its migration has run (bun test, npm test); a failure fails the build and the machine runs what it ran; "" for none
       --test-users <names>                the test users each test run makes for its tests (api.signInAs), comma-separated; "" for none
+```
+
+### `palbase machines:move`
+
+Bind a machine to another environment of the project: it starts there with that environment's settings, secrets and modules
+
+```sh
+palbase machines:move <name> --to <env>
+```
+
+The machine starts in the new environment at the version it serves, and what ran where it left answers until it is up there: no request goes unanswered. Its address names the new environment (`<name>-<its ref>`), and the one it had keeps working, for good.
+Its domains of its own move with it and answer throughout. Its pull requests' previews are closed: a new push opens them in the new environment. The database it is given stays where it is kept, given to it across environments (databases:move moves a database).
+It needs the admin role in both environments, and the new environment room for it.
+
+```text
+      --to <env>  the environment of the project it moves to (its slug)
 ```
 
 ### `palbase machines:env:list`
@@ -6395,6 +6435,20 @@ palbase machines:builds:log [build] [--machine <name>]
       --machine <name>  the machine (default: the only one, or this directory's)
 ```
 
+### `palbase machines:builds:cancel`
+
+Cancel a machine's build that has not ended: its run is stopped, and the machine serves what it served
+
+```sh
+palbase machines:builds:cancel <build> [--machine <name>]
+```
+
+A push, a deploy or a deploy hook builds again.
+
+```text
+      --machine <name>  the machine (default: the only one, or this directory's)
+```
+
 ### `palbase machines:logs`
 
 A machine's log: the last hour, or since a time; -f follows what it writes next
@@ -6425,6 +6479,45 @@ The commit is the branch's head on GitHub: push first.
 
 ```text
       --wait  follow the build until the machine serves it
+```
+
+### `palbase machines:hooks`
+
+A machine's deploy hooks: what each is called, and when it last built — never their URLs
+
+```sh
+palbase machines:hooks [--machine <name>]
+```
+
+```text
+      --machine <name>  the machine (default: the only one, or this directory's)
+```
+
+### `palbase machines:hooks:create`
+
+Make a deploy hook: a URL that builds the machine's branch head when it is POSTed to (a CMS's publish, a schedule)
+
+```sh
+palbase machines:hooks:create <name> [--machine <name>]
+```
+
+Its URL is printed this once: anyone who holds it builds the machine, so keep it as a secret, and delete the hook if it leaks. A build it asks for is held to the project's builds as a push's is.
+A machine has 5 at most.
+
+```text
+      --machine <name>  the machine (default: the only one, or this directory's)
+```
+
+### `palbase machines:hooks:delete`
+
+Delete a deploy hook: its URL builds nothing from now on
+
+```sh
+palbase machines:hooks:delete <hook id> [--machine <name>]
+```
+
+```text
+      --machine <name>  the machine (default: the only one, or this directory's)
 ```
 
 ### `palbase machines:rollback`
@@ -6587,26 +6680,49 @@ palbase machines:delete <name>
 
 ## `hosting`
 
+### `palbase hosting:import`
+
+Import a GitHub repository's directory, as Vercel does: what it is found to be — a static web app, a web app that runs on a server, a backend — is made and built on every push
+
+```sh
+palbase hosting:import [--repo <owner/name>] [--branch <branch>] [--path <dir>] [--name <name>] [--as static|server|backend]
+```
+
+Run in a checkout, it reads the repository from origin, the branch from HEAD and the directory from where you are; flags say otherwise.
+What the directory is, is read on GitHub at the branch's head — its package.json, its framework's configuration, its lockfile, its Node.js version — and printed before anything is made; at a terminal you are asked to go ahead.
+static: a site, built as found. server (Next.js, Nuxt, SvelteKit on a server): a machine, and a site of its name with no files whose server it is — its address on the hosting domain, and its CDN. backend: a machine. --as makes it the other way.
+A static site's pull requests and other branches, and a web app's pull requests, are previewed from the start — for the project's team alone (hosting:previews:link shares one); a backend's previews are turned on as a machine's are (machines:update --previews).
+The environment needs its GitHub link first: palbase github:connect.
+
+```text
+      --repo <owner/name>           the GitHub repository (default: this checkout's origin)
+      --branch <branch>             the branch whose pushes are built (default: the one checked out)
+      --path <dir>                  the directory, from the repository's root (default: this directory's place in it)
+      --name <name>                 the site's and the machine's name (default: the directory's, or the repository's at its root)
+      --as <static|server|backend>  make it as this, whatever it is found to be
+```
+
 ### `palbase hosting:deploy`
 
 Deploy a folder as a static site: only the files that changed are sent, and the site serves them at once
 
 ```sh
-palbase hosting:deploy <folder> [--site <name>] [--spa]
+palbase hosting:deploy <folder> [--site <name>] [--spa | --no-spa]
 ```
 
 The folder is what your build wrote (dist, build, out, public): every file in it is served, at its path from the folder's root.
-The site is opened on its first deploy; --spa then answers a path no file answers with /index.html (a single-page app).
+The site is opened on its first deploy. --spa answers a path no file answers with /index.html (a single-page app), --no-spa with 404: the site is changed to it when it is not that already.
 A folder of one page, index.html, is taken for a single-page app when the site is opened.
 
 ```text
       --site <name>  the site (default: web, which answers at the environment's ref)
-      --spa          when the site is opened: answer every path no file answers with /index.html
+      --spa          a single-page app: answer every path no file answers with /index.html
+      --no-spa       not a single-page app: a path no file answers is 404
 ```
 
 ### `palbase hosting:sites:list`
 
-The environment's static sites, where each answers and the release it serves
+The project's static sites, each with the environment it is bound to: where each answers and the release it serves
 
 ```sh
 palbase hosting:sites:list
@@ -6617,11 +6733,13 @@ palbase hosting:sites:list
 Open a static site — built from GitHub on every push with --repo/--branch, or deployed from a folder (hosting:deploy opens one too)
 
 ```sh
-palbase hosting:sites:create [name] [--spa] [--repo <owner/name> --branch <branch> --path <dir>] [--build-command …] [--output <dir>] [--build-env K=V]… [--previews [--preview-forks]]
+palbase hosting:sites:create [name] [--spa] [--repo <owner/name> --branch <branch> --path <dir>] [--build-command …] [--output <dir>] [--build-env K=V]… [--previews [--preview-forks]] [--server <machine> [--server-path <prefix>]…] [--no-protect-previews]
 ```
 
 With --branch (and --repo, or in a checkout of a GitHub repository), its branch's head is built at once and on every push: the folder its build writes is served.
 With --previews, each pull request against the branch is built too and answers at `<name>-pr<n>-<ref>` until it closes; the pull request is told where.
+With --server, a machine of the environment answers what its files do not — the paths --server-path names, or every path: a site with no files whose server is a web app's machine is that app's address and CDN.
+Its previews are its team's alone unless --no-protect-previews: hosting:previews:link shares them.
 The environment needs its GitHub link first: palbase github:connect.
 
 ```text
@@ -6635,14 +6753,18 @@ The environment needs its GitHub link first: palbase github:connect.
       --build-env <K=V>            a setting the build runs with (repeat it): what its pages are sent (VITE_*), never a secret
       --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings — production's too
       --preview-forks              preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
+      --server <machine>           the environment's machine that answers what the site's files do not: its API (--server-path), or every path of a web app that runs on a server (Next.js, Nuxt, SvelteKit) — at the site's addresses, through its CDN
+      --server-path <prefix>       a path the server answers, ending in / (repeat it): /api/; none, and it answers every path
+      --protect-previews           its previews — its pull requests' and its branches' — are its team's alone: a visitor signs in with Studio, or holds a share link (hosting:previews:link); the default
+      --no-protect-previews        anyone with a preview's address opens it
 ```
 
 ### `palbase hosting:sites:update`
 
-Change a site: whether it is a single-page app, where it is built from, what its build runs
+Change a site: whether it is a single-page app, where it is built from, what its build runs, its server, who opens its previews
 
 ```sh
-palbase hosting:sites:update <name> [--spa | --no-spa] [--repo … --branch … --path …] [--no-source] [--build-command …] [--output …] [--build-env K=V]… [--previews | --no-previews] [--preview-forks | --no-preview-forks]
+palbase hosting:sites:update <name> [--spa | --no-spa] [--repo … --branch … --path …] [--no-source] [--build-command …] [--output …] [--build-env K=V]… [--previews | --no-previews] [--preview-forks | --no-preview-forks] [--server <machine>] [--server-path <prefix>]… [--no-server] [--protect-previews | --no-protect-previews]
 ```
 
 ```text
@@ -6660,6 +6782,27 @@ palbase hosting:sites:update <name> [--spa | --no-spa] [--repo … --branch … 
       --no-previews                preview no pull request from now on
       --preview-forks              preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
       --no-preview-forks           a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize
+      --server <machine>           the environment's machine that answers what the site's files do not: its API (--server-path), or every path of a web app that runs on a server (Next.js, Nuxt, SvelteKit) — at the site's addresses, through its CDN
+      --server-path <prefix>       a path the server answers, ending in / (repeat it): /api/; none, and it answers every path
+      --protect-previews           its previews — its pull requests' and its branches' — are its team's alone: a visitor signs in with Studio, or holds a share link (hosting:previews:link); the default
+      --no-protect-previews        anyone with a preview's address opens it
+      --no-server                  no machine answers for it any more: its files answer every path
+```
+
+### `palbase hosting:sites:move`
+
+Bind a site to another environment of the project: its files go with it, and it answers throughout
+
+```sh
+palbase hosting:sites:move <name> --to <env>
+```
+
+Its files and releases are copied to the new environment while it serves on, then it is the new environment's, in a few seconds: its address names it (`<name>-<its ref>`), and the one it had keeps working, for good. Its domains of its own move with it and answer throughout.
+Its pull requests' previews are closed: a new push opens them there. A build of it going on is stopped and built again there; its GitHub link is made in the new environment when it has none.
+It needs the admin role in both environments, and the new environment room for it: a site more, its files, its domains.
+
+```text
+      --to <env>  the environment of the project it moves to (its slug)
 ```
 
 ### `palbase hosting:sites:delete`
@@ -6710,10 +6853,67 @@ palbase hosting:builds [build] [--site <name>] [--wait]
 
 ### `palbase hosting:build`
 
-Build a site's branch head now and serve it, as a push does
+Build a site's branch head now and serve it, as a push does — following the build to its end, its log as it grows
 
 ```sh
-palbase hosting:build [--site <name>]
+palbase hosting:build [--site <name>] [--no-wait]
+```
+
+It ends as the build does: 0 once the site serves it (its address printed), 1 when it failed or was cancelled — the site serves what it served.
+Ctrl-C stops following it, not the build: hosting:builds:cancel cancels it.
+
+```text
+      --site <name>  the site (default: web)
+      --no-wait      ask for the build and end: hosting:builds follows it
+```
+
+### `palbase hosting:builds:cancel`
+
+Cancel a site's build that has not ended: its run is stopped, and the site serves what it served
+
+```sh
+palbase hosting:builds:cancel <build> [--site <name>]
+```
+
+A push, a deploy or a deploy hook builds again.
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:hooks`
+
+A site's deploy hooks: what each is called, and when it last built — never their URLs
+
+```sh
+palbase hosting:hooks [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:hooks:create`
+
+Make a deploy hook: a URL that builds the site's branch head when it is POSTed to (a CMS's publish, a schedule)
+
+```sh
+palbase hosting:hooks:create <name> [--site <name>]
+```
+
+Its URL is printed this once: anyone who holds it builds the site, so keep it as a secret, and delete the hook if it leaks. A build it asks for is held to the project's builds as a push's is.
+A site has 5 at most.
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:hooks:delete`
+
+Delete a deploy hook: its URL builds nothing from now on
+
+```sh
+palbase hosting:hooks:delete <hook id> [--site <name>]
 ```
 
 ```text
@@ -6722,11 +6922,13 @@ palbase hosting:build [--site <name>]
 
 ### `palbase hosting:previews`
 
-A site's pull request previews, newest first: where each answers, and whether it is built
+A site's previews — its pull requests' and its other branches' — newest first: where each answers, and whether it is built
 
 ```sh
 palbase hosting:previews [--site <name>]
 ```
+
+A branch's preview answers at `<name>-git-<branch>-<ref>` from its first push while the site previews, until the branch is deleted or a month passes with no push.
 
 ```text
       --site <name>  the site (default: web)
@@ -6742,6 +6944,61 @@ palbase hosting:previews:authorize <pull request> [--site <name>]
 
 A pull request from a fork waits for an admin of the environment (fork protection): look at what it changes first. The head shown is the one built; a push since asks again.
 A person authorizes it, signed in with palbase login: an environment's token (PALBASE_TOKEN) cannot.
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:previews:links`
+
+A site's share links that have not ended: each opens its protected previews to whoever holds it — never their tokens
+
+```sh
+palbase hosting:previews:links [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:previews:link`
+
+Make a share link of a site's protected previews: whoever holds it opens any of them, for 1 to 30 days
+
+```sh
+palbase hosting:previews:link [--site <name>] [--name <name>] [--days <1-30>]
+```
+
+Its token is printed this once: add `?_palbase_pass=<token>` to any preview's address and the preview opens — for a reviewer, a client, a test run. hosting:previews:unlink closes the previews to it at once.
+A site has 20 at most.
+
+```text
+      --site <name>  the site (default: web)
+      --name <name>  what it is for, as the links are listed: who holds it (64 at most)
+      --days <days>  how many days it opens the previews, 1 to 30 (default: 7)
+```
+
+### `palbase hosting:previews:unlink`
+
+Delete a share link: the site's previews close to it at once
+
+```sh
+palbase hosting:previews:unlink <link id> [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:previews:pass`
+
+An address that opens one of a site's protected previews in your browser, as you: for 12 hours
+
+```sh
+palbase hosting:previews:pass <preview url> [--site <name>]
+```
+
+The address is the preview's, with a pass of yours in its query: opened in a browser, the preview keeps it in a cookie of its own and opens for 12 hours. A team member's alone — share links (hosting:previews:link) are for others.
 
 ```text
       --site <name>  the site (default: web)
@@ -6819,11 +7076,13 @@ palbase databases:sizes
 
 ### `palbase databases:list`
 
-The environment's databases: size, state, how full
+The project's databases, each with the environment that keeps it: size, state, how full
 
 ```sh
 palbase databases:list
 ```
+
+A project's databases are the project's: any machine of the project may be given one, whichever environment keeps it (machines:update --database).
 
 ### `palbase databases:get`
 
@@ -6890,6 +7149,23 @@ palbase databases:restore <name> --to <time>
 
 ```text
       --to <time>  the moment, as an RFC 3339 time (2026-10-08T12:00:00Z)
+```
+
+### `palbase databases:move`
+
+Bind a database to another environment of the project: its data stays as it is, and it answers throughout
+
+```sh
+palbase databases:move <name> --to <env>
+```
+
+Nothing is copied: the database keeps its data where it is and answers throughout. In a moment it is the new environment's — what it is counted and paid for from then on, its host (`<name>-<its ref>`) — and the host it had keeps working, for good. The machines given it are rolled out to the new host.
+Its migrations are the machines' of the environment that keeps it: the machines that run them move with it with --with-machines (each once the database has, its migrations theirs there); without it, such a move is refused, naming them.
+It needs the admin role in both environments, and the new environment room for it as for a database opened there. The passwords this computer holds for it go with it.
+
+```text
+      --to <env>       the environment of the project it moves to (its slug)
+      --with-machines  move the machines that run its migrations with it
 ```
 
 ### `palbase databases:delete`
@@ -11950,7 +12226,7 @@ A topic is **closed** unless `self_subscribe`: only your backend adds its follow
 
 ## Preferences
 
-A user's preferences are channel → category → whether they take it. `transactional` is always on and not theirs to turn off; a category they never set is on. The app reads and sets its own user's (`GET` and `PUT /notify/preferences`); your backend reads and sets anyone's with `getUserPreferences` and `setUserPreferences({ path: { user_id }, body: { email: { marketing: false } } })`. Every send with a `user_id` and a `category` honours them.
+A user's preferences are channel → category → whether they take it. `transactional` is always on and not theirs to turn off; a category they never set is on. Palbase's messaging sends its pushes as `messaging`, a category the person may switch off like any other ([Messaging](/docs/messaging/overview#pushes-and-the-app-in-front)); a call rings as transactional. The app reads and sets its own user's (`GET` and `PUT /notify/preferences`); your backend reads and sets anyone's with `getUserPreferences` and `setUserPreferences({ path: { user_id }, body: { email: { marketing: false } } })`. Every send with a `user_id` and a `category` honours them.
 
 ## When a message goes
 
@@ -11967,7 +12243,7 @@ A send may say when it goes, with `schedule`: `at`, a moment for everyone, or `l
 
 That push goes at 10:00 in New York to a user whose phone is in New York, and at 10:00 in Istanbul to one in Istanbul. Until then each message is `scheduled`, with `send_at` saying when.
 
-A message that is not transactional also keeps to the project's **send rules**, set with `putNotifySettings` or in Studio (**Notifications › Settings › When marketing goes**). A settings write that names none of the three keeps them as they are, so a client written before them does not wipe them; one named `null` is taken off:
+A message that is not transactional — but a conversation's push (`messaging`), which goes at once — also keeps to the project's **send rules**, set with `putNotifySettings` or in Studio (**Notifications › Settings › When marketing goes**). A settings write that names none of the three keeps them as they are, so a client written before them does not wipe them; one named `null` is taken off:
 
 | Setting | What it does |
 |---|---|
@@ -14635,6 +14911,86 @@ Deleting a test user is a user deletion like any other: it emits `user.deleted` 
 
 A test run makes the users its tests act as, and deletes them when it ends: `palbase test --users alice,bob` on your computer, a machine's `test_users` on the platform before each new build takes traffic. Each is a test user like these, at an address of the run's own, with its access token; a test acts as one with `api.signInAs("alice")` ([Testing](/docs/backend/testing#over-http-api-as-test-users)).
 
+## A test user's data: `@TestUserTemplate`
+
+A screen shows data: the list a user has, the account they blocked, the order in progress. A **template** writes that data for one test user — in your backend's own code, with its own tables — so a person or an agent signs in and sees the screen as a user who has it. It is the supported way to give a test account rows your API has no route to make, without a fixture route anyone could call and without touching the database by hand.
+
+```ts
+// src/db/public.ts — the table the screen lists: each user's notes, theirs alone.
+import { defineSchema, defineTable, ownedByUser, text, timestamp, uuid } from "palbase/backend";
+
+const notes = defineTable("notes", {
+  columns: {
+    id: uuid().primaryKey().defaultRandom(),
+    owner: ownedByUser(),
+    title: text(),
+    created_at: timestamp().defaultNow(),
+  },
+});
+
+export default defineSchema("public", { tables: [notes] });
+```
+
+```ts
+// src/notes/notes.template.ts
+import { Database, TestUserTemplate, type TemplateUser } from "palbase/backend";
+
+// A test account with notes to show: `palbase auth:test-users:create --template with-notes`
+// makes the user and has this write its rows, for a person or an agent to sign in and see the list.
+@TestUserTemplate({ name: "with-notes" })
+export class WithNotes {
+  async seed(user: TemplateUser) {
+    await Database.public.notes.insertMany([
+      { owner: user.id, title: "Buy milk" },
+      { owner: user.id, title: "Call the bank" },
+      { owner: user.id, title: "Water the plants" },
+    ]);
+  }
+
+  // Run before the user is deleted (auth:test-users:delete): takes away what seed wrote.
+  async undo(user: TemplateUser) {
+    await Database.public.notes.deleteMany({ where: { owner: user.id } });
+  }
+}
+```
+
+```ts
+// src/app.module.ts — a template is a provider: its module lists it.
+import { Module } from "palbase/backend";
+import { WithNotes } from "./notes/notes.template.ts";
+
+@Module({ providers: [WithNotes] })
+export class AppModule {}
+```
+
+```sh
+palbase auth:test-users:create --template with-notes --token     # on the environment's only machine
+palbase auth:test-users:create --template with-notes --machine notes --count 3
+```
+
+How it runs:
+
+- **The contract.** A class with `@TestUserTemplate({ name })` — its name lowercase letters, digits, `_` and `-`, a letter first, at most 64 — and a `seed(user, meta)` method; `undo(user, meta)` is optional. `user` is `{ id, email }`; `meta` is `{ env, environmentId, template }` (the app's environment variables, its keys left out). Both are `palbase/backend`'s, as `TemplateUser` and `TemplateMeta`.
+- **Test users alone.** The platform makes the user at auth as a test user, then calls the machine for it (`POST /_palbase/test-user-templates/<name>`, signed with the machine's key, as its crons are). Before `seed` runs, the framework asks auth whether the user is a test user: anyone else is refused, `403 not_a_test_user` — in production too.
+- **One transaction, as the service role.** `seed` writes everything or nothing; row-level security does not stop it, so it writes rows a user's own session could not (another user's, a moderation table's). A throw is the template's failure.
+- **Its answer.** Each user is answered with the rows written, by table (`notes 3`), or why its template was not written: `no_template`, `not_a_test_user`, `template_failed`, `template_timeout` (a template has 60 seconds), `machine_unavailable`. The user is made either way, and the command ends with 1. Asked again for the same user and template (`palbase auth:test-users:template <user> <template>`), the platform answers what was written then: `seed` never runs twice for them.
+- **Cleanup.** `palbase auth:test-users:delete <id>` deletes a user made with a template through the machine that made it: each template's `undo` runs first, and an `undo` that fails keeps the user, to be deleted again. Without an `undo`, the user's deletion is the cleanup — what `ownedByUser()` owns goes with the user (`user.deleted`). Give a template an `undo` when it writes rows that are not owned that way: a plain text column naming the user, a row naming two users (a block between two accounts). Deleted at auth directly (`adminDeleteTestUser`), no `undo` runs.
+- **Who may.** Your role, or an environment's token with `auth:test-users` (`palbase env:tokens:create --scope auth:test-users`): it makes users with a template, writes one again and deletes them, and lists the machines to find the one a template is on. At most 10 users at once with a template. The API is `POST /machines/{name}/test-users` (`{ count, template, with_tokens }`).
+
+## In a pull request's preview
+
+A machine's [pull request preview](/docs/machines/hosting#pull-request-previews) is a machine of the same environment, `<name>-pr<number>` (as `palbase machines:list` shows it), and it signs in **the environment's users**: a test user made in the environment — with `palbase test`, `auth:test-users:create` or the secret key — calls the preview with its token as it calls the machine. Its address is `https://<name>-pr<number>-<ref>.app.palbase.studio`.
+
+The preview's database is its own (`<database>-pr<number>`) and starts empty. A template written on the preview fills it — the pull request's code, the pull request's tables, the environment's database never touched:
+
+```sh
+palbase auth:test-users:create --template with-notes --machine notes-pr7 --token
+curl -H "authorization: Bearer <its access token>" https://notes-pr7-<ref>.app.palbase.studio/notes
+palbase auth:test-users:delete <its id>      # the preview's undo runs, then the user goes
+```
+
+In production's environment (`main`) these commands ask for a yes: `-y` gives it, and with an environment's token `-y` is the only one. With `--json`, a refusal is printed as JSON on stdout and as a line on stderr.
+
 ## From Studio
 
 Studio's **Test accounts** tab under Authentication makes test logins of the kind a sign-in asks for, lists and searches them, shows each one's **Messages**, and makes a **Sign-up address**, for the environment you are in.
@@ -14818,6 +15174,35 @@ describe.skipIf(!testRun.stack)("notes, over HTTP", () => {
 - A refusal throws `TestApiError`: its `status`, its code (`error`), its `data` and the whole `body`, the platform's envelope.
 - `testRun.minted("alice")` says whether the run made that user. `createTestApi({ baseUrl, identities, … })` is a client of your own, for a test that calls two apps.
 
+`api` has a method for each of the routes' verbs — the decorators a controller declares them with, `@Get`, `@Post`, `@Put`, `@Patch`, `@Delete` and `@Query` ([Controllers](/docs/backend/controllers)). Each answers the parsed JSON body, typed as you say (`api.patch<Note>(…)`), and sends the user the client acts as:
+
+| Method | Request |
+|---|---|
+| `api.get<T>(path, opts?)` | `GET` |
+| `api.post<T>(path, body?, opts?)` | `POST`, the body as JSON |
+| `api.patch<T>(path, body?, opts?)` | `PATCH`, the body as JSON |
+| `api.put<T>(path, body?, opts?)` | `PUT`, the body as JSON |
+| `api.delete<T>(path, opts?)` | `DELETE` |
+| `api.query<T>(path, body?, opts?)` | `QUERY`: a read with a body |
+
+`opts.headers` adds headers to that one request (an `Idempotency-Key`, a locale); `api.requests` lists what the client sent.
+
+```ts
+// tests/notes.rename.test.ts
+import { describe, expect, it } from "bun:test";
+import { api, testRun } from "palbase/backend/test";
+
+describe.skipIf(!testRun.stack)("a note", () => {
+  it("is renamed with PATCH, and deleted", async () => {
+    await api.signInAs("alice");
+    const note = await api.post<{ id: string }>("/notes", { title: "draft" });
+    const renamed = await api.patch<{ title: string }>(`/notes/${note.id}`, { title: "final" });
+    expect(renamed.title).toBe("final");
+    await api.delete(`/notes/${note.id}`);
+  });
+});
+```
+
 ### A sign-in's link or code
 
 What the project sends a test user — a magic link, a verification or second factor's code, a password reset — is kept for it, never sent to a made address: a test reads it with the secret key or an environment token (`GET /notify/test-users/{user_id}/messages`, `palbase auth:test-users:messages <id>`) and goes on with the `link` or `code` it picks out — see [Its mail and texts](/docs/backend/test-users#its-mail-and-texts). A test of your app's sign-up form types in a sign-up address (`palbase auth:test-users:address`): the account it opens is a test user, not a counted one — see [Testing a sign-up](/docs/backend/test-users#testing-a-sign-up).
@@ -14835,6 +15220,12 @@ What the project sends a test user — a magic link, a verification or second fa
 On the platform the tests run against the new version **as it will run** — its env, its secrets, its database, after its migration has started: they pass and it takes traffic; one fails and the build fails, naming the test, while the machine keeps serving the version it runs (see [Builds](/docs/machines/builds#tests-before-it-takes-traffic)). The tests write where the app writes, so write them as a real user's session: a note of their own, not a table they expect empty. What a test user owns goes with them — the run deletes its users, and a deleted user's rows are erased (`ownedByUser()`, on `user.deleted`).
 
 The image has to carry the tests: `palbase init`'s `Dockerfile` copies `tests/`, and Bun's types are a dev dependency the image does not install.
+
+The platform runs the tests with the **Bun of the build's image**: a `Dockerfile`'s `FROM` (`palbase init` writes `FROM oven/bun:1.4.2-alpine`; `oven/bun:1.4.4-alpine` pins 1.4.4), or, without a Dockerfile, the one Railpack installs — see [Builds › The Bun it runs](/docs/machines/builds#the-bun-it-runs).
+
+**Running them again** on the code a machine serves: `palbase machines:deploy <name> --wait` builds its branch's head again, and the new build is tested before it takes traffic, as a push's is; `palbase machines:builds:log <build>` shows what the tests printed. A change of `--test-command` or `--test-users` (`machines:update`) rolls out as a new version and is tested on the next build. For a pull request, a push to it builds its preview again, or `palbase machines:previews:open <number> --machine <name>` opens it again.
+
+**Data the tests need**: a test writes it as a user would, through the app's own routes. Rows no route makes — another user's, a moderation table's — are a test user's [template](/docs/backend/test-users#a-test-users-data-testusertemplate)'s to write, in the app's own code, for test users alone; a test then acts as that user with its token.
 
 When a test fails with a `500`, its `TestApiError` names the request's id (`request_id`). What the app printed for it — its error, its stack, on a line with that id — is in the build's log after what the tests printed (`palbase machines:builds:log <build>`), and in the machine's log as `source: "test"`: `palbase machines:logs <name> --search <request_id>` finds it. An environment token with `machines:logs` reads both.
 
@@ -16708,8 +17099,8 @@ stopList();
 
 | Call | What it is |
 |---|---|
-| `conversations({ spaces })` | The person's conversations, the latest first: `items`, `unread` across them, and `synced` once the device's copy caught up — of some spaces alone when it names any ([Spaces and open groups](#spaces-and-open-groups)) |
-| `conversation(id)` | One conversation: `conversation`, `entries` (its timeline, the oldest first, then what is on its way), `members`, `typing`, `hasEarlier`; opened at a message (`{ at }`), `focus` and `hasLater` too ([Search](#search)) |
+| `conversations({ spaces })` | The person's conversations, the latest first: `items` — each with the last message the person sees in it (`last_message`, kept current as messages come, are edited or removed), `unread` across them, and `synced` once the device's copy caught up — of some spaces alone when it names any ([Spaces and open groups](#spaces-and-open-groups)) |
+| `conversation(id)` | One conversation: `conversation`, `entries` (its timeline, the oldest first, then what is on its way), `members`, `typing`, `hasEarlier` (false once a page says nothing is before, or the device's copy holds every message of it from the first); opened at a message (`{ at }`), `focus` and `hasLater` too ([Search](#search)) |
 | `direct(userId, { space })` | The direct conversation with someone — in a space, when it names one |
 | `group({ title, memberIds, description, photo, settings, space, visibility })` | A new group, the person its owner; `notAdded` names whom the project's hook kept out |
 | `openGroups(space, { limit, cursor })` | A space's open groups, each with whether the person is in it (`joined`) |
@@ -19499,7 +19890,7 @@ struct Chat: View {
 }
 ```
 
-`pb.messaging.direct(with: userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message); `group(title:memberIds:)` makes a group. `ConversationView` has `entries`, `members`, `typing`, `hasEarlier` and `loadEarlier()`; `thread(_:)` is a message's thread, `scheduled()` the person's messages for later.
+`pb.messaging.direct(with: userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message); `group(title:memberIds:)` makes a group. Each of `ConversationList`'s `items` has the last message the person sees in it (`lastMessage`, kept current as messages come, are edited or removed). `ConversationView` has `entries`, `members`, `typing`, `hasEarlier` (false once a page says nothing is before, or the device's copy holds every message of it from the first) and `loadEarlier()`; `thread(_:)` is a message's thread, `scheduled()` the person's messages for later.
 
 ## Spaces and open groups
 
@@ -19661,7 +20052,7 @@ When the person signs out, what the phone kept of their conversations is dropped
 The calls are a Swift package of their own, so an app that makes no calls takes none of their weight. Add `https://github.com/palgroup/palbase-swift-calls` with Swift Package Manager, at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.16.0")
+.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.16.4")
 ```
 
 Link `PalbaseCalls` to the app — and `PalbaseCallsBroadcast` to its Broadcast Upload Extension alone, when it shares the whole screen ([Sharing a screen](#sharing-a-screen)). `PalbaseCalls` brings Palbase's core and `PalbaseNotify` of the same version, and LiveKit's WebRTC and client SDK, which the media server's calls go through. **Do not add LiveKit's own Swift package beside them**: its client SDK is already inside `PalbaseCalls`. It needs iOS 18 and Xcode 16.3 or newer.
@@ -19834,6 +20225,7 @@ The example app (`Examples/PalbaseExample`, `CallScreens.swift`) draws the ringi
 `setScreenShare(true)` sends a screen into the call as a picture of its own, apart from the camera: the others get it as one of their `remoteScreens`; `isScreenSharing` says it, and `setScreenShare(false)` stops it. It goes through the media server as the camera does, and its data is the call's ([What it costs](/docs/calls/overview#what-it-costs)). What is shared is the configuration's `screenShare`:
 
 - **`.inApp`** (the default) — the app's own screen, captured in the app (ReplayKit): nothing to set up. iOS asks the person before it records the app's screen.
+- **`.appWindow`** — the app's window drawn from its own views, ten times a second: no ReplayKit, so no prompt, and it shares where ReplayKit is not — the iOS Simulator has none. A video or camera layer, the keyboard and other windows are not in it, and nothing is shared while the app is in the background.
 - **`.broadcastExtension`** — the whole screen, the app in the background too, through the app's **Broadcast Upload Extension**: sharing shows the system's picker and starts with the broadcast.
 
 ```swift
@@ -21995,7 +22387,7 @@ fun Chat(pb: PalbaseClient, id: String) {
 }
 ```
 
-`pb.messaging.direct(userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message). A message waits in the outbox while the phone is offline and goes once it can, once. Files are encrypted on the phone (AES-256-GCM) before they are uploaded; `pb.messaging.open(message, attachment)` downloads and decrypts one, and a message seen once gives its files by `pb.messaging.viewOnce(message)` alone.
+`pb.messaging.direct(userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message), its two `members` at once. Each conversation of `conversations()` has the last message the person sees in it (`lastMessage`, kept current as messages come, are edited or removed); a conversation's `hasEarlier` is false once a page says nothing is before, or the phone's copy holds every message of it from the first. A message waits in the outbox while the phone is offline and goes once it can, once. Files are encrypted on the phone (AES-256-GCM) before they are uploaded; `pb.messaging.open(message, attachment)` downloads and decrypts one, and a message seen once gives its files by `pb.messaging.viewOnce(message)` alone.
 
 ## Spaces and open groups
 
@@ -22134,7 +22526,7 @@ The phone's copy is kept in the app's own SQLite, in files not backed up. When t
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.16.1"))
+    implementation(platform("studio.palbase:palbase-bom:0.16.3"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // the FCM token, and the service a ring arrives through
     implementation("studio.palbase:palbase-calls")      // pb.calls
@@ -26750,6 +27142,8 @@ A browser does not say when someone takes a screenshot, and a phone cannot alway
 
 A message to someone who is not in the app reaches them as a push, through the project's notifications ([Notifications](/docs/backend/notifications)): set up an APNs key and Firebase for the apps first. The push says who wrote and what (`push_preview: false` for "a new message" alone), the app's badge is the person's unread count, and a conversation's messages group together.
 
+A message's push is of the notify category `messaging`: a person may switch it off in their preferences (`push` › `messaging` — [Web](/docs/web/notifications), [iOS](/docs/ios/notifications), [Android](/docs/android/notifications)) and keep their account's pushes and their calls' ringing, which are transactional. The project's quiet hours and its marketing cap never hold it — a message waiting until morning is a conversation broken — and the person's consent to marketing is not asked for it. One the person switched off is in the project's message log as `skipped` (`preferences`).
+
 While the app is in front, a message's push is not drawn as the system's banner: the client tells the app instead (web `onIncoming`, iOS `incoming()`, Android `incoming`), and the app draws its own banner — none for the conversation already on the screen.
 
 On iOS and Android, the push also brings the message into the device's copy while the app is closed: open it with no network and it is there. On iOS this is the `PalbaseMessagingNotificationService` extension and an App Group ([iOS Messaging](/docs/ios/messaging#messages-that-arrive-while-the-app-is-closed)); on Android, the push itself ([Android Messaging](/docs/android/messaging#messages-that-arrive-while-the-app-is-closed)).
@@ -26868,6 +27262,8 @@ A call to no one the caller may reach is `403 not_allowed`. A person starts 10 c
 ## A call at a place
 
 A Slack-like app holds a channel's meeting at the channel: `POST /calls` with `place: "channel:42"` (and nobody asked, or a few people rung). The place's people see it going on and come in, unasked — and someone who joins the channel while it lasts sees it too.
+
+Whether a call is open to a conversation's people is your app's choice, call by call: Palbase holds no rule of its own about it. Started at `place: "conversation:<id>"`, a group conversation's call is its meeting — every member sees it and walks in, one at a time, as in Slack. Started with `conversation_id` alone, it is kept in the conversation (its record is a message there) and is the people asked's alone, as a group call is in WhatsApp — a few of a large group can talk among themselves.
 
 - **One meeting a place.** A place with a rule holds one call going on at a time: starting another there is `409 place_busy`, with the call going on, to join.
 - **Who it lets in.** The place's rule says who may see and join its call:
@@ -28943,7 +29339,45 @@ In Studio, machines live under **Backend › Machines**. Everything Studio does 
 | Environment | Variables of your own, and the project secret set it starts with |
 | Database | One of the project's [databases](/docs/machines/databases), or none |
 
-A project has **5 machines at most**, and a machine's name is that machine's alone. Deleting a machine frees its name at once.
+An environment has **5 machines at most**, and a machine's name is the project's alone: no two machines of a project, in whatever environments, share one. Deleting a machine frees its name at once.
+
+## The project's machines, and the environment each is bound to
+
+A project's machines, [databases](/docs/machines/databases) and [sites](/docs/machines/hosting) are the **project's**; an environment is where settings live — its secrets, its modules, its apps. Each machine is **bound to one environment**: it starts with that environment's secrets and settings, its key acts as that environment's, and its address names that environment's ref. Three machines from three repositories may be bound to three environments of one project, or all to production.
+
+- **One list.** Studio, `palbase machines:list`, an organization's token and an account token list every environment's machines, each with the environment it is bound to (`environment`, the `env` column). The same holds for `databases:list` and `hosting:sites:list`. `?environment=<ref>` asks for one environment's alone.
+- **Read from any address, changed at its own.** A read that names a machine (`GET /machines/<name>/…`) is answered in the environment it is bound to, from whichever of the project's environments it was sent to — held to the caller's role **in that environment**. A change is made at the address of the environment it is bound to (`palbase … -E <its slug>`), where a change to production is confirmed and kept in that environment's audit: sent elsewhere, it is refused with `409 bound_to_environment`, naming the environment.
+- **An environment's own credentials.** An environment's token, and an environment's secret key, reach what is bound to their environment alone: a machine of another environment is not found with them.
+- **A new one** is bound to the environment the command acts on (`-E`): the one whose address it is made at. Its name is the project's one: `409 name_taken` when another environment holds it.
+
+### Moving to another environment
+
+```bash
+palbase machines:move api --to staging
+palbase databases:move notes --to staging
+palbase hosting:sites:move web --to staging
+```
+
+A machine, a database and a site each move to another environment of the project (`POST /machines/{name}/move`, `/databases/{name}/move`, `/sites/{name}/move` at its environment's address, `202` with `moving_to` until it has; meanwhile a change of it is refused with `409 machine_moving`, `database_moving` or `site_moving`, and a move to its own environment lets the move go). Each answers throughout:
+
+- **A machine** starts in the new environment at the version it serves, with that environment's secrets and settings; what ran where it left answers until it is up there (`moved_from`, ten minutes at most), then stops. Its domains of its own move with it and answer throughout. Its pull requests' previews are closed; the next push opens them there. The database it is given stays where it is kept, given to it across environments as its app.
+- **A database** keeps its data where it is — nothing is copied — and is the new environment's in a few seconds: counted and paid for there, its host naming it. The machines given it are rolled out to the new host, beside the version that serves. Its migrations are the machines' of the environment that keeps it: a machine of another environment that runs them moves to the new environment too (it moves once the database has), or the move is refused (`409 migrations_where_kept`, naming the machines). A pull request's preview database moves with nothing; one being resized, restored or archived moves once that is done (`409 database_busy`).
+- **A site** has its files and releases copied to the new environment while it serves on, then is the new environment's in one step; a build of it going on is stopped and built again there. Its domains of its own move with it.
+
+**Its old address keeps working, for good**: whatever moves answers at the address it had too — a machine's `former_urls`, a database's `former_hosts`, a site's `urls` — so an app in a store, or a server, that names it is not broken by the move. The new address is the one to use from then on. A GitHub installation it is built through is linked to the new environment when it has none. In the month a database moves, what it used until then is counted in the environment it left, and what it uses after in the new one: never twice.
+
+A move needs the admin role in both environments, and the new environment room for what moves, as for one opened there: its machines' and databases' limits and reservations, its sites and their files, its domains (`409 too_many_machines`, `free_database_taken`, `too_many_sites`, `too_many_domains` and the like). Its name is the project's one (`409 name_taken`), and none of its domains may be added in the new environment too (`409 domain_in_environment`). A move that cannot be made by the time it is made — no room there any more, the environment gone — is let go of, and it says why (a machine's `state_reason`, a database's and a site's `move_note`).
+
+### Deleting an environment
+
+Deleting an environment asks what becomes of what is bound to it. With nothing chosen and something bound, it is refused (`409 environment_has_resources`, what is bound in its data), and Studio's **Danger zone** lists it and offers both ways:
+
+```bash
+palbase envs:delete staging --delete-bound      # deleted with it
+palbase envs:delete staging --move-to main      # moved first: its machines, databases and sites
+```
+
+Moved, its machines, databases and sites go to the other environment as `machines:move`, `databases:move` and `hosting:sites:move` move them — keeping their data, answering throughout, their old addresses working — and the environment is deleted once each is up where it moved (the CLI waits; Studio answers `504 machines_still_moving` past a minute and a half, and the deletion is asked again). The passwords the CLI holds for its databases go with them. What cannot be moved is said, and nothing is deleted. Deleted with it, a database it keeps that a machine of another environment is given is not deleted at all (`409 database_given_elsewhere`): take the database from that machine first, or move it. An environment its organization froze answers nothing to ask what is bound to it: it is deleted with what is bound to it (`--delete-bound`). A machine moving into the environment is not moved out of it (`409 machines_moving_in`): let its move end, or go, first.
 
 ## Its address
 
@@ -28952,6 +29386,8 @@ The machine named `backend` is the project's backend and answers at the project'
 ```text
 https://<ref>.app.palbase.studio          the machine named backend
 https://<name>-<ref>.app.palbase.studio   any other machine
+
+<ref> is the ref of the environment the machine is bound to.
 ```
 
 The `url` field of the machine (Studio shows it as **Address**, with an **Open** button) is the address to use. A request there is your customers' own: no API key is asked for and none is added. Who may call a route is the app's to decide — a `palbase/backend` app checks the caller's access token on every route that needs one ([Authentication](/docs/backend/authentication)).
@@ -28972,21 +29408,27 @@ A path whose first segment is `_palbase` — `/_palbase/health`, `/_palbase/cron
 
 ## Sizes
 
-| Size | CPU | Memory | Sleeps |
-|---|---|---|---|
-| `shared-256` | 0.2 vCPU | 256 MiB | yes |
-| `shared-512` | 0.5 vCPU | 512 MiB | yes |
-| `shared-1024` | 1 vCPU | 1024 MiB | yes |
-| `dedicated-1x` | 1 vCPU of its own | 2048 MiB | never |
-| `dedicated-2x` | 2 vCPU of its own | 4096 MiB | never |
+| Size | CPU | Memory | Sleeps | On Pay as you go |
+|---|---|---|---|---|
+| `shared-256` | 0.2 vCPU | 256 MiB | yes | free — 750 hours a month, then $0.033 an hour |
+| `starter` | 0.5 vCPU | 512 MiB | never | $16 a month |
+| `standard-1x` | 1 vCPU | 2048 MiB | never | $25 a month |
+| `standard-2x` | 2 vCPU | 4096 MiB | never | $85 a month |
+| `standard-4x` | 4 vCPU | 8192 MiB | never | $175 a month |
+| `dedicated-1x` | 1 vCPU of its own | 2048 MiB | never | $94 a month |
+| `dedicated-2x` | 2 vCPU of its own | 4096 MiB | never | $182 a month |
 
-A **shared** size has a fraction of a CPU as its ceiling and is **put to sleep when it is idle** — after 15 minutes without a request — and woken by the next request, which waits for it. A request that waits longer than the wake allows is answered `503 machine_waking` with `Retry-After`, and asking again is what brings the answer. A **dedicated** size has whole CPUs of its own and never sleeps.
+A month is 730 hours, and a machine is billed by the second it runs, each copy counted: a `standard-1x` that ran half the month is $12.50. The standard sizes are Render's at Render's prices; `starter` is $16, not Render's $7, and the dedicated sizes are what their whole CPUs cost us and a quarter more — at Render's prices they would cost less than they cost us. `palbase machines:sizes` (`GET /machines/sizes`) lists every size with its price (`price_micros_per_hour`).
+
+A **shared** size has a fraction of a CPU as its ceiling and is **put to sleep when it is idle** — after 15 minutes without a request — and woken by the next request, which waits for it. A request that waits longer than the wake allows is answered `503 machine_waking` with `Retry-After`, and asking again is what brings the answer. A **standard** size never sleeps: its CPUs are its ceiling, a quarter of them are reserved for it on its node, and it uses the rest while the other machines there leave them — Render's sizes, at Render's prices. A **dedicated** size has whole CPUs of its own and never sleeps. Memory is never shared: a machine's memory is its own whatever its size.
+
+`shared-512` and `shared-1024`, sizes that were paid for and slept, are retired: a machine that has one runs on as it did, billed as `starter` and `standard-1x`, and none is opened at or moved to one.
 
 Sleeping has consequences for code: a machine that sleeps runs nothing while it sleeps. A timer, an in-memory cache or a background loop stops with it, and a request that wakes it pays the start-up. Work that must happen on a schedule is a [cron](#crons-and-tasks), and work to be done once, now or later, a [task](#crons-and-tasks): the platform wakes the machine for either.
 
 `shared-256` is the size every project may open. The others are sizes that are paid for: open to an environment on Pay as you go whose payment account is not held ([Billing](/docs/getting-started/billing)); for another, opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](/docs/getting-started/usage-and-limits)).
 
-What a project's machines and databases reserve between them is held to the project's limit: a size or a number of copies that does not fit is refused with `409 machines_over_limit`.
+What a project's machines and databases reserve between them is held to the project's limit — 2 vCPU and 4 GiB on Free, 15 vCPU and 64 GiB on Pay as you go, each copy counted (a shared or standard size reserves a quarter of its CPUs, a dedicated one all of them; memory is reserved whole): a size or a number of copies that does not fit is refused with `409 machines_over_limit`.
 
 ## Copies
 
@@ -29039,7 +29481,7 @@ const palbase = createServer({ url: process.env.PALBASE_URL!, secretKey: process
 const { data: machine } = await palbase.machines.createMachine({
   body: {
     name: "backend",
-    size: "shared-512",
+    size: "shared-256",
     port: 8080,
     source: { repository: "acme/notes", branch: "main", path: "server" },
     secrets: "production",
@@ -29180,7 +29622,7 @@ Every machine reaches the internet from one small range of addresses, the platfo
 | Images kept | On Free, 1 GiB: past it the sites' build caches, then the machines' older images are taken back — never the image a machine runs, nor its newest; on Pay as you go $0.2625 a GiB-month past it |
 | Tasks put on the queues | 1 million a month free; past it, on Free no task is put until the month ends (`429 quota_exceeded`), on Pay as you go $0.40 a million |
 | Traffic, free project | 5 GB a month at full speed, machine internet traffic, response traffic, database client traffic and site traffic together; then all of them, and storage's files, at about 256 kbit/s until the month ends (UTC); see [Reaching the internet](#reaching-the-internet) |
-| Connections to the internet open at once | Per copy of a machine, by its memory: 4,096 for 256 MiB, twice that for each doubling — 8,192 (`shared-512`), 16,384 (`shared-1024`), 32,768 (`dedicated-1x` and larger). One more is refused at once (`connection refused` / a reset). Connections to the platform, to your databases and DNS questions to the machine's resolvers are not counted. The cap keeps one machine from taking a server's whole connection table from the machines beside it: close connections you no longer use, and pool those you reuse |
+| Connections to the internet open at once | Per copy of a machine, by its memory: 4,096 for 256 MiB, twice that for each doubling — 8,192 (`starter`), 32,768 (`standard-1x`, `dedicated-1x` and larger). One more is refused at once (`connection refused` / a reset). Connections to the platform, to your databases and DNS questions to the machine's resolvers are not counted. The cap keeps one machine from taking a server's whole connection table from the machines beside it: close connections you no longer use, and pool those you reuse |
 
 ## Related
 
@@ -29406,6 +29848,8 @@ The tests reach what the machine reaches — its database, the project's storage
 
 They pass, and the version takes traffic. One fails, and the build fails: its `reason` names the tests that failed, its GitHub check shows the end of what they printed (what the run was given that is secret written over), the version never takes traffic, the machine keeps the version it runs, and the migration is taken back. The build's log (`palbase machines:builds:log <build>`) keeps the end of what the tests printed and, under its own heading after it, the end of what **the new version itself** printed while they ran — where a `500` it answered a test with is, with its error, its stack and the request's id (`request_id`, the one the test's `TestApiError` names), secrets written over the same way. Those lines are in the machine's log too, as `source: "test"` (below). A run has 20 minutes. A build is tested as the machine named its tests when the build was released to it. `palbase test --machine <name>` runs the same command, as the same test users, on your computer.
 
+To run them again on the code a machine serves — after a change of its `--test-command` or `--test-users`, or of the Bun its image pins — `palbase machines:deploy <name> --wait` builds its branch's head again, and the new build is tested before it takes traffic as a push's is; `palbase machines:builds:log <build>` shows what they printed. A build that served is not tested again in place: a new one is. A pull request's preview is built again by a push to it, or opened again with `palbase machines:previews:open <number> --machine <name>`.
+
 ### How the image is made
 
 The build reads the machine's directory (its `path`):
@@ -29414,6 +29858,15 @@ The build reads the machine's directory (its `path`):
 - **Without one**, [Railpack](https://railpack.com) detects what the directory is — Node, Bun, Go, Python, … — and plans the image from it.
 
 A `palbase/backend` app ships a `Dockerfile` (see [Project Structure](/docs/getting-started/project-structure)): its decorators need the TypeScript compiler options that Bun reads from `tsconfig.json`, and a Dockerfile says exactly how it is run. A build has 20 minutes, and a repository is built from at most 1 GiB and 100,000 files.
+
+### The Bun it runs
+
+The Bun a machine runs — its program, its `bun install` and the tests a build runs before it takes traffic, all in the build's image — is the image's, and the repository pins it:
+
+- **With a `Dockerfile`**, its `FROM`. `palbase init` writes `FROM oven/bun:1.4.2-alpine`; `FROM oven/bun:1.4.4-alpine` runs 1.4.4. The build's log shows it: `FROM docker.io/oven/bun:1.4.4-alpine` and `bun install v1.4.4`.
+- **Without one**, Railpack's: the `packageManager` field of `package.json` (`"packageManager": "bun@1.4.4"`), else `engines.bun`, else a `.bun-version`, `mise.toml` or `.tool-versions` file. With none, Railpack takes the newest Bun it resolves when it builds, so two builds of the same commit can differ: pin it.
+
+The pin is the repository's, so it takes effect at the next build — a push, or `palbase machines:deploy <name>` to build the branch's head again. A machine's settings carry no Bun version.
 
 ### `.env.example`: what the program must be given
 
@@ -29463,7 +29916,7 @@ Studio's machine page (**Backend › Machines › `<name>`**) lists its **Builds
 | `waiting_config` | Built, waiting for what `.env.example` names (`missing_env`); rolls out once the machine has it |
 | `succeeded` | Built and rolled out — or a newer build already had |
 | `failed` | Not built, or not up; `reason` says which |
-| `cancelled` | A newer commit was built first, the head of the branch was asked for (a deploy, or a change of source), or the machine was deleted |
+| `cancelled` | A newer commit was built first, the head of the branch was asked for (a deploy, or a change of source), the machine was deleted — or someone cancelled it (`cancelled by the project`) |
 | `skipped` | Its commit's checks did not pass, or did not end in time; nothing of it was built (`reason`) |
 
 | Call | HTTP | What it answers |
@@ -29471,6 +29924,11 @@ Studio's machine page (**Backend › Machines › `<name>`**) lists its **Builds
 | `listBuilds` | `GET /machines/{name}/builds` | A page of builds, newest first (20 by default, `next_cursor` for the next) |
 | `getBuild` | `GET /machines/{name}/builds/{build}` | One build: its commit and message, state, reason, `missing_env`, whether it runs |
 | `getBuildLog` | `GET /machines/{name}/builds/{build}/log` | The build's log, its last MiB — where a failure is. `404 log_not_ready` before the build has started; `404 no_log` for one that ended before it ran (its `reason` says why) |
+| `cancelBuild` | `POST /machines/{name}/builds/{build}/cancel` | Ends a build that has not rolled out — queued, waiting for its checks or its configuration, building; the machine runs what it ran. `409 build_not_cancellable` for one being tested or ended |
+
+**Cancel** on a build still on its way stops it in Studio; `palbase machines:builds:cancel <build> --machine <name>` from the CLI. Its commit's check says it was cancelled; a push, a deploy or a deploy hook builds again.
+
+A **deploy hook** builds the machine's branch's head when its URL is POSTed to — a CMS's *publish*, another service's schedule — as a site's does ([Deploy hooks](/docs/machines/hosting#built-from-github)): `palbase machines:hooks:create <name> --machine <machine>`, **Deploy hooks** on the machine's page. A machine read with its platform's tokens is built with a token, and takes none.
 
 ## Logs
 
@@ -29579,15 +30037,17 @@ A project has **3 databases** at most — a deleted one counts until it is purge
 
 ## Sizes
 
-| Size | CPU | Memory | Storage | Sessions on `5432` | Transactions at once on `6543` | Sleeps |
-|---|---|---|---|---|---|---|
-| `free` | 0.25 vCPU | 512 MiB | 1 GB | 38 | 12 | yes — and awake 400 hours a month at most |
-| `hobby` | 0.25 vCPU | 512 MiB | 5 GB | 38 | 12 | yes |
-| `shared-1g` | up to 1 vCPU | 1 GiB | 10 GB | 76 | 24 | never |
-| `shared-2g` | up to 2 vCPU | 2 GiB | 25 GB | 152 | 50 | never |
-| `shared-4g` | up to 2 vCPU | 4 GiB | 50 GB | 240 | 80 | never |
-| `dedicated-1x` | 1 vCPU of its own | 4 GiB | 25 GB | 240 | 80 | never |
-| `dedicated-2x` | 2 vCPU of its own | 8 GiB | 50 GB | 240 | 80 | never |
+| Size | CPU | Memory | Storage | Sessions on `5432` | Transactions at once on `6543` | Sleeps | On Pay as you go |
+|---|---|---|---|---|---|---|---|
+| `free` | 0.25 vCPU | 512 MiB | 1 GB | 38 | 12 | yes — and awake 400 hours a month at most | free — 400 hours a month, then $0.041 an hour |
+| `hobby` | 0.25 vCPU | 512 MiB | 5 GB | 38 | 12 | yes | $11 a month awake |
+| `starter` | up to 0.5 vCPU | 1 GiB | 10 GB | 76 | 24 | never | $21.70 a month |
+| `standard-1x` | up to 1 vCPU | 2 GiB | 25 GB | 152 | 50 | never | $47.20 a month |
+| `standard-2x` | up to 2 vCPU | 4 GiB | 50 GB | 240 | 80 | never | $89.70 a month |
+| `dedicated-1x` | 1 vCPU of its own | 4 GiB | 25 GB | 240 | 80 | never | $101 a month |
+| `dedicated-2x` | 2 vCPU of its own | 8 GiB | 50 GB | 240 | 80 | never | $193 a month |
+
+A month is 730 hours, and a database is billed by the second it is awake: its storage is in its price — Render's price for its CPU and memory, and its storage at Render's $0.30 a GB past the first. A `starter`, `standard-1x` or `standard-2x` database has a quarter of its CPUs reserved for it and uses the rest while the other databases and machines on its node leave them; a dedicated one has its CPUs whole. The dedicated sizes are priced at what their whole CPUs cost us and a quarter more: at Render's prices they would cost less than they cost us. `shared-1g`, `shared-2g` and `shared-4g` are retired: a database that has one keeps it until it moves to another size — billed as `standard-1x` (`shared-1g`, `shared-2g`) or `standard-2x` (`shared-4g`), none more than it was — and none moves to one.
 
 The two connection columns are what each port takes at once ([Connecting](#connecting)); `direct_connections` and `pooled_connections` on each size (`listDatabaseSizes`, `GET /databases/sizes`) and in a database's metrics answer them too.
 
@@ -29661,6 +30121,8 @@ A machine's connection is a client like any other: it wakes a database that slee
 
 A change of `database` gives it whole: `migrations` left out is `false`. `{ name: "" }` gives the machine none. A database that is not the project's is refused (`400 database_not_found`).
 
+A machine is given **any database of its project's**, whichever environment keeps it: a staging machine may take production's database. The name is looked up in the machine's own environment first, then in the project's others; `environment: { ref }` beside it names the environment to find it in (`409 ambiguous_database` when two keep one of that name). Another environment's database is given **as its app**: `migrations: false` (`409 migrations_where_kept` otherwise) — its migrations, and its owner's login, stay with a machine of the environment that keeps it. Giving it needs the admin role there (`403 environment_role_required`): its app login is written for the machine, so whoever ships that machine's code reads and writes that database as its app. The machine's `database.environment` says where it is kept, and the database's own `environment` says it too. A machine of an environment that is deleted loses the login it was written; restored, it is given it again, as it was. A database moves to another environment of the project with `palbase databases:move` ([Moving to another environment](/docs/machines/overview#moving-to-another-environment)): its data stays as it is, and its old host keeps working.
+
 ## A pull request preview's own
 
 A machine that runs its database's migrations and previews its pull requests ([Pull request previews](/docs/machines/hosting#pull-request-previews)) has each preview given a database of its own, `<database>-pr<number>`, of the `preview` size: 0.25 vCPU, 512 MiB and 500 MB, asleep when idle, with **no backup to bring it back from**: no base backup is taken of it, and no moment of it can be restored. It is opened empty with its preview, migrated by the preview's releases, and deleted — at once, with no restore window — when its preview goes: its pull request closed, three days without a push, seven days after it was opened, or the machine deleted. It is listed with the environment's databases and counts against none of them; its hours are the `free` size's — from the same 400 free hours, billed at its price past them on Pay as you go. No database is opened at the `preview` size, moved to it or from it, or named `<name>-pr<number>` by hand.
@@ -29733,9 +30195,27 @@ palbase db:copy --from main --to staging                     # one environment's
 
 # Sites, Previews & Domains
 
-A **site** is a static website an environment serves: a folder of files — what Vite, Next.js with `output: "export"`, Astro, SvelteKit's static adapter, Nuxt, Docusaurus or VitePress writes. Sites never sleep: they are answered by the platform's own servers behind a CDN, not by a machine. What they send is the environment's outbound traffic, with its machines' — on Free 5 GB a month at full speed and then slowed, on Pay as you go $0.126 a GiB past it — and the files they keep are billed past 10 GiB ([Usage & Limits](/docs/getting-started/usage-and-limits#what-compute-costs-past-its-free-quota)).
+A **site** is a web app an environment serves at its own address. A static one is a folder of files — what Vite, Next.js with `output: "export"`, Astro, SvelteKit's static adapter, Nuxt's `generate`, Docusaurus or VitePress writes — answered by the platform's own servers behind a CDN, never asleep. One that runs on a server — Next.js, Nuxt, SvelteKit, React Router (Remix) or Astro rendering pages and answering API routes, or Express — is a [machine](/docs/machines/overview) whose site is its address: its pages come from the machine, its framework's hashed files from the CDN ([A web app that runs on a server](#a-web-app-that-runs-on-a-server)). Static sites never sleep: they are answered by the platform's own servers behind a CDN, not by a machine. What they send is the environment's outbound traffic, with its machines' — on Free 5 GB a month at full speed and then slowed, on Pay as you go $0.126 a GiB past it — and the files they keep are billed past 10 GiB ([Usage & Limits](/docs/getting-started/usage-and-limits#what-compute-costs-past-its-free-quota)).
 
-Every site answers at `<name>-<ref>.palbase.app` — the environment's `web` site at `<ref>.palbase.app` — and, once added, at a domain of your own.
+Every site answers at `<name>-<ref>.palbase.app` — the environment's `web` site at `<ref>.palbase.app` — and, once added, at a domain of your own. A site moves to another environment of the project with `palbase hosting:sites:move <name> --to <env>`: its files go with it, it answers throughout, and its old address keeps working ([Moving to another environment](/docs/machines/overview#moving-to-another-environment)).
+
+## Import from GitHub
+
+In Studio: **Cloud › Sites › Import from GitHub**. Choose a repository, its branch and the directory the project is in, and **Read the repository**: Palbase reads it at the branch's head — its `package.json`, its framework's configuration, its lockfiles, its Node.js version file — and says what it is, with its build filled in. Change what you will, then **Import**; every push to the branch builds it from then on. Previews are on from the start, for the project's team alone ([who sees a preview](#who-sees-a-preview)): a static web app's pull requests and its other branches ([branch previews](#branch-previews)), a web app's on a server its pull requests; a backend's are turned on on its page, as a machine's are.
+
+```sh
+palbase hosting:import                         # this checkout's repository, branch and directory
+palbase hosting:import --repo acme/shop --branch main --path apps/web --name shop
+palbase hosting:import --as server             # what it is, if Palbase read it otherwise
+```
+
+| What it finds | What it is made |
+|---|---|
+| Vite, Create React App, Gatsby, Docusaurus, VitePress, Vue CLI, Parcel, Angular; Astro without an adapter; Next.js with `output: "export"`; Nuxt with `nuxt generate`; SvelteKit with `adapter-static`; React Router with `ssr: false`; a folder with `index.html` and no `package.json` | a **static site**: built from the branch, served from the CDN |
+| Next.js, Nuxt, SvelteKit with `adapter-node`, React Router (Remix), Astro with `output: "server"` or an adapter | a **web app on a server**: a machine, and a site whose server it is |
+| Express, Fastify, Koa, Hono, NestJS, AdonisJS; a `go.mod`, `requirements.txt`, `pyproject.toml`, `Gemfile`, `Cargo.toml` or other language's manifest; a `Dockerfile` | a **backend**: a machine |
+
+SvelteKit's `adapter-auto` knows no adapter for Palbase: the import says so, and its build fails until `@sveltejs/adapter-node` is named in `svelte.config`. The import reads, and makes nothing, until you import (`GET /machines/github/detect`).
 
 ## Deploy a folder
 
@@ -29772,7 +30252,44 @@ palbase hosting:build                  # build the branch's head now
 
 The platform reads the lockfile next to the site (or at the repository's root, for a workspace) and installs with pnpm, yarn, npm or bun, runs the `build` script of its `package.json`, and serves the folder its framework writes (`dist` for Vite and Astro, `out` for Next.js, `build` for SvelteKit, `.output/public` for Nuxt …). Say otherwise with `--install-command`, `--build-command` and `--output <dir>`. `--build-env KEY=VALUE` (repeatable) sets what the build runs with — what your pages are sent, such as `VITE_PALBASE_URL` — never a secret: whatever a build bakes into a page, every visitor reads.
 
+**Node.js.** A build runs the Node.js its `.nvmrc` or `.node-version` names — the site's directory's, else the repository root's — else the newest line its `package.json`'s `engines.node` allows, else Node.js 24. The lines are 20 (past its end of life), 22, 24 and 26; a version no build runs is refused with the ones that do. The build's log starts with `node --version`.
+
+**Install cache.** The files an install reads — `package.json`, the lockfile, `.npmrc`, `.yarnrc.yml`, `.yarn/`, `patches/` — are copied before the rest of the source, so a push that changes no package takes the installed ones from the site's build cache and skips the install. A package with its own `preinstall`, `install`, `postinstall` or `prepare` script, a workspace's root, and a site given its own install command install with the whole source there, as before.
+
+**Which pushes build it.** A site at the repository's root is built by every push. One in a directory is built by a push that changes a file in it — or, when it installs at the repository's root (a workspace's member), in any of the workspace's packages or at the root itself (a lockfile, a workspace's configuration): what its build may read. A push to another app of the repository builds nothing (Vercel's skipping of a monorepo's unaffected projects), and a pull request is previewed the same way: only the sites and machines whose directories its files change get a preview.
+
+**On GitHub.** Each build is a check on its commit — *Palbase Cloud · site &lt;name&gt;-&lt;ref&gt;* — queued, building, then live (with its address) or why not.
+
+```sh
+palbase hosting:builds:cancel <build> --site web    # stop a build queued or building: the site serves what it served
+palbase hosting:hooks:create "CMS publish" --site web   # a deploy hook: a URL that builds the branch's head when it is POSTed to
+palbase hosting:hooks --site web
+palbase hosting:hooks:delete <hook> --site web
+```
+
+A **deploy hook** (Vercel's, Netlify's) is a URL — `https://deploy-hooks.palbase.studio/pbh_…` — that builds the site's branch's head when anything POSTs to it: a CMS's *publish*, another service's schedule. It takes no key: the URL is the secret, shown once as it is made. Delete it if it leaks; its URL builds nothing from then on. A site or a machine has five at most, each called at most once in five seconds, and the build it asks for counts as a push's. In Studio: **Deploy hooks** on the site's or machine's page.
+
 A build counts against the environment's builds for the day, with its machines'. A failed build changes nothing: the site serves what it served, and `hosting:builds <build>` shows why.
+
+## A web app that runs on a server
+
+A site may have a **server**: a machine of its environment that answers what its files do not.
+
+```sh
+palbase hosting:sites:create web --repo acme/shop --server api --server-path /api/   # the files, and /api/… from the machine api
+palbase hosting:sites:create shop --server shop                                       # every path from the machine shop
+palbase hosting:sites:update web --no-server
+```
+
+- With **paths** (prefixes ending in `/`, ten at most), the site's own files answer every other path: a static front end and its API at one address, no CORS.
+- With **none**, the machine answers every path: a web app that renders on a server (Next.js, Nuxt, SvelteKit, Remix, Astro), its site its address — `<name>-<ref>.palbase.app` and its domains. This is what the import makes of one.
+
+The machine is reached as at its own address: woken if it sleeps, held to the environment's limits. What its framework builds under a hash of its content — `/_next/static/`, `/_nuxt/`, `/_app/immutable/`, `/_astro/` — the CDN keeps as the machine's `Cache-Control` says, so a page's scripts and styles come from the CDN; everything else is the machine's to answer each time.
+
+A machine of a **free** size sleeps after 15 minutes without a request, as Vercel's Hobby functions scale to zero: the first visitor after that waits for it to start — its program's start included — while the machine's later requests, and the CDN's files, wait for nothing. On Pay as you go `--always-on` keeps it awake ([Keeping a machine awake](#keeping-a-machine-awake)).
+
+A pull request's preview of the site is answered by the machine's own preview of the same pull request, once that is built; until then, and for a branch's preview, by the machine itself.
+
 
 ## Releases and rollback
 
@@ -29788,6 +30305,74 @@ A rollback, like a deploy, is at once: the next request is answered by the relea
 
 A page is kept by the CDN for one minute; a file whose name holds its content's hash (`/assets/index-Bf3k2.js`, `/_next/static/…`, `/_astro/…`) is kept by browsers for a year and by the CDN for an hour. When a site serves another release, is taken down or deleted, what the CDN keeps of it is let go of within seconds. You do not purge anything yourself.
 
+## Redirects, rewrites and headers
+
+A site says how it answers beyond its files in two plain-text files at the root of what is deployed — the folder `hosting:deploy` sends, or the folder its build writes (put them in `public/` or `static/`, which builders copy there): `_redirects` and `_headers`. They are [Cloudflare Pages's files](https://developers.cloudflare.com/pages/configuration/redirects/), which Netlify's mostly are, so a site moved from either keeps them; what Vercel's `vercel.json` says in `redirects`, `rewrites` and `headers` is written in them. Neither is served: `/_redirects` and `/_headers` are answered as paths no file answers.
+
+### `_redirects`
+
+A rule a line — a source, a destination, and a status, `302` when none is given. `#` starts a comment.
+
+```
+/home                /                                  301
+/old-blog/*          https://blog.example.com/:splat
+/blog/:year/:slug    /posts/:year-:slug                 308
+/users/:id           /users/profile.html                200
+```
+
+- A **redirect** — `301`, `302`, `303`, `307` or `308` — sends the visitor to a path of the site or to an `https://` address, which may hold a query string and a fragment. The query asked goes along unless the destination has its own: `/home?ref=x` is sent to `/?ref=x`. The CDN keeps a redirect a minute at most, as a page, and lets go of it when the site serves another release.
+- A **rewrite** — `200` — keeps the visitor's address and answers with the destination's path instead, as the site answers any path: its file, a page of that name, a directory's index, a single-page app's `index.html`, or the 404. It is followed once: its destination is not looked up in `_redirects` again.
+- `*` catches the rest of the path, slashes too, and `:splat` writes it in the destination; `:name` catches one part of the path and is written again as `:name`. A source has one `*` at most, and each `:name` once.
+
+The first rule, in the file's order, whose source is the path asked answers it — whether or not a file is at that path. Rules with neither `*` nor `:name` are counted apart, up to 2,000, while they come before the first that has one: put them first.
+
+### `_headers`
+
+A path a line, and under it, indented, the headers of what the site answers there:
+
+```
+/*
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/embed/*
+  ! X-Frame-Options
+
+/fonts/*
+  Access-Control-Allow-Origin: *
+
+https://:site.palbase.app/*
+  X-Robots-Tag: noindex
+```
+
+Every rule whose path is the one asked adds its headers, in their order, to whatever the site answers: a file, a redirect, a rewrite (by the path asked, not the rewrite's), a single-page app's `index.html`, the 404. A header a rule sets is in place of the platform's — `Cache-Control`, `Content-Type`, `X-Content-Type-Options`; set again by a later rule, it is added to (`X-Robots-Tag: nosnippet, noindex`). `! Name` takes a header off. `*` and `:name` match as in `_redirects`, and are written again in a value. A rule of an `https://` address applies on that host alone — the one above keeps the site's `palbase.app` address out of search engines, and not its own domain.
+
+`Cache-Control` says how long browsers keep an answer. The CDN keeps a page a minute whatever it says, and lets go of everything at the next release; a 404 keeps the platform's `Cache-Control`, so that a missing page is never kept long.
+
+A site sets no header that is the platform's or would reach every visitor alike: `Set-Cookie` (a page the CDN keeps is everyone's: its cookie would be too), `Cache-Tag`, `Cloudflare-CDN-Cache-Control`, `CDN-Cache-Control` and `ETag` (how the CDN and browsers keep a site's answers and let go of them), `Location` (a redirect is a rule of `_redirects`), `Clear-Site-Data` (it would sign every site on the platform's domains out, not this one alone — no site or machine sends it), `Content-Length`, `Content-Encoding`, `Content-Range`, `Transfer-Encoding`, `Connection`, `Keep-Alive`, `Upgrade` and `Trailer` (how an answer is sent), and any `X-Palbase-…` or `CF-…` header — nor takes one off.
+
+### What is refused
+
+A release whose `_redirects` or `_headers` has a line that does not hold is refused — `hosting:deploy` says so, and a build fails, changing nothing, with why on `hosting:builds <build>` — naming the file, each line and why. Cloudflare Pages leaves such a line out with a warning in its deploy's log; here you hear of it before the site serves it. Besides the headers above and the limits below, these are refused:
+
+- **A proxy to another address** — `/api/* https://api.example.com/:splat 200`. A rewrite answers with a file of the site; call a machine at its own address or domain.
+- **Netlify's other statuses and conditions** — a `404` rewrite (a path no file answers is answered by the site's `/404.html`), `Country=`, `Language=`, `Role=`, `Cookie=`, and query parameters in a source.
+- **`!` after a status** — Netlify's forced rule. On Netlify a rule does not apply where a file is at its source unless it is forced; here, as on Cloudflare Pages, every rule applies.
+- **A domain as a source** — `https://example.com/* …`: a domain sends its visitors to another with `hosting:domains:redirect`.
+- **`/* /index.html 200`** and the like (`/app/* /app/index.html`): it would answer every path below — scripts and images too — with one page. A single-page app's fallback is the site's own: `hosting:sites:update <name> --spa`. Cloudflare Pages refuses it too.
+- **A redirect to a path it matches itself** — `/docs/* /docs/start 301` — which a browser would follow for ever.
+- **A second rule with the same source**, or a second `_headers` rule with the same path: Cloudflare Pages applies the first of two redirects and the last of two header rules; write one.
+- **In `_headers`, an address that is not `https://`, or that names a port.**
+
+| Limit | |
+|---|---|
+| `_redirects`: rules with neither `*` nor `:name`, before the first that has one | 2,000 |
+| `_redirects`: the other rules | 100 |
+| `_redirects`: one rule | 1,000 characters |
+| `_headers`: rules | 100 |
+| `_headers`: one line | 2,000 characters |
+| Each file | 256 KiB |
+
 ## Pull request previews
 
 A site or a machine built from GitHub can preview its pull requests: each pull request opened against its branch is built at its head, **in the same environment, with that environment's settings and secrets**, and answers at `<name>-pr<number>-<ref>` until the pull request closes. The platform writes the address in a comment on the pull request and keeps it current as the pull request is pushed to.
@@ -29802,7 +30387,7 @@ palbase machines:previews api
 Any environment previews its pull requests, production's (`main`) too: a pull request against the branch a machine is built from is previewed in that machine's environment. Its code runs there with the environment's settings, secrets and users — its sign-ins, files and notifications are production's when the environment is — while a machine that runs its database's migrations gives it a database of its own, so the pull request's schema never touches the environment's data. Fork protection stays on unless an admin turns it off: a fork's pull request waits for an admin before its code runs with those secrets.
 
 - A **site's** preview is a release of its own. The site never serves it, and it is none of the releases `hosting:releases` lists or a rollback returns to.
-- A **machine's** preview is a machine of its own, `<name>-pr<number>`: one copy, the machine's size, settings and secrets. It counts as one of the environment's machines, and at most three previews of a machine run at once. It is deleted when its pull request closes, and with the machine.
+- A **machine's** preview is a machine of its own, `<name>-pr<number>`: one copy, the machine's size, settings, secrets and tests — a build whose tests fail does not take the preview's traffic, as a push's does not take the machine's. It counts as one of the environment's machines, and at most three previews of a machine run at once. It is deleted when its pull request closes, and with the machine.
 - A machine that runs its database's migrations has each preview given a **database of its own**, `<database>-pr<number>` — empty, migrated by the preview's release to the pull request's schema, so a pull request that adds a table or renames a column is previewed with it, and the environment's database is never touched by it. It is of the `preview` size (0.25 vCPU, 512 MiB, 500 MB, asleep when idle), keeps no backup to bring it back from, counts against none of the environment's databases — the Free plan's one free database included — and goes with its preview. Its hours are the `free` size's: on Free from the environment's 400 free database hours, on Pay as you go billed at that size's price past them. It starts empty: a preview's tests make their own data (`palbase test` makes their users). A machine that another machine migrates the database for has its preview given no database: the environment's — production's too — is never a pull request's to write. A preview runs no crons or tasks of its own and is sent none of the environment's events: they would run again beside its machine's, with the environment's users.
 - A machine's preview whose pull request has had **no push for 3 days**, or that was opened **7 days ago** however often it is pushed to, is taken down — its machine and its database — and reads `idle`; the pull request's comment says which. A preview checks a change before it is merged, not an environment that lives on. The next push opens it again, with a new database, or:
 
@@ -29810,7 +30395,7 @@ Any environment previews its pull requests, production's (`main`) too: a pull re
   palbase machines:previews:open 12 --machine api
   ```
 
-  On a preview that is open, `previews:open` starts its 3 days again. A preview the environment's limits refuse — no room for one more machine, or the storage the previews' databases are made on filling up — reads `refused`, with why, on `machines:previews` and the pull request; the next push or `previews:open` tries again.
+  On a preview that is open, `previews:open` starts its 3 days again. A preview the environment's limits refuse — no room for one more machine, or the storage the previews' databases are made on filling up — reads `refused`, with why, on `machines:previews` and the pull request; it is tried again every ten minutes, and the next push or `previews:open` tries at once.
 - A pull request from a **fork** — another account's copy of the repository, which anyone can open — waits for an admin of the environment (**fork protection**, as Vercel's Git Fork Protection): nothing of it is built until one authorizes its head, and each new push asks again. Its comment says so, with a link to the site's or machine's page in Studio, where **Authorize** builds it; or from the CLI:
 
   ```sh
@@ -29821,6 +30406,25 @@ Any environment previews its pull requests, production's (`main`) too: a pull re
   A person authorizes it — signed in to Studio, or to the CLI with `palbase login` — never a key or an environment's token (`person_required`). The head authorized must be the pull request's newest: one pushed to since is refused (`preview_head_moved`). `--preview-forks` turns fork protection off — a fork's pull request is previewed at once, its author's code running with the environment's settings; a person's to do, as authorizing is — and `--no-preview-forks` turns it on again: a fork's preview built while it was off waits for an admin again.
 
 The platform's GitHub App, **Palbase Cloud**, asks for the *Pull requests* permission to hear pull requests and write its comment; GitHub asks each installation's owner to accept it.
+
+### Branch previews
+
+A site that previews previews its branches too, as Vercel previews every push: a push to any branch other than the site's own builds that branch's head into a release of its own at `<name>-git-<branch>-<ref>` — `feature/login` of the site `web` at `web-git-feature-login-<ref>.palbase.app` — never what the site serves. It is built again at each push to the branch, and closes when the branch is deleted or goes a month without a push. A site previews ten branches at once; a push touching nothing its build reads builds none. `hosting:previews` lists them under the pull requests', and the build's check on the commit says the address.
+
+### Who sees a preview
+
+A site's previews — its pull requests' and its branches' — are its team's alone (Vercel's Deployment Protection, the default). A visitor is sent to Palbase Studio: signed in as a member of the project — any role — they are let through for 12 hours; anyone else is asked to sign in. Making a site's previews anyone's (`--no-protect-previews`) is a person's to do, signed in to Studio or the CLI, never a key's. What a protected preview answers is kept by no CDN.
+
+To show a preview to someone outside the team, make a **share link**: it opens every preview of the site for 1 to 30 days, until it is deleted.
+
+```sh
+palbase hosting:previews:link --site web --name client --days 14   # its token, shown once: add ?_palbase_pass=<token> to a preview's address
+palbase hosting:previews:links --site web
+palbase hosting:previews:unlink <link> --site web
+palbase hosting:sites:update web --no-protect-previews              # anyone with a preview's address sees it
+```
+
+In Studio: **Preview access** on the site's page. The pass rides in the address once; the platform moves it into a cookie of the preview's own host at once, so the address shown, kept and shared carries none, and a site's server is never sent it. A machine's own previews, `<name>-pr<n>-<ref>.app.palbase.studio`, are APIs and stay open — except the previews of a web app's server (a machine that answers every path of a site that protects its previews): those are the site's pages, and the site's protection is theirs too.
 
 ## Your own domain
 
@@ -29864,7 +30468,7 @@ A domain is one environment's at a time, across the platform: another environmen
 
 ## Keeping a machine awake
 
-A machine of a shared size sleeps when it has had no request for a while, and the next request wakes it. In an environment on **Pay as you go**, `palbase machines:update <name> --always-on` keeps it awake: never put to sleep, started again at once if it ever stops, and every hour of it paid. On the Free plan the setting is refused, and the machine sleeps as any. A dedicated size never sleeps.
+A machine of a shared size sleeps when it has had no request for 15 minutes, and the next request wakes it: it waits while the machine's sandbox starts and its program listens, a few seconds, and is sent to the machine the moment it does. In an environment on **Pay as you go**, `palbase machines:update <name> --always-on` keeps it awake: never put to sleep, started again at once if it ever stops, and every hour of it paid. On the Free plan the setting is refused, and the machine sleeps as any. A dedicated size never sleeps.
 
 ## Abuse
 

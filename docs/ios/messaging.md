@@ -59,7 +59,7 @@ struct Chat: View {
 }
 ```
 
-`pb.messaging.direct(with: userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message); `group(title:memberIds:)` makes a group. `ConversationView` has `entries`, `members`, `typing`, `hasEarlier` and `loadEarlier()`; `thread(_:)` is a message's thread, `scheduled()` the person's messages for later.
+`pb.messaging.direct(with: userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message); `group(title:memberIds:)` makes a group. Each of `ConversationList`'s `items` has the last message the person sees in it (`lastMessage`, kept current as messages come, are edited or removed). `ConversationView` has `entries`, `members`, `typing`, `hasEarlier` (false once a page says nothing is before, or the device's copy holds every message of it from the first) and `loadEarlier()`; `thread(_:)` is a message's thread, `scheduled()` the person's messages for later.
 
 ## Spaces and open groups
 

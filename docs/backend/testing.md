@@ -168,6 +168,35 @@ describe.skipIf(!testRun.stack)("notes, over HTTP", () => {
 - A refusal throws `TestApiError`: its `status`, its code (`error`), its `data` and the whole `body`, the platform's envelope.
 - `testRun.minted("alice")` says whether the run made that user. `createTestApi({ baseUrl, identities, … })` is a client of your own, for a test that calls two apps.
 
+`api` has a method for each of the routes' verbs — the decorators a controller declares them with, `@Get`, `@Post`, `@Put`, `@Patch`, `@Delete` and `@Query` ([Controllers](https://palbase.studio/docs/backend/controllers)). Each answers the parsed JSON body, typed as you say (`api.patch<Note>(…)`), and sends the user the client acts as:
+
+| Method | Request |
+|---|---|
+| `api.get<T>(path, opts?)` | `GET` |
+| `api.post<T>(path, body?, opts?)` | `POST`, the body as JSON |
+| `api.patch<T>(path, body?, opts?)` | `PATCH`, the body as JSON |
+| `api.put<T>(path, body?, opts?)` | `PUT`, the body as JSON |
+| `api.delete<T>(path, opts?)` | `DELETE` |
+| `api.query<T>(path, body?, opts?)` | `QUERY`: a read with a body |
+
+`opts.headers` adds headers to that one request (an `Idempotency-Key`, a locale); `api.requests` lists what the client sent.
+
+```ts
+// tests/notes.rename.test.ts
+import { describe, expect, it } from "bun:test";
+import { api, testRun } from "palbase/backend/test";
+
+describe.skipIf(!testRun.stack)("a note", () => {
+  it("is renamed with PATCH, and deleted", async () => {
+    await api.signInAs("alice");
+    const note = await api.post<{ id: string }>("/notes", { title: "draft" });
+    const renamed = await api.patch<{ title: string }>(`/notes/${note.id}`, { title: "final" });
+    expect(renamed.title).toBe("final");
+    await api.delete(`/notes/${note.id}`);
+  });
+});
+```
+
 ### A sign-in's link or code
 
 What the project sends a test user — a magic link, a verification or second factor's code, a password reset — is kept for it, never sent to a made address: a test reads it with the secret key or an environment token (`GET /notify/test-users/{user_id}/messages`, `palbase auth:test-users:messages <id>`) and goes on with the `link` or `code` it picks out — see [Its mail and texts](https://palbase.studio/docs/backend/test-users#its-mail-and-texts). A test of your app's sign-up form types in a sign-up address (`palbase auth:test-users:address`): the account it opens is a test user, not a counted one — see [Testing a sign-up](https://palbase.studio/docs/backend/test-users#testing-a-sign-up).
@@ -185,6 +214,12 @@ What the project sends a test user — a magic link, a verification or second fa
 On the platform the tests run against the new version **as it will run** — its env, its secrets, its database, after its migration has started: they pass and it takes traffic; one fails and the build fails, naming the test, while the machine keeps serving the version it runs (see [Builds](https://palbase.studio/docs/machines/builds#tests-before-it-takes-traffic)). The tests write where the app writes, so write them as a real user's session: a note of their own, not a table they expect empty. What a test user owns goes with them — the run deletes its users, and a deleted user's rows are erased (`ownedByUser()`, on `user.deleted`).
 
 The image has to carry the tests: `palbase init`'s `Dockerfile` copies `tests/`, and Bun's types are a dev dependency the image does not install.
+
+The platform runs the tests with the **Bun of the build's image**: a `Dockerfile`'s `FROM` (`palbase init` writes `FROM oven/bun:1.4.2-alpine`; `oven/bun:1.4.4-alpine` pins 1.4.4), or, without a Dockerfile, the one Railpack installs — see [Builds › The Bun it runs](https://palbase.studio/docs/machines/builds#the-bun-it-runs).
+
+**Running them again** on the code a machine serves: `palbase machines:deploy <name> --wait` builds its branch's head again, and the new build is tested before it takes traffic, as a push's is; `palbase machines:builds:log <build>` shows what the tests printed. A change of `--test-command` or `--test-users` (`machines:update`) rolls out as a new version and is tested on the next build. For a pull request, a push to it builds its preview again, or `palbase machines:previews:open <number> --machine <name>` opens it again.
+
+**Data the tests need**: a test writes it as a user would, through the app's own routes. Rows no route makes — another user's, a moderation table's — are a test user's [template](https://palbase.studio/docs/backend/test-users#a-test-users-data-testusertemplate)'s to write, in the app's own code, for test users alone; a test then acts as that user with its token.
 
 When a test fails with a `500`, its `TestApiError` names the request's id (`request_id`). What the app printed for it — its error, its stack, on a line with that id — is in the build's log after what the tests printed (`palbase machines:builds:log <build>`), and in the machine's log as `source: "test"`: `palbase machines:logs <name> --search <request_id>` finds it. An environment token with `machines:logs` reads both.
 

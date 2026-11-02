@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.36.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.40.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-419 commands in 35 groups.
+435 commands in 35 groups.
 
 ## Global flags
 
@@ -565,7 +565,15 @@ Each environment is a project of its own on the platform: its users, data, machi
 Delete an environment of a project, with its data
 
 ```sh
-palbase envs:delete <slug>
+palbase envs:delete <slug> [--delete-bound | --move-to <env>]
+```
+
+A project's machines, databases and sites are the project's, each bound to one environment. What is bound to the environment deleted is deleted with it (--delete-bound), or moved to another environment of the project first (--move-to `<slug>`); with neither and something bound to it, a person at the terminal is asked, and anything else is refused with what is bound.
+Moved, they keep their data and answer throughout, and their old addresses keep working: the environment is deleted once each is up where it moved. The passwords this computer holds for its databases go with them.
+
+```text
+      --delete-bound   delete the machines, databases and sites bound to it with it
+      --move-to <env>  move its machines, databases and sites to this environment of the project (its slug) before it is deleted
 ```
 
 ## `keys`
@@ -960,6 +968,7 @@ Its mail and texts are kept for it, read with palbase auth:test-users:messages `
 Of the kind a sign-in asks for: --passwordless (a link, a code or a passkey alone), --unverified (its verification is tested), --phone with its fixed code (--otp, made when left out), --email-otp (a fixed code its email accepts: a reviewer reads no inbox), --mfa (a second factor from the start; totp answers its key once).
 --template `<name>` has the backend write the data of its @TestUserTemplate({ name }) for each user — its seed for one account, in its own code (palbase/backend), run on the machine --machine names or the environment's only one, for test users alone. Each user is answered with the rows written, by table, or why its template was not (no_template, not_a_test_user, template_failed, template_timeout, machine_unavailable): the user is made all the same, and the command then ends with 1. At most 10 users at once with a template.
 palbase auth:test-users:template writes another template for a user made with one; palbase auth:test-users:delete has the template undone before the user is deleted.
+A pull request's preview is a machine of the environment's (`<name>-pr<number>`, as machines:list shows) and signs in the environment's users: --machine backend-pr1 has the preview's code write the template, into the preview's own database (`<database>-pr<number>`).
 
 ```text
       --count <n>             how many (default 1, at most 100; 10 with --template)
@@ -4413,11 +4422,13 @@ palbase machines:sizes
 
 ### `palbase machines:list`
 
-The environment's machines: size, state, the version serving, address
+The project's machines, each with the environment it is bound to: size, state, the version serving, address
 
 ```sh
 palbase machines:list
 ```
+
+A project's machines are the project's: each is bound to one of its environments, whose settings, secrets and modules it takes, and the list is every environment's you reach. An environment's own token lists its environment's alone.
 
 ### `palbase machines:call`
 
@@ -4511,6 +4522,22 @@ palbase machines:update [name] [--size …] [--replicas …] [--db …] [--repo 
       --var <K=V>                         a setting it is started with (repeat it); secrets go in secrets:set
       --test-command <command>            what each new build runs before it takes traffic, in its image, against the new version itself once its migration has run (bun test, npm test); a failure fails the build and the machine runs what it ran; "" for none
       --test-users <names>                the test users each test run makes for its tests (api.signInAs), comma-separated; "" for none
+```
+
+### `palbase machines:move`
+
+Bind a machine to another environment of the project: it starts there with that environment's settings, secrets and modules
+
+```sh
+palbase machines:move <name> --to <env>
+```
+
+The machine starts in the new environment at the version it serves, and what ran where it left answers until it is up there: no request goes unanswered. Its address names the new environment (`<name>-<its ref>`), and the one it had keeps working, for good.
+Its domains of its own move with it and answer throughout. Its pull requests' previews are closed: a new push opens them in the new environment. The database it is given stays where it is kept, given to it across environments (databases:move moves a database).
+It needs the admin role in both environments, and the new environment room for it.
+
+```text
+      --to <env>  the environment of the project it moves to (its slug)
 ```
 
 ### `palbase machines:env:list`
@@ -4663,6 +4690,20 @@ palbase machines:builds:log [build] [--machine <name>]
       --machine <name>  the machine (default: the only one, or this directory's)
 ```
 
+### `palbase machines:builds:cancel`
+
+Cancel a machine's build that has not ended: its run is stopped, and the machine serves what it served
+
+```sh
+palbase machines:builds:cancel <build> [--machine <name>]
+```
+
+A push, a deploy or a deploy hook builds again.
+
+```text
+      --machine <name>  the machine (default: the only one, or this directory's)
+```
+
 ### `palbase machines:logs`
 
 A machine's log: the last hour, or since a time; -f follows what it writes next
@@ -4693,6 +4734,45 @@ The commit is the branch's head on GitHub: push first.
 
 ```text
       --wait  follow the build until the machine serves it
+```
+
+### `palbase machines:hooks`
+
+A machine's deploy hooks: what each is called, and when it last built — never their URLs
+
+```sh
+palbase machines:hooks [--machine <name>]
+```
+
+```text
+      --machine <name>  the machine (default: the only one, or this directory's)
+```
+
+### `palbase machines:hooks:create`
+
+Make a deploy hook: a URL that builds the machine's branch head when it is POSTed to (a CMS's publish, a schedule)
+
+```sh
+palbase machines:hooks:create <name> [--machine <name>]
+```
+
+Its URL is printed this once: anyone who holds it builds the machine, so keep it as a secret, and delete the hook if it leaks. A build it asks for is held to the project's builds as a push's is.
+A machine has 5 at most.
+
+```text
+      --machine <name>  the machine (default: the only one, or this directory's)
+```
+
+### `palbase machines:hooks:delete`
+
+Delete a deploy hook: its URL builds nothing from now on
+
+```sh
+palbase machines:hooks:delete <hook id> [--machine <name>]
+```
+
+```text
+      --machine <name>  the machine (default: the only one, or this directory's)
 ```
 
 ### `palbase machines:rollback`
@@ -4855,26 +4935,49 @@ palbase machines:delete <name>
 
 ## `hosting`
 
+### `palbase hosting:import`
+
+Import a GitHub repository's directory, as Vercel does: what it is found to be — a static web app, a web app that runs on a server, a backend — is made and built on every push
+
+```sh
+palbase hosting:import [--repo <owner/name>] [--branch <branch>] [--path <dir>] [--name <name>] [--as static|server|backend]
+```
+
+Run in a checkout, it reads the repository from origin, the branch from HEAD and the directory from where you are; flags say otherwise.
+What the directory is, is read on GitHub at the branch's head — its package.json, its framework's configuration, its lockfile, its Node.js version — and printed before anything is made; at a terminal you are asked to go ahead.
+static: a site, built as found. server (Next.js, Nuxt, SvelteKit on a server): a machine, and a site of its name with no files whose server it is — its address on the hosting domain, and its CDN. backend: a machine. --as makes it the other way.
+A static site's pull requests and other branches, and a web app's pull requests, are previewed from the start — for the project's team alone (hosting:previews:link shares one); a backend's previews are turned on as a machine's are (machines:update --previews).
+The environment needs its GitHub link first: palbase github:connect.
+
+```text
+      --repo <owner/name>           the GitHub repository (default: this checkout's origin)
+      --branch <branch>             the branch whose pushes are built (default: the one checked out)
+      --path <dir>                  the directory, from the repository's root (default: this directory's place in it)
+      --name <name>                 the site's and the machine's name (default: the directory's, or the repository's at its root)
+      --as <static|server|backend>  make it as this, whatever it is found to be
+```
+
 ### `palbase hosting:deploy`
 
 Deploy a folder as a static site: only the files that changed are sent, and the site serves them at once
 
 ```sh
-palbase hosting:deploy <folder> [--site <name>] [--spa]
+palbase hosting:deploy <folder> [--site <name>] [--spa | --no-spa]
 ```
 
 The folder is what your build wrote (dist, build, out, public): every file in it is served, at its path from the folder's root.
-The site is opened on its first deploy; --spa then answers a path no file answers with /index.html (a single-page app).
+The site is opened on its first deploy. --spa answers a path no file answers with /index.html (a single-page app), --no-spa with 404: the site is changed to it when it is not that already.
 A folder of one page, index.html, is taken for a single-page app when the site is opened.
 
 ```text
       --site <name>  the site (default: web, which answers at the environment's ref)
-      --spa          when the site is opened: answer every path no file answers with /index.html
+      --spa          a single-page app: answer every path no file answers with /index.html
+      --no-spa       not a single-page app: a path no file answers is 404
 ```
 
 ### `palbase hosting:sites:list`
 
-The environment's static sites, where each answers and the release it serves
+The project's static sites, each with the environment it is bound to: where each answers and the release it serves
 
 ```sh
 palbase hosting:sites:list
@@ -4885,11 +4988,13 @@ palbase hosting:sites:list
 Open a static site — built from GitHub on every push with --repo/--branch, or deployed from a folder (hosting:deploy opens one too)
 
 ```sh
-palbase hosting:sites:create [name] [--spa] [--repo <owner/name> --branch <branch> --path <dir>] [--build-command …] [--output <dir>] [--build-env K=V]… [--previews [--preview-forks]]
+palbase hosting:sites:create [name] [--spa] [--repo <owner/name> --branch <branch> --path <dir>] [--build-command …] [--output <dir>] [--build-env K=V]… [--previews [--preview-forks]] [--server <machine> [--server-path <prefix>]…] [--no-protect-previews]
 ```
 
 With --branch (and --repo, or in a checkout of a GitHub repository), its branch's head is built at once and on every push: the folder its build writes is served.
 With --previews, each pull request against the branch is built too and answers at `<name>-pr<n>-<ref>` until it closes; the pull request is told where.
+With --server, a machine of the environment answers what its files do not — the paths --server-path names, or every path: a site with no files whose server is a web app's machine is that app's address and CDN.
+Its previews are its team's alone unless --no-protect-previews: hosting:previews:link shares them.
 The environment needs its GitHub link first: palbase github:connect.
 
 ```text
@@ -4903,14 +5008,18 @@ The environment needs its GitHub link first: palbase github:connect.
       --build-env <K=V>            a setting the build runs with (repeat it): what its pages are sent (VITE_*), never a secret
       --previews                   build each pull request against its branch into a preview of its own, in this environment with its settings — production's too
       --preview-forks              preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
+      --server <machine>           the environment's machine that answers what the site's files do not: its API (--server-path), or every path of a web app that runs on a server (Next.js, Nuxt, SvelteKit) — at the site's addresses, through its CDN
+      --server-path <prefix>       a path the server answers, ending in / (repeat it): /api/; none, and it answers every path
+      --protect-previews           its previews — its pull requests' and its branches' — are its team's alone: a visitor signs in with Studio, or holds a share link (hosting:previews:link); the default
+      --no-protect-previews        anyone with a preview's address opens it
 ```
 
 ### `palbase hosting:sites:update`
 
-Change a site: whether it is a single-page app, where it is built from, what its build runs
+Change a site: whether it is a single-page app, where it is built from, what its build runs, its server, who opens its previews
 
 ```sh
-palbase hosting:sites:update <name> [--spa | --no-spa] [--repo … --branch … --path …] [--no-source] [--build-command …] [--output …] [--build-env K=V]… [--previews | --no-previews] [--preview-forks | --no-preview-forks]
+palbase hosting:sites:update <name> [--spa | --no-spa] [--repo … --branch … --path …] [--no-source] [--build-command …] [--output …] [--build-env K=V]… [--previews | --no-previews] [--preview-forks | --no-preview-forks] [--server <machine>] [--server-path <prefix>]… [--no-server] [--protect-previews | --no-protect-previews]
 ```
 
 ```text
@@ -4928,6 +5037,27 @@ palbase hosting:sites:update <name> [--spa | --no-spa] [--repo … --branch … 
       --no-previews                preview no pull request from now on
       --preview-forks              preview a fork's pull requests without asking (fork protection off): anyone's code runs with this environment's settings and secrets — a person's to do, signed in with palbase login
       --no-preview-forks           a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize
+      --server <machine>           the environment's machine that answers what the site's files do not: its API (--server-path), or every path of a web app that runs on a server (Next.js, Nuxt, SvelteKit) — at the site's addresses, through its CDN
+      --server-path <prefix>       a path the server answers, ending in / (repeat it): /api/; none, and it answers every path
+      --protect-previews           its previews — its pull requests' and its branches' — are its team's alone: a visitor signs in with Studio, or holds a share link (hosting:previews:link); the default
+      --no-protect-previews        anyone with a preview's address opens it
+      --no-server                  no machine answers for it any more: its files answer every path
+```
+
+### `palbase hosting:sites:move`
+
+Bind a site to another environment of the project: its files go with it, and it answers throughout
+
+```sh
+palbase hosting:sites:move <name> --to <env>
+```
+
+Its files and releases are copied to the new environment while it serves on, then it is the new environment's, in a few seconds: its address names it (`<name>-<its ref>`), and the one it had keeps working, for good. Its domains of its own move with it and answer throughout.
+Its pull requests' previews are closed: a new push opens them there. A build of it going on is stopped and built again there; its GitHub link is made in the new environment when it has none.
+It needs the admin role in both environments, and the new environment room for it: a site more, its files, its domains.
+
+```text
+      --to <env>  the environment of the project it moves to (its slug)
 ```
 
 ### `palbase hosting:sites:delete`
@@ -4978,10 +5108,67 @@ palbase hosting:builds [build] [--site <name>] [--wait]
 
 ### `palbase hosting:build`
 
-Build a site's branch head now and serve it, as a push does
+Build a site's branch head now and serve it, as a push does — following the build to its end, its log as it grows
 
 ```sh
-palbase hosting:build [--site <name>]
+palbase hosting:build [--site <name>] [--no-wait]
+```
+
+It ends as the build does: 0 once the site serves it (its address printed), 1 when it failed or was cancelled — the site serves what it served.
+Ctrl-C stops following it, not the build: hosting:builds:cancel cancels it.
+
+```text
+      --site <name>  the site (default: web)
+      --no-wait      ask for the build and end: hosting:builds follows it
+```
+
+### `palbase hosting:builds:cancel`
+
+Cancel a site's build that has not ended: its run is stopped, and the site serves what it served
+
+```sh
+palbase hosting:builds:cancel <build> [--site <name>]
+```
+
+A push, a deploy or a deploy hook builds again.
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:hooks`
+
+A site's deploy hooks: what each is called, and when it last built — never their URLs
+
+```sh
+palbase hosting:hooks [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:hooks:create`
+
+Make a deploy hook: a URL that builds the site's branch head when it is POSTed to (a CMS's publish, a schedule)
+
+```sh
+palbase hosting:hooks:create <name> [--site <name>]
+```
+
+Its URL is printed this once: anyone who holds it builds the site, so keep it as a secret, and delete the hook if it leaks. A build it asks for is held to the project's builds as a push's is.
+A site has 5 at most.
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:hooks:delete`
+
+Delete a deploy hook: its URL builds nothing from now on
+
+```sh
+palbase hosting:hooks:delete <hook id> [--site <name>]
 ```
 
 ```text
@@ -4990,11 +5177,13 @@ palbase hosting:build [--site <name>]
 
 ### `palbase hosting:previews`
 
-A site's pull request previews, newest first: where each answers, and whether it is built
+A site's previews — its pull requests' and its other branches' — newest first: where each answers, and whether it is built
 
 ```sh
 palbase hosting:previews [--site <name>]
 ```
+
+A branch's preview answers at `<name>-git-<branch>-<ref>` from its first push while the site previews, until the branch is deleted or a month passes with no push.
 
 ```text
       --site <name>  the site (default: web)
@@ -5010,6 +5199,61 @@ palbase hosting:previews:authorize <pull request> [--site <name>]
 
 A pull request from a fork waits for an admin of the environment (fork protection): look at what it changes first. The head shown is the one built; a push since asks again.
 A person authorizes it, signed in with palbase login: an environment's token (PALBASE_TOKEN) cannot.
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:previews:links`
+
+A site's share links that have not ended: each opens its protected previews to whoever holds it — never their tokens
+
+```sh
+palbase hosting:previews:links [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:previews:link`
+
+Make a share link of a site's protected previews: whoever holds it opens any of them, for 1 to 30 days
+
+```sh
+palbase hosting:previews:link [--site <name>] [--name <name>] [--days <1-30>]
+```
+
+Its token is printed this once: add `?_palbase_pass=<token>` to any preview's address and the preview opens — for a reviewer, a client, a test run. hosting:previews:unlink closes the previews to it at once.
+A site has 20 at most.
+
+```text
+      --site <name>  the site (default: web)
+      --name <name>  what it is for, as the links are listed: who holds it (64 at most)
+      --days <days>  how many days it opens the previews, 1 to 30 (default: 7)
+```
+
+### `palbase hosting:previews:unlink`
+
+Delete a share link: the site's previews close to it at once
+
+```sh
+palbase hosting:previews:unlink <link id> [--site <name>]
+```
+
+```text
+      --site <name>  the site (default: web)
+```
+
+### `palbase hosting:previews:pass`
+
+An address that opens one of a site's protected previews in your browser, as you: for 12 hours
+
+```sh
+palbase hosting:previews:pass <preview url> [--site <name>]
+```
+
+The address is the preview's, with a pass of yours in its query: opened in a browser, the preview keeps it in a cookie of its own and opens for 12 hours. A team member's alone — share links (hosting:previews:link) are for others.
 
 ```text
       --site <name>  the site (default: web)
@@ -5087,11 +5331,13 @@ palbase databases:sizes
 
 ### `palbase databases:list`
 
-The environment's databases: size, state, how full
+The project's databases, each with the environment that keeps it: size, state, how full
 
 ```sh
 palbase databases:list
 ```
+
+A project's databases are the project's: any machine of the project may be given one, whichever environment keeps it (machines:update --database).
 
 ### `palbase databases:get`
 
@@ -5158,6 +5404,23 @@ palbase databases:restore <name> --to <time>
 
 ```text
       --to <time>  the moment, as an RFC 3339 time (2026-10-08T12:00:00Z)
+```
+
+### `palbase databases:move`
+
+Bind a database to another environment of the project: its data stays as it is, and it answers throughout
+
+```sh
+palbase databases:move <name> --to <env>
+```
+
+Nothing is copied: the database keeps its data where it is and answers throughout. In a moment it is the new environment's — what it is counted and paid for from then on, its host (`<name>-<its ref>`) — and the host it had keeps working, for good. The machines given it are rolled out to the new host.
+Its migrations are the machines' of the environment that keeps it: the machines that run them move with it with --with-machines (each once the database has, its migrations theirs there); without it, such a move is refused, naming them.
+It needs the admin role in both environments, and the new environment room for it as for a database opened there. The passwords this computer holds for it go with it.
+
+```text
+      --to <env>       the environment of the project it moves to (its slug)
+      --with-machines  move the machines that run its migrations with it
 ```
 
 ### `palbase databases:delete`

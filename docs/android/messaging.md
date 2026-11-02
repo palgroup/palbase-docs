@@ -61,7 +61,7 @@ fun Chat(pb: PalbaseClient, id: String) {
 }
 ```
 
-`pb.messaging.direct(userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message). A message waits in the outbox while the phone is offline and goes once it can, once. Files are encrypted on the phone (AES-256-GCM) before they are uploaded; `pb.messaging.open(message, attachment)` downloads and decrypts one, and a message seen once gives its files by `pb.messaging.viewOnce(message)` alone.
+`pb.messaging.direct(userId)` is the direct conversation with someone (the one there is, or a new one, shown to them with its first message), its two `members` at once. Each conversation of `conversations()` has the last message the person sees in it (`lastMessage`, kept current as messages come, are edited or removed); a conversation's `hasEarlier` is false once a page says nothing is before, or the phone's copy holds every message of it from the first. A message waits in the outbox while the phone is offline and goes once it can, once. Files are encrypted on the phone (AES-256-GCM) before they are uploaded; `pb.messaging.open(message, attachment)` downloads and decrypts one, and a message seen once gives its files by `pb.messaging.viewOnce(message)` alone.
 
 ## Spaces and open groups
 

@@ -151,6 +151,86 @@ Deleting a test user is a user deletion like any other: it emits `user.deleted` 
 
 A test run makes the users its tests act as, and deletes them when it ends: `palbase test --users alice,bob` on your computer, a machine's `test_users` on the platform before each new build takes traffic. Each is a test user like these, at an address of the run's own, with its access token; a test acts as one with `api.signInAs("alice")` ([Testing](https://palbase.studio/docs/backend/testing#over-http-api-as-test-users)).
 
+## A test user's data: `@TestUserTemplate`
+
+A screen shows data: the list a user has, the account they blocked, the order in progress. A **template** writes that data for one test user — in your backend's own code, with its own tables — so a person or an agent signs in and sees the screen as a user who has it. It is the supported way to give a test account rows your API has no route to make, without a fixture route anyone could call and without touching the database by hand.
+
+```ts
+// src/db/public.ts — the table the screen lists: each user's notes, theirs alone.
+import { defineSchema, defineTable, ownedByUser, text, timestamp, uuid } from "palbase/backend";
+
+const notes = defineTable("notes", {
+  columns: {
+    id: uuid().primaryKey().defaultRandom(),
+    owner: ownedByUser(),
+    title: text(),
+    created_at: timestamp().defaultNow(),
+  },
+});
+
+export default defineSchema("public", { tables: [notes] });
+```
+
+```ts
+// src/notes/notes.template.ts
+import { Database, TestUserTemplate, type TemplateUser } from "palbase/backend";
+
+// A test account with notes to show: `palbase auth:test-users:create --template with-notes`
+// makes the user and has this write its rows, for a person or an agent to sign in and see the list.
+@TestUserTemplate({ name: "with-notes" })
+export class WithNotes {
+  async seed(user: TemplateUser) {
+    await Database.public.notes.insertMany([
+      { owner: user.id, title: "Buy milk" },
+      { owner: user.id, title: "Call the bank" },
+      { owner: user.id, title: "Water the plants" },
+    ]);
+  }
+
+  // Run before the user is deleted (auth:test-users:delete): takes away what seed wrote.
+  async undo(user: TemplateUser) {
+    await Database.public.notes.deleteMany({ where: { owner: user.id } });
+  }
+}
+```
+
+```ts
+// src/app.module.ts — a template is a provider: its module lists it.
+import { Module } from "palbase/backend";
+import { WithNotes } from "./notes/notes.template.ts";
+
+@Module({ providers: [WithNotes] })
+export class AppModule {}
+```
+
+```sh
+palbase auth:test-users:create --template with-notes --token     # on the environment's only machine
+palbase auth:test-users:create --template with-notes --machine notes --count 3
+```
+
+How it runs:
+
+- **The contract.** A class with `@TestUserTemplate({ name })` — its name lowercase letters, digits, `_` and `-`, a letter first, at most 64 — and a `seed(user, meta)` method; `undo(user, meta)` is optional. `user` is `{ id, email }`; `meta` is `{ env, environmentId, template }` (the app's environment variables, its keys left out). Both are `palbase/backend`'s, as `TemplateUser` and `TemplateMeta`.
+- **Test users alone.** The platform makes the user at auth as a test user, then calls the machine for it (`POST /_palbase/test-user-templates/<name>`, signed with the machine's key, as its crons are). Before `seed` runs, the framework asks auth whether the user is a test user: anyone else is refused, `403 not_a_test_user` — in production too.
+- **One transaction, as the service role.** `seed` writes everything or nothing; row-level security does not stop it, so it writes rows a user's own session could not (another user's, a moderation table's). A throw is the template's failure.
+- **Its answer.** Each user is answered with the rows written, by table (`notes 3`), or why its template was not written: `no_template`, `not_a_test_user`, `template_failed`, `template_timeout` (a template has 60 seconds), `machine_unavailable`. The user is made either way, and the command ends with 1. Asked again for the same user and template (`palbase auth:test-users:template <user> <template>`), the platform answers what was written then: `seed` never runs twice for them.
+- **Cleanup.** `palbase auth:test-users:delete <id>` deletes a user made with a template through the machine that made it: each template's `undo` runs first, and an `undo` that fails keeps the user, to be deleted again. Without an `undo`, the user's deletion is the cleanup — what `ownedByUser()` owns goes with the user (`user.deleted`). Give a template an `undo` when it writes rows that are not owned that way: a plain text column naming the user, a row naming two users (a block between two accounts). Deleted at auth directly (`adminDeleteTestUser`), no `undo` runs.
+- **Who may.** Your role, or an environment's token with `auth:test-users` (`palbase env:tokens:create --scope auth:test-users`): it makes users with a template, writes one again and deletes them, and lists the machines to find the one a template is on. At most 10 users at once with a template. The API is `POST /machines/{name}/test-users` (`{ count, template, with_tokens }`).
+
+## In a pull request's preview
+
+A machine's [pull request preview](https://palbase.studio/docs/machines/hosting#pull-request-previews) is a machine of the same environment, `<name>-pr<number>` (as `palbase machines:list` shows it), and it signs in **the environment's users**: a test user made in the environment — with `palbase test`, `auth:test-users:create` or the secret key — calls the preview with its token as it calls the machine. Its address is `https://<name>-pr<number>-<ref>.app.palbase.studio`.
+
+The preview's database is its own (`<database>-pr<number>`) and starts empty. A template written on the preview fills it — the pull request's code, the pull request's tables, the environment's database never touched:
+
+```sh
+palbase auth:test-users:create --template with-notes --machine notes-pr7 --token
+curl -H "authorization: Bearer <its access token>" https://notes-pr7-<ref>.app.palbase.studio/notes
+palbase auth:test-users:delete <its id>      # the preview's undo runs, then the user goes
+```
+
+In production's environment (`main`) these commands ask for a yes: `-y` gives it, and with an environment's token `-y` is the only one. With `--json`, a refusal is printed as JSON on stdout and as a line on stderr.
+
 ## From Studio
 
 Studio's **Test accounts** tab under Authentication makes test logins of the kind a sign-in asks for, lists and searches them, shows each one's **Messages**, and makes a **Sign-up address**, for the environment you are in.

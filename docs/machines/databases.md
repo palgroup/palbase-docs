@@ -37,15 +37,17 @@ A project has **3 databases** at most — a deleted one counts until it is purge
 
 ## Sizes
 
-| Size | CPU | Memory | Storage | Sessions on `5432` | Transactions at once on `6543` | Sleeps |
-|---|---|---|---|---|---|---|
-| `free` | 0.25 vCPU | 512 MiB | 1 GB | 38 | 12 | yes — and awake 400 hours a month at most |
-| `hobby` | 0.25 vCPU | 512 MiB | 5 GB | 38 | 12 | yes |
-| `shared-1g` | up to 1 vCPU | 1 GiB | 10 GB | 76 | 24 | never |
-| `shared-2g` | up to 2 vCPU | 2 GiB | 25 GB | 152 | 50 | never |
-| `shared-4g` | up to 2 vCPU | 4 GiB | 50 GB | 240 | 80 | never |
-| `dedicated-1x` | 1 vCPU of its own | 4 GiB | 25 GB | 240 | 80 | never |
-| `dedicated-2x` | 2 vCPU of its own | 8 GiB | 50 GB | 240 | 80 | never |
+| Size | CPU | Memory | Storage | Sessions on `5432` | Transactions at once on `6543` | Sleeps | On Pay as you go |
+|---|---|---|---|---|---|---|---|
+| `free` | 0.25 vCPU | 512 MiB | 1 GB | 38 | 12 | yes — and awake 400 hours a month at most | free — 400 hours a month, then $0.041 an hour |
+| `hobby` | 0.25 vCPU | 512 MiB | 5 GB | 38 | 12 | yes | $11 a month awake |
+| `starter` | up to 0.5 vCPU | 1 GiB | 10 GB | 76 | 24 | never | $21.70 a month |
+| `standard-1x` | up to 1 vCPU | 2 GiB | 25 GB | 152 | 50 | never | $47.20 a month |
+| `standard-2x` | up to 2 vCPU | 4 GiB | 50 GB | 240 | 80 | never | $89.70 a month |
+| `dedicated-1x` | 1 vCPU of its own | 4 GiB | 25 GB | 240 | 80 | never | $101 a month |
+| `dedicated-2x` | 2 vCPU of its own | 8 GiB | 50 GB | 240 | 80 | never | $193 a month |
+
+A month is 730 hours, and a database is billed by the second it is awake: its storage is in its price — Render's price for its CPU and memory, and its storage at Render's $0.30 a GB past the first. A `starter`, `standard-1x` or `standard-2x` database has a quarter of its CPUs reserved for it and uses the rest while the other databases and machines on its node leave them; a dedicated one has its CPUs whole. The dedicated sizes are priced at what their whole CPUs cost us and a quarter more: at Render's prices they would cost less than they cost us. `shared-1g`, `shared-2g` and `shared-4g` are retired: a database that has one keeps it until it moves to another size — billed as `standard-1x` (`shared-1g`, `shared-2g`) or `standard-2x` (`shared-4g`), none more than it was — and none moves to one.
 
 The two connection columns are what each port takes at once ([Connecting](#connecting)); `direct_connections` and `pooled_connections` on each size (`listDatabaseSizes`, `GET /databases/sizes`) and in a database's metrics answer them too.
 
@@ -118,6 +120,8 @@ A machine's connection is a client like any other: it wakes a database that slee
 **Run migrations** (`migrations: true`) makes every release of the machine migrate the database before it serves — as the **owner**, with `PALBASE_DB_MIGRATE=start` before the rollout and `=complete` after ([Builds, Logs & Rollback](https://palbase.studio/docs/machines/builds#when-a-release-migrates-its-database)). A database's migrations are one machine's: a second machine asking for them is refused with `409 database_migrated_elsewhere`. The other machines given the database read and write it as the app login, and must read the schema the migrating machine declares.
 
 A change of `database` gives it whole: `migrations` left out is `false`. `{ name: "" }` gives the machine none. A database that is not the project's is refused (`400 database_not_found`).
+
+A machine is given **any database of its project's**, whichever environment keeps it: a staging machine may take production's database. The name is looked up in the machine's own environment first, then in the project's others; `environment: { ref }` beside it names the environment to find it in (`409 ambiguous_database` when two keep one of that name). Another environment's database is given **as its app**: `migrations: false` (`409 migrations_where_kept` otherwise) — its migrations, and its owner's login, stay with a machine of the environment that keeps it. Giving it needs the admin role there (`403 environment_role_required`): its app login is written for the machine, so whoever ships that machine's code reads and writes that database as its app. The machine's `database.environment` says where it is kept, and the database's own `environment` says it too. A machine of an environment that is deleted loses the login it was written; restored, it is given it again, as it was. A database moves to another environment of the project with `palbase databases:move` ([Moving to another environment](https://palbase.studio/docs/machines/overview#moving-to-another-environment)): its data stays as it is, and its old host keeps working.
 
 ## A pull request preview's own
 

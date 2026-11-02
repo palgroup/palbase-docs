@@ -9,7 +9,7 @@
 The calls are a Swift package of their own, so an app that makes no calls takes none of their weight. Add `https://github.com/palgroup/palbase-swift-calls` with Swift Package Manager, at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.16.0")
+.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.16.4")
 ```
 
 Link `PalbaseCalls` to the app — and `PalbaseCallsBroadcast` to its Broadcast Upload Extension alone, when it shares the whole screen ([Sharing a screen](#sharing-a-screen)). `PalbaseCalls` brings Palbase's core and `PalbaseNotify` of the same version, and LiveKit's WebRTC and client SDK, which the media server's calls go through. **Do not add LiveKit's own Swift package beside them**: its client SDK is already inside `PalbaseCalls`. It needs iOS 18 and Xcode 16.3 or newer.
@@ -182,6 +182,7 @@ The example app (`Examples/PalbaseExample`, `CallScreens.swift`) draws the ringi
 `setScreenShare(true)` sends a screen into the call as a picture of its own, apart from the camera: the others get it as one of their `remoteScreens`; `isScreenSharing` says it, and `setScreenShare(false)` stops it. It goes through the media server as the camera does, and its data is the call's ([What it costs](https://palbase.studio/docs/calls/overview#what-it-costs)). What is shared is the configuration's `screenShare`:
 
 - **`.inApp`** (the default) — the app's own screen, captured in the app (ReplayKit): nothing to set up. iOS asks the person before it records the app's screen.
+- **`.appWindow`** — the app's window drawn from its own views, ten times a second: no ReplayKit, so no prompt, and it shares where ReplayKit is not — the iOS Simulator has none. A video or camera layer, the keyboard and other windows are not in it, and nothing is shared while the app is in the background.
 - **`.broadcastExtension`** — the whole screen, the app in the background too, through the app's **Broadcast Upload Extension**: sharing shows the system's picker and starts with the broadcast.
 
 ```swift

@@ -38,6 +38,8 @@ A call to no one the caller may reach is `403 not_allowed`. A person starts 10 c
 
 A Slack-like app holds a channel's meeting at the channel: `POST /calls` with `place: "channel:42"` (and nobody asked, or a few people rung). The place's people see it going on and come in, unasked — and someone who joins the channel while it lasts sees it too.
 
+Whether a call is open to a conversation's people is your app's choice, call by call: Palbase holds no rule of its own about it. Started at `place: "conversation:<id>"`, a group conversation's call is its meeting — every member sees it and walks in, one at a time, as in Slack. Started with `conversation_id` alone, it is kept in the conversation (its record is a message there) and is the people asked's alone, as a group call is in WhatsApp — a few of a large group can talk among themselves.
+
 - **One meeting a place.** A place with a rule holds one call going on at a time: starting another there is `409 place_busy`, with the call going on, to join.
 - **Who it lets in.** The place's rule says who may see and join its call:
   - a `conversation:<id>` place lets in that conversation's members (Palbase's messaging says who they are — the calls module asks it for such a place alone, and depends on it for nothing else), narrowed by your hook when one is set; a call is started there only by someone who may write in the conversation;
