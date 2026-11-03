@@ -137,7 +137,8 @@ What machines, databases and sites use past each item's free quota is billed on 
 | Traffic out: machines, responses, database clients and sites together | 5 GB | $0.126 a GiB |
 | Machine images and sites' build caches | 1 GiB | $0.2625 a GiB-month |
 | Machine logs | 1 GiB | $0.525 a GiB |
-| `free` and preview database hours | 400 hours, between them | $0.041 an hour |
+| `shared-256` machine hours, each copy counted | 750 hours | $0.0096 an hour ($7 a month) |
+| `free` and preview database hours | 400 hours, between them | $0.0151 an hour ($11 a month, as `hobby`) |
 | A database's disk while asleep, or deleted and kept | — | $0.25 a GiB-month |
 | Disk traffic of the `free`, preview and `hobby` sizes | 100 GB | $0.02 a GB |
 | Site files | 10 GiB | $0.0315 a GiB-month, 100 GiB at most |

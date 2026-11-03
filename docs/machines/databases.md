@@ -6,14 +6,15 @@ A project's **database** is Postgres 18 of its own, with pgvector and PostGIS, r
 
 A database is the project's, not a machine's. One may be given to several machines, and one machine — the one that runs its migrations — owns its schema. A [`palbase/backend`](https://palbase.studio/docs/backend/database) app declares that schema in TypeScript and migrates it on every release; anything else that connects is an ordinary Postgres client.
 
-In Studio, databases live under **Database › Databases**. Each step below names the machines module's call beside the click, for a script that holds the secret key.
+In Studio, databases live under **Cloud › Databases**: the project's, every environment's in one list. Each step below names the machines module's call beside the click, for a script that holds the secret key.
 
 ## Opening one
 
-**Database › Databases › New database** asks for:
+**Cloud › Databases › New database** asks for:
 
 | Field | API | |
 |---|---|---|
+| **Environment** | the address it is made at | The environment it is bound to, asked each time; the one last worked in is chosen first, and production is warned of. |
 | **Name** | `name` | Lowercase letters, digits and dashes, starting with a letter, 32 at most; `main` when left out. It answers at `<name>-<ref>.db.palbase.studio`. |
 | **Size** | `size` | One of the sizes below; `free` when left out. It can be changed later ([below](#changing-and-removing-one)) |
 | **Allowed addresses** | `allow` | Who may connect, as addresses or CIDRs (`203.0.113.7`, `203.0.113.0/24`), 50 at most. Empty: anyone with the password. |
@@ -39,7 +40,7 @@ A project has **3 databases** at most — a deleted one counts until it is purge
 
 | Size | CPU | Memory | Storage | Sessions on `5432` | Transactions at once on `6543` | Sleeps | On Pay as you go |
 |---|---|---|---|---|---|---|---|
-| `free` | 0.25 vCPU | 512 MiB | 1 GB | 38 | 12 | yes — and awake 400 hours a month at most | free — 400 hours a month, then $0.041 an hour |
+| `free` | 0.25 vCPU | 512 MiB | 1 GB | 38 | 12 | yes — and awake 400 hours a month at most | free — 400 hours a month, then $11 a month awake, as `hobby` ($0.0151 an hour) |
 | `hobby` | 0.25 vCPU | 512 MiB | 5 GB | 38 | 12 | yes | $11 a month awake |
 | `starter` | up to 0.5 vCPU | 1 GiB | 10 GB | 76 | 24 | never | $21.70 a month |
 | `standard-1x` | up to 1 vCPU | 2 GiB | 25 GB | 152 | 50 | never | $47.20 a month |

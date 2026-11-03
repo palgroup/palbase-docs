@@ -8,7 +8,7 @@ Every site answers at `<name>-<ref>.palbase.app` — the environment's `web` sit
 
 ## Import from GitHub
 
-In Studio: **Cloud › Sites › Import from GitHub**. Choose a repository, its branch and the directory the project is in, and **Read the repository**: Palbase reads it at the branch's head — its `package.json`, its framework's configuration, its lockfiles, its Node.js version file — and says what it is, with its build filled in. Change what you will, then **Import**; every push to the branch builds it from then on. Previews are on from the start, for the project's team alone ([who sees a preview](#who-sees-a-preview)): a static web app's pull requests and its other branches ([branch previews](#branch-previews)), a web app's on a server its pull requests; a backend's are turned on on its page, as a machine's are.
+In Studio: **Cloud › Sites › Import from GitHub** (the project's Cloud: its sites, whatever environment each is bound to). Choose the environment it is bound to, a repository, its branch and the directory the project is in, and **Read the repository**: Palbase reads it at the branch's head — its `package.json`, its framework's configuration, its lockfiles, its Node.js version file — and says what it is, with its build filled in. Change what you will, then **Import**; every push to the branch builds it from then on. Previews are on from the start, for the project's team alone ([who sees a preview](#who-sees-a-preview)): a static web app's pull requests and its other branches ([branch previews](#branch-previews)), a web app's on a server its pull requests; a backend's are turned on on its page, as a machine's are.
 
 ```sh
 palbase hosting:import                         # this checkout's repository, branch and directory
@@ -275,7 +275,7 @@ A domain is one environment's at a time, across the platform: another environmen
 
 ## Keeping a machine awake
 
-A machine of a shared size sleeps when it has had no request for 15 minutes, and the next request wakes it: it waits while the machine's sandbox starts and its program listens, a few seconds, and is sent to the machine the moment it does. In an environment on **Pay as you go**, `palbase machines:update <name> --always-on` keeps it awake: never put to sleep, started again at once if it ever stops, and every hour of it paid. On the Free plan the setting is refused, and the machine sleeps as any. A dedicated size never sleeps.
+A machine of a shared size sleeps when it has had no request for 15 minutes, and the next request wakes it: it waits while the machine's sandbox starts and its program listens — about 3 to 4 seconds, the sandbox's 2 to 3 of them (measured 02.11: a plain Node server 3.2–3.6 s, Next.js 3.6–4.0 s) — and is sent to the machine the moment it does. Its files under `/_next/static/` and the like stay at the CDN all the while. In an environment on **Pay as you go**, `palbase machines:update <name> --always-on` keeps it awake: never put to sleep, started again at once if it ever stops, and every hour of it paid. On the Free plan the setting is refused, and the machine sleeps as any. A dedicated size never sleeps.
 
 ## Abuse
 

@@ -338,7 +338,7 @@ The secret is in the environment's **production** set. A machine starts with the
 
 ## 5. Connect GitHub and open the machine
 
-**Backend › Machines › New machine**:
+**Cloud › Machines › New machine**:
 
 1. **Connect GitHub** — GitHub asks where to install **Palbase Cloud**; choose the repository, and connect it to this project by writing its ref when Palbase asks. Back in Studio, **Refresh** ([Connecting GitHub](https://palbase.studio/docs/machines/github)).
 2. **Repository**: `you/notes-backend`; **Branch**: `main`; **Directory**: empty (the repository's root).
@@ -374,7 +374,7 @@ What the backend writes is on its machine page under **Logs**, and `Log` from `p
 
 ## 8. Where next
 
-- **A database.** **Database › Databases › New database**, then give it to the machine with **Run migrations** on. Declare the table in `src/db/public.ts`, pass it to `PalbaseFactory.create(AppModule, { db: { schemas: [schema] } })`, and the next push migrates it before the new version serves: [Databases](https://palbase.studio/docs/machines/databases), [Database](https://palbase.studio/docs/backend/database), [Schema](https://palbase.studio/docs/backend/schema).
+- **A database.** **Cloud › Databases › New database**, then give it to the machine with **Run migrations** on. Declare the table in `src/db/public.ts`, pass it to `PalbaseFactory.create(AppModule, { db: { schemas: [schema] } })`, and the next push migrates it before the new version serves: [Databases](https://palbase.studio/docs/machines/databases), [Database](https://palbase.studio/docs/backend/database), [Schema](https://palbase.studio/docs/backend/schema).
 - **Who sees what.** Row-level security in the schema keeps each user's rows theirs, whatever a route forgets: [Row-Level Security](https://palbase.studio/docs/backend/row-level-security).
 - **The other modules** from the backend — files, email, flags, realtime — are `Palbase.storage`, `Palbase.notify`, `Palbase.flags`, `Palbase.realtime`: [Storage](https://palbase.studio/docs/backend/storage), [Notifications](https://palbase.studio/docs/backend/notifications).
 - **More environments.** A staging environment is another environment of the project, with machines built from another branch.

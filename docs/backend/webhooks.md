@@ -142,7 +142,7 @@ The event's type is the body's `type`. A body may be as large as the app's own `
 `secret: { env }` names an environment variable, and the framework reads it when the app is built. Keep it with the project's other secrets:
 
 1. **Environment › Variables**, **Add secret**: the name you gave `env` (`STRIPE_WEBHOOK_SECRET`), and the sender's secret as its value.
-2. **Backend › Machines**, the machine, **Edit settings**: start it with the set that holds it (**Secrets: Production secrets**). A machine already started with it rolls out with the new value.
+2. **Cloud › Machines**, the machine, **Edit settings**: start it with the set that holds it (**Secrets: Production secrets**). A machine already started with it rolls out with the new value.
 3. List the name in the machine's `.env.example`. A build whose variables the machine does not have waits for them instead of rolling out an app that cannot start ([Builds, Logs & Rollback](https://palbase.studio/docs/machines/builds)).
 
 An app whose webhook's variable is unset, or does not hold a key its provider can use, does not start, and says which:

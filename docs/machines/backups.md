@@ -14,7 +14,7 @@ A restore reaches back as far as its backups do. Shortening the days shortens ho
 
 ## Bringing a database back to a moment
 
-On the database's page (**Database › Databases › `<name>`**), **Point-in-time restore** takes a moment — **Restore to** — and brings the database back to it. Through the API it is `restoreDatabase` (`POST /databases/{name}/restore`) with the moment as an RFC 3339 time:
+On the database's page (**Cloud › Databases › `<name>`**), **Point-in-time restore** takes a moment — **Restore to** — and brings the database back to it. Through the API it is `restoreDatabase` (`POST /databases/{name}/restore`) with the moment as an RFC 3339 time:
 
 ```ts
 // scripts/restore.ts

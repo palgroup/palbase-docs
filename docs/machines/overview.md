@@ -6,7 +6,7 @@ A **machine** is your own code running on Palbase: a small sandboxed computer th
 
 You never deploy a machine by hand. You [connect GitHub](https://palbase.studio/docs/machines/github), open the machine on a repository, a branch and a directory, and from then on **a push to that branch is the deploy**: it is built, rolled out beside the version that serves, and only then takes traffic. See [Builds, Logs & Rollback](https://palbase.studio/docs/machines/builds).
 
-In Studio, machines live under **Backend › Machines**. Everything Studio does there is the machines module's API, which takes the project's secret key — every step on these pages names the call beside the click.
+In Studio, machines live under **Cloud › Machines**: the project's, every environment's in one list. Everything Studio does there is the machines module's API, which takes the project's secret key — every step on these pages names the call beside the click.
 
 ## What a machine is
 
@@ -27,10 +27,10 @@ An environment has **5 machines at most**, and a machine's name is the project's
 
 A project's machines, [databases](https://palbase.studio/docs/machines/databases) and [sites](https://palbase.studio/docs/machines/hosting) are the **project's**; an environment is where settings live — its secrets, its modules, its apps. Each machine is **bound to one environment**: it starts with that environment's secrets and settings, its key acts as that environment's, and its address names that environment's ref. Three machines from three repositories may be bound to three environments of one project, or all to production.
 
-- **One list.** Studio, `palbase machines:list`, an organization's token and an account token list every environment's machines, each with the environment it is bound to (`environment`, the `env` column). The same holds for `databases:list` and `hosting:sites:list`. `?environment=<ref>` asks for one environment's alone.
-- **Read from any address, changed at its own.** A read that names a machine (`GET /machines/<name>/…`) is answered in the environment it is bound to, from whichever of the project's environments it was sent to — held to the caller's role **in that environment**. A change is made at the address of the environment it is bound to (`palbase … -E <its slug>`), where a change to production is confirmed and kept in that environment's audit: sent elsewhere, it is refused with `409 bound_to_environment`, naming the environment.
+- **One list.** Studio's project **Cloud** pages (Machines, Sites, Databases: the project's, with no environment to pick), `palbase machines:list`, an organization's token and an account token list every environment's machines you are a member of, each with the environment it is bound to (the **Environment** column, `env` in the CLI, `environment` in the API). The same holds for `databases:list` and `hosting:sites:list`. `palbase … -E <env>`, and `?environment=<ref>` in the API, show one environment's alone.
+- **Read from any address, changed at its own.** A read that names a machine (`GET /machines/<name>/…`) is answered in the environment it is bound to, from whichever of the project's environments it was sent to — held to the caller's role **in that environment**. A change is made at the address of the environment it is bound to, where a change to production is confirmed and kept in that environment's audit; through the API, sent elsewhere, it is refused with `409 bound_to_environment`, naming the environment. Studio and the CLI send it there themselves: `palbase machines:update api --size standard-1x` needs no `-E`, and a change to a machine bound to production is confirmed as production's.
 - **An environment's own credentials.** An environment's token, and an environment's secret key, reach what is bound to their environment alone: a machine of another environment is not found with them.
-- **A new one** is bound to the environment the command acts on (`-E`): the one whose address it is made at. Its name is the project's one: `409 name_taken` when another environment holds it.
+- **A new one** is bound to the environment you choose, and is made at its address. In the CLI: the one `-E` names, else the one chosen for the directory (`palbase use`), else you are asked (a script without either is refused). In Studio: the **Environment** of the new machine's, site's or database's sheet, asked each time; a production one is said to run with production's secrets and be billed there. Its name is the project's one: `409 name_taken` when another environment holds it. When two environments hold the same name (made before names were the project's), `-E` — or the environment chosen for the directory, when it holds one — says which; with neither, the CLI refuses (`ambiguous_name`) rather than act on production's. `-E` naming an environment other than the one a machine is bound to is refused too (`bound_elsewhere`): the command acts where it is bound, and a command naming none takes the only machine of the environment `-E` or the directory says, never one bound elsewhere.
 
 ### Moving to another environment
 
@@ -92,7 +92,7 @@ A path whose first segment is `_palbase` — `/_palbase/health`, `/_palbase/cron
 
 | Size | CPU | Memory | Sleeps | On Pay as you go |
 |---|---|---|---|---|
-| `shared-256` | 0.2 vCPU | 256 MiB | yes | free — 750 hours a month, then $0.033 an hour |
+| `shared-256` | 0.2 vCPU | 256 MiB | yes | free — 750 hours a month, then $7 a month ($0.0096 an hour) |
 | `starter` | 0.5 vCPU | 512 MiB | never | $16 a month |
 | `standard-1x` | 1 vCPU | 2048 MiB | never | $25 a month |
 | `standard-2x` | 2 vCPU | 4096 MiB | never | $85 a month |
@@ -150,7 +150,7 @@ A change of size, port, copies, environment, secrets or health path rolls out be
 
 ## Opening one
 
-In Studio: **Backend › Machines › New machine**. The sheet asks for the repository (only those the connected accounts can push to), the branch, the directory, the name, the size, the port and, optionally, a database and whether this machine runs its migrations. The branch's head is built at once; the machine answers at its address once that build is up.
+In Studio: **Cloud › Machines › New machine**. The sheet asks for the repository (only those the connected accounts can push to), the branch, the directory, the name, the size, the port and, optionally, a database and whether this machine runs its migrations. The branch's head is built at once; the machine answers at its address once that build is up.
 
 From a server, with the secret key, it is one call — the same module Studio calls:
 

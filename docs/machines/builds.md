@@ -97,7 +97,7 @@ One migration is open at a time, and a database's migrations are one machine's: 
 
 ## Builds
 
-Studio's machine page (**Backend › Machines › `<name>`**) lists its **Builds**, newest first — every commit of the branch built for it, its state, and a **Running** badge on the one that serves. **Log** opens a build's log; **Roll back** is on every build that succeeded and does not run.
+Studio's machine page (**Cloud › Machines › `<name>`**) lists its **Builds**, newest first — every commit of the branch built for it, its state, and a **Running** badge on the one that serves. **Log** opens a build's log; **Roll back** is on every build that succeeded and does not run.
 
 | State | What it means |
 |---|---|

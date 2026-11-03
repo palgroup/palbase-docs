@@ -6,7 +6,7 @@ A project keeps its application secrets — a payment provider's key, a signing 
 
 ## Quick example
 
-In Studio, open the environment's **Secrets** screen and add `STRIPE_KEY`. In the machine's settings (**Backend › Machines › the machine › Edit settings**), choose the set its **Secrets** start with. The machine rolls out with the value, and the code reads it:
+In Studio, open the environment's **Secrets** screen and add `STRIPE_KEY`. In the machine's settings (**Cloud › Machines › the machine › Edit settings**), choose the set its **Secrets** start with. The machine rolls out with the value, and the code reads it:
 
 ```ts
 // src/modules/billing/billing.service.ts

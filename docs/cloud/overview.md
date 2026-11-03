@@ -86,7 +86,7 @@ The client's own namespaces are Studio's API — the same calls Studio's screens
 | `environmentTokens` | tokens for one environment: an agent's, or one of your users' (below) |
 | `apps`, `snippets`, `chartViews`, `accessRequests`, `docs` | client apps, saved database snippets and chart views, access requests, the docs' search |
 
-`cloud.project(ref)` is one environment's modules: `auth`, `storage`, `analytics`, `purchases`, `ai`, `messaging`, `notify`, `flags`, `journeys`, `secrets`, `stores`, `realtime` and `machines` (its machines and databases) — every call of theirs a server makes, by the names their API reference gives them. What only an app's user calls — signing in, signing up, a password reset — is not there: that is the apps' SDKs'.
+`cloud.project(ref)` is one environment's modules: `auth`, `storage`, `analytics`, `purchases`, `ai`, `messaging`, `notify`, `flags`, `journeys`, `secrets`, `stores`, `realtime` and `machines` (the project's machines, databases and sites, listed from any of its environments' refs with the environment each is bound to; a change is made at the ref of the environment it is bound to) — every call of theirs a server makes, by the names their API reference gives them. What only an app's user calls — signing in, signing up, a password reset — is not there: that is the apps' SDKs'.
 
 ## Your users: a token each
 

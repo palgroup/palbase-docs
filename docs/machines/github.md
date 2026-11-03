@@ -6,7 +6,7 @@ A machine is built from GitHub: a **repository**, a **branch** of it and a **dir
 
 ## Connect the App
 
-In Studio: **Backend › Machines › New machine › Connect GitHub**. Studio opens GitHub in a new tab:
+In Studio: **Cloud › Machines › New machine › Connect GitHub**. Studio opens GitHub in a new tab:
 
 1. GitHub asks who you are, and where to install **Palbase Cloud** — on your own account or an organization's, on every repository or the ones you choose.
 2. GitHub brings you back to Palbase, which shows the accounts Palbase Cloud is installed on that you can push to, and where to install it on another.

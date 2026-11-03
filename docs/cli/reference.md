@@ -2,7 +2,7 @@
 
 # CLI reference
 
-Every command of `palbase` 0.40.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.41.3 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
 435 commands in 35 groups.
 
@@ -72,7 +72,7 @@ With no argument and a person at the terminal, it lists your environments to pic
 
 ### `palbase status`
 
-The environment this directory acts on: who you are there, its machines and databases
+The environment this directory acts on: who you are there, the machines and databases bound to it
 
 ```sh
 palbase status
@@ -548,16 +548,17 @@ palbase envs:list
 Add an environment to a project (staging, a developer's own)
 
 ```sh
-palbase envs:create <slug> [--name <name>] [--from <env> [--with-cloud]]
+palbase envs:create <slug> [--name <name>] [--from <env>]
 ```
 
-Each environment is a project of its own on the platform: its users, data, machines and keys are its own.
---from opens it with another environment's module settings (palbase config:copy: secrets are named, not copied); --with-cloud its machines and databases too — declared alike, built from the same branches, with no data (palbase db:copy brings it).
+Each environment is a project of its own on the platform: its users, data and keys are its own.
+--from opens it with another environment's module settings (palbase config:copy: secrets are named, not copied).
+Machines, databases and sites are the project's, each bound to one environment: a new environment opens with its settings alone, and one is made bound to it (machines:create -E `<slug>`) or moved there (machines:move `<name>` --to `<slug>`).
 
 ```text
       --name <name>  what it is called on screen (default: the slug)
       --from <env>   open it with this environment's settings (slug or ref)
-      --with-cloud   with --from: its machines and databases too (the new environment's GitHub link builds the machines)
+      --with-cloud   refused: machines, databases and sites are the project's, and no environment opens with copies of them
 ```
 
 ### `palbase envs:delete`
@@ -1838,7 +1839,7 @@ It is not undone: asked before it is done, whatever the environment (-y confirms
 
 ### `palbase config:diff`
 
-How two environments' module settings differ (auth, storage, flags, notify, realtime, analytics, messaging, calls; machines, databases when named)
+How two environments' module settings differ (auth, storage, flags, notify, realtime, analytics, messaging, calls)
 
 ```sh
 palbase config:diff --from <env> --to <env> [--only <modules>]
@@ -1850,7 +1851,7 @@ Exit code 0 when they are the same, 1 when they differ. --json gives each differ
 ```text
       --from <env>      the environment compared from (slug or ref)
       --to <env>        the environment compared to (slug or ref)
-      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging,calls (the default), and databases,machines when named
+      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging,calls (the default)
 ```
 
 ### `palbase config:copy`
@@ -1864,13 +1865,13 @@ palbase config:copy --from <env> --to <env> [--only <modules>]
 It shows the differences, asks before changing a production environment (-y confirms), changes the target, and compares again.
 A secret is never copied: a provider's credentials and a sign-in client's secret are listed by name for you to set. A new hook or OAuth client gets its own secret, printed this once.
 What the target holds that its users depend on is not taken by a copy: a bucket with files, a role users hold, a topic users follow are left and said.
---only machines,databases copies what they are declared as — a machine's source, size, copies, settings, secrets' name, database; a database's size, who may connect, backups — never a database's data (palbase db:copy) nor a secret's value. A machine or database only the target has is left serving.
+Machines, databases and sites are not settings: they are the project's, each bound to one environment (machines:create -E, machines:move --to).
 Exit code 0 when the two are the same afterwards, 1 when a difference remains.
 
 ```text
       --from <env>      the environment compared from (slug or ref)
       --to <env>        the environment compared to (slug or ref)
-      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging,calls (the default), and databases,machines when named
+      --only <modules>  only these, comma-separated: auth,storage,flags,notify,realtime,analytics,messaging,calls (the default)
 ```
 
 ## `secrets`
@@ -4425,10 +4426,10 @@ palbase machines:sizes
 The project's machines, each with the environment it is bound to: size, state, the version serving, address
 
 ```sh
-palbase machines:list
+palbase machines:list [-E <env>]
 ```
 
-A project's machines are the project's: each is bound to one of its environments, whose settings, secrets and modules it takes, and the list is every environment's you reach. An environment's own token lists its environment's alone.
+A project's machines are the project's: each is bound to one of its environments, whose settings, secrets and modules it takes, and the list is every environment's you reach. -E lists that environment's alone, as an environment's own token does.
 
 ### `palbase machines:call`
 
@@ -4441,6 +4442,7 @@ palbase machines:call <machine> <METHOD> <path> [--data <json>] [--token <access
 palbase machines:call api POST /patients --data '{"name":"Ada","tc":"10000000146"}'
 The route is found in the machine's contract; a field it marks encrypted (palbase/backend's encrypted() and encrypt()) goes sealed to the project's key in use and comes back opened, as the app's generated client does.
 --token is a user's access token, for a route that takes one; without it the call is nobody's.
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another. Its encrypted fields are sealed to that environment's key.
 
 ```text
       --data <json>    the request's body, as JSON
@@ -4449,21 +4451,25 @@ The route is found in the machine's contract; a field it marks encrypted (palbas
 
 ### `palbase machines:get`
 
-A machine in full: its source, size, environment, database and the build serving
+A machine of the project in full: the environment it is bound to, its source, size, database and the build serving
 
 ```sh
 palbase machines:get [name]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ### `palbase machines:create`
 
-Make a machine from the code in this directory, built on every push to its branch
+Make a machine of the project from the code in this directory, bound to one of its environments and built on every push to its branch
 
 ```sh
-palbase machines:create [name] [--size <size>] [--db <database> --migrations] [--repo --branch --path --context] …
+palbase machines:create [name] [-E <env>] [--size <size>] [--db <database> --migrations] [--repo --branch --path --context] …
 ```
 
 Run in a checkout, it reads the repository from origin, the branch from HEAD and the directory from where you are; flags say otherwise.
+It is bound to the environment -E names, or to the one chosen for this directory: a person at the terminal is asked which, anyone else names it with -E. It takes that environment's settings, secrets and modules.
 The first build starts at once; --wait follows it until the machine serves, and prints its address.
 The environment needs its GitHub link first: palbase github:connect.
 
@@ -4483,7 +4489,7 @@ The environment needs its GitHub link first: palbase github:connect.
       --no-preview-forks                  a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize
       --health <path>                     where it answers 2xx while well; a release that does not is not rolled out
       --openapi-path <path>               where its app serves its OpenAPI contract, when it is not a Palbase backend (apps:sync makes its client from it); "" for a Palbase backend's own
-      --db <database>                     a database of the environment it is given (PALBASE_DB_URL); "" for none
+      --db <database>                     a database of the project it is given, whichever environment keeps it (PALBASE_DB_URL); "" for none
       --migrations                        run the database's migrations before each release (a Palbase backend's)
       --secrets <production|development>  the secrets it is started with, by name; "" for none
       --var <K=V>                         a setting it is started with (repeat it); secrets go in secrets:set
@@ -4494,11 +4500,14 @@ The environment needs its GitHub link first: palbase github:connect.
 
 ### `palbase machines:update`
 
-Change a machine: the change rolls out as a new version beside the one serving
+Change a machine of the project, in the environment it is bound to: the change rolls out as a new version beside the one serving
 
 ```sh
 palbase machines:update [name] [--size …] [--replicas …] [--db …] [--repo --branch --path --context] …
 ```
+
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
 
 ```text
       --repo <owner/name>                 the GitHub repository (default: this checkout's origin)
@@ -4516,7 +4525,7 @@ palbase machines:update [name] [--size …] [--replicas …] [--db …] [--repo 
       --no-preview-forks                  a fork's pull request waits for an admin to authorize each push (fork protection, the default): previews:authorize
       --health <path>                     where it answers 2xx while well; a release that does not is not rolled out
       --openapi-path <path>               where its app serves its OpenAPI contract, when it is not a Palbase backend (apps:sync makes its client from it); "" for a Palbase backend's own
-      --db <database>                     a database of the environment it is given (PALBASE_DB_URL); "" for none
+      --db <database>                     a database of the project it is given, whichever environment keeps it (PALBASE_DB_URL); "" for none
       --migrations                        run the database's migrations before each release (a Palbase backend's)
       --secrets <production|development>  the secrets it is started with, by name; "" for none
       --var <K=V>                         a setting it is started with (repeat it); secrets go in secrets:set
@@ -4534,6 +4543,7 @@ palbase machines:move <name> --to <env>
 
 The machine starts in the new environment at the version it serves, and what ran where it left answers until it is up there: no request goes unanswered. Its address names the new environment (`<name>-<its ref>`), and the one it had keeps working, for good.
 Its domains of its own move with it and answer throughout. Its pull requests' previews are closed: a new push opens them in the new environment. The database it is given stays where it is kept, given to it across environments (databases:move moves a database).
+It moves out of the environment it is bound to; -E picks it where two environments hold its name.
 It needs the admin role in both environments, and the new environment room for it.
 
 ```text
@@ -4542,34 +4552,43 @@ It needs the admin role in both environments, and the new environment room for i
 
 ### `palbase machines:env:list`
 
-What a machine is started with, and where each comes from (the platform, the machine, its secrets)
+What a machine of the project is started with, and where each comes from (the platform, the machine, its secrets)
 
 ```sh
 palbase machines:env:list [name]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ### `palbase machines:env:set`
 
-Set settings a machine is started with (not secrets: secrets:set keeps those)
+Set settings a machine of the project is started with (not secrets: secrets:set keeps those)
 
 ```sh
 palbase machines:env:set K=V… [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:env:unset`
 
-Take settings away from what a machine is started with
+Take settings away from what a machine of the project is started with
 
 ```sh
 palbase machines:env:unset K… [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:builds`
@@ -4580,6 +4599,9 @@ A machine's builds, newest first
 palbase machines:builds [name]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ### `palbase machines:previews`
 
 A machine's pull request previews, newest first: each a machine of its own while its pull request is open
@@ -4587,6 +4609,9 @@ A machine's pull request previews, newest first: each a machine of its own while
 ```sh
 palbase machines:previews [name]
 ```
+
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
 
 ### `palbase machines:previews:authorize`
 
@@ -4598,9 +4623,10 @@ palbase machines:previews:authorize <pull request> [--machine <name>]
 
 A pull request from a fork waits for an admin of the environment (fork protection): look at what it changes first. The head shown is the one built; a push since asks again.
 A person authorizes it, signed in with palbase login: an environment's token (PALBASE_TOKEN) cannot.
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --machine <name>  the machine (default: the environment's only one)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:previews:open`
@@ -4613,9 +4639,11 @@ palbase machines:previews:open <pull request> [--machine <name>]
 
 Its machine is made again and built at the pull request's head; a machine that runs its database's migrations has its preview given a new, empty database of its own, migrated by the preview's release.
 A preview that is open goes on as it is, and its 3 days start again. A fork's, under fork protection, opens at a head an admin authorized (previews:authorize).
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
 
 ```text
-      --machine <name>  the machine (default: the environment's only one)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:domains`
@@ -4626,8 +4654,10 @@ A machine's own domains: whether each answers, and what its DNS still needs
 palbase machines:domains [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --machine <name>  the machine (default: the environment's only one)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:domains:add`
@@ -4638,12 +4668,13 @@ Have a machine answer at a domain of your own too (www.example.com, or example.c
 palbase machines:domains:add <host> [--machine <name>] [--primary www|apex | --only] [--redirect-status 301|302|307|308]
 ```
 
-It answers once its DNS points at the platform and says it is this environment's (the TXT record): both are printed.
+It answers once its DNS points at the platform and says it is the environment's the machine is bound to (the TXT record): both are printed.
 At an apex (example.com) its www is added too, and one redirects to the other, as Vercel does: the apex to www.example.com unless --primary apex; --only adds the domain alone.
 An apex takes an A record at the platform's address, which any DNS host has; a subdomain a CNAME. A domain is one environment's until it is removed there.
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --machine <name>          the machine (default: the environment's only one)
+      --machine <name>          the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
       --primary <www|apex>      at an apex: the address visitors end up at, the other redirecting to it (default: www)
       --only                    add the domain alone: no www, no redirect
       --redirect-status <code>  the redirect's status: 301, 302, 307 or 308 (default: 308)
@@ -4658,9 +4689,10 @@ palbase machines:domains:redirect <host> (--to <host> [--status 301|302|307|308]
 ```
 
 It holds at once. A domain redirects to one that answers itself, and one others redirect to answers itself.
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --machine <name>  the machine (default: the environment's only one)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
       --to <host>       another domain of the machine's
       --status <code>   301, 302, 307 or 308 (default: 308)
       --none            redirect nowhere: the domain answers itself
@@ -4674,8 +4706,10 @@ Stop a machine answering at a domain: at once, and another environment may add i
 palbase machines:domains:remove <host> [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --machine <name>  the machine (default: the environment's only one)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:builds:log`
@@ -4686,8 +4720,11 @@ A build's log (the newest build's when none is named)
 palbase machines:builds:log [build] [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:builds:cancel`
@@ -4699,9 +4736,10 @@ palbase machines:builds:cancel <build> [--machine <name>]
 ```
 
 A push, a deploy or a deploy hook builds again.
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:logs`
@@ -4713,6 +4751,8 @@ palbase machines:logs [name] [-f] [--since <time>] [--lines <n>] [--search <text
 ```
 
 Besides the machine's own lines: its migration runs' (migration), and what a build printed while its tests ran against it (test) — the error it answered a test with, and that request's id: palbase machines:logs `<name>` --search `<request_id>`.
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
 
 ```text
   -f, --follow         keep printing what the machine writes
@@ -4731,6 +4771,8 @@ palbase machines:deploy [name] [--wait]
 
 A push to the branch does this by itself; this is for the one GitHub did not deliver, or a build again.
 The commit is the branch's head on GitHub: push first.
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
 
 ```text
       --wait  follow the build until the machine serves it
@@ -4744,8 +4786,10 @@ A machine's deploy hooks: what each is called, and when it last built — never 
 palbase machines:hooks [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:hooks:create`
@@ -4758,9 +4802,10 @@ palbase machines:hooks:create <name> [--machine <name>]
 
 Its URL is printed this once: anyone who holds it builds the machine, so keep it as a secret, and delete the hook if it leaks. A build it asks for is held to the project's builds as a push's is.
 A machine has 5 at most.
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:hooks:delete`
@@ -4771,8 +4816,10 @@ Delete a deploy hook: its URL builds nothing from now on
 palbase machines:hooks:delete <hook id> [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:rollback`
@@ -4782,6 +4829,9 @@ Serve an earlier build again (the one before the serving one, or a named one)
 ```sh
 palbase machines:rollback [name] [--to <build>]
 ```
+
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
 
 ```text
       --to <build>  the build to go back to (default: the last one that served before)
@@ -4795,6 +4845,9 @@ The crons a machine runs on a schedule (its app's @Cron classes): when each is n
 palbase machines:crons [name]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ### `palbase machines:crons:runs`
 
 A cron's runs, newest first
@@ -4803,8 +4856,11 @@ A cron's runs, newest first
 palbase machines:crons:runs <cron> [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:crons:run`
@@ -4815,8 +4871,11 @@ Run a cron now, apart from its schedule — the machine woken for it if asleep
 palbase machines:crons:run <cron> [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:crons:pause`
@@ -4827,8 +4886,11 @@ Pause a cron: it is not run until resumed, whatever version of the machine comes
 palbase machines:crons:pause <cron> [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:crons:resume`
@@ -4839,8 +4901,11 @@ Resume a paused cron: it is due at its next time from now — what it missed is 
 palbase machines:crons:resume <cron> [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:tasks`
@@ -4851,8 +4916,11 @@ The tasks on a machine's queue (its app's @Task classes), newest first: of one s
 palbase machines:tasks [--machine <name>] [--state waiting|running|succeeded|failed|cancelled] [--task <type>] [--limit <n>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
       --state <state>   only tasks in this state
       --task <type>     only tasks of this type
       --limit <n>       the most listed (50; 100 at most)
@@ -4866,6 +4934,9 @@ The task types a machine's running version declares, and what each one's queue h
 palbase machines:tasks:types [name]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ### `palbase machines:tasks:get`
 
 One task on a machine's queue, with what it carries
@@ -4874,8 +4945,11 @@ One task on a machine's queue, with what it carries
 palbase machines:tasks:get <task id> [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:tasks:enqueue`
@@ -4886,8 +4960,11 @@ Put a task on a machine's queue, as its app's Tasks.enqueue does
 palbase machines:tasks:enqueue <type> [--payload '<json>'] [--delay <seconds>] [--key <key>] [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ```text
-      --machine <name>   the machine (default: the only one, or this directory's)
+      --machine <name>   the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
       --payload <json>   what it carries: a JSON value (64 KiB at most)
       --delay <seconds>  due this many seconds from now (30 days at most)
       --key <key>        put once under this key (held until a day after the task is over)
@@ -4901,8 +4978,11 @@ Put a task that failed back on the queue, due now, with as many attempts again a
 palbase machines:tasks:retry <task id> [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:tasks:cancel`
@@ -4913,8 +4993,11 @@ Take a task that is waiting off the queue: it is not run, nor tried again
 palbase machines:tasks:cancel <task id> [--machine <name>]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ```text
-      --machine <name>  the machine (default: the only one, or this directory's)
+      --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
 
 ### `palbase machines:contract`
@@ -4925,13 +5008,18 @@ The API a Palbase backend serves (its OpenAPI document), as the platform reads i
 palbase machines:contract [name]
 ```
 
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only machine of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one; or the one this directory's code is built into.
+
 ### `palbase machines:delete`
 
-Delete a machine: it stops serving, its address answers nothing
+Delete a machine of the project, in the environment it is bound to: it stops serving, its address answers nothing
 
 ```sh
 palbase machines:delete <name>
 ```
+
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ## `hosting`
 
@@ -4940,10 +5028,11 @@ palbase machines:delete <name>
 Import a GitHub repository's directory, as Vercel does: what it is found to be — a static web app, a web app that runs on a server, a backend — is made and built on every push
 
 ```sh
-palbase hosting:import [--repo <owner/name>] [--branch <branch>] [--path <dir>] [--name <name>] [--as static|server|backend]
+palbase hosting:import [-E <env>] [--repo <owner/name>] [--branch <branch>] [--path <dir>] [--name <name>] [--as static|server|backend]
 ```
 
 Run in a checkout, it reads the repository from origin, the branch from HEAD and the directory from where you are; flags say otherwise.
+What it makes is the project's. It is bound to the environment -E names, or to the one chosen for this directory: a person at the terminal is asked which, anyone else names it with -E.
 What the directory is, is read on GitHub at the branch's head — its package.json, its framework's configuration, its lockfile, its Node.js version — and printed before anything is made; at a terminal you are asked to go ahead.
 static: a site, built as found. server (Next.js, Nuxt, SvelteKit on a server): a machine, and a site of its name with no files whose server it is — its address on the hosting domain, and its CDN. backend: a machine. --as makes it the other way.
 A static site's pull requests and other branches, and a web app's pull requests, are previewed from the start — for the project's team alone (hosting:previews:link shares one); a backend's previews are turned on as a machine's are (machines:update --previews).
@@ -4959,18 +5048,20 @@ The environment needs its GitHub link first: palbase github:connect.
 
 ### `palbase hosting:deploy`
 
-Deploy a folder as a static site: only the files that changed are sent, and the site serves them at once
+Deploy a folder as a static site of the project: only the files that changed are sent, and the site serves them at once
 
 ```sh
-palbase hosting:deploy <folder> [--site <name>] [--spa | --no-spa]
+palbase hosting:deploy <folder> [--site <name>] [-E <env>] [--spa | --no-spa]
 ```
 
 The folder is what your build wrote (dist, build, out, public): every file in it is served, at its path from the folder's root.
 The site is opened on its first deploy. --spa answers a path no file answers with /index.html (a single-page app), --no-spa with 404: the site is changed to it when it is not that already.
 A folder of one page, index.html, is taken for a single-page app when the site is opened.
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+One its first deploy opens is the project's too. It is bound to the environment -E names, or to the one chosen for this directory: a person at the terminal is asked which, anyone else names it with -E.
 
 ```text
-      --site <name>  the site (default: web, which answers at the environment's ref)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's; it answers at the ref of the environment it is bound to)
       --spa          a single-page app: answer every path no file answers with /index.html
       --no-spa       not a single-page app: a path no file answers is 404
 ```
@@ -4980,21 +5071,24 @@ A folder of one page, index.html, is taken for a single-page app when the site i
 The project's static sites, each with the environment it is bound to: where each answers and the release it serves
 
 ```sh
-palbase hosting:sites:list
+palbase hosting:sites:list [-E <env>]
 ```
+
+A project's sites are the project's, each bound to one of its environments and built with its settings and secrets. The list is every environment's you reach; -E lists that environment's alone, as an environment's own token does.
 
 ### `palbase hosting:sites:create`
 
-Open a static site — built from GitHub on every push with --repo/--branch, or deployed from a folder (hosting:deploy opens one too)
+Open a static site of the project — built from GitHub on every push with --repo/--branch, or deployed from a folder (hosting:deploy opens one too)
 
 ```sh
-palbase hosting:sites:create [name] [--spa] [--repo <owner/name> --branch <branch> --path <dir>] [--build-command …] [--output <dir>] [--build-env K=V]… [--previews [--preview-forks]] [--server <machine> [--server-path <prefix>]…] [--no-protect-previews]
+palbase hosting:sites:create [name] [-E <env>] [--spa] [--repo <owner/name> --branch <branch> --path <dir>] [--build-command …] [--output <dir>] [--build-env K=V]… [--previews [--preview-forks]] [--server <machine> [--server-path <prefix>]…] [--no-protect-previews]
 ```
 
 With --branch (and --repo, or in a checkout of a GitHub repository), its branch's head is built at once and on every push: the folder its build writes is served.
 With --previews, each pull request against the branch is built too and answers at `<name>-pr<n>-<ref>` until it closes; the pull request is told where.
 With --server, a machine of the environment answers what its files do not — the paths --server-path names, or every path: a site with no files whose server is a web app's machine is that app's address and CDN.
 Its previews are its team's alone unless --no-protect-previews: hosting:previews:link shares them.
+It is bound to the environment -E names, or to the one chosen for this directory: a person at the terminal is asked which, anyone else names it with -E. It is built with that environment's settings and secrets.
 The environment needs its GitHub link first: palbase github:connect.
 
 ```text
@@ -5016,11 +5110,13 @@ The environment needs its GitHub link first: palbase github:connect.
 
 ### `palbase hosting:sites:update`
 
-Change a site: whether it is a single-page app, where it is built from, what its build runs, its server, who opens its previews
+Change a site of the project, where it is bound: whether it is a single-page app, where it is built from, what its build runs, its server, who opens its previews
 
 ```sh
 palbase hosting:sites:update <name> [--spa | --no-spa] [--repo … --branch … --path …] [--no-source] [--build-command …] [--output …] [--build-env K=V]… [--previews | --no-previews] [--preview-forks | --no-preview-forks] [--server <machine>] [--server-path <prefix>]… [--no-server] [--protect-previews | --no-protect-previews]
 ```
+
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
       --spa                        a single-page app: every path no file answers is its /index.html
@@ -5054,6 +5150,7 @@ palbase hosting:sites:move <name> --to <env>
 
 Its files and releases are copied to the new environment while it serves on, then it is the new environment's, in a few seconds: its address names it (`<name>-<its ref>`), and the one it had keeps working, for good. Its domains of its own move with it and answer throughout.
 Its pull requests' previews are closed: a new push opens them there. A build of it going on is stopped and built again there; its GitHub link is made in the new environment when it has none.
+It moves out of the environment it is bound to; -E picks it where two environments hold its name.
 It needs the admin role in both environments, and the new environment room for it: a site more, its files, its domains.
 
 ```text
@@ -5062,11 +5159,13 @@ It needs the admin role in both environments, and the new environment room for i
 
 ### `palbase hosting:sites:delete`
 
-Delete a site: its addresses serve nothing from now on
+Delete a site of the project, in the environment it is bound to: its addresses serve nothing from now on
 
 ```sh
 palbase hosting:sites:delete <name>
 ```
+
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ### `palbase hosting:releases`
 
@@ -5076,8 +5175,10 @@ A site's releases, newest first: the ten newest are kept to return to
 palbase hosting:releases [--site <name>]
 ```
 
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
 ```
 
 ### `palbase hosting:rollback`
@@ -5088,8 +5189,10 @@ Serve an earlier release of a site again, at once (the one before the serving on
 palbase hosting:rollback [--site <name>] [--to <release id | #number>]
 ```
 
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --site <name>   the site (default: web)
+      --site <name>   the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
       --to <release>  the release: its id, or its number (#3)
 ```
 
@@ -5101,8 +5204,10 @@ A site's newest builds (a site built from GitHub), or one with its log
 palbase hosting:builds [build] [--site <name>] [--wait]
 ```
 
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
       --wait         with a build: follow it until it ends
 ```
 
@@ -5116,9 +5221,10 @@ palbase hosting:build [--site <name>] [--no-wait]
 
 It ends as the build does: 0 once the site serves it (its address printed), 1 when it failed or was cancelled — the site serves what it served.
 Ctrl-C stops following it, not the build: hosting:builds:cancel cancels it.
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
       --no-wait      ask for the build and end: hosting:builds follows it
 ```
 
@@ -5131,9 +5237,10 @@ palbase hosting:builds:cancel <build> [--site <name>]
 ```
 
 A push, a deploy or a deploy hook builds again.
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
 ```
 
 ### `palbase hosting:hooks`
@@ -5144,8 +5251,10 @@ A site's deploy hooks: what each is called, and when it last built — never the
 palbase hosting:hooks [--site <name>]
 ```
 
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
 ```
 
 ### `palbase hosting:hooks:create`
@@ -5158,9 +5267,10 @@ palbase hosting:hooks:create <name> [--site <name>]
 
 Its URL is printed this once: anyone who holds it builds the site, so keep it as a secret, and delete the hook if it leaks. A build it asks for is held to the project's builds as a push's is.
 A site has 5 at most.
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
 ```
 
 ### `palbase hosting:hooks:delete`
@@ -5171,8 +5281,10 @@ Delete a deploy hook: its URL builds nothing from now on
 palbase hosting:hooks:delete <hook id> [--site <name>]
 ```
 
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
 ```
 
 ### `palbase hosting:previews`
@@ -5184,9 +5296,10 @@ palbase hosting:previews [--site <name>]
 ```
 
 A branch's preview answers at `<name>-git-<branch>-<ref>` from its first push while the site previews, until the branch is deleted or a month passes with no push.
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
 ```
 
 ### `palbase hosting:previews:authorize`
@@ -5199,9 +5312,10 @@ palbase hosting:previews:authorize <pull request> [--site <name>]
 
 A pull request from a fork waits for an admin of the environment (fork protection): look at what it changes first. The head shown is the one built; a push since asks again.
 A person authorizes it, signed in with palbase login: an environment's token (PALBASE_TOKEN) cannot.
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
 ```
 
 ### `palbase hosting:previews:links`
@@ -5212,8 +5326,10 @@ A site's share links that have not ended: each opens its protected previews to w
 palbase hosting:previews:links [--site <name>]
 ```
 
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
 ```
 
 ### `palbase hosting:previews:link`
@@ -5226,9 +5342,10 @@ palbase hosting:previews:link [--site <name>] [--name <name>] [--days <1-30>]
 
 Its token is printed this once: add `?_palbase_pass=<token>` to any preview's address and the preview opens — for a reviewer, a client, a test run. hosting:previews:unlink closes the previews to it at once.
 A site has 20 at most.
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
       --name <name>  what it is for, as the links are listed: who holds it (64 at most)
       --days <days>  how many days it opens the previews, 1 to 30 (default: 7)
 ```
@@ -5241,8 +5358,10 @@ Delete a share link: the site's previews close to it at once
 palbase hosting:previews:unlink <link id> [--site <name>]
 ```
 
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
 ```
 
 ### `palbase hosting:previews:pass`
@@ -5254,9 +5373,10 @@ palbase hosting:previews:pass <preview url> [--site <name>]
 ```
 
 The address is the preview's, with a pass of yours in its query: opened in a browser, the preview keeps it in a cookie of its own and opens for 12 hours. A team member's alone — share links (hosting:previews:link) are for others.
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
 ```
 
 ### `palbase hosting:domains`
@@ -5267,8 +5387,10 @@ A site's own domains: whether each answers, and what its DNS still needs
 palbase hosting:domains [--site <name>]
 ```
 
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
 ```
 
 ### `palbase hosting:domains:add`
@@ -5279,12 +5401,13 @@ Have a site answer at a domain of your own too (www.example.com, or example.com 
 palbase hosting:domains:add <host> [--site <name>] [--primary www|apex | --only] [--redirect-status 301|302|307|308]
 ```
 
-It answers once its DNS points at the platform and says it is this environment's (the TXT record): both are printed.
+It answers once its DNS points at the platform and says it is the environment's the site is bound to (the TXT record): both are printed.
 At an apex (example.com) its www is added too, and one redirects to the other, as Vercel does: the apex to www.example.com unless --primary apex; --only adds the domain alone.
 An apex takes an A record at the platform's address, which any DNS host has; a subdomain a CNAME. A domain is one environment's until it is removed there.
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --site <name>             the site (default: web)
+      --site <name>             the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
       --primary <www|apex>      at an apex: the address visitors end up at, the other redirecting to it (default: www)
       --only                    add the domain alone: no www, no redirect
       --redirect-status <code>  the redirect's status: 301, 302, 307 or 308 (default: 308)
@@ -5299,9 +5422,10 @@ palbase hosting:domains:redirect <host> (--to <host> [--status 301|302|307|308] 
 ```
 
 It holds at once. A domain redirects to one that answers itself, and one others redirect to answers itself.
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --site <name>    the site (default: web)
+      --site <name>    the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
       --to <host>      another domain of the site's
       --status <code>  301, 302, 307 or 308 (default: 308)
       --none           redirect nowhere: the domain answers itself
@@ -5315,8 +5439,10 @@ Stop a site answering at a domain: at once, and another environment may add it
 palbase hosting:domains:remove <host> [--site <name>]
 ```
 
+The site is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ```text
-      --site <name>  the site (default: web)
+      --site <name>  the site (default: web — that of the environment chosen here or -E's, refused when it is bound elsewhere; with neither, the project's)
 ```
 
 ## `databases`
@@ -5334,26 +5460,30 @@ palbase databases:sizes
 The project's databases, each with the environment that keeps it: size, state, how full
 
 ```sh
-palbase databases:list
+palbase databases:list [-E <env>]
 ```
 
-A project's databases are the project's: any machine of the project may be given one, whichever environment keeps it (machines:update --database).
+A project's databases are the project's: any machine of the project may be given one, whichever environment keeps it (machines:update --db). The list is every environment's you reach; -E lists that environment's alone, as an environment's own token does.
 
 ### `palbase databases:get`
 
-A database in full, with how to connect to it
+A database of the project in full: the environment that keeps it, and how to connect to it
 
 ```sh
 palbase databases:get <name>
 ```
 
+The database is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ### `palbase databases:create`
 
-Open a database; its passwords are kept on this computer (the platform shows them once)
+Open a database of the project, kept by one of its environments; its passwords are kept on this computer (the platform shows them once)
 
 ```sh
-palbase databases:create [name] [--size <size>] [--allow <ip/cidr,…>] [--backup-days <n>] [--show-passwords]
+palbase databases:create [name] [-E <env>] [--size <size>] [--allow <ip/cidr,…>] [--backup-days <n>] [--show-passwords]
 ```
+
+It is bound to the environment -E names, or to the one chosen for this directory: a person at the terminal is asked which, anyone else names it with -E. It is counted and paid for there; any machine of the project may be given it.
 
 ```text
       --size <size>      its size (palbase databases:sizes lists what is open)
@@ -5364,13 +5494,14 @@ palbase databases:create [name] [--size <size>] [--allow <ip/cidr,…>] [--backu
 
 ### `palbase databases:update`
 
-Change a database's size, who may connect to it, or how long its backups are kept
+Change a project database's size, who may connect to it, or how long its backups are kept
 
 ```sh
 palbase databases:update <name> [--size <size>] [--allow <list>|""] [--backup-days <n>] [--wait]
 ```
 
 A new size is taken at once and the database moves to it serving on (palbase databases:sizes lists them): its sessions on the direct port end once, when its primary moves, and new logins wait a few seconds then.
+The database is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
       --size <size>      the size to move it to
@@ -5381,13 +5512,14 @@ A new size is taken at once and the database moves to it serving on (palbase dat
 
 ### `palbase databases:password:reset`
 
-Make a database role's password new; it is kept on this computer, the old one stops working
+Make a project database role's password new; it is kept on this computer, the old one stops working
 
 ```sh
 palbase databases:password:reset <name> --role owner|app [--show-password]
 ```
 
 The app role's new password reaches the machines given the database as they roll out with it; they keep serving.
+The database is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
       --role <role>    owner (migrations, the console) or app (what the machines use)
@@ -5396,11 +5528,13 @@ The app role's new password reaches the machines given the database as they roll
 
 ### `palbase databases:restore`
 
-Bring a database back to a moment of its backups
+Bring a database of the project back to a moment of its backups
 
 ```sh
 palbase databases:restore <name> --to <time>
 ```
+
+The database is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
       --to <time>  the moment, as an RFC 3339 time (2026-10-08T12:00:00Z)
@@ -5416,6 +5550,7 @@ palbase databases:move <name> --to <env>
 
 Nothing is copied: the database keeps its data where it is and answers throughout. In a moment it is the new environment's — what it is counted and paid for from then on, its host (`<name>-<its ref>`) — and the host it had keeps working, for good. The machines given it are rolled out to the new host.
 Its migrations are the machines' of the environment that keeps it: the machines that run them move with it with --with-machines (each once the database has, its migrations theirs there); without it, such a move is refused, naming them.
+It moves out of the environment that keeps it; -E picks it where two environments hold its name.
 It needs the admin role in both environments, and the new environment room for it as for a database opened there. The passwords this computer holds for it go with it.
 
 ```text
@@ -5425,38 +5560,46 @@ It needs the admin role in both environments, and the new environment room for i
 
 ### `palbase databases:delete`
 
-Delete a database (the platform keeps it 7 days to take back)
+Delete a database of the project (the platform keeps it 7 days to take back)
 
 ```sh
 palbase databases:delete <name>
 ```
 
+The database is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ### `palbase databases:undelete`
 
-Take back a database deleted in the last 7 days
+Take back a database of the project deleted in the last 7 days
 
 ```sh
 palbase databases:undelete <name>
 ```
 
+The database is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ### `palbase databases:purge`
 
-Delete a deleted database for good, now
+Delete a deleted database of the project for good, now
 
 ```sh
 palbase databases:purge <name>
 ```
 
+The database is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
 ## `db`
 
 ### `palbase db:url`
 
-A database's connection address, for any tool (Prisma, Drizzle, pg_dump, a GUI)
+A project database's connection address, for any tool (Prisma, Drizzle, pg_dump, a GUI)
 
 ```sh
 palbase db:url [name] [--role owner|app] [--pooled] [--with-password]
 ```
 
+The database is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only database of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one.
 Without --with-password the address holds no password: give the tool PGPASSWORD, or pass --with-password and keep the line out of your history.
 The address asks for a checked certificate (sslmode=verify-full). Node drivers check it against the system's roots by themselves; psql, pg_dump and other libpq tools do only with PGSSLROOTCERT=system (Postgres 16+). The address does not say so itself: a driver that sends what it does not know to the server (postgres.js) would be refused.
 
@@ -5468,11 +5611,14 @@ The address asks for a checked certificate (sslmode=verify-full). Node drivers c
 
 ### `palbase db:shell`
 
-Psql on a database (it wakes if asleep); -c runs one statement and ends
+Psql on a database of the project (it wakes if asleep); -c runs one statement and ends
 
 ```sh
 palbase db:shell [name] [--role owner|app] [--command <sql>]
 ```
+
+The database is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only database of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one.
 
 ```text
       --role <role>    owner (migrations, dumps) or app (what the machines use); default owner
@@ -5481,11 +5627,14 @@ palbase db:shell [name] [--role owner|app] [--command <sql>]
 
 ### `palbase db:dump`
 
-A copy of a database (pg_dump's custom format), as its owner
+A copy of a database of the project (pg_dump's custom format), as its owner
 
 ```sh
 palbase db:dump [name] [--file <path>] [--schema-only]
 ```
+
+The database is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by none, it is the only database of the environment chosen for this directory or named by -E — never one bound elsewhere — else, when neither says, the project's only one.
 
 ```text
       --file <path>  where to write it (default <database>-<time>.dump)
@@ -5494,35 +5643,38 @@ palbase db:dump [name] [--file <path>] [--schema-only]
 
 ### `palbase db:restore`
 
-Load a dump into a database, as its owner: a custom-format dump (pg_restore) or a .sql file (psql)
+Load a dump into a database of the project, as its owner: a custom-format dump (pg_restore) or a .sql file (psql)
 
 ```sh
 palbase db:restore <file> [--db <name>] [--clean]
 ```
 
 A database Palbase did not make is taken over by its first release: its tables stay as they are (palbase db:pull writes their schema files).
+The database is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+Named by no --db, it is the only database of the environment chosen for this directory or named by -E, else, when neither says, the project's only one.
 
 ```text
-      --db <name>  the database (default: the environment's only one)
+      --db <name>  the database (default: the environment's only one — chosen here or -E's — else the project's)
       --clean      drop what the dump makes before making it again
 ```
 
 ### `palbase db:copy`
 
-Copy a database's data from one environment of the project to another
+Copy the data of a database one environment of the project keeps into a database another keeps
 
 ```sh
 palbase db:copy --from <env> --to <env> [--db <name>] [--to-db <name>]
 ```
 
+A database is the project's, bound to one environment: --db is one --from keeps, --to-db one --to keeps — each its environment's only one when it is not named.
 The target is overwritten with the source: what it held of the same tables goes (pg_restore --clean).
 An encrypted field (.encrypted(), palbase/server's fields) is copied as •••, sealed with the target's keys: one environment's values never land readable in another.
 
 ```text
       --from <env>    the environment copied from (slug)
       --to <env>      the environment copied into (slug)
-      --db <name>     the source's database (default: its only one)
-      --to-db <name>  the target's database (default: the same name)
+      --db <name>     the database --from keeps (default: its only one)
+      --to-db <name>  the database --to keeps (default: its only one)
 ```
 
 ### `palbase db:plan`
@@ -5537,7 +5689,7 @@ palbase db:plan [--url <postgres-url> | --db <name>] [--check]
 
 ```text
       --url <postgres-url>  a database of your own (a local Postgres 18): the schema goes in it at once
-      --db <name>           the environment's database (default: its only one)
+      --db <name>           a database of the project, acted on where it is bound (default: the only one of the environment chosen here or -E's, else, when neither says, the project's)
       --entry <file>        the app's entry, what it is started with (default src/main.ts)
       --check               end with 1 when the plan has refusals
 ```
@@ -5552,7 +5704,7 @@ palbase db:status [--url <postgres-url> | --db <name>]
 
 ```text
       --url <postgres-url>  a database of your own (a local Postgres 18): the schema goes in it at once
-      --db <name>           the environment's database (default: its only one)
+      --db <name>           a database of the project, acted on where it is bound (default: the only one of the environment chosen here or -E's, else, when neither says, the project's)
       --entry <file>        the app's entry, what it is started with (default src/main.ts)
 ```
 
@@ -5571,7 +5723,7 @@ Production's schema changes with its releases alone: db:push refuses it (db:plan
 
 ```text
       --url <postgres-url>  a database of your own (a local Postgres 18): the schema goes in it at once
-      --db <name>           the environment's database (default: its only one)
+      --db <name>           a database of the project, acted on where it is bound (default: the only one of the environment chosen here or -E's, else, when neither says, the project's)
       --entry <file>        the app's entry, what it is started with (default src/main.ts)
       --reset               with --url: make the schema anew, its data gone
 ```
@@ -5588,7 +5740,7 @@ An app that is not one of the environment's machines: start, release the app, th
 
 ```text
       --url <postgres-url>  a database of your own (a local Postgres 18): the schema goes in it at once
-      --db <name>           the environment's database (default: its only one)
+      --db <name>           a database of the project, acted on where it is bound (default: the only one of the environment chosen here or -E's, else, when neither says, the project's)
       --entry <file>        the app's entry, what it is started with (default src/main.ts)
 ```
 
@@ -5604,7 +5756,7 @@ Its first release then takes the database over: the tables stay as they are, not
 
 ```text
       --url <postgres-url>  a database of your own (a local Postgres 18): the schema goes in it at once
-      --db <name>           the environment's database (default: its only one)
+      --db <name>           a database of the project, acted on where it is bound (default: the only one of the environment chosen here or -E's, else, when neither says, the project's)
       --entry <file>        the app's entry, what it is started with (default src/main.ts)
       --dir <dir>           where db/ is written (default: here)
 ```
@@ -5619,7 +5771,7 @@ palbase db:seed [--url <postgres-url> | --db <name>] [--file <path>]
 
 ```text
       --url <postgres-url>  a database of your own (a local Postgres 18): the schema goes in it at once
-      --db <name>           the environment's database (default: its only one)
+      --db <name>           a database of the project, acted on where it is bound (default: the only one of the environment chosen here or -E's, else, when neither says, the project's)
       --entry <file>        the app's entry, what it is started with (default src/main.ts)
       --file <path>         the seed script (default db/seed.ts)
 ```

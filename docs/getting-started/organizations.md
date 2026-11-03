@@ -36,7 +36,7 @@ palbase envs:create staging -P shop --from main    # opened with main's module s
 
 - **The first environment's slug is `main`**, whatever it is called on screen: it is the project's production one, and a CLI change to it asks for confirmation.
 - **Another environment's slug** starts with a letter and continues with up to 38 letters, digits or hyphens; `local` is not one. An environment's name on screen can change; its slug never does.
-- **`--from`** opens the new environment with another's module settings: secrets by name, not by value. With `--with-cloud` its machines and databases are declared alike too, built from the same branches, with no data.
+- **`--from`** opens the new environment with another's module settings: secrets by name, not by value. Machines, databases and sites are not copied: they are the project's, each bound to one environment ([Machines](https://palbase.studio/docs/machines/overview#the-projects-machines-and-the-environment-each-is-bound-to)). Make one bound to the new environment (`palbase machines:create -E staging`), or move one there (`palbase machines:move api --to staging`).
 
 Each environment has its own address and keys ([Introduction](https://palbase.studio/docs/getting-started/introduction#the-keys)), and its own usage ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
 

@@ -122,7 +122,7 @@ Every request to the project carries one of them in the `apikey` header; a reque
 One way: **a push to the machine's branch.**
 
 1. [Connect GitHub](https://palbase.studio/docs/machines/github) — install **Palbase Cloud** on the account that owns the repository, and connect it to the environment.
-2. Open a machine on a repository, a branch and a directory of it (**Backend › Machines › New machine**).
+2. Open a machine on a repository, a branch and a directory of it (**Cloud › Machines › New machine**).
 3. Push. A push that changes the machine's directory is built — its `Dockerfile`, or what Railpack detects — and rolled out beside the version that serves; it takes traffic once it answers its health check.
 
 There is no deploy command and no tool to install. A release whose machine migrates a database runs the migration itself, beside the version that serves; a release that does not come up never takes a request; and any build that succeeded can be returned to ([Builds, Logs & Rollback](https://palbase.studio/docs/machines/builds)).
