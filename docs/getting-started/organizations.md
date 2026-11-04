@@ -38,7 +38,7 @@ palbase envs:create staging -P shop --from main    # opened with main's module s
 - **Another environment's slug** starts with a letter and continues with up to 38 letters, digits or hyphens; `local` is not one. An environment's name on screen can change; its slug never does.
 - **`--from`** opens the new environment with another's module settings: secrets by name, not by value. Machines, databases and sites are not copied: they are the project's, each bound to one environment ([Machines](https://palbase.studio/docs/machines/overview#the-projects-machines-and-the-environment-each-is-bound-to)). Make one bound to the new environment (`palbase machines:create -E staging`), or move one there (`palbase machines:move api --to staging`).
 
-Each environment has its own address and keys ([Introduction](https://palbase.studio/docs/getting-started/introduction#the-keys)), and its own usage ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
+Each environment has its own address and keys ([Introduction](https://palbase.studio/docs/getting-started/introduction#the-keys)); what it uses is part of its project's month, whose plan and free quota its environments share ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
 
 An admin deletes an environment under its **Settings › Danger zone**, or with `palbase envs:delete <slug>`; deleting a project, under its **Settings › Delete project** or with `palbase projects:delete <project>`, deletes every environment of it. An environment's users, files, flags, keys and secrets go with it, and its machines and databases are deleted too.
 
@@ -111,6 +111,6 @@ A module keeps a change made through Studio as Studio's: the audit log is where 
 ## Related
 
 - [Access Tokens](https://palbase.studio/docs/getting-started/access-tokens) — for CI and agents, at a role of the organization
-- [Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits) — what each environment uses
+- [Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits) — what each project, and each environment of it, uses
 - [CLI](https://palbase.studio/docs/cli/overview) — signing in, and choosing an environment
 - [CLI reference](https://palbase.studio/docs/cli/reference#orgs) — `orgs`, `projects` and `envs`

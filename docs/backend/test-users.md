@@ -213,9 +213,50 @@ How it runs:
 - **The contract.** A class with `@TestUserTemplate({ name })` — its name lowercase letters, digits, `_` and `-`, a letter first, at most 64 — and a `seed(user, meta)` method; `undo(user, meta)` is optional. `user` is `{ id, email }`; `meta` is `{ env, environmentId, template }` (the app's environment variables, its keys left out). Both are `palbase/backend`'s, as `TemplateUser` and `TemplateMeta`.
 - **Test users alone.** The platform makes the user at auth as a test user, then calls the machine for it (`POST /_palbase/test-user-templates/<name>`, signed with the machine's key, as its crons are). Before `seed` runs, the framework asks auth whether the user is a test user: anyone else is refused, `403 not_a_test_user` — in production too.
 - **One transaction, as the service role.** `seed` writes everything or nothing; row-level security does not stop it, so it writes rows a user's own session could not (another user's, a moderation table's). A throw is the template's failure.
-- **Its answer.** Each user is answered with the rows written, by table (`notes 3`), or why its template was not written: `no_template`, `not_a_test_user`, `template_failed`, `template_timeout` (a template has 60 seconds), `machine_unavailable`. The user is made either way, and the command ends with 1. Asked again for the same user and template (`palbase auth:test-users:template <user> <template>`), the platform answers what was written then: `seed` never runs twice for them.
+- **Its answer.** Each user is answered with the rows written, by table (`notes 3`), and the commit whose code wrote them — or why its template was not written: `no_template`, `not_a_test_user`, `template_failed`, `template_timeout` (a template has 60 seconds), `machine_unavailable`. A user whose template was not written is not left behind (below), and the command ends with 1. Asked again for the same user and template (`palbase auth:test-users:template <user> <template>`), the platform answers what was written then: `seed` never runs twice for them.
 - **Cleanup.** `palbase auth:test-users:delete <id>` deletes a user made with a template through the machine that made it: each template's `undo` runs first, and an `undo` that fails keeps the user, to be deleted again. Without an `undo`, the user's deletion is the cleanup — what `ownedByUser()` owns goes with the user (`user.deleted`). Give a template an `undo` when it writes rows that are not owned that way: a plain text column naming the user, a row naming two users (a block between two accounts). Deleted at auth directly (`adminDeleteTestUser`), no `undo` runs.
 - **Who may.** Your role, or an environment's token with `auth:test-users` (`palbase env:tokens:create --scope auth:test-users`): it makes users with a template, writes one again and deletes them, and lists the machines to find the one a template is on. At most 10 users at once with a template. The API is `POST /machines/{name}/test-users` (`{ count, template, with_tokens }`).
+
+### Right after a push: the command waits for the new code
+
+A template you just added lives in the commit you just pushed, and the machine — or the pull request's preview — answers from the code it **serves**. While the new build is asked for, waiting for its checks, queued, building, testing, or rolling out, the version before still serves, and it has no such template — an asleep preview, too, wakes on the code it ran and rolls the new one out after (the call wakes it). So the platform makes no user then: `POST /machines/{name}/test-users` answers `409 build_in_progress`, naming the build, its commit and where it is.
+
+`palbase auth:test-users:create --template` waits for you: it follows the build (`build 0123abcd (abc1234): building`, `testing`, `succeeded, rolling out`, `succeeded, serving`) and makes the users once the new code serves, 30 minutes at most. A build that fails makes no user (`build_failed`, with the `machines:builds:log` to read), and one waiting for the variables its `.env.example` names says which (`build_waiting_config`). `auth:test-users:template` waits the same way. Called through the API, the `409` carries the build as data too (`build: { id, commit, state }`, `retry_after`): ask again once it serves. A call is answered once its users' templates were written — a minute each at most — with nothing sent meanwhile: ask for one user a call, as the CLI does (`count: 1`), so that no connection waits minutes in silence. A connection cut while it waits leaves no user behind, but tells you nothing either.
+
+`--count` makes the users one after another. A push that lands meanwhile is waited for like the first, so the users made after it have the newer code's data — each user's `commit` says whose. A failure the next user would meet too (`no_template`, `template_failed`, `not_a_test_user`) ends the run at once.
+
+The wait starts when Palbase hears of the push. Run in the very second after `git push`, before GitHub has told Palbase, the command finds no build on its way and the code serving answers: a template only the new commit has is `no_template`, its error naming the commit that answered — older than yours — and no user is left. Run it again a moment later.
+
+### A user is made with its template or not at all
+
+A test user whose template was not written is deleted again in the same call: no account is left without the data it was made for. Its answer says `deleted: true`, carries no password, and its template's `error` says why — `no_template` names the build and commit that answered and the templates that code has (`This version has no test user template "bankng" — it has: banking, onboarding`), `template_failed` the program's own error.
+
+The command ends with 1, prints why and what to run next for each user on stderr, and with `--json` puts the same at the top of its answer:
+
+```json
+{
+  "machine": "notes",
+  "users": [{ "user_id": "…", "email": "bankng.1f2e3d4c1@test.invalid", "deleted": true,
+              "template": { "name": "bankng", "error": "no_template: build 0123abcd (commit abc1234) answered: …", "commit": "abc1234…" } }],
+  "error": { "code": "no_template", "message": "1 of 1 test user(s) not made with notes's template bankng: none was kept" }
+}
+```
+
+A user is kept for now in two cases, its error saying which and naming the command that deletes it: the program may have written the template although it did not say so — it did not answer in 60 seconds, its connection ended once made, or it answered what a template does not — and its `undo` could not be run; or auth could not delete the user at that moment. The platform asks the `undo` again after an hour or so — then ever further apart, giving up on the `undo` after a day — and deletes such a user. The work for the users made goes on to its end even when the command is stopped or its connection drops, and users whose sign-ins no one saw — the command gone before its answer — are undone and deleted too: a stopped command leaves no user behind.
+
+While such a template's outcome is not known, `auth:test-users:template` for it answers `template_in_progress` and writes nothing: asked again then, the two calls could cross.
+
+### Where a test user came from
+
+- **Its address** says how it was made: `<template>.<8 hex><n>@test.invalid` by `auth:test-users:create --template <template>`; `signup-…@test.invalid` by a sign-up with an [`auth:test-users:address`](#testing-a-sign-up); a run's own address by `palbase test` or a machine's `test_users` (deleted when the run ends); any other made one by `auth:test-users:create` without a template. `palbase auth:test-users:list` lists them all, each with `is_test: true`.
+- **Its machine.** A test user made with a template is the machine's that made it — `<name>` or a preview's `<name>-pr<number>`: only that machine writes another template for it or deletes it through its `undo`.
+- **Its code.** The answer names the build and commit that wrote each template. Asked again (`palbase auth:test-users:template <user> <template>`) after you changed the template and pushed, the answer is still what was written then — `seed` runs once for a user — and it says so: `written by commit aaaaaaa; the machine serves commit bbbbbbb now`. Make a new test user to have the new template's data.
+
+### Deleting one test user
+
+`palbase auth:test-users:delete <user-id>` deletes that user and nothing else. Without `--machine`, the environment's machines are asked which made it; with `--machine <name>` only that one is (a user another machine made is refused, not deleted). Each template's `undo` runs before the user goes. An `undo` that did not run is a warning, the user deleted all the same — the template has no `undo`, or the code serving now no longer has the template (you removed it and pushed): `warning: the undo of template banking did not run: …`. What it wrote is then left to the user's `user.deleted`. With `--json`, `undo` lists each template with `ran` and, when it did not, its `note`; through the API, `DELETE /machines/{name}/test-users/{user}` answers it with `Prefer: return=representation` (`204` without).
+
+Deleting a machine leaves the test users it made with a template: their data is in the environment's database, which stays — a pull request's preview is the exception, its own database going with it. Such a user is still listed, and `palbase auth:test-users:delete <id>` without `--machine` deletes it through auth, its `user.deleted` cleaning up after it.
 
 ## In a pull request's preview
 
@@ -228,6 +269,8 @@ palbase auth:test-users:create --template with-notes --machine notes-pr7 --token
 curl -H "authorization: Bearer <its access token>" https://notes-pr7-<ref>.app.palbase.studio/notes
 palbase auth:test-users:delete <its id>      # the preview's undo runs, then the user goes
 ```
+
+When the pull request is closed or merged — or the preview is taken down for want of a push — its machine and its database go, and so do **the test users it made with a template**: their data was in that database. They leave `palbase auth:test-users:list` within minutes of the preview's machine going. A test user made on the environment's own machine stays until you delete it.
 
 In production's environment (`main`) these commands ask for a yes: `-y` gives it, and with an environment's token `-y` is the only one. With `--json`, a refusal is printed as JSON on stdout and as a line on stderr.
 

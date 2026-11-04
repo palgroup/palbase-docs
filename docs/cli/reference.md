@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.41.3 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.47.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-435 commands in 35 groups.
+455 commands in 35 groups.
 
 ## Global flags
 
@@ -163,7 +163,7 @@ With an environment's token (PALBASE_TOKEN, scope auth:test-users) the test user
 
 ### `palbase billing`
 
-Who pays for an organization, how its payment account stands, and each environment's plan, month and limit
+Who pays for an organization, how its payment account stands, and each project's plan, month and limit — its environments together
 
 ```sh
 palbase billing [--org <org>]
@@ -172,7 +172,7 @@ palbase billing [--org <org>]
 A member reads the plans, what was used and who pays; the money (amounts, the card) is an owner's or an admin's.
 
 ```text
-      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
+      --org <org>  the organization (name or id; the one of the project chosen here, or your only one)
 ```
 
 ### `palbase journeys`
@@ -409,7 +409,7 @@ palbase account:tokens:revoke <name|id>
 
 ### `palbase billing:charges`
 
-A month's charges, by environment and item — used, at the price table, charged past each one's free quota — as a table or as CSV
+A month's charges, by project and item — used, at the price table, charged past each project's free quota — and what each of its environments used, as a table or as CSV
 
 ```sh
 palbase billing:charges [--period <YYYY-MM>] [--csv] [--org <org>]
@@ -418,7 +418,7 @@ palbase billing:charges [--period <YYYY-MM>] [--csv] [--org <org>]
 --csv prints the CSV Studio downloads.
 
 ```text
-      --org <org>         the organization (name or id; the one of the environment chosen here, or your only one)
+      --org <org>         the organization (name or id; the one of the project chosen here, or your only one)
       --period <YYYY-MM>  the month (this one by default)
       --csv               print it as CSV
 ```
@@ -432,26 +432,39 @@ palbase billing:invoices [--org <org>]
 ```
 
 ```text
-      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
+      --org <org>  the organization (name or id; the one of the project chosen here, or your only one)
+```
+
+### `palbase billing:project`
+
+A project's place in the bill — its plan and its month's limit, all its environments' — read, or changed
+
+```sh
+palbase billing:project [-P <project>] [--plan free|pay_as_you_go] [--limit <usd>|none]
+```
+
+With no flag it shows the project: its plan, limit and month, item by item, and what each of its environments used.
+A project is billed as one: its environments' usage together, past its one free quota. Pay as you go: what it uses past its free quota is owed to the payment account that pays for its organization (palbase billing:payer), charged at the month's end and as it comes to the account's threshold — and every environment of it, a new one too, has the paid sizes. A project is moved to it only while its organization is paid for by an account with a card.
+At its limit it is Free until the month ends; the organization's other projects go on.
+
+```text
+      --plan <free|pay_as_you_go>  Free (charged nothing, held to the free quotas) or Pay as you go (what its environments use past its free quota is charged)
+      --limit <usd|none>           at most this much a month; none for no limit
 ```
 
 ### `palbase billing:env`
 
-An environment's place in the bill — its plan, frozen, its month's limit — read, or changed
+An environment frozen or thawed — its requests refused, its machines and databases stopped, its data kept
 
 ```sh
-palbase billing:env [<project/env | ref>] [--plan free|pay_as_you_go] [--limit <usd>|none] [--frozen yes|no] [-y]
+palbase billing:env [<project/env | ref>] --frozen yes|no [-y]
 ```
 
-With no flag it shows the environment: its plan, limit and month.
-Pay as you go: what it uses past its free quota is owed to the payment account that pays for its organization (palbase billing:payer), charged at the month's end and as it comes to the account's threshold. An environment is moved to it only while its organization is paid for by an account with a card.
-At its limit it is Free until the month ends; the organization's other environments go on.
-Frozen, its requests are refused and its machines and databases stopped, its data kept; only what it stores is charged. Freezing asks first; -y does not.
+Frozen, its requests are refused and its machines and databases stopped, its data kept; only what it stores is charged, with its project. Freezing asks first; -y does not.
+Its plan and its limit are its project's: palbase billing:project.
 
 ```text
-      --plan <free|pay_as_you_go>  Free (charged nothing, held to the free quotas) or Pay as you go (what it uses past its free quota is charged)
-      --limit <usd|none>           at most this much a month; none for no limit
-      --frozen <yes|no>            frozen: its requests refused, its machines and databases stopped, its data kept
+      --frozen <yes|no>  frozen: its requests refused, its machines and databases stopped, its data kept
 ```
 
 ### `palbase billing:payer`
@@ -462,11 +475,11 @@ Link an organization to the payment account that pays for it — an organization
 palbase billing:payer <account org | none> [--org <org>]
 ```
 
-One payment account pays for many organizations: it is charged for what each one's environments on Pay as you go owe, in one invoice a month (palbase billing:report).
-An admin of the organization who also manages the account (an owner or an admin of its organization) links it — or their account token. With none, its environments on Pay as you go go Free; what they owed so far stays the account's.
+One payment account pays for many organizations: it is charged for what each one's projects on Pay as you go owe, in one invoice a month (palbase billing:report).
+An admin of the organization who also manages the account (an owner or an admin of its organization) links it — or their account token. With none, its projects on Pay as you go go Free; what they owed so far stays the account's.
 
 ```text
-      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
+      --org <org>  the organization (name or id; the one of the project chosen here, or your only one)
 ```
 
 ### `palbase billing:paid`
@@ -478,21 +491,21 @@ palbase billing:paid [--org <org>]
 ```
 
 ```text
-      --org <org>  the organization (name or id; the one of the environment chosen here, or your only one)
+      --org <org>  the organization (name or id; the one of the project chosen here, or your only one)
 ```
 
 ### `palbase billing:report`
 
-A payment account's month: each organization it paid for, each environment, what it owes — as a table or as CSV (item by item)
+A payment account's month: each organization it paid for, each project, what it owes — as a table or as CSV (item by item, and each environment's units)
 
 ```sh
 palbase billing:report [--period <YYYY-MM>] [--csv] [--org <org>]
 ```
 
-What an organization that pays for its own customers' organizations bills them by: --csv gives each item of each environment, and what the account is charged for it (owed).
+What an organization that pays for its own customers' organizations bills them by: --csv gives each item of each project, what the account is charged for it (owed), and what each of its environments used.
 
 ```text
-      --org <org>         the organization (name or id; the one of the environment chosen here, or your only one)
+      --org <org>         the organization (name or id; the one of the project chosen here, or your only one)
       --period <YYYY-MM>  the month (this one by default)
       --csv               print it as CSV
 ```
@@ -967,7 +980,8 @@ palbase auth:test-users:create [--count <n>] [--token] [--email <address>] [--pa
 A test user signs in as any user does; its tokens say test: true, so a backend can tell them apart. --token gives each an access token at once, for a test that calls the backend as that user.
 Its mail and texts are kept for it, read with palbase auth:test-users:messages `<id>` — a sign-in link, a verification or second factor's code: a made address (…@test.invalid) is mailed nothing and a phone texted nothing, while --email with an address of yours gets its mail too.
 Of the kind a sign-in asks for: --passwordless (a link, a code or a passkey alone), --unverified (its verification is tested), --phone with its fixed code (--otp, made when left out), --email-otp (a fixed code its email accepts: a reviewer reads no inbox), --mfa (a second factor from the start; totp answers its key once).
---template `<name>` has the backend write the data of its @TestUserTemplate({ name }) for each user — its seed for one account, in its own code (palbase/backend), run on the machine --machine names or the environment's only one, for test users alone. Each user is answered with the rows written, by table, or why its template was not (no_template, not_a_test_user, template_failed, template_timeout, machine_unavailable): the user is made all the same, and the command then ends with 1. At most 10 users at once with a template.
+--template `<name>` has the backend write the data of its @TestUserTemplate({ name }) for each user — its seed for one account, in its own code (palbase/backend), run on the machine --machine names or the environment's only one, for test users alone. Each user is answered with the rows written, by table, and the commit whose code wrote them. A user is made with its template or not at all: one whose template was not written (no_template, not_a_test_user, template_failed, template_timeout, machine_unavailable) is deleted again, why and what to run next said on stderr and in the JSON's error, and the command ends with 1. At most 10 users at once with a template.
+Right after a push the machine may still be building or rolling out its new code: the command waits until it serves — following the build, 30 minutes at most — and makes the users then, so a template you just added is found. A build that fails makes no user.
 palbase auth:test-users:template writes another template for a user made with one; palbase auth:test-users:delete has the template undone before the user is deleted.
 A pull request's preview is a machine of the environment's (`<name>-pr<number>`, as machines:list shows) and signs in the environment's users: --machine backend-pr1 has the preview's code write the template, into the preview's own database (`<database>-pr<number>`).
 
@@ -1020,7 +1034,8 @@ Have the backend write a @TestUserTemplate's data for a test user made with a te
 palbase auth:test-users:template <user-id> <template> [--machine <name>]
 ```
 
-The user is one auth:test-users:create --template made on that machine: a test user is the machine's that made it. Asked again for a template it wrote, the platform answers what it wrote then, and the backend is not called.
+The user is one auth:test-users:create --template made on that machine: a test user is the machine's that made it. Asked again for a template it wrote, the platform answers what it wrote then, and the backend is not called: a template runs once for a user. The answer names the commit that wrote it — and when the machine serves other code now, says so: its rows are the older code's, and a new test user has the serving code's data.
+Right after a push it waits, as auth:test-users:create does, until the machine serves its newest code.
 
 ```text
       --machine <name>  the machine whose backend has the template (default: the environment's only one)
@@ -1034,7 +1049,8 @@ Delete a test user — one made with a template has the backend undo it first
 palbase auth:test-users:delete <user-id> [--machine <name>]
 ```
 
-A test user made with --template is deleted through the machine that made it: the backend's undo of each template runs first — a template with none leaves its data to user.deleted (what ownedByUser() owns goes with the user) — and an undo that fails keeps the user, for the delete to be asked again. Any other test user is deleted at once.
+A test user made with --template is deleted through the machine that made it: the backend's undo of each template runs first — a template with none, or one the serving code no longer has, leaves its data to user.deleted (what ownedByUser() owns goes with the user), and a warning says that undo did not run — and an undo that fails keeps the user, for the delete to be asked again. Any other test user is deleted at once.
+A pull request preview's test users (made with --machine `<name>-pr<number>`) are deleted with the preview: its own database, their data, went with it.
 Without --machine the environment's machines are asked which made the user; a token that does not list the machines deletes it at once, its templates left to user.deleted.
 
 ```text
@@ -2127,13 +2143,13 @@ palbase ai:usage [--kind text|embedding|image] [--metadata key=value]… [--limi
 
 ### `palbase ai:spend`
 
-What Palbase's models cost the environment this month: the free dollar and what is left of it, the monthly budget, and whether they serve it now — and if not, why
+What Palbase's models cost the environment this month: its project's free dollar and what is left of it to it, the monthly budget, and whether they serve it now — and if not, why
 
 ```sh
 palbase ai:spend
 ```
 
-Palbase's models are the platform's provider keys. A month brings a dollar of them free: a Free environment's own, a paying account's once for all its projects. Past it a Free environment uses its own provider keys (ai:providers:set); a Pay as you go one pays from the account's balance, at the provider's price and 10%.
+Palbase's models are the platform's provider keys. A month brings a project a dollar of them free, its environments together: what is left of it to this one is what its other environments have not spent. Past it a Free project's environments use their own provider keys (ai:providers:set); a Pay as you go project's payment account pays, at the provider's price and 10%.
 Its own provider keys always serve it, and are not counted here: their provider bills them.
 
 ### `palbase ai:models`
@@ -2239,7 +2255,7 @@ A change of an agent it keeps is made on its draft: each flag given replaces its
       --from <file.json>           the definition, as JSON
       --instructions <text>        what the agent is told to do
       --description <text>         what it is for, in a sentence or two
-      --model <model>              a role (fast, default, strong) or a model of ai:models
+      --model <model>              the name of a model ai:models lists; left out, the default
       --tool <source:name>         a tool it is given (repeat for several)
       --output-schema <file.json>  the JSON Schema of its one-shot answers
       --revision <n>               the draft's revision the change is made on
@@ -2339,12 +2355,90 @@ palbase ai:chats:show <chat id> [--limit <n>] [--cost]
       --cost       what each turn a message started cost, its subagents counted
 ```
 
+### `palbase ai:chats:create`
+
+Start a chat with one of the environment's agents — on one of its runner pools, working in its repositories
+
+```sh
+palbase ai:chats:create --agent <name> [--pool <pool>] [--repo <name>[@<branch>]]… [--title <title>] [--auto-push]
+```
+
+--agent is one of the environment's agents by name — its backend's, or one it keeps, whose published version each turn takes; name@N stays on version N.
+--pool is one of its runner pools (ai:pools:list), by its id or its name: the chat's sessions run on the environment's own machines enrolled there. Left out, on the platform's own Linux machines. A chat on a pool works in a workspace.
+--repo puts one of its repositories (ai:repos:list) in the chat's workspace, at a branch with @ (its default unless said); --auto-push lets the agent push its commits without a person's yes.
+
+```text
+      --agent <name>          the chat's agent, by name (name@N for a version)
+      --pool <pool>           the runner pool its workspace runs on, by id or name
+      --repo <name[@branch]>  a repository its workspace works in (repeat for several)
+      --title <title>         the chat's title
+      --auto-push             the agent pushes its commits without a person's yes
+```
+
 ### `palbase ai:chats:remove`
 
 Delete a chat: a turn still running is stopped, and its history no longer counts
 
 ```sh
 palbase ai:chats:remove <chat id>
+```
+
+### `palbase ai:chats:workspace:write`
+
+Write one file of a chat's workspace — from a file here, or piped in: synced to every machine that holds it, the session's before the agent's next command
+
+```sh
+palbase ai:chats:workspace:write <chat id> <path> [--file <local file>] [< file]
+```
+
+path is relative to the workspace's root (app/src/config.json). The write is published over whatever the workspace holds — deliberate, no conflict is made of it — and told as ai.workspace.published.
+--file sends the file's bytes as they are (64 MiB at most); without it, the bytes piped in, as they are — a binary file too (64 MiB at most: no more is read).
+
+```text
+      --file <local file>  the file whose bytes are written (default: what is piped in)
+```
+
+### `palbase ai:chats:workspace:rm`
+
+Remove one file of a chat's workspace: synced to every machine that holds it
+
+```sh
+palbase ai:chats:workspace:rm <chat id> <path>
+```
+
+### `palbase ai:chats:workspace:token`
+
+Mint a token a machine of yours syncs a chat's workspace with (palai workspace sync): said once, here
+
+```sh
+palbase ai:chats:workspace:token <chat id> --access read|write [--ttl <seconds>] [--label <label>]
+```
+
+write: the workspace is synced both ways, live; read: it is followed. The token lives --ttl seconds (an hour unless said, 7 days at most) — no longer than PALBASE_TOKEN when it is minted with one.
+The token and its address are said once. On the machine: `PALAI_WORKSPACE_TOKEN=<token>` palai workspace sync --url `<sync_url>` `<dir>` — or the token on standard input, --token-file - — never on the command line: palai has no --token, a secret there is readable by every process on the machine.
+A member's token (the project letting its app's users in) lives an hour at most, and stops working when they leave the chat or the project turns clients off.
+--label is what it is for — the machine's name: a conflict names its writer by it.
+
+```text
+      --access <read|write>  write: synced both ways; read: followed
+      --ttl <seconds>        how long it lives (1–604800, default 3600)
+      --label <label>        what it is for — the machine's name
+```
+
+### `palbase ai:chats:workspace:tokens`
+
+The tokens of a chat's workspace — access, label, when each expires — none of them said again
+
+```sh
+palbase ai:chats:workspace:tokens <chat id>
+```
+
+### `palbase ai:chats:workspace:revoke`
+
+Revoke a token of a chat's workspace at once: every sync with it is refused from then
+
+```sh
+palbase ai:chats:workspace:revoke <chat id> <token id>
 ```
 
 ### `palbase ai:endpoints:list`
@@ -2382,6 +2476,134 @@ Forget a repository: a chat's workspace checks it out no more
 
 ```sh
 palbase ai:repos:remove <name>
+```
+
+### `palbase ai:pools:create`
+
+Make a runner pool of the environment's: machines of your own, of one type, that a chat's workspace runs on
+
+```sh
+palbase ai:pools:create <name> --os linux|macos --arch amd64|arm64
+```
+
+A pool is of one type: its machines' operating system and architecture. Machines enrol into it with palai and a single-use key (ai:pools:keys:create); a chat runs on it when it names it (ai:chats:create --pool).
+The environment scales it itself: ai:pools:state says what its machines hold and how many sessions wait.
+
+```text
+      --os <linux|macos>    its machines' operating system
+      --arch <amd64|arm64>  its machines' architecture
+```
+
+### `palbase ai:pools:list`
+
+The environment's runner pools: each one's type, its machines, the sessions they take and hold, and how many wait
+
+```sh
+palbase ai:pools:list
+```
+
+### `palbase ai:pools:delete`
+
+Delete a runner pool with no machine left in it: cordon each machine, delete it once it holds no session, then the pool
+
+```sh
+palbase ai:pools:delete <pool>
+```
+
+### `palbase ai:pools:state`
+
+A runner pool's state, as a scaling loop reads it: its machines, the sessions they take and hold, and how many wait since when
+
+```sh
+palbase ai:pools:state <pool>
+```
+
+### `palbase ai:pools:keys:create`
+
+Mint a single-use key a machine enrols into a runner pool with: said once, here
+
+```sh
+palbase ai:pools:keys:create <pool> [--label <label>]
+```
+
+Save the key to a file on the machine and enrol it: palai enroll --url `<enroll_url>` --key-file `<file>` --capacity `<n>` (with --server-name and --ca-file when the answer names a server name and a CA) — the key never goes on a command line, where any process on the machine could read it; n is how many sessions the machine runs at once (1 or more, default 1). The machine serves the environment's sessions once whoever minted the key is gone.
+It is minted by a person signed in, never with an environment's token (PALBASE_TOKEN).
+
+```text
+      --label <label>  what it is for — the machine it enrols
+```
+
+### `palbase ai:pools:keys:list`
+
+A runner pool's enrolment keys — when each was minted, last used, revoked — none of them said again
+
+```sh
+palbase ai:pools:keys:list <pool>
+```
+
+### `palbase ai:pools:keys:revoke`
+
+Revoke an enrolment key: no machine enrols with it any more
+
+```sh
+palbase ai:pools:keys:revoke <key id>
+```
+
+### `palbase ai:machines:cordon`
+
+Cordon a machine of a runner pool: it takes no new session, and the sessions it holds go on
+
+```sh
+palbase ai:machines:cordon <machine id>
+```
+
+### `palbase ai:machines:resume`
+
+Let a cordoned machine of a runner pool take sessions again
+
+```sh
+palbase ai:machines:resume <machine id>
+```
+
+### `palbase ai:machines:delete`
+
+Delete a cordoned machine that holds no session from its runner pool: its palai agent is refused from then
+
+```sh
+palbase ai:machines:delete <machine id>
+```
+
+### `palbase ai:env:set`
+
+Set a variable every session of the environment's agents has: its value piped in or typed unseen, never shown or put on the command line
+
+```sh
+palbase ai:env:set <KEY> [--value-stdin] [--not-secret] < value.txt
+```
+
+Every command of every session its agents begin from now has it — on the platform's machines and on its own pools — beside an agent's own (its definition's env), masked in a transcript. The value is sealed where the sessions run: never answered, never logged.
+Without --value-stdin the value is asked for at the terminal, and not echoed as it is typed or pasted.
+--not-secret says it is no secret in ai:env:list; its value is masked and never shown either way.
+
+```text
+      --value-stdin  read the value from stdin (a pipe, a file)
+      --not-secret   list it as no secret (its value is never shown either way)
+```
+
+### `palbase ai:env:unset`
+
+Remove a variable: sessions of the environment's agents begun from now no longer have it
+
+```sh
+palbase ai:env:unset <KEY>
+```
+
+### `palbase ai:env:list`
+
+The variables every session of the environment's agents has: their names, whether each is a secret, when each was set — never a value
+
+```sh
+palbase ai:env:list
 ```
 
 ## `support`
@@ -4339,13 +4561,13 @@ The apps named join this checkout's (palbase/project.json); with none named, its
 `palbase/environments/<env>/`: each app's settings (`<app>.json`), each backend's contract (`contracts/<machine>.openapi.json`) and Palbe client made from it — TypeScript for a web app, Swift for an iOS app (in `palbase/<app>.palbase`), Kotlin for an Android app. A web app imports pb from `palbase/<app>.ts`: one environment's for the editor (--types), the build's mode's for the build (palbase() in vite.config), which type-checks the app against that environment.
 --check writes nothing: it exits 1 naming what differs from the project now — for CI.
 --backend makes a backend's Palbe from its checkout on this computer (its palbase/backend app writes its contract and exits; nothing is connected to), to try an endpoint before any machine serves it.
-A backend is `pb.<name>` in the apps — pb.shopApi.rooms.create() for the machine shop-api — unless --as names it (--as shop-api=shop): the name is the checkout's, the same in every environment, and none of the client's own (auth, flags, storage, …).
+A backend is `pb.<name>` in the apps — pb.shopApi.rooms.create() for the machine shop-api — unless --as names it (--as shop-api=shop): the name is the checkout's, the same in every environment, and none of the client's own (auth, flags, storage, …). Machines of different environments may take one name — Production's backend and Development's backend-dev both pb.backend with --as backend-dev=backend — so the app's code builds against either; two machines of one environment may not.
 
 ```text
       --check                    write nothing; exit 1 when the checkout is not what the project gives now
       --types <env>              the environment the editor's types are of (remembered in palbase/project.json)
       --backend <[machine=]dir>  a backend's checkout here: its Palbe made from the contract it writes, not from its machine's
-      --as <machine=name>        a backend's name in the apps (pb.<name>): its machine's camelCased unless named; the same in every environment (remembered in palbase/project.json)
+      --as <machine=name>        a backend's name in the apps (pb.<name>): its machine's camelCased unless named; the same in every environment, and another environment's machine may take it too (remembered in palbase/project.json)
 ```
 
 ### `palbase apps:sdkconfig`
@@ -4479,9 +4701,13 @@ The environment needs its GitHub link first: palbase github:connect.
       --path <dir>                        the directory built, from the repository's root (default: this directory's place in it)
       --context <dir>                     what the build is given above --path (a monorepo: ".")
       --size <size>                       its size (palbase machines:sizes lists them)
-      --replicas <n>                      how many copies run, each on a node of its own
+      --replicas <n>                      how many copies run, 1 to 100 (one on Free), over two nodes at least and never all on one — with --max-replicas, the fewest its load runs (2 at least)
+      --max-replicas <n>                  scale its copies by its load, up to n (2 to 100; Pay as you go): as many run as keep each near --cpu-percent and --memory-percent of its size
+      --cpu-percent <p>                   with --max-replicas: the share of a copy's processor it is kept near, 10 to 95 (a copy is added above it)
+      --memory-percent <p>                with --max-replicas: the share of a copy's memory it is kept near, 10 to 95
+      --no-autoscaling                    stop scaling it by its load: it runs --replicas (or the fewest it ran) always
       --port <port>                       the port it listens on (it also finds it in PORT)
-      --always-on                         keep it awake: never put to sleep when idle (an environment on Pay as you go pays its every hour; on Free a shared machine sleeps when idle)
+      --always-on                         keep it awake: never put to sleep when idle (a project on Pay as you go pays its every hour; on Free a shared machine sleeps when idle)
       --no-always-on                      let it sleep when idle again
       --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings — production's too
       --no-previews                       preview no pull request from now on
@@ -4515,9 +4741,13 @@ Named by none, it is the only machine of the environment chosen for this directo
       --path <dir>                        the directory built, from the repository's root (default: this directory's place in it)
       --context <dir>                     what the build is given above --path (a monorepo: ".")
       --size <size>                       its size (palbase machines:sizes lists them)
-      --replicas <n>                      how many copies run, each on a node of its own
+      --replicas <n>                      how many copies run, 1 to 100 (one on Free), over two nodes at least and never all on one — with --max-replicas, the fewest its load runs (2 at least)
+      --max-replicas <n>                  scale its copies by its load, up to n (2 to 100; Pay as you go): as many run as keep each near --cpu-percent and --memory-percent of its size
+      --cpu-percent <p>                   with --max-replicas: the share of a copy's processor it is kept near, 10 to 95 (a copy is added above it)
+      --memory-percent <p>                with --max-replicas: the share of a copy's memory it is kept near, 10 to 95
+      --no-autoscaling                    stop scaling it by its load: it runs --replicas (or the fewest it ran) always
       --port <port>                       the port it listens on (it also finds it in PORT)
-      --always-on                         keep it awake: never put to sleep when idle (an environment on Pay as you go pays its every hour; on Free a shared machine sleeps when idle)
+      --always-on                         keep it awake: never put to sleep when idle (a project on Pay as you go pays its every hour; on Free a shared machine sleeps when idle)
       --no-always-on                      let it sleep when idle again
       --previews                          build each pull request against its branch into a preview of its own, in this environment with its settings — production's too
       --no-previews                       preview no pull request from now on
@@ -5455,6 +5685,8 @@ The database sizes, and which of them this environment may open now
 palbase databases:sizes
 ```
 
+A size that never sleeps holds the storage its database says — databases:create --storage, 1 GB or a multiple of 5, up to 4,000 — or the size's own: its price is its CPU and memory, and its storage is billed beside it by the GB-month past its first GB. free and hobby hold their size's.
+
 ### `palbase databases:list`
 
 The project's databases, each with the environment that keeps it: size, state, how full
@@ -5480,34 +5712,41 @@ The database is the project's: the command acts in the environment it is bound t
 Open a database of the project, kept by one of its environments; its passwords are kept on this computer (the platform shows them once)
 
 ```sh
-palbase databases:create [name] [-E <env>] [--size <size>] [--allow <ip/cidr,…>] [--backup-days <n>] [--show-passwords]
+palbase databases:create [name] [-E <env>] [--size <size>] [--storage <GB>] [--storage-autoscaling] [--allow <ip/cidr,…>] [--backup-days <n>] [--show-passwords]
 ```
 
 It is bound to the environment -E names, or to the one chosen for this directory: a person at the terminal is asked which, anyone else names it with -E. It is counted and paid for there; any machine of the project may be given it.
+A size that never sleeps holds the storage --storage says — 1 GB or a multiple of 5, up to 4,000 — or the size's own, billed by the GB-month past its first (palbase databases:sizes); with --storage-autoscaling it grows by half when 90% full. free and hobby hold their size's.
 
 ```text
-      --size <size>      its size (palbase databases:sizes lists what is open)
-      --allow <list>     who may connect, as addresses or CIDRs, comma-separated (default: anyone with the password)
-      --backup-days <n>  how many days of backups to keep, 1 to 35
-      --show-passwords   print the passwords too (they are kept on this computer either way)
+      --size <size>          its size (palbase databases:sizes lists what is open)
+      --storage <GB>         what it holds, in GB: 1 or a multiple of 5, up to 4,000 (default: its size's) — a size that never sleeps
+      --storage-autoscaling  grow its storage by itself: by half when 90% full, six hours at least apart (default: off, read-only once full)
+      --allow <list>         who may connect, as addresses or CIDRs, comma-separated (default: anyone with the password)
+      --backup-days <n>      how many days of backups to keep, 1 to 35
+      --show-passwords       print the passwords too (they are kept on this computer either way)
 ```
 
 ### `palbase databases:update`
 
-Change a project database's size, who may connect to it, or how long its backups are kept
+Change a project database's size, its storage, who may connect to it, or how long its backups are kept
 
 ```sh
-palbase databases:update <name> [--size <size>] [--allow <list>|""] [--backup-days <n>] [--wait]
+palbase databases:update <name> [--size <size>] [--storage <GB>] [--storage-autoscaling|--no-storage-autoscaling] [--allow <list>|""] [--backup-days <n>] [--wait]
 ```
 
 A new size is taken at once and the database moves to it serving on (palbase databases:sizes lists them): its sessions on the direct port end once, when its primary moves, and new logins wait a few seconds then.
+--storage grows what a size that never sleeps holds, where it is, serving on: more than it holds, 1 GB or a multiple of 5, up to 4,000 — never less, and six hours at least after it last grew. It keeps it through a change of size.
 The database is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ```text
-      --size <size>      the size to move it to
-      --allow <list>     who may connect (comma-separated addresses or CIDRs); "" for anyone with the password
-      --backup-days <n>  how many days of backups to keep, 1 to 35
-      --wait             with --size: follow the move until it serves at the new size
+      --size <size>             the size to move it to
+      --storage <GB>            what it holds, grown, in GB: 1 or a multiple of 5, up to 4,000
+      --storage-autoscaling     grow its storage by itself: by half when 90% full, six hours at least apart
+      --no-storage-autoscaling  grow it only when asked: read-only once full
+      --allow <list>            who may connect (comma-separated addresses or CIDRs); "" for anyone with the password
+      --backup-days <n>         how many days of backups to keep, 1 to 35
+      --wait                    with --size: follow the move until it serves at the new size
 ```
 
 ### `palbase databases:password:reset`

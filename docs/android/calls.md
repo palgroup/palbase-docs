@@ -9,7 +9,7 @@
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.16.3"))
+    implementation(platform("studio.palbase:palbase-bom:0.16.5"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // the FCM token, and the service a ring arrives through
     implementation("studio.palbase:palbase-calls")      // pb.calls

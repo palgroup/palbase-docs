@@ -16,7 +16,7 @@ In Studio, machines live under **Cloud › Machines**: the project's, every envi
 | Source | A repository, a branch and a directory of it ([Connecting GitHub](https://palbase.studio/docs/machines/github)) |
 | Size | How much CPU and memory it has, and whether it sleeps (below) |
 | Port | The TCP port it listens on, `8080` unless you say otherwise. It also finds it in `PORT`. |
-| Copies | How many copies run while it is awake, 1 to 5 — one on Free |
+| Copies | How many copies run while it is awake, 1 to 100 — one on Free |
 | Health check | A path that answers 2xx while it serves |
 | Environment | Variables of your own, and the project secret set it starts with |
 | Database | One of the project's [databases](https://palbase.studio/docs/machines/databases), or none |
@@ -48,7 +48,7 @@ A machine, a database and a site each move to another environment of the project
 
 **Its old address keeps working, for good**: whatever moves answers at the address it had too — a machine's `former_urls`, a database's `former_hosts`, a site's `urls` — so an app in a store, or a server, that names it is not broken by the move. The new address is the one to use from then on. A GitHub installation it is built through is linked to the new environment when it has none. In the month a database moves, what it used until then is counted in the environment it left, and what it uses after in the new one: never twice.
 
-A move needs the admin role in both environments, and the new environment room for what moves, as for one opened there: its machines' and databases' limits and reservations, its sites and their files, its domains (`409 too_many_machines`, `free_database_taken`, `too_many_sites`, `too_many_domains` and the like). Its name is the project's one (`409 name_taken`), and none of its domains may be added in the new environment too (`409 domain_in_environment`). A move that cannot be made by the time it is made — no room there any more, the environment gone — is let go of, and it says why (a machine's `state_reason`, a database's and a site's `move_note`).
+A move needs the admin role in both environments, and the new environment room for what moves, as for one opened there: its machines' and databases' limits and reservations, its sites (`409 too_many_machines`, `too_many_databases`, `too_many_sites` and the like). Its domains and its sites' files are the project's count, which a move within it does not change. Its name is the project's one (`409 name_taken`), and none of its domains may be added in the new environment too (`409 domain_in_environment`). A move that cannot be made by the time it is made — no room there any more, the environment gone — is let go of, and it says why (a machine's `state_reason`, a database's and a site's `move_note`).
 
 ### Deleting an environment
 
@@ -97,6 +97,9 @@ A path whose first segment is `_palbase` — `/_palbase/health`, `/_palbase/cron
 | `standard-1x` | 1 vCPU | 2048 MiB | never | $25 a month |
 | `standard-2x` | 2 vCPU | 4096 MiB | never | $85 a month |
 | `standard-4x` | 4 vCPU | 8192 MiB | never | $175 a month |
+| `highmem-4x` | 4 vCPU | 16384 MiB | never | $225 a month |
+| `standard-8x` | 8 vCPU | 16384 MiB | never | $300 a month |
+| `highmem-8x` | 8 vCPU | 32768 MiB | never | $450 a month |
 | `dedicated-1x` | 1 vCPU of its own | 2048 MiB | never | $94 a month |
 | `dedicated-2x` | 2 vCPU of its own | 4096 MiB | never | $182 a month |
 
@@ -108,13 +111,15 @@ A **shared** size has a fraction of a CPU as its ceiling and is **put to sleep w
 
 Sleeping has consequences for code: a machine that sleeps runs nothing while it sleeps. A timer, an in-memory cache or a background loop stops with it, and a request that wakes it pays the start-up. Work that must happen on a schedule is a [cron](#crons-and-tasks), and work to be done once, now or later, a [task](#crons-and-tasks): the platform wakes the machine for either.
 
-`shared-256` is the size every project may open. The others are sizes that are paid for: open to an environment on Pay as you go whose payment account is not held ([Billing](https://palbase.studio/docs/getting-started/billing)); for another, opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
+`shared-256` is the size every project may open. The others are sizes that are paid for: open to every environment of a project on Pay as you go whose payment account is not held ([Billing](https://palbase.studio/docs/getting-started/billing)); for another, opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
 
-What a project's machines and databases reserve between them is held to the project's limit — 2 vCPU and 4 GiB on Free, 15 vCPU and 64 GiB on Pay as you go, each copy counted (a shared or standard size reserves a quarter of its CPUs, a dedicated one all of them; memory is reserved whole): a size or a number of copies that does not fit is refused with `409 machines_over_limit`.
+On Free, what a project's machines and databases reserve between them is held to 2 vCPU and 4 GiB, each copy counted (a shared or standard size reserves a quarter of its CPUs, a dedicated one all of them; memory is reserved whole), and a project has 5 machines and 3 databases at most: a size or a number of copies that does not fit is refused with `409 machines_over_limit`, one machine or database more with `409 too_many_machines` or `409 too_many_databases`. On Pay as you go a project is held to none of them, as Render holds a paid workspace — each machine to its 100 copies. The platform may hold one project to limits of its own (to stop what runs away); the refusal then names them.
+
+Where the cluster has no room for a copy right now, it brings up a node for it — a few minutes — and the machine says so meanwhile: `state_reason_kind` `no_room` ("Waiting for room" in Studio), its copies that have a node serving. The platform's operators are told if no node can be brought.
 
 ## Copies
 
-A machine runs **one copy** unless you give it more (`replicas`, **Copies** in Studio, 1 to 5). More than one copy is open to an environment on Pay as you go: on Free a machine runs one copy (`403 copies_not_available`), and one of an environment that is free again runs one until it pays. Each copy runs on a node of its own, a request goes to one of them, and a copy or a node that goes leaves the others serving. A node taken for maintenance or given back is emptied one copy at a time, and a machine of one copy is moved, not stopped: its copy starts on another node and takes requests before the old one stops. Every copy is of the machine's size and counts as one against the project's limits and its machine time.
+A machine runs **one copy** unless you give it more (`replicas`, **Copies** in Studio, 1 to 100). More than one copy is open to a project on Pay as you go: on Free a machine runs one copy (`403 copies_not_available`), and one of a project that is Free again runs one until it pays. Its copies run on two nodes at least and never all on one — the copies on two nodes differ by 29 at most of a hundred (by 1 of up to three copies, 3 of up to nine, 9 of up to 29); a request goes to one of them, and a copy or a node that goes leaves the others serving. A new version comes up a quarter of the copies at a time, each old copy stopping once its new one is ready. A node taken for maintenance or given back is emptied one copy at a time (a tenth of them at a time, of a machine of ten or more), and a machine of one copy is moved, not stopped: its copy starts on another node and takes requests before the old one stops. Every copy is of the machine's size and counts as one against the project's limits and its machine time.
 
 What a copy keeps in its own memory or on its own disk, the others do not see — a session, a counter, a cache, a rate-limit window. A machine with more than one copy keeps those where every copy reaches them: its database, or the project's [cache](https://palbase.studio/docs/backend/cache). A long-lived connection (a WebSocket) stays with the copy that took it. The machine finds its number of copies in `PALBASE_REPLICAS`.
 
@@ -294,9 +299,9 @@ Every machine reaches the internet from one small range of addresses, the platfo
 
 | | |
 |---|---|
-| Machines per project | 5 |
-| Copies per machine | 1 on Free; 1 to 5 on Pay as you go |
-| What machines and databases reserve between them | 2 vCPU and 4096 MiB a project (a shared size reserves a quarter of its CPU ceiling, a dedicated one all of it; memory is reserved whole) |
+| Machines per project | 5 on Free; as many as you like on Pay as you go |
+| Copies per machine | 1 on Free; 1 to 100 on Pay as you go |
+| What machines and databases reserve between them | 2 vCPU and 4096 MiB a project on Free (a shared or standard size reserves a quarter of its CPU ceiling, a dedicated one all of it; memory is reserved whole); no limit on Pay as you go |
 | Builds | 50 a day (UTC) per project; one build at a time; 20 minutes at most each. On Free, 500 build minutes a month — builds, sites' builds and test and migration runs together — then no build until the month ends (`429 quota_exceeded`); on Pay as you go, past them, $0.021 a minute |
 | Idle before a shared size sleeps | 15 minutes |
 | Environment variables | 100, 64 KiB in all |

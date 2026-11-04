@@ -123,6 +123,7 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `ai.voice.delegated` | A person asked a voice of `delegation: "events"` for something out loud: have it done, and answer with the voice's `speak`, naming the delegation. | `{ chat_id, voice_id, delegation_id, text, earlier, user_id, metadata }` |
 | `ai.workspace.published` | A chat's workspace published a tree (mid-turn, as a build writes its product, and once more as its machine lets it go): what changed against the tree it replaced. Read a file of it with `GET /ai/chats/{id}/workspace/files?path=&manifest=`. | `{ chat_id, manifest_id, previous_manifest_id?, changed: [{ path, change, size_bytes }], changed_count, changed_truncated, metadata }` |
 | `ai.workspace.pushed` | A chat's agent pushed its work to the chat's branch. | `{ chat_id, repo, repository, branch, head_sha, commits: [{ sha, subject, author_name, author_email }], commits_truncated, response_id, user_id, metadata }` |
+| `ai.workspace.conflict` | A writer's change of a chat's workspace lost: the path had changed since the writer saw it, and the first to reach the store won. The version that lost is kept 30 days in the workspace's history. | `{ chat_id, conflict: { id, path, lost, winner }, manifest_id, seq, writer, metadata }` |
 
 The modules' contracts say which of their operations emit which event; each is noted on the operation (for example, `PUT /storage/buckets/{bucket}/objects/{path}` "Emits file.uploaded").
 

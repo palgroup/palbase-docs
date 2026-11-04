@@ -24,7 +24,7 @@ export class ReviewsController {
       schema: Verdict,
       instructions: "Classify the customer review and summarize it in one sentence.",
       prompt: body.text,
-      model: "fast",
+      model: "gpt-6-luna",
     });
   }
 }
@@ -40,7 +40,23 @@ export class ReviewsController {
 | `embed(text)`, `embed(texts)` | A vector per text, in order. `dimensions` asks for a shorter one. |
 | `image({ prompt })` | Pictures, waited for. `save(bucket, path)` writes one into the project's storage. |
 
-Each takes `instructions`, `model`, `messages` (the conversation so far, in place of `prompt`), `metadata` (labels of your own, returned with the response) and `signal`. A `model` is a role, `"fast"`, `"default"` or `"strong"`, or a catalogue model as `provider:model` (`Palbase.ai.models()`). `images` gives the question up to 4 pictures, each a file of the project's storage (`{ bucket, path }`), an https address (`{ url }`) or its bytes (`{ mediaType, data }`: base64 png, jpeg, webp or gif, up to 5 MiB each and 6 MiB together, kept in the project's storage while the question is answered, then deleted). A tool's pictures reach the model too. Once a response has ended, its `usage` says what it cost: `cost_nano_usd`, `usd`, and `cost_final` once nothing more of it can be settled. The question is asked with the secret key, so the model can be shown any file of the project's: check that a file is the user's own before you name it. `tools` and `maxToolCalls` give a one-shot answer the tools below, except a client tool, which only a chat has an app to answer.
+Each takes `instructions`, `model`, `messages` (the conversation so far, in place of `prompt`), `metadata` (labels of your own, returned with the response) and `signal`. A `model` is a model's name (`"gpt-6-luna"`, below), or none for the project's default. There are no roles: a call names the model it runs on. `images` gives the question up to 4 pictures, each a file of the project's storage (`{ bucket, path }`), an https address (`{ url }`) or its bytes (`{ mediaType, data }`: base64 png, jpeg, webp or gif, up to 5 MiB each and 6 MiB together, kept in the project's storage while the question is answered, then deleted). A tool's pictures reach the model too. Once a response has ended, its `usage` says what it cost: `cost_nano_usd`, `usd`, and `cost_final` once nothing more of it can be settled. The question is asked with the secret key, so the model can be shown any file of the project's: check that a file is the user's own before you name it. `tools` and `maxToolCalls` give a one-shot answer the tools below, except a client tool, which only a chat has an app to answer.
+
+### Naming a model
+
+A `model` is a model's name, as a plain string — `"gpt-6-luna"`, `"claude-sonnet-5-5"`, `"gpt-6.1-terra"` — with no provider: the platform finds the one that serves it (your own key's, when the project connected one for it). `Palbase.ai.models()` lists the project's models, each with its `name`, the name to write, and its `display_name`, the name people read; `palbase ai:models` and Studio's **AI › Models & keys** list the same. A name the catalogue does not sell is refused with `unsupported_model`, which names the ones it sells. Left out, the project's default runs.
+
+```ts
+import { Palbase } from "palbase/backend";
+
+const { chat } = await Palbase.ai.models();
+const picked = chat.find((model) => model.name === "gpt-6.1-terra") ?? chat.find((model) => model.default);
+const answer = await Palbase.ai.ask("Summarize this review.", { model: picked?.name });
+```
+
+A model Palbase no longer recommends is **deprecated**, never taken away: it stays in the catalogue, marked with the name of the model to use instead (`deprecated: { since, use_instead }`), and a call that names it runs on it as before.
+
+**The context window.** A model whose price steps with the prompt — OpenAI's GPT-6 and GPT-6.1 past 272K input tokens, Claude Haiku 5.5 past 100K — has two windows in the catalogue: `context_window`, the largest billed at the standard price, which a turn works in by default; and `max_input_tokens`, the most it reads. A definition's `contextWindow` up to `max_input_tokens` opens the larger one, and a request whose prompt passes the step is billed at the model's long-context price, the whole request (`price.long_context`).
 
 `stream(…).toResponse()` is the stream as a route's answer to a browser, as server-sent events: `data: {"text": "…"}` for each fragment, `event: reset` with `{"offset": n}` when the model went back (keep the first `n` characters), and a last `event: done` with the answer. A failure is `event: error` with its code alone.
 
@@ -66,14 +82,14 @@ export class RepliesController {
 
 The models answer with Palbase's own provider keys, unless the project connected a key of its own for the model's provider (`connectProvider`, or Studio's **AI › Models & keys**). A call under the project's own key is billed to it by the provider, and Palbase charges nothing for it.
 
-Kimi K3.1 Pro (`kimi:kimi-k3.1-pro`, Moonshot AI) is answered only when a project names it: no role is Kimi. Moonshot's terms let it use what it is sent to improve its services: always on Palbase's key, and on a project's own key unless the project has agreed otherwise with Moonshot in writing. It always thinks, at `low`, `high` or `max` (`max` when none is named), and it reads pictures.
+Kimi K3.1 Pro (`kimi:kimi-k3.1-pro`, Moonshot AI) is answered only when a project names it: it is never the default. Moonshot's terms let it use what it is sent to improve its services: always on Palbase's key, and on a project's own key unless the project has agreed otherwise with Moonshot in writing. It always thinks, at `low`, `high` or `max` (`max` when none is named), and it reads pictures.
 
-- **Each month brings $1.00 of Palbase's models free**, to each environment: its own dollar, whatever its plan and its organization's other environments ([Billing](https://palbase.studio/docs/getting-started/billing)).
-- **Past it**, an environment on Pay as you go pays at the provider's price and 10%, charged to the payment account that pays for its organization. One on Free, one whose payment account is held for a charge unpaid, or one at its monthly limit is refused (`402 ai_payment_required`) until the month ends (UTC), or until it is on Pay as you go and its account paid: it is served again within a minute.
+- **Each month brings $1.00 of Palbase's models free**, to each project: one dollar its environments spend together, whatever its plan ([Billing](https://palbase.studio/docs/getting-started/billing)). `GET /ai/spend` says what is left of it to the environment called: what its other environments have not spent.
+- **Past it**, an environment of a project on Pay as you go pays at the provider's price and 10%, charged to the payment account that pays for its organization. One of a project on Free, whose payment account is held for a charge unpaid, or at its monthly limit is refused (`402 ai_payment_required`) until the month ends (UTC), or until the project is on Pay as you go and its account paid: it is served again within a minute.
 - **A monthly budget.** An owner or an admin of the organization may set the most a project spends on Palbase's models in a month, in Studio's **AI › Settings** or with the CLI. Past it, calls to them are refused (`402 ai_budget_reached`) until the month ends or the budget is raised, and the organization's owners are emailed, once a month and budget. The project's key and its environment tokens cannot set it: what spends the money does not raise its own limit.
 - A Free project's dollar and a budget hold as each use ends: a response is admitted with what the project has left, and one that would cost more, or is still running when it is reached, stops there with the error `ai_limit_reached` (a project with less than a cent left is at its limit: `402`). Responses running at once may each spend what was left, so the month may pass the limit by a little.
-- **Pay as you go.** A paying environment's responses are held, the same way, to what its payment account may still owe before it is charged — twice its threshold, less what it owes now; no more than its monthly limit still allows — and what is left of its free dollar. When less than a cent is left, calls are `402 ai_payment_required` until the account's charge is paid, which happens at once from its card.
-- **Voice.** A voice session's model runs for as long as the session is open: an environment on Free opens one on Palbase's models no more (`402 ai_payment_required`), one on Pay as you go needs a dollar left of its budget and of what its account may still owe for each voice open, and an open one is closed (`ai_limit_reached`) when the environment's free dollar, budget or that runs out. On the project's own OpenAI key it runs regardless.
+- **Pay as you go.** A paying project's responses — all its environments' together — are held, the same way, to what its payment account may still owe before it is charged — twice its threshold, less what it owes now; no more than the project's monthly limit still allows — and what is left of its free dollar. When less than a cent is left, calls are `402 ai_payment_required` until the account's charge is paid, which happens at once from its card.
+- **Voice.** A voice session's model runs for as long as the session is open: an environment of a project on Free opens one on Palbase's models no more (`402 ai_payment_required`), one of a project on Pay as you go needs a dollar left of its budget and of what its account may still owe for each voice open, and an open one is closed (`ai_limit_reached`) when the project's free dollar, the environment's budget or that runs out. On the project's own OpenAI key it runs regardless.
 - **A call cut before its answer** (a turn stopped, a stream given up): its provider says what its tokens were only at the end. A reasoning model's hidden thinking, which the provider bills as output, is then estimated from how long it thought at the model's measured speed, rounded down, and the use is marked `estimated` (Studio: **Estimate**).
 
 `GET /ai/spend` says the month's spend at what it is billed, what is left of a Free project's dollar, the budget, and whether Palbase's models serve the project now (and if not, why). Studio shows the same on **AI › Models & keys**.
@@ -86,11 +102,11 @@ An agent is given tools from five sources:
 |---|---|---|
 | Your backend | `Palbase.ai.tool({ name, description, input, run })` | On your machine, when the agent calls it. |
 | The app | `Palbase.ai.clientTool({ name, description, input })` | In the app the chat is open in. The turn waits for the answer, which reaches the chat through your gateway. |
-| An HTTPS tool | `Palbase.ai.endpoints.put(name, { kind: "https", url, … })`, then `{ source: "https", name }` | At that address: a signed `POST`. |
-| An MCP server | `Palbase.ai.endpoints.put(name, { kind: "mcp", url })`, then `{ source: "mcp", name, only? }` | At that address, over streamable HTTP. |
+| An HTTPS tool | `Palbase.ai.endpoints.put(name, { kind: "https", url, … })`, then `{ source: "https", name }` | At that address: a signed `POST`. It is told nothing of the chat's workspace unless the endpoint is put with `"workspace": true`, for a tool of your own ([Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync#tools-see-the-workspace-as-the-agent-left-it)). |
+| An MCP server | `Palbase.ai.endpoints.put(name, { kind: "mcp", url })`, then `{ source: "mcp", name, only? }` | At that address, over streamable HTTP. It is told nothing of a chat or its workspace unless the endpoint is put with `"workspace": true`, for a server of your own ([Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync#tools-see-the-workspace-as-the-agent-left-it)). |
 | The platform | `{ source: "platform", name }`: `web.search`, `web.fetch`, `workspace.fetch_archive` | On the platform. `web.search` searches the web, `web.fetch` reads a page of it, `workspace.fetch_archive` downloads an archive from a URL and unpacks it into the chat's workspace (a workspace chat has it already). They belong to the agent; its subagents use the agent's. |
 
-A tool answers within 110 seconds; past that the agent is told it did not answer. A tool whose work takes longer (a review that takes minutes) answers `{ deferred: true, expires_in_seconds? }` at once, and the call waits. Your server gives the answer later with `chats.answer(chatId, callId, output)` (`POST /ai/chats/{id}/tool-outputs/{callId}` with the secret key), within the time the tool named: a minute to a day, an hour by default. A call nobody answers by then is told to the agent as unanswered. No member answers such a call. The tool is told the call's `callId` and the chat in its context.
+A tool answers within 110 seconds; past that the agent is told it did not answer. A tool whose work takes longer (a review that takes minutes) answers `{ deferred: true, expires_in_seconds? }` at once, and the call waits. Your server gives the answer later with `chats.answer(chatId, callId, output)` (`POST /ai/chats/{id}/tool-outputs/{callId}` with the secret key), within the time the tool named: a minute to a day, an hour by default. A call nobody answers by then is told to the agent as unanswered. A tool that wrote the chat's workspace names the tree its writes left with the answer, `{ workspaceTree }` (`workspace_tree`), as an answer given at once does, so the agent's next command sees what it wrote. No member answers such a call. The tool is told the call's `callId` and the chat in its context.
 
 A chat that works in a workspace gives its agent the workspace's own tools as well:
 
@@ -98,7 +114,7 @@ A chat that works in a workspace gives its agent the workspace's own tools as we
 |---|---|
 | `palai.workspace.file`, `str_replace_based_edit_tool` | Read, write and edit a file. |
 | `palai.workspace.glob`, `palai.workspace.grep` | Find files by name, and lines by pattern. |
-| `palai.workspace.shell`, `palai.workspace.background_status`, `palai.workspace.background_kill` | Run a command — it reaches the internet over HTTP, HTTPS, SSH and git (a package install, a clone, Palbase's own docs), never a private address or a mail server — keep one running in the background, read it and stop it. `xcodebuild`, `xcrun`, `swift` and `simuse` run on the platform's Mac, and what they write under `artifacts/` and `scratch/` comes back into the workspace. |
+| `palai.workspace.shell`, `palai.workspace.background_status`, `palai.workspace.background_kill` | Run a command — it reaches the internet over HTTP, HTTPS, SSH and git (a package install, a clone, Palbase's own docs), never a private address or a mail server — keep one running in the background, read it and stop it. |
 | `palai.workspace.view_image` | Look at a picture in the workspace: a page of a PDF it rendered (`pdftoppm`), a chart it drew, a photo sent as a file. The workspace also has `pdftotext`, `tesseract` (Turkish and English), `openpyxl`, `xlrd`, `python-docx`, `catdoc` and `antiword` for reading files. |
 | `palai.workspace.fetch_archive` | Download an archive from a URL and unpack it into the workspace. |
 | `palai.workspace.commit`, `palai.publish.push` | Commit, as the member the turn is for, and push to the chat's branch. |
@@ -167,7 +183,7 @@ A tool is made once, at a module's top level: the framework serves every tool it
 - **When it fails.** A `ToolError`'s message is what the agent and the chat's members are told. Anything else thrown is told as "The tool failed", and the error is in the app's log.
 - **`approval: true`.** Every call waits for a person's yes: the member whose message began the turn, or the server.
 
-An HTTPS tool is any server's route. The platform calls it with `POST {tool, call_id, input, context}`, signed with the endpoint's secret in `Palbase-Signature`, and it answers `{ output, is_error }`. `endpoints.put` answers that secret once (`signing_secret`), and putting the endpoint again makes a new one. Keep it in the project's [secrets](https://palbase.studio/docs/backend/secrets):
+An HTTPS tool is any server's route. The platform calls it with `POST {tool, call_id, input, context}`, signed with the endpoint's secret in `Palbase-Signature`, and it answers `{ output, is_error }`. An endpoint put with `"workspace": true`, a tool of your own, is told the chat's workspace: in a chat that works in one, `context.workspace` names the tree the agent last wrote, and a tool that writes the workspace answers `workspace_tree` so the agent's next command sees it. Any other is told the turn's `chat_id` and nothing of the workspace ([Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync#tools-see-the-workspace-as-the-agent-left-it)). `endpoints.put` answers that secret once (`signing_secret`), and putting the endpoint again makes a new one. Keep it in the project's [secrets](https://palbase.studio/docs/backend/secrets):
 
 ```ts
 // src/modules/rates/rates.controller.ts
@@ -206,7 +222,7 @@ import { Palbase } from "palbase/backend";
 import { lookupOrder, pickCity, refundOrder } from "./support.tools";
 
 export const support = Palbase.ai.agent("support", (ctx) => ({
-  model: "fast",
+  model: "gpt-6-luna",
   instructions: [
     "You are the shop's support assistant. Answer briefly.",
     ctx.user ? `The customer is ${ctx.user.name}.` : "Several people are in this chat: each message says who wrote it.",
@@ -222,11 +238,11 @@ The agent is your build's: the build writes it into its contract (`x-palbase-age
 | Field | What it is |
 |---|---|
 | `instructions` | What the agent is told before the chat. |
-| `model` | A role or a catalogue model. |
+| `model` | A model's name (`Palbase.ai.models()`). Left out, the project's default. |
 | `tools` | 64 at most, an MCP server's tools counted. |
 | `subagents` | 16 at most: each a `name`, a `description` the agent reads to hand it work, and its own `instructions`, `model` and `tools`. `required: true` fails the turn when its part fails. |
 | `maxToolCalls` | The turn's tool calls, 1 to 10 000. Past it the agent is told it has no tools left, and answers. |
-| `thinking` | `visible` shows the model's reasoning in the chat's stream as `thinking` parts. `hidden` does not ask for it. When the model's provider will not give it, the turn says so once: a `thinking` part with `unavailable: true`, the `model` and the provider's `reason`. One cause is an OpenAI organization not verified for reasoning summaries; Anthropic's models (`strong`) and Kimi show theirs. |
+| `thinking` | `visible` shows the model's reasoning in the chat's stream as `thinking` parts. `hidden` does not ask for it. When the model's provider will not give it, the turn says so once: a `thinking` part with `unavailable: true`, the `model` and the provider's `reason`. One cause is an OpenAI organization not verified for reasoning summaries; Anthropic's models (`claude-sonnet-5-5`) and Kimi show theirs. |
 | `advisor` | A second model that reads the agent's work and holds it to your rules: [The advisor](#the-advisor). |
 
 ### The advisor
@@ -238,11 +254,11 @@ An agent can have an **advisor**: a second model that reads what the agent does 
 import { Palbase } from "palbase/backend";
 
 export const coder = Palbase.ai.agent("coder", () => ({
-  model: "openai:gpt-6-luna",
+  model: "gpt-6-luna",
   instructions: "You are the shop's coding agent.",
   tools: [/* … */],
   advisor: {
-    model: "anthropic:claude-haiku-5-5",
+    model: "claude-haiku-5-5",
     instructions: "Rule 1: new files go under src/ only. Rule 2: never edit a test to make it pass.",
     tools: [{ source: "mcp", name: "shop-docs", only: ["search"] }],
   },
@@ -260,7 +276,7 @@ Each reading is an `advisor` part in the chat's stream: `{ kind: "step" | "final
 
 | Field | What it is |
 |---|---|
-| `model` | A role or a catalogue model. Left out, the agent's. |
+| `model` | A model's name. Left out, the project's default. |
 | `instructions` | Its rules: what it holds the agent to, 64 KiB at most. |
 | `effort` | How hard its model thinks. |
 | `tools` | MCP servers it reads with (`{ source: "mcp", name, only }`), 32 at most. |
@@ -272,7 +288,7 @@ An agent can also be made in Studio (**AI › Agents**), with the CLI (`palbase 
 ```ts
 import { Palbase } from "palbase/backend";
 
-await Palbase.ai.agents.saveDraft("helper", { instructions: "Answer in one sentence.", model: "fast" });
+await Palbase.ai.agents.saveDraft("helper", { instructions: "Answer in one sentence.", model: "gpt-6-luna" });
 await Palbase.ai.agents.publish("helper");
 const answer = await Palbase.ai.ask("What does the return policy say?", { agent: "helper" });
 ```
@@ -324,7 +340,7 @@ export class SupportController {
 | `chats.messages(id)` | What was written, newest first, a page at a time. |
 | `chats.stop(id)` | Stops the turn the agent is on. What it wrote stays. Answers the turn's id, or `null` when none ran. |
 | `chats.approve(id, approvalId, { reason, as })`, `chats.deny(…)` | A call that waits for a person's yes, made or not. Denied, the agent is told the reason and goes on. |
-| `chats.answer(id, callId, output, { isError, as })` | A client tool's answer: `true` when it is the one taken, `false` when another came first. |
+| `chats.answer(id, callId, output, { isError, as, workspaceTree })` | A client tool's answer, or a deferred tool's: `true` when it is the one taken, `false` when another came first. `workspaceTree` is the tree a tool's writes left (`chats.workspace.write`'s answer). |
 | `chats.sendToSubagent(id, runId, text, { as })` | A message for a subagent at work, at its next step. |
 | `chats.turnCost(id, responseId)` | What a turn cost so far, its subagents counted: tokens, `costNanoUsd` (and `usd`), and `final` once nothing more of it is settled. `runs` breaks it down run by run: the turn's own and each subagent's, by name, model and state. `advisor` says what the agent's [advisor](#the-advisor) spent of it. A turn still at work is read as it spends. |
 | `chats.events(id)` | The chat as a source a gateway pipes into its channel. See [A chat in an app](#a-chat-in-an-app). |
@@ -362,7 +378,7 @@ What was said either way is the chat's: a `transcript` part of its stream for ea
 
 ## Workspaces
 
-A chat can work in GitHub repositories: its turns run with them checked out, and what its agent commits is pushed to the branch. The tokens are your backend's to give, at each clone and each push.
+A chat can work in GitHub repositories: its turns run with them checked out, and what its agent commits is pushed to the branch. The tokens are your backend's to give, at each clone and each push. Its turns run on Palbase's own Linux machines, or on a pool of your own machines the chat names as it is started (`pool`, see [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines)), with the project's variables and the agent's own (`env`) and setup script (`setup`). Any machine of yours can hold the workspace too, synced both ways, and your backend can write it ([Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync)).
 
 ```ts
 // src/modules/builds/app.repo.ts
@@ -396,7 +412,7 @@ export class BuildChats {
   /** A chat that works on a branch of the app; each push waits for its owner's yes. */
   async start(userId: string, branch: string): Promise<string> {
     const chat = await Palbase.ai.chats.create({
-      definition: { instructions: "You work on the shop's app. Make small commits.", model: "strong" },
+      definition: { instructions: "You work on the shop's app. Make small commits.", model: "claude-sonnet-5-5" },
       members: [{ userId, owner: true }],
       workspace: { repos: [{ repo: shopApp, branch }], autoPush: false },
     });
@@ -537,6 +553,8 @@ Each arrives as a `PalbaseError` with its `status` and `code`, its message said 
 
 - [Gateways](https://palbase.studio/docs/backend/gateways): the channel a chat reaches its members on
 - [Web Gateways](https://palbase.studio/docs/web/gateways): a chat's state in the browser
-- [Event Hooks](https://palbase.studio/docs/backend/hooks): `ai.response.started`, `ai.response.completed` and `ai.response.failed` (a background response's end, and every chat turn's start and end), `ai.goal.updated`, `ai.voice.started`, `ai.voice.closed`, `ai.voice.delegated`
+- [Event Hooks](https://palbase.studio/docs/backend/hooks): `ai.response.started`, `ai.response.completed` and `ai.response.failed` (a background response's end, and every chat turn's start and end), `ai.goal.updated`, `ai.voice.started`, `ai.voice.closed`, `ai.voice.delegated`, `ai.workspace.published`, `ai.workspace.pushed`, `ai.workspace.conflict`
+- [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines): runner pools of your own Macs and Linux machines, environment variables and setup scripts
+- [Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync): a chat's workspace on a machine of yours, written by your backend, and what a tool sees of it
 - [Secrets](https://palbase.studio/docs/backend/secrets): an HTTPS tool's signing secret, a repository's token
 - [Row-Level Security](https://palbase.studio/docs/backend/row-level-security): what a tool finds as the chat's member
