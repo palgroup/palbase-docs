@@ -46,8 +46,11 @@ room.leave()
 
 A channel's state is a keyed map that outlives the connections reading it. A `Life.DURABLE` entry (the default) stays until it is removed. A `Life.EPHEMERAL` one is its writer's presence, gone when the writer leaves:
 
+<!-- given: room: RealtimeChannel -->
+
 ```kotlin
 import kotlinx.serialization.json.JsonPrimitive
+import studio.palbase.realtime.RealtimeChannel
 
 room.onState { entries ->
     val here = entries.filterValues { it.life == RealtimeChannel.Life.EPHEMERAL }.keys
@@ -98,6 +101,8 @@ A refused join throws `PalbaseError` with the code `join_refused` and the server
 | `DISCONNECTED` | Closed by the client: the user signed out, or no channel is wanted any more. |
 
 ```kotlin
+import studio.palbase.realtime.RealtimeSocket
+
 @Composable
 fun Connection() {
     val status by pb.socket.status.collectAsState()
@@ -112,6 +117,8 @@ The socket sends a heartbeat every 25 seconds. A socket that drops is opened aga
 The socket opens at `wss://<ref>.palbase.studio/realtime/v1/websocket`, the project's address. The publishable key goes in its `x-api-key` header, never in the address. When the session is bound to the device, the user's token and a proof signed by the device's key go there instead. Who the user is, is the access token each join carries, and a refreshed token is pushed to the joined channels without leaving them.
 
 The socket is one person's. When the user signs out, someone else signs in, or the session ends, the client closes it, and every channel with it. Join again for the user who is there now:
+
+<!-- given: scope: CoroutineScope -->
 
 ```kotlin
 import studio.palbase.session.AuthEvent

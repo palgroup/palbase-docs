@@ -21,9 +21,14 @@ A push reaches an Android device through Firebase Cloud Messaging, with the proj
 
 ## Recording the token
 
+<!-- given: appScope: CoroutineScope -->
+
 ```kotlin
 // app/src/main/kotlin/com/example/shop/Push.kt
+package com.example.shop
+
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.launch
 import studio.palbase.notify.notify
 
 // appScope: a CoroutineScope of the app's own, as long as the process.
@@ -57,13 +62,18 @@ A silent push (`silent: true`) carries none of the title, body, image and sound:
 
 At this version the SDK draws nothing, so the app's own service shows it:
 
+<!-- given: appScope: CoroutineScope, object R { object drawable { val ic_notification: Int = 0 } } -->
+
 ```kotlin
 // app/src/main/kotlin/com/example/shop/PushService.kt
+package com.example.shop
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.launch
 import studio.palbase.notify.notify
 
 class PushService : FirebaseMessagingService() {
@@ -125,6 +135,7 @@ The signed-in person's inbox holds the messages your backend put there and the c
 ```kotlin
 import studio.palbase.notify.ui.InboxView
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InboxScreen() {
     var unread by remember { mutableLongStateOf(0L) }
@@ -148,6 +159,8 @@ An app that draws its own uses `pb.notify.inbox`:
 ## In-app messages
 
 The project's in-app campaigns (a modal, a banner or a whole screen, designed in Studio) are shown over the app once started. `PalbaseInAppMessages` around the app's root starts them and draws them in Compose:
+
+<!-- given: this: ComponentActivity, fun showPaywall(placement: String), @Composable fun AppNavigation() -->
 
 ```kotlin
 import studio.palbase.notify.ui.InAppHandlers

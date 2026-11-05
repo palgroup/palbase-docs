@@ -113,6 +113,10 @@ Test users, and the sign-ins made for them, are open: they are test fixtures, an
 | `auth:test-users` | The environment's test users: made with their sign-ins, listed, deleted, their kept mail and texts read (`palbase auth:test-users:messages`), a sign-up address made (`palbase auth:test-users:address`). Not other users |
 | `support` | A question to Palbase's support line (`palbase support:ask`, `POST /ai/support-questions`): an agent asks Palbase what it cannot find out, not the person it works for |
 
+### Auth settings: no scope reaches them
+
+A narrowed token answers `403 token_out_of_scope` for `GET` and `PUT /admin/auth-settings` (`palbase auth:settings:get`, `auth:settings:set`) — whether an address is confirmed before its first sign-in (`confirm_email_required`), and how: a one-time `code` in the email or a `link` (`email_verification_method`, `code` unless set), the password's rules, the tokens' lives — and for the other modules' settings. A token's reach is its minter's role: mint it with no `scopes` and it reads and sets them as that role does (an admin's token sets every one), or have a person set them, signed in, in Studio (**Auth › Settings**) or with the CLI. Narrow a token when the program it is for must reach no more than its scopes; give an agent that configures the product a full one ([What it can do](#what-it-can-do)).
+
 ### When it stops working
 
 It stops working when it expires, when it is revoked (`DELETE /v1/environments/{ref}/tokens/{id}`, by an admin, by a token of an admin's role, or by a narrowed token itself), and when what minted it no longer holds: the admin is no longer an admin, the access token is deleted, or the secret key is revoked (within a minute). `GET /v1/environments/{ref}/tokens` lists the live ones by their last four characters.

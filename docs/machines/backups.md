@@ -10,7 +10,7 @@ There is nothing to schedule and nothing to turn on: the backups are part of the
 
 A database keeps its backups for **`backup_days`** days — 1 to 35, **7** when left out. In Studio it is **Backups kept** on **New database**, and on the database's page under **Edit access and backups**; through the API, `backup_days` on `createDatabase` or `updateDatabase` (`PATCH /databases/{name}`).
 
-A restore reaches back as far as its backups do. Shortening the days shortens how far back you can go from then on.
+A restore reaches back as far as its backups do. Shortening the days shortens how far back you can go from then on. A backup older than its days is removed, and Palbase keeps it deleted for 7 days more before it is gone; a restore does not reach it.
 
 ## Bringing a database back to a moment
 
@@ -61,7 +61,7 @@ A database a machine is given cannot be deleted — `409 database_in_use`. Give 
 
 ### Purging it now
 
-**Purge database** (`purgeDatabase`, `POST /databases/{name}/purge`) takes a deleted database away **for good, now**, instead of at the end of its 7 days: its volume and its backups are removed, it no longer counts toward the project's databases, and its name is free once it has gone (`409 database_purging` for a new database of that name until then). **It cannot be taken back.** A database that is not deleted is refused (`409 database_not_deleted`); one purged already is answered `204` again.
+**Purge database** (`purgeDatabase`, `POST /databases/{name}/purge`) takes a deleted database away **for good, now**, instead of at the end of its 7 days: its volume is removed and its backups leave your project, it no longer counts toward the project's databases, and its name is free once it has gone (`409 database_purging` for a new database of that name until then). **It cannot be taken back through the API.** Its backups are kept, deleted, for 7 more days, in which support can bring them back if you ask; then nothing of it remains. A database that is not deleted is refused (`409 database_not_deleted`); one purged already is answered `204` again.
 
 `listDatabases` (`GET /databases`) lists the deleted databases that may still be taken back beside the others, each with its `deleted_at` and `purge_after` — when its volume and backups go for good.
 
@@ -69,8 +69,10 @@ A database a machine is given cannot be deleted — `409 database_in_use`. Give 
 |---|---|---|---|
 | Delete | kept 7 days, with its backups | taken | yes, until purged |
 | Undelete (within 7 days) | back, as it was | — | yes |
-| Purge | gone, now | free once it has gone | no |
-| 7 days pass | gone | free | no |
+| Purge | gone, now; its backups kept 7 days more, for support alone | free once it has gone | no |
+| 7 days pass | gone; its backups kept 7 days more, for support alone | free | no |
+
+A database's data is gone, every byte of it, at most 14 days after it was deleted.
 
 The events: `database.deleted`, `database.undeleted` and `database.purged`.
 

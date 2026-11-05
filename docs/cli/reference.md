@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.47.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.50.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-455 commands in 35 groups.
+458 commands in 35 groups.
 
 ## Global flags
 
@@ -131,14 +131,10 @@ A table in the earlier format (version 2) is written in this one.
 Run a command with the environment's address and your own key in its environment, nothing written to disk
 
 ```sh
-palbase run [--secrets development|production] -- <command> [args…]
+palbase run -- <command> [args…]
 ```
 
-palbase run -- bun dev, palbase run -- npm test: the app reads the project's secrets at boot (PALBASE_SECRETS).
-
-```text
-      --secrets <set>  the project's secrets the app reads at boot: development (default) or production
-```
+palbase run -- bun dev, palbase run -- npm test: the app reads the project's development secrets at boot (PALBASE_SECRETS=development). A production secret's value is never read back: only the machines that start with it are given it.
 
 ### `palbase test`
 
@@ -158,7 +154,6 @@ With an environment's token (PALBASE_TOKEN, scope auth:test-users) the test user
       --machine <name>  a machine whose test command (when no command is given) and test users (when --users is not) are run
       --users <names>   the test users to make for the run, comma-separated
       --base-url <url>  where the app under test answers (http://localhost:8080)
-      --secrets <set>   the project's secrets the app reads at boot: development (default) or production
 ```
 
 ### `palbase billing`
@@ -194,16 +189,15 @@ palbase journeys [--status draft|live|stopped]
 Write what the backend needs to run here into .env.local: the environment's address and your own key — no secret's value
 
 ```sh
-palbase env:pull [--file <path>] [--secrets development|production]
+palbase env:pull [--file <path>]
 ```
 
-The app reads the project's secrets at boot (PALBASE_SECRETS); their names are listed as comments: set one in the file to override it.
+The app reads the project's development secrets at boot (PALBASE_SECRETS=development); their names are listed as comments: set one in the file to override it. A production secret's value is never read back: only the machines that start with it are given it.
 The key is yours (CLI — you (this computer)), good for 30 days, made again by env:pull and run; palbase logout revokes it.
 Only the block between the palbase markers is written; the rest of the file stays as it is.
 
 ```text
-      --file <path>    the file (default .env.local)
-      --secrets <set>  the project's secrets the app reads at boot: development (default) or production
+      --file <path>  the file (default .env.local)
 ```
 
 ### `palbase env:tokens:list`
@@ -640,6 +634,7 @@ palbase auth:settings:set <key=value>…
 ```
 
 Text needs no quotes (site_url=https://shop.example); quote text that reads as JSON: from_name='"123"'.
+app_name=Koz names your app in its invitations ("Koz invited you"); app_name= clears it.
 The change is made on the revision read: one made beside it in the meantime (Studio, another terminal) is refused, not overwritten.
 palbase auth:settings:get lists the keys.
 
@@ -858,6 +853,24 @@ palbase auth:users:create <email> [--verified]
 
 ```text
       --verified  their email is taken as verified
+```
+
+### `palbase auth:users:invite`
+
+Invite a person to an account of the environment: Palbase emails them a link that sets its password, valid 7 days
+
+```sh
+palbase auth:users:invite <email> [--no-email] [--redirect-to <url>] [--locale <tag>]
+```
+
+An address no account has gets one, invited: it has no password, and cannot sign in with one, until the person sets it from the link. An account invited that has not taken it up is invited again: a new link, the earlier ones no longer open it, seven days from now. An address with an account is refused with that account's id: nothing is sent and its password is left as it is — give it what you invited it for yourself (a role: the admin API's PUT /admin/users/{uid}/roles/{role}).
+The link opens Palbase's page at the environment's own address, where the person chooses the password; --redirect-to sends it to a page of your app's on the redirect allow-list instead, which takes the token to POST /auth/invitations/accept.
+--no-email sends nothing and prints the link, for you to deliver: it sets the account's password, so give it to the person alone.
+
+```text
+      --no-email           send nothing: print the link, for you to deliver
+      --redirect-to <url>  a page of your app's, on the redirect allow-list, the link opens instead of Palbase's
+      --locale <tag>       the email's and the page's language: en, tr (default: the environment's)
 ```
 
 ### `palbase auth:users:delete`
@@ -1901,7 +1914,7 @@ palbase secrets:list [--dev]
 ```
 
 ```text
-      --dev  the development set (what a backend on a developer's computer reads), not production
+      --dev  the development set (what a backend on a developer's computer reads, and a machine started with it), not production — whatever the environment is named
 ```
 
 ### `palbase secrets:set`
@@ -1912,22 +1925,25 @@ Set a secret: its value is read from stdin, never from the command line
 palbase secrets:set <NAME> [--dev] < value
 ```
 
-The environment's machines read production at their next start; a backend run with palbase run or env:pull reads development.
+An environment has two sets, production and development, whatever the environment is named: Development's machines may start with its production set. A machine starts with the set it names (machines:update --secrets), and a change of that set rolls it out with the new value; a backend run with palbase run or env:pull reads development.
+It says which of the environment's machines start with the set, and warns when none does.
 
 ```text
-      --dev  the development set (what a backend on a developer's computer reads), not production
+      --dev  the development set (what a backend on a developer's computer reads, and a machine started with it), not production — whatever the environment is named
 ```
 
 ### `palbase secrets:get`
 
-Print one secret's value (an admin's)
+Print one development secret's value (an admin's): a production secret's is never read back
 
 ```sh
-palbase secrets:get <NAME> [--dev]
+palbase secrets:get <NAME> --dev
 ```
 
+A production secret's value is never read back, by anyone: only the machines that start with it are given it, and it is changed by setting it again (secrets:set). The development set is what a backend on your computer reads (palbase run, env:pull): secrets:get NAME --dev prints one.
+
 ```text
-      --dev  the development set (what a backend on a developer's computer reads), not production
+      --dev  the development set (what a backend on a developer's computer reads, and a machine started with it), not production — whatever the environment is named
 ```
 
 ### `palbase secrets:unset`
@@ -1939,7 +1955,7 @@ palbase secrets:unset <NAME> [--dev]
 ```
 
 ```text
-      --dev  the development set (what a backend on a developer's computer reads), not production
+      --dev  the development set (what a backend on a developer's computer reads, and a machine started with it), not production — whatever the environment is named
 ```
 
 ### `palbase secrets:versions`
@@ -1951,7 +1967,7 @@ palbase secrets:versions <NAME> [--dev]
 ```
 
 ```text
-      --dev  the development set (what a backend on a developer's computer reads), not production
+      --dev  the development set (what a backend on a developer's computer reads, and a machine started with it), not production — whatever the environment is named
 ```
 
 ### `palbase secrets:rollback`
@@ -1963,7 +1979,7 @@ palbase secrets:rollback <NAME> --version <n> [--dev]
 ```
 
 ```text
-      --dev          the development set (what a backend on a developer's computer reads), not production
+      --dev          the development set (what a backend on a developer's computer reads, and a machine started with it), not production — whatever the environment is named
       --version <n>  the version to go back to
 ```
 
@@ -4701,7 +4717,7 @@ The environment needs its GitHub link first: palbase github:connect.
       --path <dir>                        the directory built, from the repository's root (default: this directory's place in it)
       --context <dir>                     what the build is given above --path (a monorepo: ".")
       --size <size>                       its size (palbase machines:sizes lists them)
-      --replicas <n>                      how many copies run, 1 to 100 (one on Free), over two nodes at least and never all on one — with --max-replicas, the fewest its load runs (2 at least)
+      --replicas <n>                      how many copies run, 1 to 100 (one on Free), over two nodes at least and never all on one — with --max-replicas, the fewest its load runs (2 at least), spread over nodes as room allows
       --max-replicas <n>                  scale its copies by its load, up to n (2 to 100; Pay as you go): as many run as keep each near --cpu-percent and --memory-percent of its size
       --cpu-percent <p>                   with --max-replicas: the share of a copy's processor it is kept near, 10 to 95 (a copy is added above it)
       --memory-percent <p>                with --max-replicas: the share of a copy's memory it is kept near, 10 to 95
@@ -4741,7 +4757,7 @@ Named by none, it is the only machine of the environment chosen for this directo
       --path <dir>                        the directory built, from the repository's root (default: this directory's place in it)
       --context <dir>                     what the build is given above --path (a monorepo: ".")
       --size <size>                       its size (palbase machines:sizes lists them)
-      --replicas <n>                      how many copies run, 1 to 100 (one on Free), over two nodes at least and never all on one — with --max-replicas, the fewest its load runs (2 at least)
+      --replicas <n>                      how many copies run, 1 to 100 (one on Free), over two nodes at least and never all on one — with --max-replicas, the fewest its load runs (2 at least), spread over nodes as room allows
       --max-replicas <n>                  scale its copies by its load, up to n (2 to 100; Pay as you go): as many run as keep each near --cpu-percent and --memory-percent of its size
       --cpu-percent <p>                   with --max-replicas: the share of a copy's processor it is kept near, 10 to 95 (a copy is added above it)
       --memory-percent <p>                with --max-replicas: the share of a copy's memory it is kept near, 10 to 95
@@ -5107,6 +5123,29 @@ Named by none, it is the only machine of the environment chosen for this directo
 ```text
       --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
+
+### `palbase machines:exec`
+
+Run one command in a machine as it serves and print what it printed — its secrets written over — ending with its exit code
+
+```sh
+palbase machines:exec <machine> -- <command> [args…]
+```
+
+palbase machines:exec backend -- date, palbase machines:exec backend -- sh -c 'ls /tmp | wc -l': the command runs in a ready copy of the machine (woken first if asleep), under /bin/sh, with no terminal and no input; this command ends with its exit code.
+It is killed after 60 s, with what it started (this command then ends with 124), and what it left running in the background is killed when it ends; what it prints comes back up to 1 MiB. Every secret and key the machine starts with, and a password in an address, is written over with `***`.
+Who ran what, and how it ended, is kept — never what it printed: palbase machines:execs `<machine>`. In a production environment's machine only a person runs one — signed in, or with their account token — not a key, an organization's token or an environment's.
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
+### `palbase machines:execs`
+
+The commands run in a machine with machines:exec, newest first: who ran which, when, how it ended — never what it printed
+
+```sh
+palbase machines:execs <machine>
+```
+
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ### `palbase machines:crons:pause`
 

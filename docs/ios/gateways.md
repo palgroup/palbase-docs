@@ -118,6 +118,7 @@ struct SupportChat: View {
                     case .message(let m): Text(m.text).frame(maxWidth: .infinity, alignment: m.mine ? .trailing : .leading)
                     case .response(let r): Text(r.text)
                     case .goal, .voice: EmptyView()
+                    @unknown default: EmptyView()   // a kind of item a later SDK adds
                     }
                 }
                 TextField("Message", text: $text)

@@ -9,7 +9,7 @@
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.16.5"))
+    implementation(platform("studio.palbase:palbase-bom:0.16.7"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // the FCM token, and the service a ring arrives through
     implementation("studio.palbase:palbase-calls")      // pb.calls
@@ -30,7 +30,11 @@ The project rings an Android phone with a **high-priority FCM data message**. Th
 - **Full screen over the lock screen.** From Android 14, Google Play grants `USE_FULL_SCREEN_INTENT` to calling apps alone, and the person may turn it off. `pb.calls.canRingFullScreen` says whether it is granted — without it a ring is a heads-up notification with Answer and Decline — and `pb.calls.fullScreenSettings()` is the system's page where the person allows it.
 - **A closed app rings; a force-stopped one does not.** A process the system ended — or `adb shell am kill` — still gets the ring: FCM starts it. An app the person force-stopped (Settings › Force stop, or `adb shell am force-stop`) gets no FCM message at all, Android's rule, until it is opened again.
 
+<!-- given: context: Context -->
+
 ```kotlin
+import studio.palbase.calls.calls
+
 // Before the first call: what the phone needs to ring.
 if (!pb.calls.canRingFullScreen) {
     // Explain why, then:
@@ -39,6 +43,8 @@ if (!pb.calls.canRingFullScreen) {
 ```
 
 ## Making a call
+
+<!-- given: userId: String -->
 
 ```kotlin
 val scope = rememberCoroutineScope()
@@ -96,6 +102,10 @@ And as plain values: `id`, `incoming` (this device was rung for it), `video`, `c
 A camera — or a shared screen — is drawn by `PBVideoView` (a `View`: set its `track`), in Compose through `AndroidView`:
 
 ```kotlin
+import studio.palbase.calls.PBCall
+import studio.palbase.calls.PBVideoTrack
+import studio.palbase.calls.PBVideoView
+
 @Composable
 fun Video(track: PBVideoTrack?, modifier: Modifier = Modifier) {
     AndroidView(factory = { PBVideoView(it) }, update = { it.track = track }, modifier = modifier)
@@ -115,6 +125,8 @@ fun InCall(call: PBCall) {
 
 A ring over the lock screen — the app closed, the screen off — opens the app's own activity, full screen: register it in the `Application`, before a ring can come. The ring's full-screen intent, its Answer and a tap on a call's notification open it, the call's id in its intent.
 
+<!-- given: class CallActivity : android.app.Activity() -->
+
 ```kotlin
 class App : Application() {
     override fun onCreate() {
@@ -129,7 +141,12 @@ class App : Application() {
     android:showWhenLocked="true" android:turnScreenOn="true" />
 ```
 
+<!-- given: @Composable fun MyCallScreen(call: PBCall, onEnded: () -> Unit) -->
+
 ```kotlin
+import studio.palbase.calls.Calls
+import studio.palbase.calls.PBCall
+
 class CallActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -147,6 +164,8 @@ The activity is the app's, drawn as it likes: who calls, Accept and Decline whil
 ## Sharing a screen
 
 Android asks the person each time before an app captures the screen (MediaProjection): launch `Calls.screenShareIntent(context)` for a result, and pass the result's `Intent` to `setScreenShare(true, it)` — Android 14 and newer let one yes serve one share alone. The others get the screen as their `PBCallPeer`'s `screen`, apart from the camera. `setScreenShare(false)` stops it, and so does the system's own "Stop sharing" (the capture's notification, on the calls channel); `screenSharing` says which.
+
+<!-- given: call: PBCall, scope: CoroutineScope, context: Context -->
 
 ```kotlin
 val share = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -173,7 +192,11 @@ While it shares, the capture runs in LiveKit's foreground service of type `media
 | `start(video, userIds, ring, metadata, callerName, callerImageUrl)` | Starts a call at the place: no one need be asked |
 | `join(name, imageUrl)` | Comes into the call going on there, unasked |
 
+<!-- given: myName: String -->
+
 ```kotlin
+import studio.palbase.calls.CallsAPI
+
 @Composable
 fun ChannelMeeting(channelId: String) {
     val place = remember(channelId) { pb.calls.place("channel:$channelId") }

@@ -48,12 +48,12 @@ The web SDK is `palbase/web`, a part of the npm package `palbase`: `npm install 
 ```json
 {
   "dependencies": {
-    "palbase": "^0.10.0"
+    "palbase": "^0.50.0"
   }
 }
 ```
 
-A caret on a `0.x` version stays within that minor version: `^0.10.0` takes `0.10.1`, never `0.11.0`.
+A caret on a `0.x` version stays within that minor version: it takes the next patch, never the next minor. Move the range up when a newer minor is out — `npm install palbase@latest` does it.
 
 It is compiled JavaScript with its type declarations: any bundler takes it as it is (Next.js, Vite, esbuild — no setting). A browser or React Native bundle that imports `palbase/server`, `palbase/ai` or `palbase/backend` gets a module that throws: those parts hold the project's secret key or run a server, and never go into an app.
 

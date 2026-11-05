@@ -10,7 +10,7 @@
 import Palbase
 
 // What the app starts with until the person chooses, and the version of the text its screen shows.
-let pb = PalbaseClient(try! .environment.with(consent: ConsentOptions(
+nonisolated let pb = PalbaseClient(try! .environment.with(consent: ConsentOptions(
     start: ["analytics": .granted, "performance": .granted, "diagnostics": .granted],
     textVersion: "2026-10",
     customKeys: ["custom.newsletter"]

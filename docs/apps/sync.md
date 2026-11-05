@@ -112,6 +112,8 @@ The settings of every environment are in the checkout; the build picks one.
 
 Each machine of the environment becomes `pb.<name>` in its apps, typed from the contract its serving build answers: its routes, their models and typed errors, and its [gateways](https://palbase.studio/docs/web/gateways). The name is the machine's camelCased, `pb.shopApi` for the machine `shop-api`, unless `--as shop-api=shop` names it otherwise. A name is the checkout's, the same in every environment, kept in `palbase/project.json`, and never one of the client's own (`auth`, `flags`, `storage`, …).
 
+A machine's name is the project's, so an app whose backend is one machine in Production and another in Development names both the same: with Production's `backend` and Development's `backend-dev`, `palbase apps:sync --as backend-dev=backend` makes each environment's client `pb.backend`, and the app's code builds against either. Two machines of one environment cannot share a name: the run stops and names the environment.
+
 - A machine whose contract has not been read yet gets no client, and the run says so. A contract is read once the build's version alone serves: a `palbase/backend` app writes its own; for another program, [`palbase machines:update <machine> --openapi-path <path>`](https://palbase.studio/docs/cli/reference#palbase-machinesupdate) names where it serves one.
 - When a push's version did not roll out (its contract was refused, its tests failed), the client is made from the build that serves, and the run says so.
 - Two backends of one environment that declare the same type, both with a `HealthController` say, cannot share one Swift or Kotlin target: the run stops (`backends_collide`) and names it.

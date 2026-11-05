@@ -6,7 +6,7 @@
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.10.0 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.16.6 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -42,6 +42,7 @@ struct Chat: View {
                 switch entry {
                 case .message(let m): Text(m.text ?? "a file")
                 case .pending(let item): Text(item.request.text ?? "a file").foregroundStyle(.secondary) // on its way
+                @unknown default: EmptyView()   // a kind of entry a later SDK adds
                 }
             }
             TextField("Message", text: $text)
@@ -103,6 +104,8 @@ let more = try await pb.messaging.search("toplanti", cursor: found.nextCursor)  
 
 A find opens where it was said: `conversation(_:at:)` is the conversation's page around it, `focus` naming the message to scroll to and mark. `loadEarlier()` reads back from there and `loadLater()` forward; once it reaches the newest, `hasLater` is false and it is kept current as any. An answer the conversation's timeline does not show has a `threadRootId`: open its thread at it.
 
+<!-- given: hit: SearchHit, var thread: ThreadView?, var chat: ConversationView? -->
+
 ```swift
 if let root = hit.threadRootId {
     thread = pb.messaging.thread(hit.conversation.id, root: root, at: hit.message.id)
@@ -133,6 +136,7 @@ A message's push is not drawn as the system's banner while the app is in front: 
 ```swift
 import Palbase
 import PalbaseMessaging
+import PalbaseNotify
 import UIKit
 import UserNotifications
 
@@ -155,9 +159,22 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 `incoming()` gives each message someone else wrote that is new to the phone once, whether the socket or the push brought it first — never what a sync or a page read, the person's own messages, or a muted conversation's. `onScreen` is true for the conversation on the screen:
 
 ```swift
-.task {
-    for await m in pb.messaging.incoming() where !m.onScreen {
-        banner = m // m.message, m.conversation: draw it; a tap opens pb.messaging.conversation(m.message.conversationId)
+import Palbase
+import PalbaseMessaging
+import SwiftUI
+
+struct Root<Content: View>: View {
+    @ViewBuilder var content: Content
+    @State private var banner: IncomingMessage?
+
+    var body: some View {
+        content
+            .overlay(alignment: .top) { if let banner { Text(banner.message.text ?? "a file") } }
+            .task {
+                for await m in pb.messaging.incoming() where !m.onScreen {
+                    banner = m // m.message, m.conversation: draw it; a tap opens pb.messaging.conversation(m.message.conversationId)
+                }
+            }
     }
 }
 ```

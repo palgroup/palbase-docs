@@ -25,7 +25,7 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.9.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.16.7"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // pushes: the FCM token, and the service that draws them
     implementation("studio.palbase:palbase-messaging")  // pb.messaging
@@ -35,6 +35,10 @@ dependencies {
 ## Quick example
 
 ```kotlin
+import androidx.compose.foundation.clickable
+import studio.palbase.PalbaseClient
+import studio.palbase.messaging.messaging
+
 @Composable
 fun Inbox(pb: PalbaseClient, open: (String) -> Unit) {
     // The person's conversations, the latest first: drawn from the phone at once, then kept current.
@@ -70,7 +74,6 @@ A conversation may belong to a place of your app's — an organization, a worksp
 An open group (`visibility` open) is a channel: `openGroups(space)` lists a space's, each with whether the person is in it (`joined`), and `join(conversationId)` lets the person in — the group then in their list at once. Making one, listing and joining ask the project's hook (`open_group`, `list_open`, `join`): refused, a `PalbaseError` with code `not_allowed`; an open group names its space (`space_required`). One an admin removed does not join again by themselves (`removed`).
 
 ```kotlin
-// app/src/main/java/com/example/workspace/Channels.kt
 val org = "org:2f6c0c1e-8a3b-4c1d-9e5f-0a1b2c3d4e5f"
 val sidebar = pb.messaging.conversations(spaces = listOf(org))
 val channels = pb.messaging.openGroups(org)
@@ -85,22 +88,34 @@ A message your server wrote as someone (an assistant sending their words) says w
 `pb.messaging.search(query)` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one (`conversationId`). Each `SearchHit` carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 offsets, as a `String`'s. The first page also lists the person's conversations whose name says it (`conversations`), found on the phone. What the module finds and never finds: [Messaging](https://palbase.studio/docs/messaging/overview#search).
 
 ```kotlin
-val results = pb.messaging.search("toplanti")
-results.conversations.forEach { c -> Text(c.title ?: "Chat") } // their names say it: draw them first
-results.messages.forEach { hit ->
-    Text(hit.title ?: "Chat")
-    Text(buildAnnotatedString {
-        append(hit.message.text ?: "")
-        hit.matches.filter { it.field == SearchMatch.Field.TEXT }.forEach { m ->
-            addStyle(SpanStyle(fontWeight = FontWeight.Bold), m.offset.toInt(), (m.offset + m.length).toInt())
-        }
-    })
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import studio.palbase.messaging.MessagingAPI
+import studio.palbase.messaging.SearchResults
+
+@Composable
+fun Found(query: String) {
+    val results by produceState<SearchResults?>(null, query) { value = pb.messaging.search(query) }
+    val found = results ?: return
+    found.conversations.forEach { c -> Text(c.title ?: "Chat") } // their names say it: draw them first
+    found.messages.forEach { hit ->
+        Text(hit.title ?: "Chat")
+        Text(buildAnnotatedString {
+            append(hit.message.text ?: "")
+            hit.matches.filter { it.field == MessagingAPI.SearchMatch.Field.TEXT }.forEach { m ->
+                addStyle(SpanStyle(fontWeight = FontWeight.Bold), m.offset.toInt(), (m.offset + m.length).toInt())
+            }
+        })
+    }
+    // More: pb.messaging.search(query, cursor = found.nextCursor) while nextCursor is not null —
+    // a page may hold fewer messages than asked, even none.
 }
-// More: pb.messaging.search("toplanti", cursor = results.nextCursor) while nextCursor is not null —
-// a page may hold fewer messages than asked, even none.
 ```
 
 A find opens where it was said: `pb.messaging.conversation(hit.conversation.id, at = hit.message.id)` is the conversation's page around it, `focus` naming the message to scroll to and mark. `loadEarlier()` reads back from there and `loadLater()` forward; once it reaches the newest, `hasLater` is false and it reads on live. An answer the conversation's timeline does not show has a `threadRootId`: open its thread at it.
+
+<!-- given: hit: studio.palbase.messaging.SearchHit -->
 
 ```kotlin
 val view = hit.threadRootId?.let { root -> pb.messaging.thread(hit.conversation.id, root, at = hit.message.id) }
@@ -112,9 +127,12 @@ val view = hit.threadRootId?.let { root -> pb.messaging.thread(hit.conversation.
 With the project's `search_by_meaning` on ([Messaging](https://palbase.studio/docs/messaging/overview#by-meaning)), `search(query, by = SearchBy.MEANING)` finds the messages nearest what the question means, in none of its words: "uçuş saati kaçta" finds "Uçağımız sabah dokuzda Sabiha Gökçen'den kalkıyor". The nearest come first, one page (`nextCursor` is null), each with `score` — how near, 0.3 to 1 — and no `matches`; `conversations` is empty. A hit opens as any does: `conversation(id, at = hit.message.id)`.
 
 ```kotlin
+import studio.palbase.messaging.SearchBy
+import studio.palbase.runtime.PalbaseError
+
 try {
     val found = pb.messaging.search("uçuş saati kaçta", by = SearchBy.MEANING)
-    found.messages.forEach { hit -> Text("${hit.title}: ${hit.message.text} (${"%.2f".format(hit.score)})") }
+    found.messages.forEach { hit -> println("${hit.title}: ${hit.message.text} (${"%.2f".format(hit.score)})") }
 } catch (e: PalbaseError) {
     // search_by_meaning_off: the project searches by words alone. too_many_searches: a person asks
     // 30 at once, one more a minute (e.retryAfter). ai_payment_required: the project's AI use is spent.
@@ -140,7 +158,11 @@ Nothing to set up. While the app is closed or in the background, a message's pus
 
 While the app is in front, a message's push is not drawn in the tray: its conversation is synced, and `pb.messaging.incoming` — a `SharedFlow<Message>` — gives the app each message someone else wrote that is new to the phone, once, whether the socket or the push brought it first. A sync, a page read, the person's own messages, system messages and removed ones never come through it. Skip the conversation on the screen:
 
+<!-- given: var openConversationId: String?, @Composable fun IncomingBanner(message: Message, onClose: () -> Unit) -->
+
 ```kotlin
+import studio.palbase.messaging.Message
+
 var banner by remember { mutableStateOf<Message?>(null) }
 LaunchedEffect(Unit) {
     pb.messaging.incoming.collect { m -> if (m.conversationId != openConversationId) banner = m }
@@ -152,7 +174,11 @@ banner?.let { m -> IncomingBanner(m) { banner = null; openConversationId = m.con
 
 While a photo or a video seen once is shown, keep the window out of screenshots and recordings (`FLAG_SECURE`): they come out black.
 
+<!-- given: activity: Activity -->
+
 ```kotlin
+import studio.palbase.messaging.protectViewOnce
+
 DisposableEffect(Unit) {
     val release = pb.messaging.protectViewOnce(activity)
     onDispose { release() }
@@ -161,7 +187,11 @@ DisposableEffect(Unit) {
 
 In vanish mode, a screenshot taken while the conversation is open is told to the others (Android 14 and later; `DETECT_SCREEN_CAPTURE` is in the module's manifest):
 
+<!-- given: activity: Activity, id: String -->
+
 ```kotlin
+import studio.palbase.messaging.watchScreenshots
+
 DisposableEffect(id) {
     val stop = pb.messaging.watchScreenshots(activity, id)
     onDispose { stop() }
@@ -173,11 +203,19 @@ DisposableEffect(id) {
 When a group's owner or an admin deletes it — or its last member leaves — it goes from everyone's `conversations()` at once, and those who were in it can still report it for 14 days ([Messaging](https://palbase.studio/docs/messaging/overview#moderation)). `pb.messaging.deletedGroups` is a `StateFlow<List<DeletedGroup>>` of the groups the person can still report, the latest to stop first, each with `id`, `title`, `deletedBy` and `reportableUntil`; one goes at its `reportableUntil`. `report` names it by its id with no message; the last 30 messages the person saw in it go with the report. A group the project's server deleted is not among them.
 
 ```kotlin
-val deleted by pb.messaging.deletedGroups.collectAsState()
-deleted.forEach { group -> Text(group.title ?: "a group") }
+import studio.palbase.messaging.MessagingAPI
 
-deleted.firstOrNull()?.let { group ->
-    pb.messaging.report(MessagingAPI.ReportRequest(conversationId = group.id, reason = MessagingAPI.ReportRequest.Reason.HARASSMENT, userId = group.deletedBy))
+@Composable
+fun DeletedGroups() {
+    val deleted by pb.messaging.deletedGroups.collectAsState()
+    val scope = rememberCoroutineScope()
+    deleted.forEach { group ->
+        Button(onClick = {
+            scope.launch {
+                pb.messaging.report(MessagingAPI.ReportRequest(conversationId = group.id, reason = MessagingAPI.ReportRequest.Reason.HARASSMENT, userId = group.deletedBy))
+            }
+        }) { Text("Report ${group.title ?: "a group"}") }
+    }
 }
 ```
 

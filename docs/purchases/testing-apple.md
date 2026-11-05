@@ -164,6 +164,7 @@ struct Paywall: View {
             case .alreadyEntitled(_, let entitlement, _): message = "\(entitlement) is already yours, bought elsewhere"
             case .pending: message = "Waiting for approval"
             case .cancelled: break
+            @unknown default: break   // a case a later SDK adds
             }
         } catch {
             message = "\(error)"

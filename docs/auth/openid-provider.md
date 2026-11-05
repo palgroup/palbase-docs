@@ -62,6 +62,8 @@ Without it, `/oauth/authorize` refuses: there is nowhere to sign the person in. 
 3. Your page signs the person in with `POST /auth/login`, sending the `auth_request_id` with the email and password. The answer's `oidc_callback_url` is where the browser goes next.
 4. From there, the provider sends the browser back to the client's `redirect_uri` with the `code`, the `state` and the issuer (`iss`). The client exchanges the code at `POST /oauth/token`.
 
+The request answers the browser that opened it and completed it, once. `/oauth/authorize` leaves a cookie on the project's address (`__Host-palbase_oauth_…`, five minutes, `SameSite=Lax`) naming the request, and the sign-in that completes it is given a secret, carried in `oidc_callback_url` (`done=`) and nowhere else. The callback answers only a browser that holds both: someone who opened a request and sent its sign-in page to another person has the cookie but never the secret, and the person who signed in has the secret but not their cookie — each is answered `400 auth_request_other_browser` and no code. Once the callback sends the browser back to the client, the request is gone; visiting it again gives nothing. So the page signs the person in within the browser the flow started in, and goes to `oidc_callback_url` there, as it is, as a top-level navigation.
+
 ```ts
 // src/lib/palbase.ts
 import { createClient } from "palbase/web";

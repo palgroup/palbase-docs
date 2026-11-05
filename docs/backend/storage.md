@@ -231,6 +231,16 @@ export class ArchiveService {
 - **A delete** removes the object and its renditions; the bytes are swept from the store after.
 - They emit `file.moved`, `file.uploaded` and `file.deleted`.
 
+### A file deleted by mistake
+
+A deleted object is gone from the API at once: no call lists, reads or serves it, and a public file's copy at the CDN lapses within 60 seconds. Palbase keeps its bytes and what it was (its bucket, path and type) for **7 days**, and within them **support can put it back** where it was: write to support with the project and the path, or the folder, and roughly when. What comes back is the latest file deleted at each path, unless a file is there now or its bucket is gone.
+
+Kept is what your project deleted, and only that. These are never brought back:
+- the earlier bytes an overwrite replaced, whether by an upload, a copy or a move onto a taken path;
+- a deleted user's files (`owner_id`) and a deleted project's, because those deletions are erasures.
+
+Seven days after a file's deletion its bytes are gone, and what it was leaves the platform's own backups within three weeks. Putting a file back emits no event.
+
 ## Reacting to storage events
 
 Every write emits an event — `file.uploaded`, `file.deleted`, `file.moved` — with `{ bucket, path, size, content_type, owner_id }`. A `palbase/backend` app handles them with `@On("file.uploaded")` ([Event Hooks](https://palbase.studio/docs/backend/hooks)); any other server verifies the delivery with `palbase/server` ([Webhooks](https://palbase.studio/docs/server/webhooks)).

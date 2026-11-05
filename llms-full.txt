@@ -187,7 +187,7 @@ Start a Next.js app and give it the web SDK:
 ```json
 {
   "dependencies": {
-    "palbase": "^0.10.0",
+    "palbase": "^0.50.0",
     "next": "^16.3.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
@@ -315,7 +315,7 @@ notes-backend/
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.10.0"
+    "palbase": "^0.50.0"
   }
 }
 ```
@@ -702,7 +702,7 @@ The rule that carries the most weight is the narrowest: **a controller does not 
 | A business rule, a calculation, an ordering | the service |
 | Answer with an HTTP status | `throw new NotFound(…)` (or `Forbidden`, `Conflict`, `PalError`) — from the service or the controller; no response object is needed |
 | Call another domain | name its class in your constructor — its module `exports` it, and yours `imports` that module |
-| Send an email, sign a file URL, read a secret | `Palbase.notify`, `Palbase.storage`, `Palbase.secrets` — in the service |
+| Send an email, sign a file URL, read a secret | `Palbase.notify`, `Palbase.storage`, `Secrets.get` (what the machine started with) — in the service |
 | Work at start-up or shutdown | an `onStart()` / `onShutdown()` method on a provider — awaited in dependency order |
 | Work on a schedule | a [cron](/docs/backend/cron) — not a timer: a machine that sleeps runs none |
 | Work done once, now or later | a [task](/docs/backend/tasks) on the machine's queue — not a cron that looks in a table every minute |
@@ -1060,7 +1060,7 @@ An app with no database has no `src/db/`, and no `db` in its config.
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.10.0"
+    "palbase": "^0.50.0"
   }
 }
 ```
@@ -1275,6 +1275,10 @@ Test users, and the sign-ins made for them, are open: they are test fixtures, an
 | `apps:sync` | What `palbase apps:sync` reads: the project's apps as they are in this environment, their client settings, the machines' contracts |
 | `auth:test-users` | The environment's test users: made with their sign-ins, listed, deleted, their kept mail and texts read (`palbase auth:test-users:messages`), a sign-up address made (`palbase auth:test-users:address`). Not other users |
 | `support` | A question to Palbase's support line (`palbase support:ask`, `POST /ai/support-questions`): an agent asks Palbase what it cannot find out, not the person it works for |
+
+### Auth settings: no scope reaches them
+
+A narrowed token answers `403 token_out_of_scope` for `GET` and `PUT /admin/auth-settings` (`palbase auth:settings:get`, `auth:settings:set`) — whether an address is confirmed before its first sign-in (`confirm_email_required`), and how: a one-time `code` in the email or a `link` (`email_verification_method`, `code` unless set), the password's rules, the tokens' lives — and for the other modules' settings. A token's reach is its minter's role: mint it with no `scopes` and it reads and sets them as that role does (an admin's token sets every one), or have a person set them, signed in, in Studio (**Auth › Settings**) or with the CLI. Narrow a token when the program it is for must reach no more than its scopes; give an agent that configures the product a full one ([What it can do](#what-it-can-do)).
 
 ### When it stops working
 
@@ -1768,9 +1772,9 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.47.1 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.50.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-455 commands in 35 groups.
+458 commands in 35 groups.
 
 ## Global flags
 
@@ -1897,14 +1901,10 @@ A table in the earlier format (version 2) is written in this one.
 Run a command with the environment's address and your own key in its environment, nothing written to disk
 
 ```sh
-palbase run [--secrets development|production] -- <command> [args…]
+palbase run -- <command> [args…]
 ```
 
-palbase run -- bun dev, palbase run -- npm test: the app reads the project's secrets at boot (PALBASE_SECRETS).
-
-```text
-      --secrets <set>  the project's secrets the app reads at boot: development (default) or production
-```
+palbase run -- bun dev, palbase run -- npm test: the app reads the project's development secrets at boot (PALBASE_SECRETS=development). A production secret's value is never read back: only the machines that start with it are given it.
 
 ### `palbase test`
 
@@ -1924,7 +1924,6 @@ With an environment's token (PALBASE_TOKEN, scope auth:test-users) the test user
       --machine <name>  a machine whose test command (when no command is given) and test users (when --users is not) are run
       --users <names>   the test users to make for the run, comma-separated
       --base-url <url>  where the app under test answers (http://localhost:8080)
-      --secrets <set>   the project's secrets the app reads at boot: development (default) or production
 ```
 
 ### `palbase billing`
@@ -1960,16 +1959,15 @@ palbase journeys [--status draft|live|stopped]
 Write what the backend needs to run here into .env.local: the environment's address and your own key — no secret's value
 
 ```sh
-palbase env:pull [--file <path>] [--secrets development|production]
+palbase env:pull [--file <path>]
 ```
 
-The app reads the project's secrets at boot (PALBASE_SECRETS); their names are listed as comments: set one in the file to override it.
+The app reads the project's development secrets at boot (PALBASE_SECRETS=development); their names are listed as comments: set one in the file to override it. A production secret's value is never read back: only the machines that start with it are given it.
 The key is yours (CLI — you (this computer)), good for 30 days, made again by env:pull and run; palbase logout revokes it.
 Only the block between the palbase markers is written; the rest of the file stays as it is.
 
 ```text
-      --file <path>    the file (default .env.local)
-      --secrets <set>  the project's secrets the app reads at boot: development (default) or production
+      --file <path>  the file (default .env.local)
 ```
 
 ### `palbase env:tokens:list`
@@ -2406,6 +2404,7 @@ palbase auth:settings:set <key=value>…
 ```
 
 Text needs no quotes (site_url=https://shop.example); quote text that reads as JSON: from_name='"123"'.
+app_name=Koz names your app in its invitations ("Koz invited you"); app_name= clears it.
 The change is made on the revision read: one made beside it in the meantime (Studio, another terminal) is refused, not overwritten.
 palbase auth:settings:get lists the keys.
 
@@ -2624,6 +2623,24 @@ palbase auth:users:create <email> [--verified]
 
 ```text
       --verified  their email is taken as verified
+```
+
+### `palbase auth:users:invite`
+
+Invite a person to an account of the environment: Palbase emails them a link that sets its password, valid 7 days
+
+```sh
+palbase auth:users:invite <email> [--no-email] [--redirect-to <url>] [--locale <tag>]
+```
+
+An address no account has gets one, invited: it has no password, and cannot sign in with one, until the person sets it from the link. An account invited that has not taken it up is invited again: a new link, the earlier ones no longer open it, seven days from now. An address with an account is refused with that account's id: nothing is sent and its password is left as it is — give it what you invited it for yourself (a role: the admin API's PUT /admin/users/{uid}/roles/{role}).
+The link opens Palbase's page at the environment's own address, where the person chooses the password; --redirect-to sends it to a page of your app's on the redirect allow-list instead, which takes the token to POST /auth/invitations/accept.
+--no-email sends nothing and prints the link, for you to deliver: it sets the account's password, so give it to the person alone.
+
+```text
+      --no-email           send nothing: print the link, for you to deliver
+      --redirect-to <url>  a page of your app's, on the redirect allow-list, the link opens instead of Palbase's
+      --locale <tag>       the email's and the page's language: en, tr (default: the environment's)
 ```
 
 ### `palbase auth:users:delete`
@@ -3667,7 +3684,7 @@ palbase secrets:list [--dev]
 ```
 
 ```text
-      --dev  the development set (what a backend on a developer's computer reads), not production
+      --dev  the development set (what a backend on a developer's computer reads, and a machine started with it), not production — whatever the environment is named
 ```
 
 ### `palbase secrets:set`
@@ -3678,22 +3695,25 @@ Set a secret: its value is read from stdin, never from the command line
 palbase secrets:set <NAME> [--dev] < value
 ```
 
-The environment's machines read production at their next start; a backend run with palbase run or env:pull reads development.
+An environment has two sets, production and development, whatever the environment is named: Development's machines may start with its production set. A machine starts with the set it names (machines:update --secrets), and a change of that set rolls it out with the new value; a backend run with palbase run or env:pull reads development.
+It says which of the environment's machines start with the set, and warns when none does.
 
 ```text
-      --dev  the development set (what a backend on a developer's computer reads), not production
+      --dev  the development set (what a backend on a developer's computer reads, and a machine started with it), not production — whatever the environment is named
 ```
 
 ### `palbase secrets:get`
 
-Print one secret's value (an admin's)
+Print one development secret's value (an admin's): a production secret's is never read back
 
 ```sh
-palbase secrets:get <NAME> [--dev]
+palbase secrets:get <NAME> --dev
 ```
 
+A production secret's value is never read back, by anyone: only the machines that start with it are given it, and it is changed by setting it again (secrets:set). The development set is what a backend on your computer reads (palbase run, env:pull): secrets:get NAME --dev prints one.
+
 ```text
-      --dev  the development set (what a backend on a developer's computer reads), not production
+      --dev  the development set (what a backend on a developer's computer reads, and a machine started with it), not production — whatever the environment is named
 ```
 
 ### `palbase secrets:unset`
@@ -3705,7 +3725,7 @@ palbase secrets:unset <NAME> [--dev]
 ```
 
 ```text
-      --dev  the development set (what a backend on a developer's computer reads), not production
+      --dev  the development set (what a backend on a developer's computer reads, and a machine started with it), not production — whatever the environment is named
 ```
 
 ### `palbase secrets:versions`
@@ -3717,7 +3737,7 @@ palbase secrets:versions <NAME> [--dev]
 ```
 
 ```text
-      --dev  the development set (what a backend on a developer's computer reads), not production
+      --dev  the development set (what a backend on a developer's computer reads, and a machine started with it), not production — whatever the environment is named
 ```
 
 ### `palbase secrets:rollback`
@@ -3729,7 +3749,7 @@ palbase secrets:rollback <NAME> --version <n> [--dev]
 ```
 
 ```text
-      --dev          the development set (what a backend on a developer's computer reads), not production
+      --dev          the development set (what a backend on a developer's computer reads, and a machine started with it), not production — whatever the environment is named
       --version <n>  the version to go back to
 ```
 
@@ -6467,7 +6487,7 @@ The environment needs its GitHub link first: palbase github:connect.
       --path <dir>                        the directory built, from the repository's root (default: this directory's place in it)
       --context <dir>                     what the build is given above --path (a monorepo: ".")
       --size <size>                       its size (palbase machines:sizes lists them)
-      --replicas <n>                      how many copies run, 1 to 100 (one on Free), over two nodes at least and never all on one — with --max-replicas, the fewest its load runs (2 at least)
+      --replicas <n>                      how many copies run, 1 to 100 (one on Free), over two nodes at least and never all on one — with --max-replicas, the fewest its load runs (2 at least), spread over nodes as room allows
       --max-replicas <n>                  scale its copies by its load, up to n (2 to 100; Pay as you go): as many run as keep each near --cpu-percent and --memory-percent of its size
       --cpu-percent <p>                   with --max-replicas: the share of a copy's processor it is kept near, 10 to 95 (a copy is added above it)
       --memory-percent <p>                with --max-replicas: the share of a copy's memory it is kept near, 10 to 95
@@ -6507,7 +6527,7 @@ Named by none, it is the only machine of the environment chosen for this directo
       --path <dir>                        the directory built, from the repository's root (default: this directory's place in it)
       --context <dir>                     what the build is given above --path (a monorepo: ".")
       --size <size>                       its size (palbase machines:sizes lists them)
-      --replicas <n>                      how many copies run, 1 to 100 (one on Free), over two nodes at least and never all on one — with --max-replicas, the fewest its load runs (2 at least)
+      --replicas <n>                      how many copies run, 1 to 100 (one on Free), over two nodes at least and never all on one — with --max-replicas, the fewest its load runs (2 at least), spread over nodes as room allows
       --max-replicas <n>                  scale its copies by its load, up to n (2 to 100; Pay as you go): as many run as keep each near --cpu-percent and --memory-percent of its size
       --cpu-percent <p>                   with --max-replicas: the share of a copy's processor it is kept near, 10 to 95 (a copy is added above it)
       --memory-percent <p>                with --max-replicas: the share of a copy's memory it is kept near, 10 to 95
@@ -6873,6 +6893,29 @@ Named by none, it is the only machine of the environment chosen for this directo
 ```text
       --machine <name>  the machine (default: the only one of the environment chosen here or -E's, the project's only one when neither says, or this directory's)
 ```
+
+### `palbase machines:exec`
+
+Run one command in a machine as it serves and print what it printed — its secrets written over — ending with its exit code
+
+```sh
+palbase machines:exec <machine> -- <command> [args…]
+```
+
+palbase machines:exec backend -- date, palbase machines:exec backend -- sh -c 'ls /tmp | wc -l': the command runs in a ready copy of the machine (woken first if asleep), under /bin/sh, with no terminal and no input; this command ends with its exit code.
+It is killed after 60 s, with what it started (this command then ends with 124), and what it left running in the background is killed when it ends; what it prints comes back up to 1 MiB. Every secret and key the machine starts with, and a password in an address, is written over with `***`.
+Who ran what, and how it ended, is kept — never what it printed: palbase machines:execs `<machine>`. In a production environment's machine only a person runs one — signed in, or with their account token — not a key, an organization's token or an environment's.
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
+
+### `palbase machines:execs`
+
+The commands run in a machine with machines:exec, newest first: who ran which, when, how it ended — never what it printed
+
+```sh
+palbase machines:execs <machine>
+```
+
+The machine is the project's: the command acts in the environment it is bound to. -E picks it where two environments hold its name, and is refused when it names another.
 
 ### `palbase machines:crons:pause`
 
@@ -11752,6 +11795,16 @@ export class ArchiveService {
 - **A delete** removes the object and its renditions; the bytes are swept from the store after.
 - They emit `file.moved`, `file.uploaded` and `file.deleted`.
 
+### A file deleted by mistake
+
+A deleted object is gone from the API at once: no call lists, reads or serves it, and a public file's copy at the CDN lapses within 60 seconds. Palbase keeps its bytes and what it was (its bucket, path and type) for **7 days**, and within them **support can put it back** where it was: write to support with the project and the path, or the folder, and roughly when. What comes back is the latest file deleted at each path, unless a file is there now or its bucket is gone.
+
+Kept is what your project deleted, and only that. These are never brought back:
+- the earlier bytes an overwrite replaced, whether by an upload, a copy or a move onto a taken path;
+- a deleted user's files (`owner_id`) and a deleted project's, because those deletions are erasures.
+
+Seven days after a file's deletion its bytes are gone, and what it was leaves the platform's own backups within three weeks. Putting a file back emits no event.
+
 ## Reacting to storage events
 
 Every write emits an event — `file.uploaded`, `file.deleted`, `file.moved` — with `{ bucket, path, size, content_type, owner_id }`. A `palbase/backend` app handles them with `@On("file.uploaded")` ([Event Hooks](/docs/backend/hooks)); any other server verifies the delivery with `palbase/server` ([Webhooks](/docs/server/webhooks)).
@@ -12029,7 +12082,7 @@ When the bytes are already on your server — a generated report, a file fetched
 
 # Secrets
 
-A project keeps its application secrets — a payment provider's key, a signing secret, the project's own secret key for its backend — in its **secrets**, sealed with the project's own key, versioned, and audited on every read and write. They are kept in two sets, `production` and `development`. A machine is started with one set: every secret in it is in the machine's environment by name, so your code reads `process.env.STRIPE_KEY` and nothing else. A program that wants a value while it runs — or one that is not a machine — reads it with the secret key through the secrets module, `Palbase.secrets`.
+A project keeps its application secrets — a payment provider's key, a signing secret, the project's own secret key for its backend — in its **secrets**, sealed with the project's own key, versioned, and audited on every read and write. They are kept in two sets, `production` and `development`. A machine is started with one set: every secret in it is in the machine's environment by name, so your code reads `process.env.STRIPE_KEY` and nothing else. A machine reads them from its environment; a production value is never read back through the API — only the development set's are, for a backend on your computer ([A production value is never read back](#a-production-value-is-never-read-back)).
 
 ## Quick example
 
@@ -12063,12 +12116,24 @@ function required(name: string): string {
 | `production` | What the machines that serve your users start with. |
 | `development` | A second set, for machines and programs that must not see production's values. |
 
-A machine names the set it starts with (`secrets`: `production`, `development`, or none) — in Studio on the machine's settings, or through the machines module (`PATCH /machines/{name}`). Studio's **Secrets** screen manages the set the environment's machines start with: `production` when none names one yet, and it refuses to choose for you when machines start with different sets.
+A machine names the set it starts with (`secrets`: `production`, `development`, or none) — in Studio on the machine's settings, `palbase machines:update <name> --secrets <set>`, or through the machines module (`PATCH /machines/{name}`). Studio's **Secrets** screen manages the set the environment's machines start with: `production` when none names one yet, and it refuses to choose for you when machines start with different sets.
+
+### A set is not an environment
+
+Every environment has both sets, whatever it is named: the machines of an environment called *Development* may start with its `production` set, or its `development` one. A value written to a set reaches only the machines that start with that set. `palbase secrets:set` says which of the environment's machines those are, and warns when there is none:
+
+```text
+$ printf %s "$OWNER_EMAILS" | palbase secrets:set OWNER_EMAILS -E development
+Set OWNER_EMAILS v1 in the production set of Acme › koz › Development (development).
+warning: no machine of Acme › koz › Development (development) starts with the production set (backend-dev starts with the development set): this value reaches none of them. palbase machines:update <name> --secrets production starts a machine with it; --dev writes the development set.
+```
+
+Write the set the machine starts with (`--dev` for `development`), or start the machine with the set you wrote (`palbase machines:update backend-dev --secrets production`). `palbase machines:env:list <name>` lists what a machine starts with, a secret of its set by its name among them — never its value.
 
 ## How a machine reads them
 
 - **By name, in its environment.** Each secret of the set is an environment variable of the machine. A name the machine's own `env` also sets wins over the secret — keep a value in one place.
-- **A change rolls the machine out.** Writing, rolling back or deleting a secret of the set starts the machine's new version with the new values beside the version that serves; nothing restarts in place, and no request meets a gap.
+- **A change rolls the machine out.** Writing, rolling back or deleting a secret of the set starts the machine's copies again with the new values, beside the ones that serve, which stop once the new ones are up; nothing restarts in place, and no request meets a gap. The machine's **version does not change** for it: `palbase machines:list` shows `(new secrets or config rolling out)` beside the version until every copy runs with the new value, and `GET /machines/{name}` answers it as `running_config_version` below `config_version`. A machine asleep takes the new values when it wakes. Read a changed value once the note is gone, not by waiting for a new version.
 - **A build can wait for them.** A machine's `.env.example` names what it needs: a build whose names the machine's env and secrets do not hold waits (`waiting_config`, with `missing_env`) and rolls out once they are there. See [Builds, Logs & Rollback](/docs/machines/builds).
 
 A `palbase/backend` app on a machine needs none of its own keys here: the platform starts every machine with its own secret key (`PALBASE_SECRET_KEY`, listed under **Settings › API keys** as `machine: <name>`) and its webhook secret (`PALBASE_WEBHOOK_SECRET`), beside `PALBASE_URL` and `PALBASE_PROJECT_ID`. A secret of the same name set by hand gives way to them. A value missing or malformed stops the boot, naming it.
@@ -12083,7 +12148,9 @@ A `palbase/backend` app on a machine needs none of its own keys here: the platfo
 
 ## Reading a value while it runs
 
-`Palbase.secrets` (or `createServer(…).secrets`) reads and writes the secrets with the project's secret key:
+A machine reads the set it started with from its environment — `process.env.STRIPE_KEY`, or `Secrets.get("STRIPE_KEY")` of `palbase/backend` — and a value changed rolls the machine out with it (`secrets:set` says which machines start with the set). A production value is never read back through the API, by anyone ([A production value is never read back](#a-production-value-is-never-read-back)).
+
+`Palbase.secrets` (or `createServer(…).secrets`) writes the secrets with the project's secret key, lists them, and reads the **development** set's values — what a backend on your computer reads at startup:
 
 ```ts
 // src/modules/billing/rotation.service.ts
@@ -12091,14 +12158,14 @@ import { Injectable, Palbase } from "palbase/backend";
 
 @Injectable()
 export class RotationService {
-  /** The current value, read now rather than at boot. */
-  async current(name: string): Promise<string> {
-    return (await Palbase.secrets.getSecret({ path: { environment: "production", name } })).data.value;
+  /** A new key for the machines: written, never read back; they roll out with it. */
+  async rotate(name: string, value: string): Promise<number> {
+    return (await Palbase.secrets.putSecret({ path: { environment: "production", name }, body: { value } })).data.version;
   }
 
-  /** Every value of the set, in one call: what a program outside a machine reads at startup. */
-  async all(): Promise<Record<string, string>> {
-    return (await Palbase.secrets.getEnvironmentValues({ path: { environment: "production" } })).data.values;
+  /** Every development value, in one call: what a backend on a developer's computer reads at startup. */
+  async development(): Promise<Record<string, string>> {
+    return (await Palbase.secrets.getEnvironmentValues({ path: { environment: "development" } })).data.values;
   }
 }
 ```
@@ -12106,19 +12173,19 @@ export class RotationService {
 | Call | What it does |
 |---|---|
 | `listSecrets({ path: { environment } })` | The set's secrets by name, with their version — never their values. |
-| `getSecret({ path: { environment, name } })` | One secret's current value and version. |
-| `getEnvironmentValues({ path: { environment } })` | Every value of the set, and every version, in one call. |
+| `getSecret({ path: { environment: "development", name } })` | One development secret's current value and version; a production one is `403 secret_write_only`. |
+| `getEnvironmentValues({ path: { environment: "development" } })` | Every development value, and every version, in one call; the production set's is `403 secret_write_only`. |
 | `putSecret({ path: { environment, name }, body: { value } })` | Writes the value as the secret's next version, creating it if it is new. |
 | `listSecretVersions({ path: { environment, name } })` | Its versions, newest first, with the key that wrote each — never their values. |
 | `rollbackSecret({ path: { environment, name }, body: { version } })` | Makes an earlier version's value the next version; the history stays whole. |
 | `deleteSecret({ path: { environment, name } })` | Forgets the secret and every version of it. |
 | `listSecretAudit({ query: { environment?, name? } })` | Every read and write, newest first, with the key that made it and the request id. |
 
-Every write is a new version, so a rotation that goes wrong is a rollback away. A write, a rollback and a delete each emit `secret.changed` — the set, the name, the version and the change, **never the value** — to the project's webhook, so a receiver learns what changed and reads it with its own key ([Webhooks](/docs/server/webhooks)).
+Every write is a new version, so a rotation that goes wrong is a rollback away. A write, a rollback and a delete each emit `secret.changed` — the set, the name, the version and the change, **never the value** — to the project's webhook, so a receiver learns what changed ([Webhooks](/docs/server/webhooks)); the machines that start with the set roll out with it.
 
 ## Who can read them
 
-Only the secret key. A publishable key ships in apps and is refused by every secrets route; a user's token opens none of them. Every read — a list, one value, the whole set — is in the audit trail with the id of the key that made it, which is one more reason to give each server its own secret key: the audit then says which one read what, and revoking one shuts out only that server.
+A production value: only the machines that start with it — no key, no person, not Studio. A development value: the secret key — a backend on your computer reads the set with your own key. A publishable key ships in apps and is refused by every secrets route; a user's token opens none of them, nor does an environment's token (an agent's) read a value. Every read — a list, one value, the whole set, a machine started with them — is in the audit trail with the id of the key that made it, which is one more reason to give each server its own secret key: the audit then says which one read what, and revoking one shuts out only that server.
 
 ## The `Secrets` service
 
@@ -12162,7 +12229,13 @@ palbase secrets:rollback STRIPE_KEY --version 3            # a new version with 
 palbase secrets:audit --name STRIPE_KEY                    # who read and wrote it, and when
 ```
 
-`--dev` acts on the development set — what a backend run on your computer with `palbase run` or `palbase env:pull` reads — and its absence on production. A value is never taken from the command line, where the shell's history would keep it. `palbase secrets:get <NAME>` prints one value, for an admin; `palbase secrets:unset <NAME>` takes a secret away. Every command is in the [CLI reference](/docs/cli/reference#secrets).
+`--dev` acts on the development set — what a backend run on your computer with `palbase run` or `palbase env:pull` reads, and a machine started with it — and its absence on production, whichever environment `-E` names. `secrets:set`, `secrets:unset` and `secrets:rollback` then say which machines start with that set, and so roll out with the change, or warn that none does ([A set is not an environment](#a-set-is-not-an-environment)). A value is never taken from the command line, where the shell's history would keep it. `palbase secrets:unset <NAME>` takes a secret away. Every command is in the [CLI reference](/docs/cli/reference#secrets).
+
+## A production value is never read back
+
+A secret is written, never read again: a `production` value is given to the machines that start with it, and to no one else — not a person, not Studio, not the project's secret key. `GET /secrets/production/{name}` and `GET /secrets/production/values` answer `403 secret_write_only`, and a value is changed by setting it again. Keep where it came from (the payment provider's dashboard) to set it again; its versions, and who wrote each, are listed without their values (`secrets:versions`, `secrets:audit`).
+
+The `development` set is what a backend on your computer reads — `palbase run` and `palbase env:pull` write `PALBASE_SECRETS=development`, and `palbase secrets:get <NAME> --dev` prints one of its values, for an admin. A backend on your computer reads no production secret: `PALBASE_SECRETS=production` is refused before anything is asked. What a running machine prints of its secrets is written over in its builds' tests and in [a command run in it](/docs/machines/builds#running-a-command-in-it).
 
 ## Related
 
@@ -13750,7 +13823,7 @@ The agent is your build's: the build writes it into its contract (`x-palbase-age
 | `instructions` | What the agent is told before the chat. |
 | `model` | A model's name (`Palbase.ai.models()`). Left out, the project's default. |
 | `tools` | 64 at most, an MCP server's tools counted. |
-| `subagents` | 16 at most: each a `name`, a `description` the agent reads to hand it work, and its own `instructions`, `model` and `tools`. `required: true` fails the turn when its part fails. |
+| `subagents` | 16 at most: each a `name`, a `description` the agent reads to hand it work, and its own `instructions`, `model` and `tools`. `required: true` fails the turn when its part fails. What a subagent may do: [Subagents](#subagents-their-own-tools-no-shell-four-at-a-time). |
 | `maxToolCalls` | The turn's tool calls, 1 to 10 000. Past it the agent is told it has no tools left, and answers. |
 | `thinking` | `visible` shows the model's reasoning in the chat's stream as `thinking` parts. `hidden` does not ask for it. When the model's provider will not give it, the turn says so once: a `thinking` part with `unavailable: true`, the `model` and the provider's `reason`. One cause is an OpenAI organization not verified for reasoning summaries; Anthropic's models (`claude-sonnet-5-5`) and Kimi show theirs. |
 | `advisor` | A second model that reads the agent's work and holds it to your rules: [The advisor](#the-advisor). |
@@ -13819,6 +13892,10 @@ A kept agent is given the same tools a backend's is. A backend or client tool na
 
 **An agent from a description.** Studio's **Create with AI**, or `palbase ai:agents:generate "helps customers who ask where their order is"`, writes a draft: its instructions, model and tools, chosen from the project's own tools. Palbase pays for the model that writes it. A person writes 20 drafts an hour in a project.
 
+### Subagents: their own tools, no shell, four at a time
+
+A subagent has the tools its own entry names and no others: no shell and no workspace files — those are the agent's, which hands it the text it needs and takes back its answer. It runs on no machine of the workspace's: its tools run where they always do (your backend's, an MCP server's, HTTPS). The agent hands work to several subagents at once and goes on while they work: 4 at a time, and a subagent's own subagents one level down at most. `chats.sendToSubagent` messages one at work, and `chats.turnCost` counts what each spent.
+
 ## Chats
 
 A chat is the project server's. Only your backend starts one (a user's own call is refused `403 server_only`), and it names the chat's members:
@@ -13866,6 +13943,20 @@ export class SupportController {
 **Budgets.** `send(id, { text, budget: { maxCostUsd: 0.5 } })` bounds what the turn that message starts may cost, its subagents' calls counted. Past it the turn stops and ends `budget_exceeded`. A message into a turn already running takes that turn's budget.
 
 **Settings.** `Palbase.ai.settings.put({ … })` sets what the project allows its chats: `userMessagesPerMinute` (1 to 600, 20 unless set), and `historyLimitBytes`, the chat history the project keeps: a free project at most 500 MiB, less if it says so; a project with paid rights keeps all of it (`historyLimitBytes` is `null`) unless it says a limit of its own, up to 1 TiB. Past it, a message is refused (`409 history_full`) until chats are deleted. `settings.get()` also says how much is kept now. `clients`, off unless set, lets a user's own session read and write the chats they are in at the project's address. The app SDKs read through it what a gateway does not carry — a chat's older history (`loadOlder`), a tool call's whole answer (`chatToolCall`), a workspace file or an attachment — and a chat's live messages still come through its gateway.
+
+### When a turn fails
+
+A turn's end is its response's: `GET /ai/responses/{id}` answers its `status` and, for one that did not complete, its `error` — a `code` and a `message` — and the turn's `ai.response.failed` event carries the same `error` with `retryable`, whether asking again may go otherwise. A message given to a turn has the turn's id (`response_id`, in `chats.messages`): the turn's error is there. A message's own `error` is for one that never reached a turn (its `status` is `failed`). `chats.turnCost` says each run's state, `failed` too.
+
+A turn the model's provider refused for good ends `provider_rejected`, and its message says which of three it was, and so whose it is to fix:
+
+| What was refused | The message says | What happens, and what to do |
+|---|---|---|
+| **Palbase's own account** at the provider: its credit, or its key | `Palbase's Anthropic account refused the call (its credit or its key): this is on Palbase's side, not your request …` | `retryable: true`. Palbase's operators are told at once, and the same turn is answered once the account serves again. Your request is not at fault and nothing of yours changes. The models of other providers answer meanwhile: name one of them (`GET /ai/models`) to go on now. |
+| **Your project's own key** for the provider (`connectProvider`) | `your project's own Anthropic key was refused by Anthropic (its credential, its permission or its account's credit) …` | `retryable: false`. Fix the key, or its account's credit, at the provider. Or disconnect it (**AI › Models & keys**, `DELETE /ai/providers/{provider}`) for Palbase's keys to answer. |
+| **The request itself** | `Anthropic refused the request itself …` | `retryable: false`. The same request is refused again. Change what it sends: its model, its tools, its attachments, its size. |
+
+A refusal is neither a rate limit nor a provider's outage. Those are retried by the platform while the turn runs, and a turn that still cannot reach the provider ends with an error whose `retryable` says asking again may help. The provider's own sentence never reaches you: it can name what the request held, and Palbase's operators read it. A turn that spent its budget ends `budget_exceeded`, and one past its deadline `timed_out`. The project's refusals of its own — its limit, its plan — are in [Refusals](#refusals).
 
 ## Voice
 
@@ -13944,6 +14035,30 @@ With `autoPush: false` a push waits for a member's approval, as an `approval: tr
 **Whose commits, and what they carry.** Each commit the agent makes is written as the member its turn is for: their name in the chat and their address, as an author and as a committer. This holds for the platform's commit tool and for a plain `git commit` the agent runs in the shell. Each turn writes its member into the repositories' own git config and installs a `commit-msg` hook that adds the chat's trailers. A hook, or a hooks path, the repository already has is left alone. Give the address with the member (`members: [{ userId, name, email }]`, or `PUT /ai/chats/{id}/members/{userId} { email }`). A member's own session gives it again, verified, whenever they write. It is never served to the chat's other members. A member with no address commits under one of the platform's that names them and reaches no one. A turn that is no member's (your server's own) commits as the platform. `workspace: { trailers: [{ key, value }] }` are git trailers every commit of the chat carries at the end of its message: a task (`PalCore-Task: #12`), a link back to the conversation, a co-author (`Co-authored-by: …`). Up to 16, each one line. The agent's work is pushed only to the chat's branch. On a protected or default branch (`main`, `master`, the repository's default) it goes to a branch of its own, `agent/<workspace>/<run>`.
 
 **What the workspace did, as events.** The workspace's machine publishes its tree whenever the files are quiet for a moment, so mid-turn, as a build writes its product. It publishes once more as it lets the workspace go. Each tree is `ai.workspace.published`, with the files it changed against the tree it replaced (`changed: [{ path, change: added|modified|removed, size_bytes }]`, 1000 at most). Read one of its files, as that tree left it, at `GET /ai/chats/{id}/workspace/files?path=<path>&manifest=<manifest_id>` (without `manifest`, from the tree the workspace is at now). Files are served up to 64 MiB (`413 file_too_large` past it), with their digest in `Content-Digest`; publish a larger one as the turn's artifact. A project reads 4 files at once (`429 too_many_reads`, with `Retry-After`), and a file is written for no longer than its bytes take at 256 KiB/s plus a minute. A tree's changes are named 1000 at a time in the event (`changed_truncated` past that). A push is `ai.workspace.pushed`, with the commits it brought (`commits: [{ sha, subject, author_name, author_email }]`, 100 at most), the repository by your name for it, the branch and the member. The chat's members see the push in the stream with each commit's author by name, never by address. Each event is told once, from the turn's start until 20 minutes after its end, whoever is watching the chat.
+
+### What a workspace holds: 1 to 8 repositories, none empty
+
+1 to 8 of the project's repositories, each at a branch that is already on GitHub: a chat named with no repository is refused, and an empty repository — one with no commit yet — or a branch not pushed yet cannot be cloned, so the chat's first turn fails. Give a new repository its first commit (a README is enough) before a chat works in it.
+
+### Two chats never share a workspace; a fork's turns take it one at a time
+
+Every chat `chats.create` starts has a workspace of its own, cloned for it. Two chats that name the same repository and branch work in two clones: neither sees the other's files, uncommitted or not, and each clone is the branch as it was when its workspace was first laid out. A push onto a branch the other chat moved meanwhile is refused (`remote_diverged`), never forced. A fork (`POST /ai/chats/{id}/fork`) works in its chat's workspace: one machine, one tree. Their turns take the workspace one at a time — a turn of the fork waits while one of the chat's runs, then works on the tree that turn left — so nothing is merged. A chat is not forked while a turn of it runs (`409 turn_running`).
+
+### Different agents in one workspace
+
+A workspace is one chat's, and a fork's, and a fork's agent is its chat's: two chats of two named agents never share files. To work in one tree with different instructions or tools, fork the chat and define the agent in your backend (`Palbase.ai.agent(name, define)`, [Agents](#agents)): it is defined anew at every turn from the turn's `chatId` and the message's `metadata`, so one agent answers each chat, or each message, as a different one. Their turns still take the tree one at a time, and a fork carries its chat's history up to the message it was forked before.
+
+### The workspace's machine: Debian 12, Node 24, headless Chrome
+
+A workspace's turns run on one machine of Palbase's: a gVisor container on an Azure VM (AMD, amd64), Debian 12 with Node 24, Python 3, git, a C toolchain, ripgrep, poppler and tesseract, and a headless Chrome: `/usr/bin/chromium` (also `CHROME_PATH`) for Playwright's `executablePath` and for Puppeteer, and every library Playwright's own browser needs, so `npx playwright install chromium` installs the one your project's Playwright asks for, into the agent's home, with no root. Chrome starts with no sandbox of its own: the container's is the boundary. The agent's shell runs as an unprivileged user, so it installs no system package. A workspace has up to 8 GiB of memory (its `/tmp`, 1 GiB, counts in it), 2 cores — 4 on a machine added for the load — and 30 GiB of disk for its tree and what it installs, with the network a build needs (npm, pip, git).
+
+### How long a turn waits for the machine
+
+A new workspace is given a machine already started, in milliseconds, and then clones its repositories: the first turn waits for the clone. An idle workspace's machine is parked after 15 minutes — stopped, its disk kept — and its next turn starts it again in seconds, its files, `node_modules` and builds where they were (measured: the turn answered in 5.8 s, the machine up in 0.2 s). A workspace parked for 12 hours is deleted, and its next turn clones again. When every machine is busy, one more is started: a few minutes, 15 at most.
+
+### What the workspace's machine costs
+
+A workspace's machine is `ai.workspaces` on the bill: $0.09681 an hour of the time a turn holds it, by the second, with no free hours, beside the models' tokens. A parked machine costs nothing. Its metric is `ai.machines.seconds` ([Usage and limits](/docs/getting-started/usage-and-limits)), its price on the [billing terms](https://palbase.studio/legal/billing).
 
 ## A chat in an app
 
@@ -16250,12 +16365,12 @@ The web SDK is `palbase/web`, a part of the npm package `palbase`: `npm install 
 ```json
 {
   "dependencies": {
-    "palbase": "^0.10.0"
+    "palbase": "^0.50.0"
   }
 }
 ```
 
-A caret on a `0.x` version stays within that minor version: `^0.10.0` takes `0.10.1`, never `0.11.0`.
+A caret on a `0.x` version stays within that minor version: it takes the next patch, never the next minor. Move the range up when a newer minor is out — `npm install palbase@latest` does it.
 
 It is compiled JavaScript with its type declarations: any bundler takes it as it is (Next.js, Vite, esbuild — no setting). A browser or React Native bundle that imports `palbase/server`, `palbase/ai` or `palbase/backend` gets a module that throws: those parts hold the project's secret key or run a server, and never go into an app.
 
@@ -19393,7 +19508,7 @@ For the same reason, sign the user in **in the browser**, as the example does, a
 
 ## The session cookie
 
-`createBrowserClient` keeps the session in a cookie named `pb-<ref>-session`, split into `pb-<ref>-session.0`, `.1`, … when it is longer than a cookie holds. It is written for the whole site (`path=/`), `SameSite=Lax` so a link from elsewhere (a sign-in email) opens the page signed in, `Secure` (the browser's client leaves it off on a page served over http, such as `http://localhost:3000`, and the server's needs `cookieOptions: { secure: false }` there), and readable by the page's script, because the browser's client reads it there. The browser keeps it as long as it keeps any cookie (400 days); the session itself ends when its refresh token does. `cookieOptions` changes any of that, for the browser's client and the server's alike: `{ domain: ".example.com" }` shares the session with the site's other subdomains.
+`createBrowserClient` keeps the session in a cookie named `__Host-pb-<ref>-session`, split into `__Host-pb-<ref>-session.0`, `.1`, … when it is longer than a cookie holds. It is written for the whole site (`path=/`), of no domain, `SameSite=Lax` so a link from elsewhere (a sign-in email) opens the page signed in, `Secure`, and readable by the page's script, because the browser's client reads it there. The `__Host-` prefix makes the browser take it from the page's own host alone: a site on another subdomain of the same domain — another app on `palbase.app`, say — cannot write one in its place and sign your user in as someone else. On a page served over http, such as `http://localhost:3000`, the browser's client leaves `Secure` off and the cookie is `pb-<ref>-session` (a browser takes no `__Host-` cookie there); the server's needs `cookieOptions: { secure: false }` there, and names it the same. The browser keeps it as long as it keeps any cookie (400 days); the session itself ends when its refresh token does. `cookieOptions` changes any of that, for the browser's client and the server's alike: `{ domain: ".example.com" }` shares the session with the site's other subdomains, and the cookie is then `pb-<ref>-session` (a `__Host-` cookie has no domain).
 
 The cookie is where the session is kept, not how a call proves it. Every call still carries the access token as `Authorization: Bearer …`, and the project reads no cookie. What a cookie says is what the browser wrote, and a browser can write anything: `keepSession` asks auth whose the token is before your code acts on it.
 
@@ -19547,7 +19662,7 @@ import Palbase
 import SwiftUI
 
 /// The app's one client: the environment its build configuration names.
-let pb = PalbaseClient(.environment)
+nonisolated let pb = PalbaseClient(.environment)
 
 struct RootView: View {
     var body: some View {
@@ -19570,7 +19685,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.4.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.16.6")
 ```
 
 | Product | What it is |
@@ -19648,10 +19763,10 @@ A configuration that names no environment, or one the app is not set in, stops t
 ```swift
 import Palbase
 
-let pb = PalbaseClient(.environment)
+nonisolated let pb = PalbaseClient(.environment)
 ```
 
-Make one client for the app and keep it: every module hangs off it (`pb.auth`, `pb.flags`, `pb.notify`, …), made once on first use and sharing its transport and its socket. A module's property exists once its product is imported: `pb.flags` needs `import PalbaseFlags`.
+Make one client for the app and keep it: every module hangs off it (`pb.auth`, `pb.flags`, `pb.notify`, …), made once on first use and sharing its transport and its socket. A module's property exists once its product is imported: `pb.flags` needs `import PalbaseFlags`. `PalbaseClient` is `Sendable`, and `nonisolated` keeps the global off the main actor in an app whose default isolation is the main actor (a new Xcode 26 project's): code that runs elsewhere — a notification delegate's `nonisolated` method, a background task — reaches it too.
 
 | Member | What it is |
 |---|---|
@@ -19673,7 +19788,7 @@ The generated `.environment` holds what the project says. What is the app's own 
 ```swift
 import Palbase
 
-let pb = PalbaseClient(try! .environment.with(
+nonisolated let pb = PalbaseClient(try! .environment.with(
     consent: ConsentOptions(start: ["analytics": .granted, "performance": .granted], textVersion: "2026-10"),
     analytics: AnalyticsOptions(appBackground: false),
     appGroup: "group.com.example.shop"
@@ -19784,6 +19899,7 @@ struct SignInView: View {
             switch try await pb.auth.signIn(email: email, password: password) {
             case .signedIn: problem = ""
             case .mfaRequired(let token, _): mfaToken = token // finish with pb.auth.mfa.challenge(...)
+            @unknown default: problem = "Update the app"   // a result a later SDK adds
             }
         } catch {
             problem = "\(error)"
@@ -19805,6 +19921,8 @@ struct SignInView: View {
 ## Who is signed in
 
 `pb.auth.state` is an `@Observable` object on the main actor. A SwiftUI view that reads it is drawn again when it changes, with no listener to write:
+
+<!-- given: struct SignInView: View { var body: some View { EmptyView() } } -->
 
 ```swift
 import Palbase
@@ -19918,6 +20036,7 @@ func passkeyAccount() async throws {
     switch try await pb.auth.passkeys.signUp(email: "ada@example.com", displayName: "Ada") {
     case .signedIn(let user): print("signed in", user.id)
     case .confirmationRequired(let userId): print("confirm the address first", userId)
+    @unknown default: break   // a result a later SDK adds
     }
 }
 
@@ -20260,12 +20379,13 @@ import Palbase
 import Palbe
 
 func setAvatar(_ png: Data) async throws {
-    // posts.photo: an upload route of PostsController, with a path parameter.
-    _ = try await pb.backend.posts.photo(postId: "p_1", file: .data(png, contentType: "image/png")) { progress in
+    // profile.avatar: ProfileController's @Upload("/avatar", …) route, with no body of its own.
+    _ = try await pb.backend.profile.avatar(file: .data(png, contentType: "image/png")) { progress in
         switch progress.phase {
         case .authorizing: print("starting")
         case .uploading: print("\(Int(progress.fraction * 100))%")
         case .processing: print("the backend is handling it")
+        @unknown default: break   // a phase a later SDK adds
         }
     }
 }
@@ -20287,7 +20407,7 @@ A backend's gateways, its realtime channels, are in the same client: `pb.backend
 import Palbase
 import Palbe
 
-struct Ping: Decodable, Sendable { let ok: Bool }
+nonisolated struct Ping: Decodable, Sendable { let ok: Bool }   // nonisolated: decoded off the main actor
 
 func ping() async throws -> Bool {
     let pong: Ping = try await pb.backend.call("health/ping", method: .get)
@@ -20429,6 +20549,7 @@ struct SupportChat: View {
                     case .message(let m): Text(m.text).frame(maxWidth: .infinity, alignment: m.mine ? .trailing : .leading)
                     case .response(let r): Text(r.text)
                     case .goal, .voice: EmptyView()
+                    @unknown default: EmptyView()   // a kind of item a later SDK adds
                     }
                 }
                 TextField("Message", text: $text)
@@ -20607,7 +20728,7 @@ The project holds its clients to limits the platform sets and the project may lo
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.10.0 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.16.6 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -20643,6 +20764,7 @@ struct Chat: View {
                 switch entry {
                 case .message(let m): Text(m.text ?? "a file")
                 case .pending(let item): Text(item.request.text ?? "a file").foregroundStyle(.secondary) // on its way
+                @unknown default: EmptyView()   // a kind of entry a later SDK adds
                 }
             }
             TextField("Message", text: $text)
@@ -20704,6 +20826,8 @@ let more = try await pb.messaging.search("toplanti", cursor: found.nextCursor)  
 
 A find opens where it was said: `conversation(_:at:)` is the conversation's page around it, `focus` naming the message to scroll to and mark. `loadEarlier()` reads back from there and `loadLater()` forward; once it reaches the newest, `hasLater` is false and it is kept current as any. An answer the conversation's timeline does not show has a `threadRootId`: open its thread at it.
 
+<!-- given: hit: SearchHit, var thread: ThreadView?, var chat: ConversationView? -->
+
 ```swift
 if let root = hit.threadRootId {
     thread = pb.messaging.thread(hit.conversation.id, root: root, at: hit.message.id)
@@ -20734,6 +20858,7 @@ A message's push is not drawn as the system's banner while the app is in front: 
 ```swift
 import Palbase
 import PalbaseMessaging
+import PalbaseNotify
 import UIKit
 import UserNotifications
 
@@ -20756,9 +20881,22 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 `incoming()` gives each message someone else wrote that is new to the phone once, whether the socket or the push brought it first — never what a sync or a page read, the person's own messages, or a muted conversation's. `onScreen` is true for the conversation on the screen:
 
 ```swift
-.task {
-    for await m in pb.messaging.incoming() where !m.onScreen {
-        banner = m // m.message, m.conversation: draw it; a tap opens pb.messaging.conversation(m.message.conversationId)
+import Palbase
+import PalbaseMessaging
+import SwiftUI
+
+struct Root<Content: View>: View {
+    @ViewBuilder var content: Content
+    @State private var banner: IncomingMessage?
+
+    var body: some View {
+        content
+            .overlay(alignment: .top) { if let banner { Text(banner.message.text ?? "a file") } }
+            .task {
+                for await m in pb.messaging.incoming() where !m.onScreen {
+                    banner = m // m.message, m.conversation: draw it; a tap opens pb.messaging.conversation(m.message.conversationId)
+                }
+            }
     }
 }
 ```
@@ -21340,7 +21478,7 @@ The prompt's words are the app's `NSUserTrackingUsageDescription`. Palbase never
 import Palbase
 
 // What the app starts with until the person chooses, and the version of the text its screen shows.
-let pb = PalbaseClient(try! .environment.with(consent: ConsentOptions(
+nonisolated let pb = PalbaseClient(try! .environment.with(consent: ConsentOptions(
     start: ["analytics": .granted, "performance": .granted, "diagnostics": .granted],
     textVersion: "2026-10",
     customKeys: ["custom.newsletter"]
@@ -21559,6 +21697,8 @@ An app that draws its own uses `pb.notify.inbox`:
 
 The project's in-app campaigns (a modal, a banner or a whole screen, designed in Studio) are shown over the app once started. `palbaseInAppMessages(_:handlers:)` on the app's root view starts them and draws them natively:
 
+<!-- given: struct InboxScreen: View { var body: some View { EmptyView() } } -->
+
 ```swift
 import Palbase
 import PalbaseNotifyUI
@@ -21760,6 +21900,7 @@ func buyFirst() async {
         case .alreadyEntitled(let store, let entitlement, _): print("\(entitlement) is already on, from \(store)")
         case .pending: print("waiting for approval")
         case .cancelled: break
+        @unknown default: break   // a case a later SDK adds
         }
     } catch let e as PurchasesError {
         print(e.message, e.code)
@@ -21861,7 +22002,7 @@ A chat of the project's agents can be talked to out loud ([AI › Voice](/docs/b
 `PalbaseVoice` is a package of its own, [github.com/palgroup/palbase-swift-voice](https://github.com/palgroup/palbase-swift-voice), because it brings WebRTC (LiveKit's build, [livekit/webrtc-xcframework](https://github.com/livekit/webrtc-xcframework)): an app that talks to no voice resolves none of it. Add it at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-voice", exact: "0.4.0")
+.package(url: "https://github.com/palgroup/palbase-swift-voice", exact: "0.16.6")
 ```
 
 Link `PalbaseVoice`; it brings the `Palbase` core of the same version. An app that also takes LiveKit's SDK resolves the one WebRTC package. The app's Info.plist says why it asks for the microphone, in `NSMicrophoneUsageDescription`.
@@ -22043,7 +22184,7 @@ On the device alone: nothing of the console is sent anywhere. It keeps the last 
 
 The Android SDK is `studio.palbase:palbase` and one artifact per module, in Kotlin, with coroutines. `palbase` holds the project's address and publishable key, the transport every call goes through, the signed-in user's session, the realtime socket, consent and auth. Each module (flags, analytics, realtime, notify, storage, purchases) is an artifact of its own that hangs off the same client, as `pb.flags`, `pb.notify` and so on. A backend of yours is a typed client that `palbase apps:sync` writes into the app, and it calls through the same client too.
 
-The version on this page is **0.4.0**.
+The version on this page is **0.16.7**.
 
 ## Requirements
 
@@ -22088,7 +22229,7 @@ android {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.4.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.16.7"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-flags")     // and the other modules the app uses
     implementation("studio.palbase:palbase-palbe")     // when the app calls a backend of yours
@@ -22099,7 +22240,7 @@ dependencies {
 |---|---|---|
 | `palbase` | The address and key, the transport, the session, the realtime socket, consent, auth, the debug console's recording | `PalbaseClient`, `pb.auth`, `pb.socket`, `pb.consent`, `pb.debug` |
 | `palbase-flags` | The project's flags, kept current | `pb.flags` ([Flags](/docs/android/flags)) |
-| `palbase-analytics` | Events, screens, timings and diagnostics, each behind its consent | `pb.analytics(startingConsent)` ([Analytics](/docs/android/analytics)) |
+| `palbase-analytics` | Events, screens, timings and diagnostics, each behind its consent key | `pb.analytics` ([Analytics](/docs/android/analytics)) |
 | `palbase-realtime` | Channels: broadcasts and a shared state | `pb.realtime` ([Realtime](/docs/android/realtime)) |
 | `palbase-notify` | This device's push token for the user, their preferences and topics, the inbox, in-app messages | `pb.notify` ([Notifications](/docs/android/notifications)) |
 | `palbase-notify-ui` | The inbox and in-app messages, drawn in Compose | `InboxView`, `PalbaseInAppMessages` ([Notifications](/docs/android/notifications#the-inbox)) |
@@ -22268,7 +22409,7 @@ Every request says the user's languages in `Accept-Language`, the device's in th
 pb.setPreferredLanguages(listOf("tr", "en"))   // null goes back to the device's
 ```
 
-Requests also carry `X-Palbase-SDK: android/0.4.0` (`PalbaseClient.VERSION`).
+Requests also carry `X-Palbase-SDK: android/0.16.7` (`PalbaseClient.VERSION`).
 
 ### Observable state
 
@@ -22292,7 +22433,7 @@ fun Account() {
 
 ### Consent and the installation
 
-`pb.consent` is what the user allowed the app to collect, by category: `Consent.Category.ANALYTICS`, `PERFORMANCE` and `DIAGNOSTICS`. Every module that collects asks it, and while a category is not granted nothing of it is made. [Analytics](/docs/android/analytics#consent) shows it at work.
+`pb.consent` is what the person allowed the app to collect and use, key by key: `analytics`, `performance`, `diagnostics`, and the platform's other keys. Every module that collects asks it, and while a key is not granted nothing of it is made. What the app starts with until the person chooses is `ConsentOptions.start`, given with `PalbaseConfiguration.environment.with(consent = …)`. [Analytics](/docs/android/analytics#consent) shows it at work.
 
 `pb.installation.id` is this install of the app: 16 random bytes, kept across launches and updates, that carry nothing of the device or the user. Flags' percentages and a push token are an installation's.
 
@@ -22349,6 +22490,8 @@ Every method that reaches the server is a `suspend` function: call it from a cor
 
 ## Quick example
 
+<!-- given: suspend fun askForCode(): String -->
+
 ```kotlin
 import studio.palbase.Auth
 import studio.palbase.AuthAPI
@@ -22367,7 +22510,7 @@ when (val result = pb.auth.signIn("ada@example.com", "correct-horse-battery-stap
 }
 ```
 
-`AuthAPI` (package `studio.palbase.generated`) holds the auth module's request and answer types, generated from its contract.
+`AuthAPI` (package `studio.palbase`) holds the auth module's request and answer types, generated from its contract.
 
 ## Email and password
 
@@ -22385,6 +22528,8 @@ A wrong password is a `PalbaseError` with status 401. After 10 failures in 30 mi
 ### Confirming an email
 
 The confirmation email carries a link, or a code when the project uses codes:
+
+<!-- given: token: String -->
 
 ```kotlin
 // The link's token, from the link the app was opened with:
@@ -22426,6 +22571,8 @@ A sign-in that needs a second factor answers `MfaRequired(mfaToken, factors)`. F
 
 Enrolling, for the signed-in user:
 
+<!-- given: fun showQr(url: String), fun showOnce(codes: List<String>) -->
+
 ```kotlin
 // TOTP: the secret for the authenticator app, its otpauth:// URL and a QR code, and the recovery codes, shown once.
 val totp = pb.auth.mfa.enrollTotp()
@@ -22457,6 +22604,8 @@ Each keeps the session's refresh token; its refreshes stay at the new level (`TO
 
 `pb.auth.passkeys` runs the system's passkey sheet through Credential Manager: the fingerprint, the face or the device's screen lock. The project publishes its registered Android apps' certificates for it ([Registering the app](/docs/android/overview#registering-the-app)).
 
+<!-- given: context: android.content.Context, fun showHome(user: AuthAPI.User), fun askToConfirm(userId: String) -->
+
 ```kotlin
 // Adds a passkey to the signed-in account.
 pb.auth.passkeys.register(context)
@@ -22482,6 +22631,8 @@ A sheet the user dismisses throws `passkey_cancelled` (`pb.auth.wasCancelled(e)`
 
 ## Magic links
 
+<!-- given: token: String -->
+
 ```kotlin
 pb.auth.magicLink.send("ada@example.com")
 
@@ -22504,6 +22655,8 @@ when (val result = pb.auth.phone.verifyCode("+905551234567", "482913")) {
 Phone sign-in must be enabled for the project (`provider_not_enabled` otherwise). The code is texted through the project's own SMS provider or verification service — with neither, through Palbase's Twilio Verify.
 
 ## Passwords
+
+<!-- given: token: String -->
 
 ```kotlin
 // Forgot it: the email's link carries a token.
@@ -22528,6 +22681,8 @@ The session is observable. Each of these is a `StateFlow`, so a composable that 
 | `user` | The signed-in user as auth last answered (`AuthAPI.User`: `id`, `email`, `emailVerified`, `isAnonymous`, `roles`, `metadata`). |
 | `state` | The `Session` itself: `accessToken`, `refreshToken`, `expiresAt` (epoch milliseconds), `userId`, `user`. It changes with every refresh. |
 | `sessionEndReason` | Why the last session ended without the app signing out: `EXPIRED`, `REVOKED`, `USER_DELETED` or `USER_BANNED`. Set before the change is told, and `null` again once someone signs in or the app signs out. |
+
+<!-- given: @Composable fun Home(), @Composable fun SignIn(notice: String?) -->
 
 ```kotlin
 @Composable
@@ -22561,6 +22716,8 @@ A session is bound to this device. The calls that start or renew it carry a proo
 `signOut()` ends the session on the server and here. A failed call still signs out locally. What a module must undo while the user can still be named runs first. For example, [notify](/docs/android/notifications) forgets this device for them.
 
 `deleteAccount(password)` deletes the account, everything tied to it and its sessions, and ends the session here. An account with a password gives it, and a password missing or wrong is `401 reauth_required` with the session kept. An account without one (a guest, a phone or social account) passes nothing:
+
+<!-- given: fun askForPassword(): String -->
 
 ```kotlin
 val me = pb.auth.getUser()
@@ -22609,7 +22766,7 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.4.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.16.7"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-palbe")
 }
@@ -22739,6 +22896,8 @@ What only you set: the SHA-256 of the certificates your releases are signed with
 
 A route the backend declares with `@Upload` takes the file in the app's call: the call goes to the project's storage, which writes the file where the route's template says and then runs the route's handler with it ([Upload routes](/docs/backend/direct-uploads#upload-routes)). Its generated function takes the bytes, a file name, an optional content type and a progress callback:
 
+<!-- given: bytes: ByteArray, var progress: Double -->
+
 ```kotlin
 // ProfileController's @Upload("/avatar", …) avatar route, with no body of its own:
 val avatar = pb.backend.profile.avatar(
@@ -22774,6 +22933,10 @@ A path built from a value is held to plain path segments, and anything else is r
 `pb.palbe(URI("http://10.0.2.2:8080"))` (`import studio.palbase.backend.palbe`) is a client of a backend at an address of its own: in a debug build, one running on the computer the emulator runs on. It carries the user's token as the environment's backends do. The generated namespaces hang on the backend's own type, `PB<Name>Backend`, which the app's module can make around it:
 
 ```kotlin
+import java.net.URI
+import studio.palbase.backend.palbe
+import studio.palbase.generated.*
+
 val local = PBBackendBackend(pb.palbe(URI("http://10.0.2.2:8080")))
 val note = local.notes.create(NotesCreateRequest(title = "Groceries"))
 ```
@@ -22796,6 +22959,8 @@ A [gateway](/docs/backend/gateways) is a realtime channel of your backend: a `@G
 ## Quick example
 
 For the backend's `RoomGateway` (`@Gateway("room:{roomId}")`, with the events `message` and `welcome` and the message `say`, in [Gateways](/docs/backend/gateways#quick-example)), the generated client has `RoomGateway(roomId)`, its events as `RoomGatewayEvent`, and its messages as `RoomGatewaySend`:
+
+<!-- given: fun show(text: String) -->
 
 ```kotlin
 import studio.palbase.backend.join
@@ -22882,6 +23047,9 @@ When the socket closes for good, every handle on it ends: its listeners are drop
 A gateway declared with `chat: true` carries a chat of the project's agents, which the platform writes into its channel ([AI](/docs/backend/ai#a-chat-in-an-app)). Its generated class is a `PBChatGateway`, and joining it returns a `ChatGatewayHandle`. That handle is the gateway's own (`on`, `send`, `leave`) and also has `chat`: the chat's state, folded from what the platform writes there, from the chat's start, then each change as it comes.
 
 ```kotlin
+import studio.palbase.realtime.ChatGatewayHandle
+import studio.palbase.realtime.PBChat
+
 @Composable
 fun Support(support: ChatGatewayHandle<SupportGatewayEvent, SupportGatewaySend>) {
     val chat by support.chat.state.collectAsState()
@@ -22917,6 +23085,8 @@ What the user does in the chat (a message, a yes or a no, stop) is the gateway's
 
 The channel keeps a day of the chat. `chat.loadOlder(pb, chatId)` reads the page before what the state holds (`GET /ai/chats/{id}/parts`) and folds it in front, each part once. It reads with the member's own session, which the project allows its app's users with its AI settings' `clients` (`Palbase.ai.settings.put`, [AI](/docs/backend/ai#chats)). It returns whether there is more before it, and `chat.hasOlder` says the same without reading.
 
+<!-- given: support: ChatGatewayHandle<SupportGatewayEvent, SupportGatewaySend>, chatId: String, fun enoughShown(): Boolean -->
+
 ```kotlin
 while (support.chat.loadOlder(pb, chatId)) {
     if (enoughShown()) break
@@ -22928,6 +23098,8 @@ When the project's app reaches no chat of its own, the app's backend can read th
 ### Attachments, tool calls and workspace files
 
 A message's pictures and files are read back with the member's session:
+
+<!-- given: message: PBChat.Message, chatId: String -->
 
 ```kotlin
 import studio.palbase.realtime.chatAttachment
@@ -22996,8 +23168,11 @@ room.leave()
 
 A channel's state is a keyed map that outlives the connections reading it. A `Life.DURABLE` entry (the default) stays until it is removed. A `Life.EPHEMERAL` one is its writer's presence, gone when the writer leaves:
 
+<!-- given: room: RealtimeChannel -->
+
 ```kotlin
 import kotlinx.serialization.json.JsonPrimitive
+import studio.palbase.realtime.RealtimeChannel
 
 room.onState { entries ->
     val here = entries.filterValues { it.life == RealtimeChannel.Life.EPHEMERAL }.keys
@@ -23048,6 +23223,8 @@ A refused join throws `PalbaseError` with the code `join_refused` and the server
 | `DISCONNECTED` | Closed by the client: the user signed out, or no channel is wanted any more. |
 
 ```kotlin
+import studio.palbase.realtime.RealtimeSocket
+
 @Composable
 fun Connection() {
     val status by pb.socket.status.collectAsState()
@@ -23062,6 +23239,8 @@ The socket sends a heartbeat every 25 seconds. A socket that drops is opened aga
 The socket opens at `wss://<ref>.palbase.studio/realtime/v1/websocket`, the project's address. The publishable key goes in its `x-api-key` header, never in the address. When the session is bound to the device, the user's token and a proof signed by the device's key go there instead. Who the user is, is the access token each join carries, and a refreshed token is pushed to the joined channels without leaving them.
 
 The socket is one person's. When the user signs out, someone else signs in, or the session ends, the client closes it, and every channel with it. Join again for the user who is there now:
+
+<!-- given: scope: CoroutineScope -->
 
 ```kotlin
 import studio.palbase.session.AuthEvent
@@ -23121,7 +23300,7 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.9.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.16.7"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // pushes: the FCM token, and the service that draws them
     implementation("studio.palbase:palbase-messaging")  // pb.messaging
@@ -23131,6 +23310,10 @@ dependencies {
 ## Quick example
 
 ```kotlin
+import androidx.compose.foundation.clickable
+import studio.palbase.PalbaseClient
+import studio.palbase.messaging.messaging
+
 @Composable
 fun Inbox(pb: PalbaseClient, open: (String) -> Unit) {
     // The person's conversations, the latest first: drawn from the phone at once, then kept current.
@@ -23166,7 +23349,6 @@ A conversation may belong to a place of your app's — an organization, a worksp
 An open group (`visibility` open) is a channel: `openGroups(space)` lists a space's, each with whether the person is in it (`joined`), and `join(conversationId)` lets the person in — the group then in their list at once. Making one, listing and joining ask the project's hook (`open_group`, `list_open`, `join`): refused, a `PalbaseError` with code `not_allowed`; an open group names its space (`space_required`). One an admin removed does not join again by themselves (`removed`).
 
 ```kotlin
-// app/src/main/java/com/example/workspace/Channels.kt
 val org = "org:2f6c0c1e-8a3b-4c1d-9e5f-0a1b2c3d4e5f"
 val sidebar = pb.messaging.conversations(spaces = listOf(org))
 val channels = pb.messaging.openGroups(org)
@@ -23181,22 +23363,34 @@ A message your server wrote as someone (an assistant sending their words) says w
 `pb.messaging.search(query)` finds the person's messages that say every word asked — a word's beginning finds it, "toplanti" finds "Toplantıda" — the newest first, across their conversations or in one (`conversationId`). Each `SearchHit` carries what a result row draws: the conversation's `title` and `photo` (a group's, or the other person's in a direct one), its `sender`, and its `matches` — where its text or a file's name says what was asked, in UTF-16 offsets, as a `String`'s. The first page also lists the person's conversations whose name says it (`conversations`), found on the phone. What the module finds and never finds: [Messaging](/docs/messaging/overview#search).
 
 ```kotlin
-val results = pb.messaging.search("toplanti")
-results.conversations.forEach { c -> Text(c.title ?: "Chat") } // their names say it: draw them first
-results.messages.forEach { hit ->
-    Text(hit.title ?: "Chat")
-    Text(buildAnnotatedString {
-        append(hit.message.text ?: "")
-        hit.matches.filter { it.field == SearchMatch.Field.TEXT }.forEach { m ->
-            addStyle(SpanStyle(fontWeight = FontWeight.Bold), m.offset.toInt(), (m.offset + m.length).toInt())
-        }
-    })
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import studio.palbase.messaging.MessagingAPI
+import studio.palbase.messaging.SearchResults
+
+@Composable
+fun Found(query: String) {
+    val results by produceState<SearchResults?>(null, query) { value = pb.messaging.search(query) }
+    val found = results ?: return
+    found.conversations.forEach { c -> Text(c.title ?: "Chat") } // their names say it: draw them first
+    found.messages.forEach { hit ->
+        Text(hit.title ?: "Chat")
+        Text(buildAnnotatedString {
+            append(hit.message.text ?: "")
+            hit.matches.filter { it.field == MessagingAPI.SearchMatch.Field.TEXT }.forEach { m ->
+                addStyle(SpanStyle(fontWeight = FontWeight.Bold), m.offset.toInt(), (m.offset + m.length).toInt())
+            }
+        })
+    }
+    // More: pb.messaging.search(query, cursor = found.nextCursor) while nextCursor is not null —
+    // a page may hold fewer messages than asked, even none.
 }
-// More: pb.messaging.search("toplanti", cursor = results.nextCursor) while nextCursor is not null —
-// a page may hold fewer messages than asked, even none.
 ```
 
 A find opens where it was said: `pb.messaging.conversation(hit.conversation.id, at = hit.message.id)` is the conversation's page around it, `focus` naming the message to scroll to and mark. `loadEarlier()` reads back from there and `loadLater()` forward; once it reaches the newest, `hasLater` is false and it reads on live. An answer the conversation's timeline does not show has a `threadRootId`: open its thread at it.
+
+<!-- given: hit: studio.palbase.messaging.SearchHit -->
 
 ```kotlin
 val view = hit.threadRootId?.let { root -> pb.messaging.thread(hit.conversation.id, root, at = hit.message.id) }
@@ -23208,9 +23402,12 @@ val view = hit.threadRootId?.let { root -> pb.messaging.thread(hit.conversation.
 With the project's `search_by_meaning` on ([Messaging](/docs/messaging/overview#by-meaning)), `search(query, by = SearchBy.MEANING)` finds the messages nearest what the question means, in none of its words: "uçuş saati kaçta" finds "Uçağımız sabah dokuzda Sabiha Gökçen'den kalkıyor". The nearest come first, one page (`nextCursor` is null), each with `score` — how near, 0.3 to 1 — and no `matches`; `conversations` is empty. A hit opens as any does: `conversation(id, at = hit.message.id)`.
 
 ```kotlin
+import studio.palbase.messaging.SearchBy
+import studio.palbase.runtime.PalbaseError
+
 try {
     val found = pb.messaging.search("uçuş saati kaçta", by = SearchBy.MEANING)
-    found.messages.forEach { hit -> Text("${hit.title}: ${hit.message.text} (${"%.2f".format(hit.score)})") }
+    found.messages.forEach { hit -> println("${hit.title}: ${hit.message.text} (${"%.2f".format(hit.score)})") }
 } catch (e: PalbaseError) {
     // search_by_meaning_off: the project searches by words alone. too_many_searches: a person asks
     // 30 at once, one more a minute (e.retryAfter). ai_payment_required: the project's AI use is spent.
@@ -23236,7 +23433,11 @@ Nothing to set up. While the app is closed or in the background, a message's pus
 
 While the app is in front, a message's push is not drawn in the tray: its conversation is synced, and `pb.messaging.incoming` — a `SharedFlow<Message>` — gives the app each message someone else wrote that is new to the phone, once, whether the socket or the push brought it first. A sync, a page read, the person's own messages, system messages and removed ones never come through it. Skip the conversation on the screen:
 
+<!-- given: var openConversationId: String?, @Composable fun IncomingBanner(message: Message, onClose: () -> Unit) -->
+
 ```kotlin
+import studio.palbase.messaging.Message
+
 var banner by remember { mutableStateOf<Message?>(null) }
 LaunchedEffect(Unit) {
     pb.messaging.incoming.collect { m -> if (m.conversationId != openConversationId) banner = m }
@@ -23248,7 +23449,11 @@ banner?.let { m -> IncomingBanner(m) { banner = null; openConversationId = m.con
 
 While a photo or a video seen once is shown, keep the window out of screenshots and recordings (`FLAG_SECURE`): they come out black.
 
+<!-- given: activity: Activity -->
+
 ```kotlin
+import studio.palbase.messaging.protectViewOnce
+
 DisposableEffect(Unit) {
     val release = pb.messaging.protectViewOnce(activity)
     onDispose { release() }
@@ -23257,7 +23462,11 @@ DisposableEffect(Unit) {
 
 In vanish mode, a screenshot taken while the conversation is open is told to the others (Android 14 and later; `DETECT_SCREEN_CAPTURE` is in the module's manifest):
 
+<!-- given: activity: Activity, id: String -->
+
 ```kotlin
+import studio.palbase.messaging.watchScreenshots
+
 DisposableEffect(id) {
     val stop = pb.messaging.watchScreenshots(activity, id)
     onDispose { stop() }
@@ -23269,11 +23478,19 @@ DisposableEffect(id) {
 When a group's owner or an admin deletes it — or its last member leaves — it goes from everyone's `conversations()` at once, and those who were in it can still report it for 14 days ([Messaging](/docs/messaging/overview#moderation)). `pb.messaging.deletedGroups` is a `StateFlow<List<DeletedGroup>>` of the groups the person can still report, the latest to stop first, each with `id`, `title`, `deletedBy` and `reportableUntil`; one goes at its `reportableUntil`. `report` names it by its id with no message; the last 30 messages the person saw in it go with the report. A group the project's server deleted is not among them.
 
 ```kotlin
-val deleted by pb.messaging.deletedGroups.collectAsState()
-deleted.forEach { group -> Text(group.title ?: "a group") }
+import studio.palbase.messaging.MessagingAPI
 
-deleted.firstOrNull()?.let { group ->
-    pb.messaging.report(MessagingAPI.ReportRequest(conversationId = group.id, reason = MessagingAPI.ReportRequest.Reason.HARASSMENT, userId = group.deletedBy))
+@Composable
+fun DeletedGroups() {
+    val deleted by pb.messaging.deletedGroups.collectAsState()
+    val scope = rememberCoroutineScope()
+    deleted.forEach { group ->
+        Button(onClick = {
+            scope.launch {
+                pb.messaging.report(MessagingAPI.ReportRequest(conversationId = group.id, reason = MessagingAPI.ReportRequest.Reason.HARASSMENT, userId = group.deletedBy))
+            }
+        }) { Text("Report ${group.title ?: "a group"}") }
+    }
 }
 ```
 
@@ -23296,7 +23513,7 @@ The phone's copy is kept in the app's own SQLite, in files not backed up. When t
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.16.5"))
+    implementation(platform("studio.palbase:palbase-bom:0.16.7"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // the FCM token, and the service a ring arrives through
     implementation("studio.palbase:palbase-calls")      // pb.calls
@@ -23317,7 +23534,11 @@ The project rings an Android phone with a **high-priority FCM data message**. Th
 - **Full screen over the lock screen.** From Android 14, Google Play grants `USE_FULL_SCREEN_INTENT` to calling apps alone, and the person may turn it off. `pb.calls.canRingFullScreen` says whether it is granted — without it a ring is a heads-up notification with Answer and Decline — and `pb.calls.fullScreenSettings()` is the system's page where the person allows it.
 - **A closed app rings; a force-stopped one does not.** A process the system ended — or `adb shell am kill` — still gets the ring: FCM starts it. An app the person force-stopped (Settings › Force stop, or `adb shell am force-stop`) gets no FCM message at all, Android's rule, until it is opened again.
 
+<!-- given: context: Context -->
+
 ```kotlin
+import studio.palbase.calls.calls
+
 // Before the first call: what the phone needs to ring.
 if (!pb.calls.canRingFullScreen) {
     // Explain why, then:
@@ -23326,6 +23547,8 @@ if (!pb.calls.canRingFullScreen) {
 ```
 
 ## Making a call
+
+<!-- given: userId: String -->
 
 ```kotlin
 val scope = rememberCoroutineScope()
@@ -23383,6 +23606,10 @@ And as plain values: `id`, `incoming` (this device was rung for it), `video`, `c
 A camera — or a shared screen — is drawn by `PBVideoView` (a `View`: set its `track`), in Compose through `AndroidView`:
 
 ```kotlin
+import studio.palbase.calls.PBCall
+import studio.palbase.calls.PBVideoTrack
+import studio.palbase.calls.PBVideoView
+
 @Composable
 fun Video(track: PBVideoTrack?, modifier: Modifier = Modifier) {
     AndroidView(factory = { PBVideoView(it) }, update = { it.track = track }, modifier = modifier)
@@ -23402,6 +23629,8 @@ fun InCall(call: PBCall) {
 
 A ring over the lock screen — the app closed, the screen off — opens the app's own activity, full screen: register it in the `Application`, before a ring can come. The ring's full-screen intent, its Answer and a tap on a call's notification open it, the call's id in its intent.
 
+<!-- given: class CallActivity : android.app.Activity() -->
+
 ```kotlin
 class App : Application() {
     override fun onCreate() {
@@ -23416,7 +23645,12 @@ class App : Application() {
     android:showWhenLocked="true" android:turnScreenOn="true" />
 ```
 
+<!-- given: @Composable fun MyCallScreen(call: PBCall, onEnded: () -> Unit) -->
+
 ```kotlin
+import studio.palbase.calls.Calls
+import studio.palbase.calls.PBCall
+
 class CallActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23434,6 +23668,8 @@ The activity is the app's, drawn as it likes: who calls, Accept and Decline whil
 ## Sharing a screen
 
 Android asks the person each time before an app captures the screen (MediaProjection): launch `Calls.screenShareIntent(context)` for a result, and pass the result's `Intent` to `setScreenShare(true, it)` — Android 14 and newer let one yes serve one share alone. The others get the screen as their `PBCallPeer`'s `screen`, apart from the camera. `setScreenShare(false)` stops it, and so does the system's own "Stop sharing" (the capture's notification, on the calls channel); `screenSharing` says which.
+
+<!-- given: call: PBCall, scope: CoroutineScope, context: Context -->
 
 ```kotlin
 val share = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -23460,7 +23696,11 @@ While it shares, the capture runs in LiveKit's foreground service of type `media
 | `start(video, userIds, ring, metadata, callerName, callerImageUrl)` | Starts a call at the place: no one need be asked |
 | `join(name, imageUrl)` | Comes into the call going on there, unasked |
 
+<!-- given: myName: String -->
+
 ```kotlin
+import studio.palbase.calls.CallsAPI
+
 @Composable
 fun ChannelMeeting(channelId: String) {
     val place = remember(channelId) { pb.calls.place("channel:$channelId") }
@@ -23493,6 +23733,8 @@ One call goes on at a place at a time: starting another there is refused with `p
 `pb.flags` (`studio.palbase:palbase-flags`) is the project's flags as this reader sees them: each value resolved by the project for the app's platform, version and language, the signed-in user and their own values. It is read without waiting, because the values the app last had are kept on the device and are what it starts with. It is kept current: a change made in Studio reaches the app over the project's socket within moments, with no call of yours.
 
 ## Quick example
+
+<!-- given: fun showNewCheckout() -->
 
 ```kotlin
 import studio.palbase.flags.flags
@@ -23534,7 +23776,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Banner(val title: String, val color: String)
 
-val banner = pb.flags.decode<Banner>("home.banner")
+val banner: Banner? = pb.flags.decode<Banner>("home.banner")   // null: no such flag, or not a Banner
 ```
 
 A value is any JSON the flag's type allows: a boolean, a number, a string or an object.
@@ -23604,47 +23846,74 @@ The debug console is opened for one user the same way ([Debug Console](/docs/and
 
 # Analytics
 
-`pb.analytics(startingConsent)` (`studio.palbase:palbase-analytics`) is the app's analytics, performance samples and diagnostics, each behind its consent category: events the app captures and screens it shows (analytics), timings (performance), and its log and failed requests (diagnostics). Nothing waits on it. What is collected is held and sent together, and a send that fails is let go.
+`pb.analytics` (`studio.palbase:palbase-analytics`) is the app's analytics, performance samples and diagnostics, each behind its own consent key: `analytics` for events, screens and the person's properties, `performance` for timings and request traces, `diagnostics` for the log sent with a report. Nothing waits on it. What is collected is held and sent together, and a send that fails is let go.
 
 ## Quick example
 
 ```kotlin
-import studio.palbase.Consent
-import studio.palbase.analytics.analytics
+// app/src/main/kotlin/com/example/shop/ShopApp.kt
+package com.example.shop
+
+import android.app.Application
 import kotlinx.serialization.json.JsonPrimitive
+import palbase.environment
+import studio.palbase.ConsentOptions
+import studio.palbase.ConsentState
+import studio.palbase.PalbaseClient
+import studio.palbase.PalbaseConfiguration
+import studio.palbase.analytics.analytics
 
-// Nothing is collected until the person says yes.
-val analytics = pb.analytics(startingConsent = Consent.State.DENIED)
+lateinit var pb: PalbaseClient
 
-// The person's choice, from the app's consent screen:
-pb.consent.set(Consent.Category.ANALYTICS, Consent.State.GRANTED)
+class ShopApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        // What the app collects before the person chooses: nothing here — the consent screen asks first.
+        pb = PalbaseClient(this, PalbaseConfiguration.environment.with(consent = ConsentOptions(start = mapOf("analytics" to ConsentState.DENIED))))
+        // Touched at launch: from here it makes the app's own events ($install, $app_open, …).
+        pb.analytics
+    }
+}
 
-analytics.screen("Checkout")
-analytics.capture("checkout_started", mapOf("items" to JsonPrimitive(3), "plan" to JsonPrimitive("pro")))
+fun checkedOut(items: Int) {
+    pb.analytics.screen("Checkout")
+    pb.analytics.capture("checkout_started", mapOf("items" to JsonPrimitive(items), "plan" to JsonPrimitive("pro")))
+}
 ```
 
-`pb.analytics(…)` is made once. The first call's starting consent is the one kept, so make it at launch, with the starting consent the app's users need.
+Touch `pb.analytics` once at launch, in the `Application`'s `onCreate`: from then on it makes the app's own events and timings.
 
 ## Consent
 
-`pb.consent` is the one gate every collecting module asks. While a category is not granted, nothing of it is made: no event, no queue, no file, no request, and no anonymous id.
+`pb.consent` is the one gate every collecting module asks, key by key. While a key is not granted, nothing of it is made: no event, no queue, no file, no request, and no anonymous id.
 
-| `Consent.Category` | What it covers |
+| Key | What it covers |
 |---|---|
-| `ANALYTICS` | Events the app captures, and screens viewed |
-| `PERFORMANCE` | Timings: launches, screens, requests |
-| `DIAGNOSTICS` | The app's log, its reports and its failed requests |
+| `analytics` | Events the app captures, screens viewed, identify and the person's properties |
+| `performance` | Timings: launches, screens, requests |
+| `diagnostics` | The log sent with a report |
 
-There is no default. The app says what it starts with when it makes analytics (`startingConsent`), because whether its users must opt in is the app's to know. That applies to every category until the user's own choice is recorded, which then wins:
+The platform's other keys (`personalization`, `marketing_push` and the other channels, `ads_measurement`, `ads_personalization`) and the app's own (`custom.<name>`, named in `ConsentOptions.customKeys`) are the same as on [iOS](/docs/ios/consent#the-keys); `keys()` lists them with their words.
+
+There is no default. What the app starts with until the person chooses is the app's to say (`ConsentOptions.start`, in the configuration), because whether its users must opt in is the app's to know: a key with no starting value and no choice collects nothing. The person's own choice, once made, wins:
 
 ```kotlin
-pb.consent.set(Consent.Category.PERFORMANCE, Consent.State.DENIED)
-val chosen: Consent.State? = pb.consent.state(Consent.Category.ANALYTICS)   // null: not chosen yet
-val stop = pb.consent.onChange { category, state -> println("$category is now $state") }
-pb.consent.reset()   // forget the choices: the starting consent applies again
+import studio.palbase.AuthAPI
+import studio.palbase.ConsentState
+
+suspend fun consentScreen() {
+    val region = pb.consent.region()               // gdpr asks first; us collects until refused
+    val ask = pb.consent.needsAsking()             // never chosen, or chosen under another text
+    if (region.jurisdiction == AuthAPI.ConsentRegion.Jurisdiction.GDPR || ask.isNotEmpty()) {
+        // … show the screen, then:
+        pb.consent.setMany(mapOf("analytics" to ConsentState.GRANTED, "performance" to ConsentState.DENIED))
+    }
+    val chosen: ConsentState? = pb.consent.state("analytics")   // null: no choice and no starting value
+    val stop = pb.consent.onChange { key, state -> println("$key is now $state") }
+}
 ```
 
-When a category is withdrawn, what was held of it is deleted, on the device too, and with analytics the anonymous id and the session go as well. A store that cannot be read counts as a refusal, never as the starting value. The choices are kept on the device: at this version the Android SDK does not send them to the project.
+When a key is withdrawn, what was held of it is deleted, on the device too, and with `analytics` the anonymous id and the session go as well. A store that cannot be read counts as a refusal, never as the starting value. A choice stands at once and is sent to the project, with when it was made; on sign-out the device goes back to the app's starting values.
 
 ## Events and screens
 
@@ -23653,7 +23922,7 @@ When a category is withdrawn, what was held of it is deleted, on the device too,
 | `capture(event, properties)` | Records an event. The name is a letter or `$`, then letters, digits and `_.:-$`, 64 at most. `properties` is a `Map<String, JsonElement>`. |
 | `screen(name, properties)` | Records a screen the user saw. |
 | `identify(traits)` | Ties this device's anonymous events to the signed-in user, with their traits. It is done by itself at sign-in, with the next send. |
-| `flush()` | Sends what is held now, of the categories granted now. |
+| `flush()` | Sends what is held now, of the keys granted now. |
 
 An event is sent as the signed-in user, or, with no one signed in, under an anonymous id the device keeps (`anon_…`). A session is the events with no more than 30 minutes between them. When the user signs out, the anonymous id goes, and the next person on the device is someone new.
 
@@ -23661,47 +23930,57 @@ What is held goes together: 5 seconds after the first of it, as soon as 20 event
 
 ## Timings
 
-While `PERFORMANCE` is granted, the SDK times on its own how long the launch took, from the process's start to its first activity started, as an `app_start` sample named `cold` — a process begun for a push, a job or a widget and opened later is not one. In an app built with the Palbase Gradle plugin it also times each request the app makes — its own OkHttp clients and `HttpURLConnection`s and every library's, the SDK's among them — as a `network` sample: its method, its address as its route (no query, an id in the path as `:id`), its status and how long it took. What analytics itself sends is not timed.
+While `performance` is granted, the SDK times on its own how long the launch took, from the process's start to its first activity started, as an `app_start` sample named `cold` — a process begun for a push, a job or a widget and opened later is not one. In an app built with the Palbase Gradle plugin it also times each request the app makes — its own OkHttp clients and `HttpURLConnection`s and every library's, the SDK's among them — as a `network` sample: its method, its address as its route (no query, an id in the path as `:id`), its status and how long it took. What analytics itself sends is not timed.
 
 ```kotlin
 // settings.gradle.kts
 pluginManagement { repositories { gradlePluginPortal(); google(); mavenCentral(); maven("https://palgroup.github.io/palbase-android/") } }
+```
 
+```kotlin
 // app/build.gradle.kts
 plugins {
     id("com.android.application")
-    id("studio.palbase") version "0.10.0"
+    id("studio.palbase") version "0.16.7"
 }
 ```
 
 The plugin rewrites, as the app is built, each `OkHttpClient()`, `OkHttpClient.Builder.build()`, `URL.openConnection()` and a connection's `getResponseCode()` and `getInputStream()` — in the app and in every library it takes — to the SDK, which does what was asked and times it. It reaches no network, and an app without `palbase-analytics` is built as it was. Each timing is turned off in `AnalyticsOptions(network = false, appStart = false)`.
 
-An app whose users can grant `PERFORMANCE` declares these timings in Play Console's Data safety form as **App info and performance › Diagnostics**, collected, for analytics.
+An app whose users can grant `performance` declares these timings in Play Console's Data safety form as **App info and performance › Diagnostics**, collected, for analytics.
 
 What the app measures itself:
 
 ```kotlin
 import studio.palbase.analytics.Analytics
+import studio.palbase.analytics.analytics
 
-val trace = analytics.startTrace("load_feed")
-loadFeed()
-trace.stop(mapOf("source" to "network"))
+suspend fun refreshFeed(loadFeed: suspend () -> Unit) {
+    val trace = pb.analytics.startTrace("load_feed")
+    loadFeed()
+    trace.stop(mapOf("source" to "network"))
 
-analytics.measure("image_decode", 12.5, Analytics.Measure.CUSTOM, mapOf("format" to "webp"))   // milliseconds
+    pb.analytics.measure("image_decode", 12.5, Analytics.Measure.CUSTOM, mapOf("format" to "webp"))   // milliseconds
+}
 ```
 
-`Analytics.Measure` is the kind of a measurement: `CUSTOM`, `SCREEN`, `APP_START` or `NETWORK`. Each is collected only with `PERFORMANCE` granted.
+`Analytics.Measure` is the kind of a measurement: `CUSTOM`, `SCREEN`, `APP_START` or `NETWORK`. Each is collected only with `performance` granted.
 
 ## Diagnostics
 
 ```kotlin
-analytics.log("cart is empty at checkout", Analytics.Level.WARNING)   // kept in memory, the last 200 lines
-analytics.report()                                                     // sends the lines kept, as what led to an error
+import studio.palbase.analytics.Analytics
+import studio.palbase.analytics.analytics
 
-analytics.recordRequest(method = "GET", endpoint = "/v1/feed", status = 500, durationMs = 840, requestId = "req_01")
+suspend fun checkoutFailed() {
+    pb.analytics.log("cart is empty at checkout", Analytics.Level.WARNING)   // kept in memory, the last 200 lines
+    pb.analytics.report()                                                     // sends the lines kept, as what led to an error
+
+    pb.analytics.recordRequest(method = "GET", endpoint = "/v1/feed", status = 500, durationMs = 840, requestId = "req_01")
+}
 ```
 
-`log` keeps a line in memory and sends nothing, so the lines go only with a `report()`, which sends them as what led to an error (or, with another `trigger`, what the user reported). `recordRequest` records a request the app made and how it ended. Each is collected only with `DIAGNOSTICS` granted.
+`log` keeps a line in memory and sends nothing, so the lines go only with a `report()`, which sends them as what led to an error (or, with another `trigger`, what the user reported). `recordRequest` records a request the app made and how it ended, as a trace: `performance` collects it, and `log` and `report` are `diagnostics`'.
 
 Studio's Analytics screens show what the app sent: its events, people, funnels and retention.
 
@@ -23736,9 +24015,14 @@ A push reaches an Android device through Firebase Cloud Messaging, with the proj
 
 ## Recording the token
 
+<!-- given: appScope: CoroutineScope -->
+
 ```kotlin
 // app/src/main/kotlin/com/example/shop/Push.kt
+package com.example.shop
+
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.launch
 import studio.palbase.notify.notify
 
 // appScope: a CoroutineScope of the app's own, as long as the process.
@@ -23772,13 +24056,18 @@ A silent push (`silent: true`) carries none of the title, body, image and sound:
 
 At this version the SDK draws nothing, so the app's own service shows it:
 
+<!-- given: appScope: CoroutineScope, object R { object drawable { val ic_notification: Int = 0 } } -->
+
 ```kotlin
 // app/src/main/kotlin/com/example/shop/PushService.kt
+package com.example.shop
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.launch
 import studio.palbase.notify.notify
 
 class PushService : FirebaseMessagingService() {
@@ -23840,6 +24129,7 @@ The signed-in person's inbox holds the messages your backend put there and the c
 ```kotlin
 import studio.palbase.notify.ui.InboxView
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InboxScreen() {
     var unread by remember { mutableLongStateOf(0L) }
@@ -23863,6 +24153,8 @@ An app that draws its own uses `pb.notify.inbox`:
 ## In-app messages
 
 The project's in-app campaigns (a modal, a banner or a whole screen, designed in Studio) are shown over the app once started. `PalbaseInAppMessages` around the app's root starts them and draws them in Compose:
+
+<!-- given: this: ComponentActivity, fun showPaywall(placement: String), @Composable fun AppNavigation() -->
 
 ```kotlin
 import studio.palbase.notify.ui.InAppHandlers
@@ -23902,6 +24194,8 @@ An app that draws its own calls `pb.notify.inApp.start { presentation -> … }`,
 
 The backend signs an upload URL for one object (`Palbase.storage.createUploadUrl`, [Direct Uploads](/docs/backend/direct-uploads)) and answers it from a route of its own. The app sends the bytes to it:
 
+<!-- given: bytes: ByteArray, grantUrl: String -->
+
 ```kotlin
 import studio.palbase.storage.storage
 
@@ -23917,6 +24211,8 @@ The URL's conditions (the bucket, the path, the expiry, the ceiling, the types, 
 ## Downloading
 
 A private object is read with a download URL the backend signed (`Palbase.storage.createSignedUrl`, [Storage](/docs/backend/storage)):
+
+<!-- given: signedUrl: String -->
 
 ```kotlin
 val bytes: ByteArray = pb.storage.download(signedUrl)
@@ -24062,12 +24358,15 @@ To a prepaid plan the change is always `CHARGE_FULL_PRICE`. A mode Play does not
 Someone who bought on the web without an account is sent a link that gives the purchase to whoever opens it in the app: `<package>://palbase/redeem?token=…`, or its page's `https://…/purchases/redeem?token=…`. The app redeems the link it was opened with, for the signed-in user (a guest too):
 
 ```kotlin
+import studio.palbase.purchases.purchases
 import studio.palbase.purchases.redemptionToken
 
-override fun onNewIntent(intent: Intent) {
-    super.onNewIntent(intent)
-    val link = intent.dataString ?: return
-    if (redemptionToken(link) != null) lifecycleScope.launch { pb.purchases.redeem(link) }
+class ShopActivity : ComponentActivity() {
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val link = intent.dataString ?: return
+        if (redemptionToken(link) != null) lifecycleScope.launch { pb.purchases.redeem(link) }
+    }
 }
 ```
 
@@ -24128,6 +24427,8 @@ export class VoiceController {
 ```
 
 The app connects, after `palbase apps:sync` wrote the backend's client:
+
+<!-- given: context: Context, chatId: String -->
 
 ```kotlin
 import studio.palbase.generated.*
@@ -24548,6 +24849,7 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | Type | Sent when | `data` |
 |---|---|---|
 | `user.deleted` | A user is deleted — by themselves, or with the secret key. | `{ user_id, is_test, deleted_at }` |
+| `user.password_changed` | A user's password is set by its owner: changed with the current one (`method: change`), reset from a link (`reset`), given to an account that had none (`set`), or an invitation taken up (`invitation`). An account made with a password, and a sign-in that rehashes it, say nothing. `changed_at` is the user's `password_changed_at`. | `{ user_id, changed_at, method, is_test }` |
 | `session.ended` | A user's session ends — they signed out, ended it from another device, it was revoked (by an admin, a ban, a password reset, its refresh token used twice), it ran out with no one back to renew it (`ended_at` is then the moment its time was up), or the user was deleted. | `{ user_id, session_id, ended_at }` |
 | `file.uploaded` | An object is written: a `PUT`, a copy, an upload through a signed URL. | `{ bucket, path, size, content_type, owner_id }` |
 | `file.deleted` | An object is deleted. | the same fields |
@@ -24897,6 +25199,12 @@ palbase auth:settings:set signups_enabled=false
 
 A password found in a known breach is refused at sign-up and on every change (`400 password_breached`). Users created with the secret key can skip that check (`skip_password_hibp`).
 
+### Your app's name
+
+| Key | Default | What it says |
+|---|---|---|
+| `app_name` | none | Your app's name, as its people know it (`Koz`): what an [invitation](/docs/auth/users#inviting-someone)'s email and page say the person is invited to — "Koz invited you", "Join Koz". One line, 64 characters at most. Empty: "An app invited you". Only the invitation says it; auth's other emails stay brand-neutral. **Auth › Settings › Your app** sets it too. |
+
 ### Links in auth emails
 
 | Key | Default | What it says |
@@ -24982,7 +25290,7 @@ Keys rotate on their own every 90 days. A key is published in the key set a day 
 
 ## Auth's emails and texts
 
-Auth sends its emails through the project's notifications, from templates that belong to the environment: `auth.email_verify` and `auth.email_verify_code` (confirming an address), `auth.password_reset`, `auth.magic_link`, `auth.mfa_otp` (a sign-in code by email), and the security emails above. A phone code is the SMS template `auth.sms_otp`.
+Auth sends its emails through the project's notifications, from templates that belong to the environment: `auth.email_verify` and `auth.email_verify_code` (confirming an address), `auth.password_reset`, `auth.magic_link`, `auth.user_invitation` (an [invitation](/docs/auth/users#inviting-someone)), `auth.mfa_otp` (a sign-in code by email), and the security emails above. A phone code is the SMS template `auth.sms_otp`.
 
 **Auth › Templates** edits them in each language and sends a test. Until the environment has its own email provider, auth's mail goes through the platform's shared sender with the default text; your edits are used once your own provider is connected ([Notifications](/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)). The same templates are reachable as any others: `palbase notify:templates:set`, or `PUT /notify/templates/email/{slug}/{locale}` ([Templates](/docs/backend/notifications#templates)).
 
@@ -25188,9 +25496,88 @@ palbase auth:users:get usr_01J…
 palbase auth:users:create ada@example.com --verified < password.txt
 ```
 
-The password is read from standard input, never from the command line. The account is made at once, with no email sent: share the password through a channel you trust. **Auth › Users › Create user** does the same. `POST /admin/users` takes `{ email, password, email_verified?, metadata?, skip_password_hibp? }`; it skips the self-service sign-up's rate limits and bot checks, but still holds the password to the environment's policy and, unless told not to, to the known-breaches check.
+The password is read from standard input, never from the command line. The account is made at once, with no email sent: share the password through a channel you trust — or invite the person, and they choose it ([Inviting someone](#inviting-someone)). **Auth › Users › Create user** does the same. `POST /admin/users` takes `{ email, password, email_verified?, metadata?, skip_password_hibp? }`; it skips the self-service sign-up's rate limits and bot checks, but still holds the password to the environment's policy and, unless told not to, to the known-breaches check.
 
 `PATCH /admin/users/{uid}` changes a user's `email`, `email_verified` and `metadata`. A new address is unconfirmed unless `email_verified` is sent with it, and one another user has is `409 user_exists`. `metadata` is merged into what the user has: a key set to `null` is removed.
+
+## Inviting someone
+
+An invitation makes an account for a person and lets them choose its password: how your server adds its staff, or an admin a colleague. Palbase emails them a link; they open it, set the password on a page Palbase serves at the environment's own address, and sign in with it from your app. It is `POST /admin/users/invite`, with the project's secret key:
+
+```ts
+// staff.ts
+import { createServer } from "palbase/server";
+
+const palbase = createServer({ url: process.env.PALBASE_URL!, secretKey: process.env.PALBASE_SECRET_KEY! });
+
+const { status, data } = await palbase.auth.adminInviteUser({ body: { email: "cashier@example.com", metadata: { shop: "kadikoy" } } });
+// 201: an account made, invited — data.user.invited is true, data.invitation.expires_at seven days on
+// 200: the address was invited before and had not taken it up: invited again (data.invitation.again)
+await palbase.auth.adminAssignUserRole({ path: { uid: data.user.id, role: "cashier" } });
+```
+
+On a Palbase machine the same call is `Palbase.auth.adminInviteUser` ([Authentication](/docs/backend/authentication)). The body is `{ email, metadata?, locale?, redirect_to?, send_email? }`, and what it does is the account the address has:
+
+| The address | What happens | Answer |
+|---|---|---|
+| has no account | An account is made for it, invited: it has no password, and cannot sign in with one, until the person sets it from the link. The link is emailed. | `201` |
+| has an account invited that has not taken it up — no password set, never signed in, not banned | It is invited again: a new link is sent, the earlier ones no longer open it, and its seven days start now. The `metadata` sent is merged into the account's. | `200`, `invitation.again: true` |
+| has any other account | Refused: `409 user_exists`, with the account's `user_id` and `email_verified`. Nothing is sent, and the account is left as it is — its password above all. Give it what you invited it for yourself, a role with `adminAssignUserRole` — **only when `email_verified` is true**: an account whose address is not confirmed was made by whoever typed the address, who may not own it. | `409` |
+
+This is how Supabase's `inviteUserByEmail`, Firebase's `createUser` and Cognito's `AdminCreateUser` treat an address: an account the person already owns is never invited over, and an invitation not taken up is sent again.
+
+### An invitation's life
+
+1. **Invited.** The user has `invited: true` and an `invited_at` (Studio's **Users** shows *Invited*). Roles can be given to it already; it holds those you give it — a sign-up's default roles are a sign-up's.
+2. **The email names your app, and the link lives seven days.** It reads "**Koz** invited you to join. *Accept the invitation* and choose your password" ("Koz sizi davet etti. *Daveti kabul et* …" in Turkish) — your app's name is the [auth settings](/docs/auth/overview#your-apps-name)' `app_name` (`palbase auth:settings:set app_name=Koz`, or **Auth › Settings › Your app**); without one it says "An app invited you". The link opens Palbase's page at the environment's address, in the email's language (`locale`, else the environment's): its title names the app ("Join Koz"), the address the invitation was sent to is shown in a field that cannot be changed, and the person chooses the password — held to the environment's password policy and the known-breaches check. A link that opens nothing — expired, replaced by a later invitation, already taken up — says so as the page opens, before any password is typed.
+3. **Taken up.** The password is set and the address confirmed (`email_verified`), and `invited` is false. The person signs in with their email and that password. `auth.invitation.accept` is in the audit log; the invitation itself is `admin.invite`.
+4. **Expired or replaced.** A link older than seven days says it has expired; one that a later invitation replaced says it is not valid, and one opened after the account is set up says so. Invite the address again for a new link. **The account stays when its link expires**: whoever owns the address can still take it up another way that proves the address — a password reset, a sign-in link — with the roles it was given.
+5. **Taken back.** An invitation is withdrawn by deleting its account (`DELETE /admin/users/{uid}`, `palbase auth:users:delete`): an invitation sent to a wrong address is taken back so, not by letting it expire. A banned account takes no invitation up.
+
+A role that matters — staff, an admin of your app — can be given once the invitation is taken up (`invited` false), rather than with the invitation: until then, the account is whoever owns the address you typed.
+
+The person may take it up another way that proves the address — a password reset, a sign-in link — and the account is theirs from then: inviting it again is then `409 user_exists`.
+
+An invitation to an address made for a test (`palbase auth:test-users:address`, [Test Users](/docs/backend/test-users)) opens a test user, as a sign-up with it does: nothing is sent, the invitation's mail is kept in its test inbox (`palbase auth:test-users:messages <user-id>`, the link among its variables as `accept_link`), and a test takes the invitation up from there. Another address no mail reaches (`.invalid`) is refused, `400 email_undeliverable`.
+
+### Sending the link yourself, or your own page
+
+`send_email: false` sends nothing: the answer carries the link as `invitation.accept_url`, for you to deliver — a text message, your own mail. It sets the account's password, so give it to the person alone.
+
+`redirect_to` — a page of your app's, on the redirect allow-list (`additional_redirect_urls` in the [auth settings](/docs/auth/overview)) — is where the link opens instead of Palbase's page. It receives `?token=`, and sends it with the password the person chose to `POST /auth/invitations/accept` (`{ token, password }`, with the publishable key); they then sign in. The email itself is the environment's `auth.user_invitation` template (**Auth › Templates**).
+
+### From the terminal and Studio
+
+```sh
+palbase auth:users:invite cashier@example.com              # emails the link
+palbase auth:users:invite cashier@example.com --no-email   # prints it, sending nothing
+```
+
+`--redirect-to` and `--locale` are the call's `redirect_to` and `locale`. In Studio, **Auth › Users › Invite user** sends the same invitation.
+
+An invitation makes an identity, as making a user with a password does: an environment's token (an agent's or CI's) is refused it, `403 token_out_of_scope`. The project's secret key on your server, a person's own CLI session and Studio make it.
+
+## Knowing a password was changed
+
+A backend that must know a user set their password — a staff account given a temporary one, unlocked once it is changed — asks Palbase, not the app: an app's "I changed it" can be sent by anyone who signed in. Better still, give no temporary password: [invite](#inviting-someone) the person, and the password is theirs from the first.
+
+- **The user's `password_changed_at`** (`GET /admin/users/{uid}`, `adminGetUser`): when their password was last set — the account made with it, changed, reset, set first, or an invitation taken up. A temporary password you set at a time is changed when `password_changed_at` is later than it. A sign-in that rehashes the same password does not move it; an account with no password, or one imported from another system, has none.
+- **`user.password_changed`** ([Webhooks](/docs/server/webhooks#the-events), `@On` in a backend): sent when the user's password is set by its owner, with `{ user_id, changed_at, method, is_test }` — `method` is `change`, `reset`, `set` or `invitation`. The backend unlocks the account there, with nothing asked of the app.
+- **The audit trail** (`GET /admin/audit?user_id=…&event_type=auth.password.change`): that user's password changes, newest first — each `result` `success` or `failure` ([Audit Trail](/docs/auth/audit#reading-it)).
+
+```ts
+// src/modules/staff/password-changed.ts
+import { Database, Injectable, On, type WebhookEvent } from "palbase/backend";
+
+@Injectable()
+export class PasswordChanged {
+  // A staff account given a temporary password is unlocked once its owner set one of their own.
+  @On("user.password_changed")
+  async unlock(event: WebhookEvent<{ user_id: string; changed_at: string; method: string }>): Promise<void> {
+    await Database.$asService().$query("update staff set must_change_password = false where user_id = $1", [event.data.user_id]);
+  }
+}
+```
 
 ## Helping someone back in
 
@@ -25485,7 +25872,16 @@ palbase auth:audit
 palbase auth:audit --event auth.login.failure --limit 200
 ```
 
-`auth:audit` prints the events newest first: when, the event, the result, who, from where, and on what. From a server, `GET /admin/audit` pages through them (`limit` up to 100, `cursor`, `event_type`).
+`auth:audit` prints the events newest first: when, the event, the result, who, from where, and on what. From a server, `GET /admin/audit` (`adminListAuditEvents`) pages through them, newest first, and answers `{ events, next_cursor? }`:
+
+| Query | |
+|---|---|
+| `limit` | 1 to 100 (50 by default) |
+| `cursor` | The `next_cursor` of the page before; absent on the last page |
+| `event_type` | Only events of this type, exactly (below) |
+| `user_id` | Only the events about this user: those whose `target_id` is the user — their sign-ins, their password changes, what was done to their account |
+
+`user_id` and `event_type=auth.password.change` together are one user's password changes: a backend that unlocks a staff account once its temporary password is changed reads it there, or hears `user.password_changed` ([Knowing a password was changed](/docs/auth/users#knowing-a-password-was-changed)).
 
 | Field | What it is |
 |---|---|
@@ -25505,11 +25901,11 @@ The actor and the metadata are kept encrypted. When a user is deleted, their par
 | Kind | Types |
 |---|---|
 | Signing up and in | `auth.signup`, `auth.login.success`, `auth.login.failure`, `auth.social.login`, `auth.magic_link.request`, `auth.magic_link.verify`, `auth.phone.signup`, `auth.phone.login`, `sms.otp.send`, `webauthn.login`, `auth.step_up.success`, `auth.step_up.failure` |
-| Passwords and addresses | `auth.password.change`, `auth.password.reset.request`, `auth.password.reset.complete`, `auth.email.verify` |
+| Passwords and addresses | `auth.password.change`, `auth.password.reset.request`, `auth.password.reset.complete`, `auth.email.verify`, `auth.invitation.accept` |
 | Second factors and passkeys | `mfa.enroll`, `mfa.remove`, `mfa.verify.success`, `mfa.verify.failure`, `mfa.recovery.used`, `webauthn.register`, `webauthn.remove`, `webauthn.clone_detected` |
 | Linked providers | `social.link`, `social.unlink` |
 | Sessions and tokens | `session.create`, `session.revoke`, `session.device_change`, `token.issue`, `token.refresh`, `token.revoke`, `trusted_device.register`, `trusted_device.used`, `trusted_device.revoke` |
-| With the secret key | `admin.user.create`, `admin.user.update`, `admin.user.delete`, `admin.user.import`, `admin.user.deactivate_inactive`, `admin.mfa.reset`, `admin.config.change`, `admin.key.rotate`, `admin.audit.export` |
+| With the secret key | `admin.user.create`, `admin.invite`, `admin.user.update`, `admin.user.delete`, `admin.user.import`, `admin.user.deactivate_inactive`, `admin.mfa.reset`, `admin.config.change`, `admin.key.rotate`, `admin.audit.export` |
 | Abuse and breaches | `bot.pow.challenge`, `bot.stuffing.detected`, `bot.ip.blocked`, `breach.detected`, `breach.forced_reset` |
 | Personal data | `gdpr.export`, `gdpr.erasure`, `gdpr.consent.revoke` |
 | Service accounts | `serviceaccount.create`, `serviceaccount.rotate`, `serviceaccount.revoke` |
@@ -25610,6 +26006,8 @@ Without it, `/oauth/authorize` refuses: there is nowhere to sign the person in. 
 2. The provider sends the browser to your page with `?auth_request_id=…`.
 3. Your page signs the person in with `POST /auth/login`, sending the `auth_request_id` with the email and password. The answer's `oidc_callback_url` is where the browser goes next.
 4. From there, the provider sends the browser back to the client's `redirect_uri` with the `code`, the `state` and the issuer (`iss`). The client exchanges the code at `POST /oauth/token`.
+
+The request answers the browser that opened it and completed it, once. `/oauth/authorize` leaves a cookie on the project's address (`__Host-palbase_oauth_…`, five minutes, `SameSite=Lax`) naming the request, and the sign-in that completes it is given a secret, carried in `oidc_callback_url` (`done=`) and nowhere else. The callback answers only a browser that holds both: someone who opened a request and sent its sign-in page to another person has the cookie but never the secret, and the person who signed in has the secret but not their cookie — each is answered `400 auth_request_other_browser` and no code. Once the callback sends the browser back to the client, the request is gone; visiting it again gives nothing. So the page signs the person in within the browser the flow started in, and goes to `oidc_callback_url` there, as it is, as a top-level navigation.
 
 ```ts
 // src/lib/palbase.ts
@@ -26387,6 +26785,7 @@ struct Paywall: View {
             case .alreadyEntitled(_, let entitlement, _): message = "\(entitlement) is already yours, bought elsewhere"
             case .pending: message = "Waiting for approval"
             case .cancelled: break
+            @unknown default: break   // a case a later SDK adds
             }
         } catch {
             message = "\(error)"
@@ -28769,7 +29168,9 @@ A sample is one number: a duration in milliseconds, or a web vital's own unit.
 
 ```swift
 // iOS: analytics and performance collected until the person chooses otherwise
-let pb = PalbaseClient(try .environment.with(consent: ConsentOptions(start: ["analytics": .granted, "performance": .granted])))
+import Palbase
+
+nonisolated let pb = PalbaseClient(try! .environment.with(consent: ConsentOptions(start: ["analytics": .granted, "performance": .granted])))
 ```
 
 The SDKs time every request the app makes — the project's, your backend's and every other service's — but not what analytics itself sends, nor a request the app cancelled, nor a web socket. A launch the person did not wait for (started by the system ahead of them, or for a push or a job and opened later) is not an `app_start`. Each is turned off in the app's analytics options (`network`, `appStart`).
@@ -29107,6 +29508,8 @@ The settings of every environment are in the checkout; the build picks one.
 ## Backends
 
 Each machine of the environment becomes `pb.<name>` in its apps, typed from the contract its serving build answers: its routes, their models and typed errors, and its [gateways](/docs/web/gateways). The name is the machine's camelCased, `pb.shopApi` for the machine `shop-api`, unless `--as shop-api=shop` names it otherwise. A name is the checkout's, the same in every environment, kept in `palbase/project.json`, and never one of the client's own (`auth`, `flags`, `storage`, …).
+
+A machine's name is the project's, so an app whose backend is one machine in Production and another in Development names both the same: with Production's `backend` and Development's `backend-dev`, `palbase apps:sync --as backend-dev=backend` makes each environment's client `pb.backend`, and the app's code builds against either. Two machines of one environment cannot share a name: the run stops and names the environment.
 
 - A machine whose contract has not been read yet gets no client, and the run says so. A contract is read once the build's version alone serves: a `palbase/backend` app writes its own; for another program, [`palbase machines:update <machine> --openapi-path <path>`](/docs/cli/reference#palbase-machinesupdate) names where it serves one.
 - When a push's version did not roll out (its contract was refused, its tests failed), the client is made from the build that serves, and the run says so.
@@ -30741,6 +31144,26 @@ for (const raw of (await data.text()).split("\n")) {
 
 A followed read is held open for 5 minutes at most (and ends when the machine is deleted). A project holds 5 followed reads open at once; a sixth is `429 too_many_follows`. A reader whose connection ends goes on with `since=` the time of the last line it had — a line may then come twice, and its `id` says so.
 
+## Running a command in it
+
+`palbase machines:exec` runs one command in a ready copy of the machine as it serves — the machine woken first if it is asleep — and prints what it printed, ending with its exit code. It is a look into the machine — the date it keeps, a file it wrote, the processes it runs — not a console, and not a job: a job is a [task or a cron](/docs/machines/overview#crons-and-tasks).
+
+```sh
+palbase machines:exec backend -- date
+palbase machines:exec backend -- sh -c 'ls -la /tmp | wc -l'
+palbase machines:execs backend          # who ran which, when, how it ended
+```
+
+| | |
+|---|---|
+| How it runs | Under `/bin/sh` in the machine's own container, with no terminal and no input; what follows `--` is the program and its arguments (its own `-h`, `--help`). An image with no `/bin/sh` runs none. |
+| How long | 60 seconds; past them it is killed — with what it started — and the command ends with `124`. What it left running in the background when it ended is killed then. |
+| What comes back | What it printed on its output and its errors, 1 MiB of them together at most. Every secret and key the machine is started with, and a password in an address (`PALBASE_DB_URL`'s), is written over with `***` — in its output and in the command kept. A value printed changed (encoded, split) is not recognised: written over is not hidden from someone who means to read it. |
+| What is kept | Who ran which command, in which copy, when and how it ended — `machines:execs`, `GET /machines/{name}/execs` — never what it printed. |
+| Who runs one | A person — an admin of the environment's organization, signed in to the CLI or with their account token — in any environment. In a production environment's machine no one else does: not a key, an organization's token (CI's) or an environment's (an agent's) — `403 exec_not_in_production`. Outside production they do; a token narrowed to scopes runs none. |
+
+From a server, `execInMachine` (`POST /machines/{name}/exec`, `{ "command": ["date"] }`) answers `{ ending, exit_code, stdout, stderr, truncated, … }`: `ending` is `exited` (`exit_code` is the command's), `killed` (it ran past 60 s) or `failed` (it did not run: `reason` says why).
+
 ## Rollback
 
 **Roll back** returns the machine to one of its builds that succeeded: a **new version** of the machine, running that build's image, rolled out beside the one that serves like any other. It is the only change of what a machine runs that is not made by a push. The images of a machine's last 10 successful builds are kept; an older build is refused (`409 build_not_deployable`).
@@ -30881,6 +31304,10 @@ TLS is required, and the URLs Studio gives check the server's name (`sslmode=ver
 postgresql://<owner-user>:[YOUR-PASSWORD]@main-<ref>.db.palbase.studio:5432/<database>?sslmode=verify-full
 ```
 
+### When the platform moves it
+
+A database runs on one node at a time, and the platform moves it to another while it serves: off a node being maintained, and off a large node once the load that placed it there has gone (at most once a day), as it moves a database to another size ([below](#changing-and-removing-one)). For a few seconds — 7 on 2026-11-04 — new logins and transactions wait on both ports, then go on, nothing refused. What is under way on the old server when it stops is not carried over: a session on `5432` ends once (`57P01`), and a transaction that had begun is cut. Have your application connect again when its connection ends, as most drivers' pools do, or send its traffic through `6543`, where a new transaction simply waits.
+
 ## Giving it to a machine
 
 In the machine's **New machine** sheet or **Edit settings**, choose the **Database**, and whether this machine **runs its migrations**. Through the API it is the machine's `database`:
@@ -30913,6 +31340,10 @@ A machine is given **any database of its project's**, whichever environment keep
 ## A pull request preview's own
 
 A machine that runs its database's migrations and previews its pull requests ([Pull request previews](/docs/machines/hosting#pull-request-previews)) has each preview given a database of its own, `<database>-pr<number>`, of the `preview` size: 0.25 vCPU, 512 MiB and 500 MB, asleep when idle, with **no backup to bring it back from**: no base backup is taken of it, and no moment of it can be restored. It is opened empty with its preview, migrated by the preview's releases, and deleted — at once, with no restore window — when its preview goes: its pull request closed, three days without a push, seven days after it was opened, or the machine deleted. It is listed with the environment's databases and counts against none of them; its hours are the `free` size's — from the same 400 free hours, billed at its price past them on Pay as you go. No database is opened at the `preview` size, moved to it or from it, or named `<name>-pr<number>` by hand.
+
+### Filling a preview's database for a test
+
+Write what a test needs — rows of any table, another user's listing, a block between two users — with a [test user template](/docs/backend/test-users#a-test-users-data-testusertemplate) and make the user on the preview: `palbase auth:test-users:create --template <name> --machine <machine>-pr<number>`. The pull request's own code writes it, in one transaction as the service role, into the preview's database alone, never the environment's. `palbase auth:test-users:delete <user>` runs the template's undo, which takes away what it wrote, and the preview's test users go with its database when the pull request closes. A token of the `auth:test-users` scope does all of it ([Narrowing it](/docs/getting-started/access-tokens#narrowing-it)): it needs no scope of the database's and reaches no other rows. `palbase db:seed` writes into no database of production's environment (`main`), a preview's of it included: in production, a template is how a preview is filled.
 
 ## Passwords
 
@@ -31275,7 +31706,7 @@ There is nothing to schedule and nothing to turn on: the backups are part of the
 
 A database keeps its backups for **`backup_days`** days — 1 to 35, **7** when left out. In Studio it is **Backups kept** on **New database**, and on the database's page under **Edit access and backups**; through the API, `backup_days` on `createDatabase` or `updateDatabase` (`PATCH /databases/{name}`).
 
-A restore reaches back as far as its backups do. Shortening the days shortens how far back you can go from then on.
+A restore reaches back as far as its backups do. Shortening the days shortens how far back you can go from then on. A backup older than its days is removed, and Palbase keeps it deleted for 7 days more before it is gone; a restore does not reach it.
 
 ## Bringing a database back to a moment
 
@@ -31326,7 +31757,7 @@ A database a machine is given cannot be deleted — `409 database_in_use`. Give 
 
 ### Purging it now
 
-**Purge database** (`purgeDatabase`, `POST /databases/{name}/purge`) takes a deleted database away **for good, now**, instead of at the end of its 7 days: its volume and its backups are removed, it no longer counts toward the project's databases, and its name is free once it has gone (`409 database_purging` for a new database of that name until then). **It cannot be taken back.** A database that is not deleted is refused (`409 database_not_deleted`); one purged already is answered `204` again.
+**Purge database** (`purgeDatabase`, `POST /databases/{name}/purge`) takes a deleted database away **for good, now**, instead of at the end of its 7 days: its volume is removed and its backups leave your project, it no longer counts toward the project's databases, and its name is free once it has gone (`409 database_purging` for a new database of that name until then). **It cannot be taken back through the API.** Its backups are kept, deleted, for 7 more days, in which support can bring them back if you ask; then nothing of it remains. A database that is not deleted is refused (`409 database_not_deleted`); one purged already is answered `204` again.
 
 `listDatabases` (`GET /databases`) lists the deleted databases that may still be taken back beside the others, each with its `deleted_at` and `purge_after` — when its volume and backups go for good.
 
@@ -31334,8 +31765,10 @@ A database a machine is given cannot be deleted — `409 database_in_use`. Give 
 |---|---|---|---|
 | Delete | kept 7 days, with its backups | taken | yes, until purged |
 | Undelete (within 7 days) | back, as it was | — | yes |
-| Purge | gone, now | free once it has gone | no |
-| 7 days pass | gone | free | no |
+| Purge | gone, now; its backups kept 7 days more, for support alone | free once it has gone | no |
+| 7 days pass | gone; its backups kept 7 days more, for support alone | free | no |
+
+A database's data is gone, every byte of it, at most 14 days after it was deleted.
 
 The events: `database.deleted`, `database.undeleted` and `database.purged`.
 

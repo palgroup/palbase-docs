@@ -8,6 +8,8 @@ Every method that reaches the server is a `suspend` function: call it from a cor
 
 ## Quick example
 
+<!-- given: suspend fun askForCode(): String -->
+
 ```kotlin
 import studio.palbase.Auth
 import studio.palbase.AuthAPI
@@ -26,7 +28,7 @@ when (val result = pb.auth.signIn("ada@example.com", "correct-horse-battery-stap
 }
 ```
 
-`AuthAPI` (package `studio.palbase.generated`) holds the auth module's request and answer types, generated from its contract.
+`AuthAPI` (package `studio.palbase`) holds the auth module's request and answer types, generated from its contract.
 
 ## Email and password
 
@@ -44,6 +46,8 @@ A wrong password is a `PalbaseError` with status 401. After 10 failures in 30 mi
 ### Confirming an email
 
 The confirmation email carries a link, or a code when the project uses codes:
+
+<!-- given: token: String -->
 
 ```kotlin
 // The link's token, from the link the app was opened with:
@@ -85,6 +89,8 @@ A sign-in that needs a second factor answers `MfaRequired(mfaToken, factors)`. F
 
 Enrolling, for the signed-in user:
 
+<!-- given: fun showQr(url: String), fun showOnce(codes: List<String>) -->
+
 ```kotlin
 // TOTP: the secret for the authenticator app, its otpauth:// URL and a QR code, and the recovery codes, shown once.
 val totp = pb.auth.mfa.enrollTotp()
@@ -116,6 +122,8 @@ Each keeps the session's refresh token; its refreshes stay at the new level (`TO
 
 `pb.auth.passkeys` runs the system's passkey sheet through Credential Manager: the fingerprint, the face or the device's screen lock. The project publishes its registered Android apps' certificates for it ([Registering the app](https://palbase.studio/docs/android/overview#registering-the-app)).
 
+<!-- given: context: android.content.Context, fun showHome(user: AuthAPI.User), fun askToConfirm(userId: String) -->
+
 ```kotlin
 // Adds a passkey to the signed-in account.
 pb.auth.passkeys.register(context)
@@ -141,6 +149,8 @@ A sheet the user dismisses throws `passkey_cancelled` (`pb.auth.wasCancelled(e)`
 
 ## Magic links
 
+<!-- given: token: String -->
+
 ```kotlin
 pb.auth.magicLink.send("ada@example.com")
 
@@ -163,6 +173,8 @@ when (val result = pb.auth.phone.verifyCode("+905551234567", "482913")) {
 Phone sign-in must be enabled for the project (`provider_not_enabled` otherwise). The code is texted through the project's own SMS provider or verification service — with neither, through Palbase's Twilio Verify.
 
 ## Passwords
+
+<!-- given: token: String -->
 
 ```kotlin
 // Forgot it: the email's link carries a token.
@@ -187,6 +199,8 @@ The session is observable. Each of these is a `StateFlow`, so a composable that 
 | `user` | The signed-in user as auth last answered (`AuthAPI.User`: `id`, `email`, `emailVerified`, `isAnonymous`, `roles`, `metadata`). |
 | `state` | The `Session` itself: `accessToken`, `refreshToken`, `expiresAt` (epoch milliseconds), `userId`, `user`. It changes with every refresh. |
 | `sessionEndReason` | Why the last session ended without the app signing out: `EXPIRED`, `REVOKED`, `USER_DELETED` or `USER_BANNED`. Set before the change is told, and `null` again once someone signs in or the app signs out. |
+
+<!-- given: @Composable fun Home(), @Composable fun SignIn(notice: String?) -->
 
 ```kotlin
 @Composable
@@ -220,6 +234,8 @@ A session is bound to this device. The calls that start or renew it carry a proo
 `signOut()` ends the session on the server and here. A failed call still signs out locally. What a module must undo while the user can still be named runs first. For example, [notify](https://palbase.studio/docs/android/notifications) forgets this device for them.
 
 `deleteAccount(password)` deletes the account, everything tied to it and its sessions, and ends the session here. An account with a password gives it, and a password missing or wrong is `401 reauth_required` with the session kept. An account without one (a guest, a phone or social account) passes nothing:
+
+<!-- given: fun askForPassword(): String -->
 
 ```kotlin
 val me = pb.auth.getUser()

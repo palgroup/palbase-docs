@@ -13,7 +13,16 @@ palbase auth:audit
 palbase auth:audit --event auth.login.failure --limit 200
 ```
 
-`auth:audit` prints the events newest first: when, the event, the result, who, from where, and on what. From a server, `GET /admin/audit` pages through them (`limit` up to 100, `cursor`, `event_type`).
+`auth:audit` prints the events newest first: when, the event, the result, who, from where, and on what. From a server, `GET /admin/audit` (`adminListAuditEvents`) pages through them, newest first, and answers `{ events, next_cursor? }`:
+
+| Query | |
+|---|---|
+| `limit` | 1 to 100 (50 by default) |
+| `cursor` | The `next_cursor` of the page before; absent on the last page |
+| `event_type` | Only events of this type, exactly (below) |
+| `user_id` | Only the events about this user: those whose `target_id` is the user — their sign-ins, their password changes, what was done to their account |
+
+`user_id` and `event_type=auth.password.change` together are one user's password changes: a backend that unlocks a staff account once its temporary password is changed reads it there, or hears `user.password_changed` ([Knowing a password was changed](https://palbase.studio/docs/auth/users#knowing-a-password-was-changed)).
 
 | Field | What it is |
 |---|---|
@@ -33,11 +42,11 @@ The actor and the metadata are kept encrypted. When a user is deleted, their par
 | Kind | Types |
 |---|---|
 | Signing up and in | `auth.signup`, `auth.login.success`, `auth.login.failure`, `auth.social.login`, `auth.magic_link.request`, `auth.magic_link.verify`, `auth.phone.signup`, `auth.phone.login`, `sms.otp.send`, `webauthn.login`, `auth.step_up.success`, `auth.step_up.failure` |
-| Passwords and addresses | `auth.password.change`, `auth.password.reset.request`, `auth.password.reset.complete`, `auth.email.verify` |
+| Passwords and addresses | `auth.password.change`, `auth.password.reset.request`, `auth.password.reset.complete`, `auth.email.verify`, `auth.invitation.accept` |
 | Second factors and passkeys | `mfa.enroll`, `mfa.remove`, `mfa.verify.success`, `mfa.verify.failure`, `mfa.recovery.used`, `webauthn.register`, `webauthn.remove`, `webauthn.clone_detected` |
 | Linked providers | `social.link`, `social.unlink` |
 | Sessions and tokens | `session.create`, `session.revoke`, `session.device_change`, `token.issue`, `token.refresh`, `token.revoke`, `trusted_device.register`, `trusted_device.used`, `trusted_device.revoke` |
-| With the secret key | `admin.user.create`, `admin.user.update`, `admin.user.delete`, `admin.user.import`, `admin.user.deactivate_inactive`, `admin.mfa.reset`, `admin.config.change`, `admin.key.rotate`, `admin.audit.export` |
+| With the secret key | `admin.user.create`, `admin.invite`, `admin.user.update`, `admin.user.delete`, `admin.user.import`, `admin.user.deactivate_inactive`, `admin.mfa.reset`, `admin.config.change`, `admin.key.rotate`, `admin.audit.export` |
 | Abuse and breaches | `bot.pow.challenge`, `bot.stuffing.detected`, `bot.ip.blocked`, `breach.detected`, `breach.forced_reset` |
 | Personal data | `gdpr.export`, `gdpr.erasure`, `gdpr.consent.revoke` |
 | Service accounts | `serviceaccount.create`, `serviceaccount.rotate`, `serviceaccount.revoke` |

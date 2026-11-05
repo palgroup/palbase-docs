@@ -155,12 +155,13 @@ import Palbase
 import Palbe
 
 func setAvatar(_ png: Data) async throws {
-    // posts.photo: an upload route of PostsController, with a path parameter.
-    _ = try await pb.backend.posts.photo(postId: "p_1", file: .data(png, contentType: "image/png")) { progress in
+    // profile.avatar: ProfileController's @Upload("/avatar", …) route, with no body of its own.
+    _ = try await pb.backend.profile.avatar(file: .data(png, contentType: "image/png")) { progress in
         switch progress.phase {
         case .authorizing: print("starting")
         case .uploading: print("\(Int(progress.fraction * 100))%")
         case .processing: print("the backend is handling it")
+        @unknown default: break   // a phase a later SDK adds
         }
     }
 }
@@ -182,7 +183,7 @@ A backend's gateways, its realtime channels, are in the same client: `pb.backend
 import Palbase
 import Palbe
 
-struct Ping: Decodable, Sendable { let ok: Bool }
+nonisolated struct Ping: Decodable, Sendable { let ok: Bool }   // nonisolated: decoded off the main actor
 
 func ping() async throws -> Bool {
     let pong: Ping = try await pb.backend.call("health/ping", method: .get)

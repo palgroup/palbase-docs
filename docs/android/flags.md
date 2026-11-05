@@ -6,6 +6,8 @@
 
 ## Quick example
 
+<!-- given: fun showNewCheckout() -->
+
 ```kotlin
 import studio.palbase.flags.flags
 
@@ -46,7 +48,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Banner(val title: String, val color: String)
 
-val banner = pb.flags.decode<Banner>("home.banner")
+val banner: Banner? = pb.flags.decode<Banner>("home.banner")   // null: no such flag, or not a Banner
 ```
 
 A value is any JSON the flag's type allows: a boolean, a number, a string or an object.

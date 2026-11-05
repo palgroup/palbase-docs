@@ -157,6 +157,26 @@ for (const raw of (await data.text()).split("\n")) {
 
 A followed read is held open for 5 minutes at most (and ends when the machine is deleted). A project holds 5 followed reads open at once; a sixth is `429 too_many_follows`. A reader whose connection ends goes on with `since=` the time of the last line it had — a line may then come twice, and its `id` says so.
 
+## Running a command in it
+
+`palbase machines:exec` runs one command in a ready copy of the machine as it serves — the machine woken first if it is asleep — and prints what it printed, ending with its exit code. It is a look into the machine — the date it keeps, a file it wrote, the processes it runs — not a console, and not a job: a job is a [task or a cron](https://palbase.studio/docs/machines/overview#crons-and-tasks).
+
+```sh
+palbase machines:exec backend -- date
+palbase machines:exec backend -- sh -c 'ls -la /tmp | wc -l'
+palbase machines:execs backend          # who ran which, when, how it ended
+```
+
+| | |
+|---|---|
+| How it runs | Under `/bin/sh` in the machine's own container, with no terminal and no input; what follows `--` is the program and its arguments (its own `-h`, `--help`). An image with no `/bin/sh` runs none. |
+| How long | 60 seconds; past them it is killed — with what it started — and the command ends with `124`. What it left running in the background when it ended is killed then. |
+| What comes back | What it printed on its output and its errors, 1 MiB of them together at most. Every secret and key the machine is started with, and a password in an address (`PALBASE_DB_URL`'s), is written over with `***` — in its output and in the command kept. A value printed changed (encoded, split) is not recognised: written over is not hidden from someone who means to read it. |
+| What is kept | Who ran which command, in which copy, when and how it ended — `machines:execs`, `GET /machines/{name}/execs` — never what it printed. |
+| Who runs one | A person — an admin of the environment's organization, signed in to the CLI or with their account token — in any environment. In a production environment's machine no one else does: not a key, an organization's token (CI's) or an environment's (an agent's) — `403 exec_not_in_production`. Outside production they do; a token narrowed to scopes runs none. |
+
+From a server, `execInMachine` (`POST /machines/{name}/exec`, `{ "command": ["date"] }`) answers `{ ending, exit_code, stdout, stderr, truncated, … }`: `ending` is `exited` (`exit_code` is the command's), `killed` (it ran past 60 s) or `failed` (it did not run: `reason` says why).
+
 ## Rollback
 
 **Roll back** returns the machine to one of its builds that succeeded: a **new version** of the machine, running that build's image, rolled out beside the one that serves like any other. It is the only change of what a machine runs that is not made by a push. The images of a machine's last 10 successful builds are kept; an older build is refused (`409 build_not_deployable`).

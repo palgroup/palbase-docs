@@ -13,7 +13,7 @@ import Palbase
 import SwiftUI
 
 /// The app's one client: the environment its build configuration names.
-let pb = PalbaseClient(.environment)
+nonisolated let pb = PalbaseClient(.environment)
 
 struct RootView: View {
     var body: some View {
@@ -36,7 +36,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.4.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.16.6")
 ```
 
 | Product | What it is |
@@ -114,10 +114,10 @@ A configuration that names no environment, or one the app is not set in, stops t
 ```swift
 import Palbase
 
-let pb = PalbaseClient(.environment)
+nonisolated let pb = PalbaseClient(.environment)
 ```
 
-Make one client for the app and keep it: every module hangs off it (`pb.auth`, `pb.flags`, `pb.notify`, …), made once on first use and sharing its transport and its socket. A module's property exists once its product is imported: `pb.flags` needs `import PalbaseFlags`.
+Make one client for the app and keep it: every module hangs off it (`pb.auth`, `pb.flags`, `pb.notify`, …), made once on first use and sharing its transport and its socket. A module's property exists once its product is imported: `pb.flags` needs `import PalbaseFlags`. `PalbaseClient` is `Sendable`, and `nonisolated` keeps the global off the main actor in an app whose default isolation is the main actor (a new Xcode 26 project's): code that runs elsewhere — a notification delegate's `nonisolated` method, a background task — reaches it too.
 
 | Member | What it is |
 |---|---|
@@ -139,7 +139,7 @@ The generated `.environment` holds what the project says. What is the app's own 
 ```swift
 import Palbase
 
-let pb = PalbaseClient(try! .environment.with(
+nonisolated let pb = PalbaseClient(try! .environment.with(
     consent: ConsentOptions(start: ["analytics": .granted, "performance": .granted], textVersion: "2026-10"),
     analytics: AnalyticsOptions(appBackground: false),
     appGroup: "group.com.example.shop"

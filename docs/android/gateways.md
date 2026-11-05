@@ -8,6 +8,8 @@ A [gateway](https://palbase.studio/docs/backend/gateways) is a realtime channel 
 
 For the backend's `RoomGateway` (`@Gateway("room:{roomId}")`, with the events `message` and `welcome` and the message `say`, in [Gateways](https://palbase.studio/docs/backend/gateways#quick-example)), the generated client has `RoomGateway(roomId)`, its events as `RoomGatewayEvent`, and its messages as `RoomGatewaySend`:
 
+<!-- given: fun show(text: String) -->
+
 ```kotlin
 import studio.palbase.backend.join
 import studio.palbase.generated.*
@@ -93,6 +95,9 @@ When the socket closes for good, every handle on it ends: its listeners are drop
 A gateway declared with `chat: true` carries a chat of the project's agents, which the platform writes into its channel ([AI](https://palbase.studio/docs/backend/ai#a-chat-in-an-app)). Its generated class is a `PBChatGateway`, and joining it returns a `ChatGatewayHandle`. That handle is the gateway's own (`on`, `send`, `leave`) and also has `chat`: the chat's state, folded from what the platform writes there, from the chat's start, then each change as it comes.
 
 ```kotlin
+import studio.palbase.realtime.ChatGatewayHandle
+import studio.palbase.realtime.PBChat
+
 @Composable
 fun Support(support: ChatGatewayHandle<SupportGatewayEvent, SupportGatewaySend>) {
     val chat by support.chat.state.collectAsState()
@@ -128,6 +133,8 @@ What the user does in the chat (a message, a yes or a no, stop) is the gateway's
 
 The channel keeps a day of the chat. `chat.loadOlder(pb, chatId)` reads the page before what the state holds (`GET /ai/chats/{id}/parts`) and folds it in front, each part once. It reads with the member's own session, which the project allows its app's users with its AI settings' `clients` (`Palbase.ai.settings.put`, [AI](https://palbase.studio/docs/backend/ai#chats)). It returns whether there is more before it, and `chat.hasOlder` says the same without reading.
 
+<!-- given: support: ChatGatewayHandle<SupportGatewayEvent, SupportGatewaySend>, chatId: String, fun enoughShown(): Boolean -->
+
 ```kotlin
 while (support.chat.loadOlder(pb, chatId)) {
     if (enoughShown()) break
@@ -139,6 +146,8 @@ When the project's app reaches no chat of its own, the app's backend can read th
 ### Attachments, tool calls and workspace files
 
 A message's pictures and files are read back with the member's session:
+
+<!-- given: message: PBChat.Message, chatId: String -->
 
 ```kotlin
 import studio.palbase.realtime.chatAttachment

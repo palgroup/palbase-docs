@@ -4,7 +4,7 @@
 
 The Android SDK is `studio.palbase:palbase` and one artifact per module, in Kotlin, with coroutines. `palbase` holds the project's address and publishable key, the transport every call goes through, the signed-in user's session, the realtime socket, consent and auth. Each module (flags, analytics, realtime, notify, storage, purchases) is an artifact of its own that hangs off the same client, as `pb.flags`, `pb.notify` and so on. A backend of yours is a typed client that `palbase apps:sync` writes into the app, and it calls through the same client too.
 
-The version on this page is **0.4.0**.
+The version on this page is **0.16.7**.
 
 ## Requirements
 
@@ -49,7 +49,7 @@ android {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.4.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.16.7"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-flags")     // and the other modules the app uses
     implementation("studio.palbase:palbase-palbe")     // when the app calls a backend of yours
@@ -60,7 +60,7 @@ dependencies {
 |---|---|---|
 | `palbase` | The address and key, the transport, the session, the realtime socket, consent, auth, the debug console's recording | `PalbaseClient`, `pb.auth`, `pb.socket`, `pb.consent`, `pb.debug` |
 | `palbase-flags` | The project's flags, kept current | `pb.flags` ([Flags](https://palbase.studio/docs/android/flags)) |
-| `palbase-analytics` | Events, screens, timings and diagnostics, each behind its consent | `pb.analytics(startingConsent)` ([Analytics](https://palbase.studio/docs/android/analytics)) |
+| `palbase-analytics` | Events, screens, timings and diagnostics, each behind its consent key | `pb.analytics` ([Analytics](https://palbase.studio/docs/android/analytics)) |
 | `palbase-realtime` | Channels: broadcasts and a shared state | `pb.realtime` ([Realtime](https://palbase.studio/docs/android/realtime)) |
 | `palbase-notify` | This device's push token for the user, their preferences and topics, the inbox, in-app messages | `pb.notify` ([Notifications](https://palbase.studio/docs/android/notifications)) |
 | `palbase-notify-ui` | The inbox and in-app messages, drawn in Compose | `InboxView`, `PalbaseInAppMessages` ([Notifications](https://palbase.studio/docs/android/notifications#the-inbox)) |
@@ -229,7 +229,7 @@ Every request says the user's languages in `Accept-Language`, the device's in th
 pb.setPreferredLanguages(listOf("tr", "en"))   // null goes back to the device's
 ```
 
-Requests also carry `X-Palbase-SDK: android/0.4.0` (`PalbaseClient.VERSION`).
+Requests also carry `X-Palbase-SDK: android/0.16.7` (`PalbaseClient.VERSION`).
 
 ### Observable state
 
@@ -253,7 +253,7 @@ fun Account() {
 
 ### Consent and the installation
 
-`pb.consent` is what the user allowed the app to collect, by category: `Consent.Category.ANALYTICS`, `PERFORMANCE` and `DIAGNOSTICS`. Every module that collects asks it, and while a category is not granted nothing of it is made. [Analytics](https://palbase.studio/docs/android/analytics#consent) shows it at work.
+`pb.consent` is what the person allowed the app to collect and use, key by key: `analytics`, `performance`, `diagnostics`, and the platform's other keys. Every module that collects asks it, and while a key is not granted nothing of it is made. What the app starts with until the person chooses is `ConsentOptions.start`, given with `PalbaseConfiguration.environment.with(consent = …)`. [Analytics](https://palbase.studio/docs/android/analytics#consent) shows it at work.
 
 `pb.installation.id` is this install of the app: 16 random bytes, kept across launches and updates, that carry nothing of the device or the user. Flags' percentages and a push token are an installation's.
 

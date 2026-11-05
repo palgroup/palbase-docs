@@ -8,6 +8,8 @@
 
 The backend signs an upload URL for one object (`Palbase.storage.createUploadUrl`, [Direct Uploads](https://palbase.studio/docs/backend/direct-uploads)) and answers it from a route of its own. The app sends the bytes to it:
 
+<!-- given: bytes: ByteArray, grantUrl: String -->
+
 ```kotlin
 import studio.palbase.storage.storage
 
@@ -23,6 +25,8 @@ The URL's conditions (the bucket, the path, the expiry, the ceiling, the types, 
 ## Downloading
 
 A private object is read with a download URL the backend signed (`Palbase.storage.createSignedUrl`, [Storage](https://palbase.studio/docs/backend/storage)):
+
+<!-- given: signedUrl: String -->
 
 ```kotlin
 val bytes: ByteArray = pb.storage.download(signedUrl)

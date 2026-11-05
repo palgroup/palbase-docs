@@ -82,6 +82,12 @@ palbase auth:settings:set signups_enabled=false
 
 A password found in a known breach is refused at sign-up and on every change (`400 password_breached`). Users created with the secret key can skip that check (`skip_password_hibp`).
 
+### Your app's name
+
+| Key | Default | What it says |
+|---|---|---|
+| `app_name` | none | Your app's name, as its people know it (`Koz`): what an [invitation](https://palbase.studio/docs/auth/users#inviting-someone)'s email and page say the person is invited to — "Koz invited you", "Join Koz". One line, 64 characters at most. Empty: "An app invited you". Only the invitation says it; auth's other emails stay brand-neutral. **Auth › Settings › Your app** sets it too. |
+
 ### Links in auth emails
 
 | Key | Default | What it says |
@@ -167,7 +173,7 @@ Keys rotate on their own every 90 days. A key is published in the key set a day 
 
 ## Auth's emails and texts
 
-Auth sends its emails through the project's notifications, from templates that belong to the environment: `auth.email_verify` and `auth.email_verify_code` (confirming an address), `auth.password_reset`, `auth.magic_link`, `auth.mfa_otp` (a sign-in code by email), and the security emails above. A phone code is the SMS template `auth.sms_otp`.
+Auth sends its emails through the project's notifications, from templates that belong to the environment: `auth.email_verify` and `auth.email_verify_code` (confirming an address), `auth.password_reset`, `auth.magic_link`, `auth.user_invitation` (an [invitation](https://palbase.studio/docs/auth/users#inviting-someone)), `auth.mfa_otp` (a sign-in code by email), and the security emails above. A phone code is the SMS template `auth.sms_otp`.
 
 **Auth › Templates** edits them in each language and sends a test. Until the environment has its own email provider, auth's mail goes through the platform's shared sender with the default text; your edits are used once your own provider is connected ([Notifications](https://palbase.studio/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)). The same templates are reachable as any others: `palbase notify:templates:set`, or `PUT /notify/templates/email/{slug}/{locale}` ([Templates](https://palbase.studio/docs/backend/notifications#templates)).
 

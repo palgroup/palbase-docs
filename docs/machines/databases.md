@@ -105,6 +105,10 @@ TLS is required, and the URLs Studio gives check the server's name (`sslmode=ver
 postgresql://<owner-user>:[YOUR-PASSWORD]@main-<ref>.db.palbase.studio:5432/<database>?sslmode=verify-full
 ```
 
+### When the platform moves it
+
+A database runs on one node at a time, and the platform moves it to another while it serves: off a node being maintained, and off a large node once the load that placed it there has gone (at most once a day), as it moves a database to another size ([below](#changing-and-removing-one)). For a few seconds — 7 on 2026-11-04 — new logins and transactions wait on both ports, then go on, nothing refused. What is under way on the old server when it stops is not carried over: a session on `5432` ends once (`57P01`), and a transaction that had begun is cut. Have your application connect again when its connection ends, as most drivers' pools do, or send its traffic through `6543`, where a new transaction simply waits.
+
 ## Giving it to a machine
 
 In the machine's **New machine** sheet or **Edit settings**, choose the **Database**, and whether this machine **runs its migrations**. Through the API it is the machine's `database`:
@@ -137,6 +141,10 @@ A machine is given **any database of its project's**, whichever environment keep
 ## A pull request preview's own
 
 A machine that runs its database's migrations and previews its pull requests ([Pull request previews](https://palbase.studio/docs/machines/hosting#pull-request-previews)) has each preview given a database of its own, `<database>-pr<number>`, of the `preview` size: 0.25 vCPU, 512 MiB and 500 MB, asleep when idle, with **no backup to bring it back from**: no base backup is taken of it, and no moment of it can be restored. It is opened empty with its preview, migrated by the preview's releases, and deleted — at once, with no restore window — when its preview goes: its pull request closed, three days without a push, seven days after it was opened, or the machine deleted. It is listed with the environment's databases and counts against none of them; its hours are the `free` size's — from the same 400 free hours, billed at its price past them on Pay as you go. No database is opened at the `preview` size, moved to it or from it, or named `<name>-pr<number>` by hand.
+
+### Filling a preview's database for a test
+
+Write what a test needs — rows of any table, another user's listing, a block between two users — with a [test user template](https://palbase.studio/docs/backend/test-users#a-test-users-data-testusertemplate) and make the user on the preview: `palbase auth:test-users:create --template <name> --machine <machine>-pr<number>`. The pull request's own code writes it, in one transaction as the service role, into the preview's database alone, never the environment's. `palbase auth:test-users:delete <user>` runs the template's undo, which takes away what it wrote, and the preview's test users go with its database when the pull request closes. A token of the `auth:test-users` scope does all of it ([Narrowing it](https://palbase.studio/docs/getting-started/access-tokens#narrowing-it)): it needs no scope of the database's and reaches no other rows. `palbase db:seed` writes into no database of production's environment (`main`), a preview's of it included: in production, a template is how a preview is filled.
 
 ## Passwords
 

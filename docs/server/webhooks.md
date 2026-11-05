@@ -83,6 +83,7 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | Type | Sent when | `data` |
 |---|---|---|
 | `user.deleted` | A user is deleted — by themselves, or with the secret key. | `{ user_id, is_test, deleted_at }` |
+| `user.password_changed` | A user's password is set by its owner: changed with the current one (`method: change`), reset from a link (`reset`), given to an account that had none (`set`), or an invitation taken up (`invitation`). An account made with a password, and a sign-in that rehashes it, say nothing. `changed_at` is the user's `password_changed_at`. | `{ user_id, changed_at, method, is_test }` |
 | `session.ended` | A user's session ends — they signed out, ended it from another device, it was revoked (by an admin, a ban, a password reset, its refresh token used twice), it ran out with no one back to renew it (`ended_at` is then the moment its time was up), or the user was deleted. | `{ user_id, session_id, ended_at }` |
 | `file.uploaded` | An object is written: a `PUT`, a copy, an upload through a signed URL. | `{ bucket, path, size, content_type, owner_id }` |
 | `file.deleted` | An object is deleted. | the same fields |

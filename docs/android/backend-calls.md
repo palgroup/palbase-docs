@@ -14,7 +14,7 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.4.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.16.7"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-palbe")
 }
@@ -144,6 +144,8 @@ What only you set: the SHA-256 of the certificates your releases are signed with
 
 A route the backend declares with `@Upload` takes the file in the app's call: the call goes to the project's storage, which writes the file where the route's template says and then runs the route's handler with it ([Upload routes](https://palbase.studio/docs/backend/direct-uploads#upload-routes)). Its generated function takes the bytes, a file name, an optional content type and a progress callback:
 
+<!-- given: bytes: ByteArray, var progress: Double -->
+
 ```kotlin
 // ProfileController's @Upload("/avatar", …) avatar route, with no body of its own:
 val avatar = pb.backend.profile.avatar(
@@ -179,6 +181,10 @@ A path built from a value is held to plain path segments, and anything else is r
 `pb.palbe(URI("http://10.0.2.2:8080"))` (`import studio.palbase.backend.palbe`) is a client of a backend at an address of its own: in a debug build, one running on the computer the emulator runs on. It carries the user's token as the environment's backends do. The generated namespaces hang on the backend's own type, `PB<Name>Backend`, which the app's module can make around it:
 
 ```kotlin
+import java.net.URI
+import studio.palbase.backend.palbe
+import studio.palbase.generated.*
+
 val local = PBBackendBackend(pb.palbe(URI("http://10.0.2.2:8080")))
 val note = local.notes.create(NotesCreateRequest(title = "Groceries"))
 ```

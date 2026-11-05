@@ -34,6 +34,7 @@ struct SignInView: View {
             switch try await pb.auth.signIn(email: email, password: password) {
             case .signedIn: problem = ""
             case .mfaRequired(let token, _): mfaToken = token // finish with pb.auth.mfa.challenge(...)
+            @unknown default: problem = "Update the app"   // a result a later SDK adds
             }
         } catch {
             problem = "\(error)"
@@ -55,6 +56,8 @@ struct SignInView: View {
 ## Who is signed in
 
 `pb.auth.state` is an `@Observable` object on the main actor. A SwiftUI view that reads it is drawn again when it changes, with no listener to write:
+
+<!-- given: struct SignInView: View { var body: some View { EmptyView() } } -->
 
 ```swift
 import Palbase
@@ -168,6 +171,7 @@ func passkeyAccount() async throws {
     switch try await pb.auth.passkeys.signUp(email: "ada@example.com", displayName: "Ada") {
     case .signedIn(let user): print("signed in", user.id)
     case .confirmationRequired(let userId): print("confirm the address first", userId)
+    @unknown default: break   // a result a later SDK adds
     }
 }
 

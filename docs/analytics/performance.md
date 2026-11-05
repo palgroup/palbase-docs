@@ -20,7 +20,9 @@ A sample is one number: a duration in milliseconds, or a web vital's own unit.
 
 ```swift
 // iOS: analytics and performance collected until the person chooses otherwise
-let pb = PalbaseClient(try .environment.with(consent: ConsentOptions(start: ["analytics": .granted, "performance": .granted])))
+import Palbase
+
+nonisolated let pb = PalbaseClient(try! .environment.with(consent: ConsentOptions(start: ["analytics": .granted, "performance": .granted])))
 ```
 
 The SDKs time every request the app makes — the project's, your backend's and every other service's — but not what analytics itself sends, nor a request the app cancelled, nor a web socket. A launch the person did not wait for (started by the system ahead of them, or for a push or a job and opened later) is not an `app_start`. Each is turned off in the app's analytics options (`network`, `appStart`).

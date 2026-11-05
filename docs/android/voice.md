@@ -35,6 +35,8 @@ export class VoiceController {
 
 The app connects, after `palbase apps:sync` wrote the backend's client:
 
+<!-- given: context: Context, chatId: String -->
+
 ```kotlin
 import studio.palbase.generated.*
 import studio.palbase.voice.PBStartedVoice

@@ -240,7 +240,7 @@ The agent is your build's: the build writes it into its contract (`x-palbase-age
 | `instructions` | What the agent is told before the chat. |
 | `model` | A model's name (`Palbase.ai.models()`). Left out, the project's default. |
 | `tools` | 64 at most, an MCP server's tools counted. |
-| `subagents` | 16 at most: each a `name`, a `description` the agent reads to hand it work, and its own `instructions`, `model` and `tools`. `required: true` fails the turn when its part fails. |
+| `subagents` | 16 at most: each a `name`, a `description` the agent reads to hand it work, and its own `instructions`, `model` and `tools`. `required: true` fails the turn when its part fails. What a subagent may do: [Subagents](#subagents-their-own-tools-no-shell-four-at-a-time). |
 | `maxToolCalls` | The turn's tool calls, 1 to 10 000. Past it the agent is told it has no tools left, and answers. |
 | `thinking` | `visible` shows the model's reasoning in the chat's stream as `thinking` parts. `hidden` does not ask for it. When the model's provider will not give it, the turn says so once: a `thinking` part with `unavailable: true`, the `model` and the provider's `reason`. One cause is an OpenAI organization not verified for reasoning summaries; Anthropic's models (`claude-sonnet-5-5`) and Kimi show theirs. |
 | `advisor` | A second model that reads the agent's work and holds it to your rules: [The advisor](#the-advisor). |
@@ -309,6 +309,10 @@ A kept agent is given the same tools a backend's is. A backend or client tool na
 
 **An agent from a description.** Studio's **Create with AI**, or `palbase ai:agents:generate "helps customers who ask where their order is"`, writes a draft: its instructions, model and tools, chosen from the project's own tools. Palbase pays for the model that writes it. A person writes 20 drafts an hour in a project.
 
+### Subagents: their own tools, no shell, four at a time
+
+A subagent has the tools its own entry names and no others: no shell and no workspace files — those are the agent's, which hands it the text it needs and takes back its answer. It runs on no machine of the workspace's: its tools run where they always do (your backend's, an MCP server's, HTTPS). The agent hands work to several subagents at once and goes on while they work: 4 at a time, and a subagent's own subagents one level down at most. `chats.sendToSubagent` messages one at work, and `chats.turnCost` counts what each spent.
+
 ## Chats
 
 A chat is the project server's. Only your backend starts one (a user's own call is refused `403 server_only`), and it names the chat's members:
@@ -356,6 +360,20 @@ export class SupportController {
 **Budgets.** `send(id, { text, budget: { maxCostUsd: 0.5 } })` bounds what the turn that message starts may cost, its subagents' calls counted. Past it the turn stops and ends `budget_exceeded`. A message into a turn already running takes that turn's budget.
 
 **Settings.** `Palbase.ai.settings.put({ … })` sets what the project allows its chats: `userMessagesPerMinute` (1 to 600, 20 unless set), and `historyLimitBytes`, the chat history the project keeps: a free project at most 500 MiB, less if it says so; a project with paid rights keeps all of it (`historyLimitBytes` is `null`) unless it says a limit of its own, up to 1 TiB. Past it, a message is refused (`409 history_full`) until chats are deleted. `settings.get()` also says how much is kept now. `clients`, off unless set, lets a user's own session read and write the chats they are in at the project's address. The app SDKs read through it what a gateway does not carry — a chat's older history (`loadOlder`), a tool call's whole answer (`chatToolCall`), a workspace file or an attachment — and a chat's live messages still come through its gateway.
+
+### When a turn fails
+
+A turn's end is its response's: `GET /ai/responses/{id}` answers its `status` and, for one that did not complete, its `error` — a `code` and a `message` — and the turn's `ai.response.failed` event carries the same `error` with `retryable`, whether asking again may go otherwise. A message given to a turn has the turn's id (`response_id`, in `chats.messages`): the turn's error is there. A message's own `error` is for one that never reached a turn (its `status` is `failed`). `chats.turnCost` says each run's state, `failed` too.
+
+A turn the model's provider refused for good ends `provider_rejected`, and its message says which of three it was, and so whose it is to fix:
+
+| What was refused | The message says | What happens, and what to do |
+|---|---|---|
+| **Palbase's own account** at the provider: its credit, or its key | `Palbase's Anthropic account refused the call (its credit or its key): this is on Palbase's side, not your request …` | `retryable: true`. Palbase's operators are told at once, and the same turn is answered once the account serves again. Your request is not at fault and nothing of yours changes. The models of other providers answer meanwhile: name one of them (`GET /ai/models`) to go on now. |
+| **Your project's own key** for the provider (`connectProvider`) | `your project's own Anthropic key was refused by Anthropic (its credential, its permission or its account's credit) …` | `retryable: false`. Fix the key, or its account's credit, at the provider. Or disconnect it (**AI › Models & keys**, `DELETE /ai/providers/{provider}`) for Palbase's keys to answer. |
+| **The request itself** | `Anthropic refused the request itself …` | `retryable: false`. The same request is refused again. Change what it sends: its model, its tools, its attachments, its size. |
+
+A refusal is neither a rate limit nor a provider's outage. Those are retried by the platform while the turn runs, and a turn that still cannot reach the provider ends with an error whose `retryable` says asking again may help. The provider's own sentence never reaches you: it can name what the request held, and Palbase's operators read it. A turn that spent its budget ends `budget_exceeded`, and one past its deadline `timed_out`. The project's refusals of its own — its limit, its plan — are in [Refusals](#refusals).
 
 ## Voice
 
@@ -434,6 +452,30 @@ With `autoPush: false` a push waits for a member's approval, as an `approval: tr
 **Whose commits, and what they carry.** Each commit the agent makes is written as the member its turn is for: their name in the chat and their address, as an author and as a committer. This holds for the platform's commit tool and for a plain `git commit` the agent runs in the shell. Each turn writes its member into the repositories' own git config and installs a `commit-msg` hook that adds the chat's trailers. A hook, or a hooks path, the repository already has is left alone. Give the address with the member (`members: [{ userId, name, email }]`, or `PUT /ai/chats/{id}/members/{userId} { email }`). A member's own session gives it again, verified, whenever they write. It is never served to the chat's other members. A member with no address commits under one of the platform's that names them and reaches no one. A turn that is no member's (your server's own) commits as the platform. `workspace: { trailers: [{ key, value }] }` are git trailers every commit of the chat carries at the end of its message: a task (`PalCore-Task: #12`), a link back to the conversation, a co-author (`Co-authored-by: …`). Up to 16, each one line. The agent's work is pushed only to the chat's branch. On a protected or default branch (`main`, `master`, the repository's default) it goes to a branch of its own, `agent/<workspace>/<run>`.
 
 **What the workspace did, as events.** The workspace's machine publishes its tree whenever the files are quiet for a moment, so mid-turn, as a build writes its product. It publishes once more as it lets the workspace go. Each tree is `ai.workspace.published`, with the files it changed against the tree it replaced (`changed: [{ path, change: added|modified|removed, size_bytes }]`, 1000 at most). Read one of its files, as that tree left it, at `GET /ai/chats/{id}/workspace/files?path=<path>&manifest=<manifest_id>` (without `manifest`, from the tree the workspace is at now). Files are served up to 64 MiB (`413 file_too_large` past it), with their digest in `Content-Digest`; publish a larger one as the turn's artifact. A project reads 4 files at once (`429 too_many_reads`, with `Retry-After`), and a file is written for no longer than its bytes take at 256 KiB/s plus a minute. A tree's changes are named 1000 at a time in the event (`changed_truncated` past that). A push is `ai.workspace.pushed`, with the commits it brought (`commits: [{ sha, subject, author_name, author_email }]`, 100 at most), the repository by your name for it, the branch and the member. The chat's members see the push in the stream with each commit's author by name, never by address. Each event is told once, from the turn's start until 20 minutes after its end, whoever is watching the chat.
+
+### What a workspace holds: 1 to 8 repositories, none empty
+
+1 to 8 of the project's repositories, each at a branch that is already on GitHub: a chat named with no repository is refused, and an empty repository — one with no commit yet — or a branch not pushed yet cannot be cloned, so the chat's first turn fails. Give a new repository its first commit (a README is enough) before a chat works in it.
+
+### Two chats never share a workspace; a fork's turns take it one at a time
+
+Every chat `chats.create` starts has a workspace of its own, cloned for it. Two chats that name the same repository and branch work in two clones: neither sees the other's files, uncommitted or not, and each clone is the branch as it was when its workspace was first laid out. A push onto a branch the other chat moved meanwhile is refused (`remote_diverged`), never forced. A fork (`POST /ai/chats/{id}/fork`) works in its chat's workspace: one machine, one tree. Their turns take the workspace one at a time — a turn of the fork waits while one of the chat's runs, then works on the tree that turn left — so nothing is merged. A chat is not forked while a turn of it runs (`409 turn_running`).
+
+### Different agents in one workspace
+
+A workspace is one chat's, and a fork's, and a fork's agent is its chat's: two chats of two named agents never share files. To work in one tree with different instructions or tools, fork the chat and define the agent in your backend (`Palbase.ai.agent(name, define)`, [Agents](#agents)): it is defined anew at every turn from the turn's `chatId` and the message's `metadata`, so one agent answers each chat, or each message, as a different one. Their turns still take the tree one at a time, and a fork carries its chat's history up to the message it was forked before.
+
+### The workspace's machine: Debian 12, Node 24, headless Chrome
+
+A workspace's turns run on one machine of Palbase's: a gVisor container on an Azure VM (AMD, amd64), Debian 12 with Node 24, Python 3, git, a C toolchain, ripgrep, poppler and tesseract, and a headless Chrome: `/usr/bin/chromium` (also `CHROME_PATH`) for Playwright's `executablePath` and for Puppeteer, and every library Playwright's own browser needs, so `npx playwright install chromium` installs the one your project's Playwright asks for, into the agent's home, with no root. Chrome starts with no sandbox of its own: the container's is the boundary. The agent's shell runs as an unprivileged user, so it installs no system package. A workspace has up to 8 GiB of memory (its `/tmp`, 1 GiB, counts in it), 2 cores — 4 on a machine added for the load — and 30 GiB of disk for its tree and what it installs, with the network a build needs (npm, pip, git).
+
+### How long a turn waits for the machine
+
+A new workspace is given a machine already started, in milliseconds, and then clones its repositories: the first turn waits for the clone. An idle workspace's machine is parked after 15 minutes — stopped, its disk kept — and its next turn starts it again in seconds, its files, `node_modules` and builds where they were (measured: the turn answered in 5.8 s, the machine up in 0.2 s). A workspace parked for 12 hours is deleted, and its next turn clones again. When every machine is busy, one more is started: a few minutes, 15 at most.
+
+### What the workspace's machine costs
+
+A workspace's machine is `ai.workspaces` on the bill: $0.09681 an hour of the time a turn holds it, by the second, with no free hours, beside the models' tokens. A parked machine costs nothing. Its metric is `ai.machines.seconds` ([Usage and limits](https://palbase.studio/docs/getting-started/usage-and-limits)), its price on the [billing terms](https://palbase.studio/legal/billing).
 
 ## A chat in an app
 

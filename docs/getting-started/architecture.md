@@ -35,7 +35,7 @@ The rule that carries the most weight is the narrowest: **a controller does not 
 | A business rule, a calculation, an ordering | the service |
 | Answer with an HTTP status | `throw new NotFound(…)` (or `Forbidden`, `Conflict`, `PalError`) — from the service or the controller; no response object is needed |
 | Call another domain | name its class in your constructor — its module `exports` it, and yours `imports` that module |
-| Send an email, sign a file URL, read a secret | `Palbase.notify`, `Palbase.storage`, `Palbase.secrets` — in the service |
+| Send an email, sign a file URL, read a secret | `Palbase.notify`, `Palbase.storage`, `Secrets.get` (what the machine started with) — in the service |
 | Work at start-up or shutdown | an `onStart()` / `onShutdown()` method on a provider — awaited in dependency order |
 | Work on a schedule | a [cron](https://palbase.studio/docs/backend/cron) — not a timer: a machine that sleeps runs none |
 | Work done once, now or later | a [task](https://palbase.studio/docs/backend/tasks) on the machine's queue — not a cron that looks in a table every minute |

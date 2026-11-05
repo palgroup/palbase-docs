@@ -22,9 +22,88 @@ palbase auth:users:get usr_01J…
 palbase auth:users:create ada@example.com --verified < password.txt
 ```
 
-The password is read from standard input, never from the command line. The account is made at once, with no email sent: share the password through a channel you trust. **Auth › Users › Create user** does the same. `POST /admin/users` takes `{ email, password, email_verified?, metadata?, skip_password_hibp? }`; it skips the self-service sign-up's rate limits and bot checks, but still holds the password to the environment's policy and, unless told not to, to the known-breaches check.
+The password is read from standard input, never from the command line. The account is made at once, with no email sent: share the password through a channel you trust — or invite the person, and they choose it ([Inviting someone](#inviting-someone)). **Auth › Users › Create user** does the same. `POST /admin/users` takes `{ email, password, email_verified?, metadata?, skip_password_hibp? }`; it skips the self-service sign-up's rate limits and bot checks, but still holds the password to the environment's policy and, unless told not to, to the known-breaches check.
 
 `PATCH /admin/users/{uid}` changes a user's `email`, `email_verified` and `metadata`. A new address is unconfirmed unless `email_verified` is sent with it, and one another user has is `409 user_exists`. `metadata` is merged into what the user has: a key set to `null` is removed.
+
+## Inviting someone
+
+An invitation makes an account for a person and lets them choose its password: how your server adds its staff, or an admin a colleague. Palbase emails them a link; they open it, set the password on a page Palbase serves at the environment's own address, and sign in with it from your app. It is `POST /admin/users/invite`, with the project's secret key:
+
+```ts
+// staff.ts
+import { createServer } from "palbase/server";
+
+const palbase = createServer({ url: process.env.PALBASE_URL!, secretKey: process.env.PALBASE_SECRET_KEY! });
+
+const { status, data } = await palbase.auth.adminInviteUser({ body: { email: "cashier@example.com", metadata: { shop: "kadikoy" } } });
+// 201: an account made, invited — data.user.invited is true, data.invitation.expires_at seven days on
+// 200: the address was invited before and had not taken it up: invited again (data.invitation.again)
+await palbase.auth.adminAssignUserRole({ path: { uid: data.user.id, role: "cashier" } });
+```
+
+On a Palbase machine the same call is `Palbase.auth.adminInviteUser` ([Authentication](https://palbase.studio/docs/backend/authentication)). The body is `{ email, metadata?, locale?, redirect_to?, send_email? }`, and what it does is the account the address has:
+
+| The address | What happens | Answer |
+|---|---|---|
+| has no account | An account is made for it, invited: it has no password, and cannot sign in with one, until the person sets it from the link. The link is emailed. | `201` |
+| has an account invited that has not taken it up — no password set, never signed in, not banned | It is invited again: a new link is sent, the earlier ones no longer open it, and its seven days start now. The `metadata` sent is merged into the account's. | `200`, `invitation.again: true` |
+| has any other account | Refused: `409 user_exists`, with the account's `user_id` and `email_verified`. Nothing is sent, and the account is left as it is — its password above all. Give it what you invited it for yourself, a role with `adminAssignUserRole` — **only when `email_verified` is true**: an account whose address is not confirmed was made by whoever typed the address, who may not own it. | `409` |
+
+This is how Supabase's `inviteUserByEmail`, Firebase's `createUser` and Cognito's `AdminCreateUser` treat an address: an account the person already owns is never invited over, and an invitation not taken up is sent again.
+
+### An invitation's life
+
+1. **Invited.** The user has `invited: true` and an `invited_at` (Studio's **Users** shows *Invited*). Roles can be given to it already; it holds those you give it — a sign-up's default roles are a sign-up's.
+2. **The email names your app, and the link lives seven days.** It reads "**Koz** invited you to join. *Accept the invitation* and choose your password" ("Koz sizi davet etti. *Daveti kabul et* …" in Turkish) — your app's name is the [auth settings](https://palbase.studio/docs/auth/overview#your-apps-name)' `app_name` (`palbase auth:settings:set app_name=Koz`, or **Auth › Settings › Your app**); without one it says "An app invited you". The link opens Palbase's page at the environment's address, in the email's language (`locale`, else the environment's): its title names the app ("Join Koz"), the address the invitation was sent to is shown in a field that cannot be changed, and the person chooses the password — held to the environment's password policy and the known-breaches check. A link that opens nothing — expired, replaced by a later invitation, already taken up — says so as the page opens, before any password is typed.
+3. **Taken up.** The password is set and the address confirmed (`email_verified`), and `invited` is false. The person signs in with their email and that password. `auth.invitation.accept` is in the audit log; the invitation itself is `admin.invite`.
+4. **Expired or replaced.** A link older than seven days says it has expired; one that a later invitation replaced says it is not valid, and one opened after the account is set up says so. Invite the address again for a new link. **The account stays when its link expires**: whoever owns the address can still take it up another way that proves the address — a password reset, a sign-in link — with the roles it was given.
+5. **Taken back.** An invitation is withdrawn by deleting its account (`DELETE /admin/users/{uid}`, `palbase auth:users:delete`): an invitation sent to a wrong address is taken back so, not by letting it expire. A banned account takes no invitation up.
+
+A role that matters — staff, an admin of your app — can be given once the invitation is taken up (`invited` false), rather than with the invitation: until then, the account is whoever owns the address you typed.
+
+The person may take it up another way that proves the address — a password reset, a sign-in link — and the account is theirs from then: inviting it again is then `409 user_exists`.
+
+An invitation to an address made for a test (`palbase auth:test-users:address`, [Test Users](https://palbase.studio/docs/backend/test-users)) opens a test user, as a sign-up with it does: nothing is sent, the invitation's mail is kept in its test inbox (`palbase auth:test-users:messages <user-id>`, the link among its variables as `accept_link`), and a test takes the invitation up from there. Another address no mail reaches (`.invalid`) is refused, `400 email_undeliverable`.
+
+### Sending the link yourself, or your own page
+
+`send_email: false` sends nothing: the answer carries the link as `invitation.accept_url`, for you to deliver — a text message, your own mail. It sets the account's password, so give it to the person alone.
+
+`redirect_to` — a page of your app's, on the redirect allow-list (`additional_redirect_urls` in the [auth settings](https://palbase.studio/docs/auth/overview)) — is where the link opens instead of Palbase's page. It receives `?token=`, and sends it with the password the person chose to `POST /auth/invitations/accept` (`{ token, password }`, with the publishable key); they then sign in. The email itself is the environment's `auth.user_invitation` template (**Auth › Templates**).
+
+### From the terminal and Studio
+
+```sh
+palbase auth:users:invite cashier@example.com              # emails the link
+palbase auth:users:invite cashier@example.com --no-email   # prints it, sending nothing
+```
+
+`--redirect-to` and `--locale` are the call's `redirect_to` and `locale`. In Studio, **Auth › Users › Invite user** sends the same invitation.
+
+An invitation makes an identity, as making a user with a password does: an environment's token (an agent's or CI's) is refused it, `403 token_out_of_scope`. The project's secret key on your server, a person's own CLI session and Studio make it.
+
+## Knowing a password was changed
+
+A backend that must know a user set their password — a staff account given a temporary one, unlocked once it is changed — asks Palbase, not the app: an app's "I changed it" can be sent by anyone who signed in. Better still, give no temporary password: [invite](#inviting-someone) the person, and the password is theirs from the first.
+
+- **The user's `password_changed_at`** (`GET /admin/users/{uid}`, `adminGetUser`): when their password was last set — the account made with it, changed, reset, set first, or an invitation taken up. A temporary password you set at a time is changed when `password_changed_at` is later than it. A sign-in that rehashes the same password does not move it; an account with no password, or one imported from another system, has none.
+- **`user.password_changed`** ([Webhooks](https://palbase.studio/docs/server/webhooks#the-events), `@On` in a backend): sent when the user's password is set by its owner, with `{ user_id, changed_at, method, is_test }` — `method` is `change`, `reset`, `set` or `invitation`. The backend unlocks the account there, with nothing asked of the app.
+- **The audit trail** (`GET /admin/audit?user_id=…&event_type=auth.password.change`): that user's password changes, newest first — each `result` `success` or `failure` ([Audit Trail](https://palbase.studio/docs/auth/audit#reading-it)).
+
+```ts
+// src/modules/staff/password-changed.ts
+import { Database, Injectable, On, type WebhookEvent } from "palbase/backend";
+
+@Injectable()
+export class PasswordChanged {
+  // A staff account given a temporary password is unlocked once its owner set one of their own.
+  @On("user.password_changed")
+  async unlock(event: WebhookEvent<{ user_id: string; changed_at: string; method: string }>): Promise<void> {
+    await Database.$asService().$query("update staff set must_change_password = false where user_id = $1", [event.data.user_id]);
+  }
+}
+```
 
 ## Helping someone back in
 

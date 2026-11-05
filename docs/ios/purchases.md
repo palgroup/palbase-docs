@@ -77,6 +77,7 @@ func buyFirst() async {
         case .alreadyEntitled(let store, let entitlement, _): print("\(entitlement) is already on, from \(store)")
         case .pending: print("waiting for approval")
         case .cancelled: break
+        @unknown default: break   // a case a later SDK adds
         }
     } catch let e as PurchasesError {
         print(e.message, e.code)

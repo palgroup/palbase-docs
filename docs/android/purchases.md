@@ -108,12 +108,15 @@ To a prepaid plan the change is always `CHARGE_FULL_PRICE`. A mode Play does not
 Someone who bought on the web without an account is sent a link that gives the purchase to whoever opens it in the app: `<package>://palbase/redeem?token=…`, or its page's `https://…/purchases/redeem?token=…`. The app redeems the link it was opened with, for the signed-in user (a guest too):
 
 ```kotlin
+import studio.palbase.purchases.purchases
 import studio.palbase.purchases.redemptionToken
 
-override fun onNewIntent(intent: Intent) {
-    super.onNewIntent(intent)
-    val link = intent.dataString ?: return
-    if (redemptionToken(link) != null) lifecycleScope.launch { pb.purchases.redeem(link) }
+class ShopActivity : ComponentActivity() {
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val link = intent.dataString ?: return
+        if (redemptionToken(link) != null) lifecycleScope.launch { pb.purchases.redeem(link) }
+    }
 }
 ```
 

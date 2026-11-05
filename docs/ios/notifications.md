@@ -148,6 +148,8 @@ An app that draws its own uses `pb.notify.inbox`:
 
 The project's in-app campaigns (a modal, a banner or a whole screen, designed in Studio) are shown over the app once started. `palbaseInAppMessages(_:handlers:)` on the app's root view starts them and draws them natively:
 
+<!-- given: struct InboxScreen: View { var body: some View { EmptyView() } } -->
+
 ```swift
 import Palbase
 import PalbaseNotifyUI
