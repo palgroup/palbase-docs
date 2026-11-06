@@ -36,7 +36,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.16.6")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.17.0")
 ```
 
 | Product | What it is |

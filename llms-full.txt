@@ -187,7 +187,7 @@ Start a Next.js app and give it the web SDK:
 ```json
 {
   "dependencies": {
-    "palbase": "^0.50.0",
+    "palbase": "^0.51.5",
     "next": "^16.3.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
@@ -315,7 +315,7 @@ notes-backend/
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.50.0"
+    "palbase": "^0.51.5"
   }
 }
 ```
@@ -1060,7 +1060,7 @@ An app with no database has no `src/db/`, and no `db` in its config.
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.50.0"
+    "palbase": "^0.51.5"
   }
 }
 ```
@@ -1772,7 +1772,7 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.50.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.51.5 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
 458 commands in 35 groups.
 
@@ -13076,7 +13076,7 @@ Clients may also write **ephemeral** entries — their own presence — which ar
 
 ## The socket, from the client's side
 
-The socket is `GET /realtime/v1/websocket` at the project's address — Phoenix Channels v2 frames, one socket per client for every channel it is on. The publishable key opens it; a client says who it is with the access token each join carries, so the user's rights on a channel are decided per join and again when the declaration changes. The web SDK speaks it for you (`pb.socket`): it opens on the first join, sends a heartbeat every 25 s, reconnects with growing pauses, and joins its channels again after a drop.
+The socket is `GET /realtime/v1/websocket` at the project's address — Phoenix Channels v2 frames, one socket per client for every channel it is on. The publishable key opens it; a client says who it is with the access token each join carries, so the user's rights on a channel are decided per join and again when the declaration changes. The web SDK speaks it for you (`pb.socket`): it opens on the first join, sends a heartbeat every 25 s, reconnects with growing pauses, and joins its channels again after a drop; `pb.socket.status` says whether it is connected, and a join asked while it cannot open waits for it.
 
 Your backend never subscribes: `palbase/server` has no socket. What a client sends that the server must act on is a call to one of your backend's routes.
 
@@ -13925,7 +13925,8 @@ export class SupportController {
 | `chats.members.put(id, userId, { name, owner })`, `chats.members.delete(id, userId)` | Adds or changes a member, removes one. |
 | `chats.send(id, { text, clientId, delivery, as, budget, images, files })` | A message for the agent: a turn of its own when none runs. |
 | `chats.messages(id)` | What was written, newest first, a page at a time. |
-| `chats.stop(id)` | Stops the turn the agent is on. What it wrote stays. Answers the turn's id, or `null` when none ran. |
+| `chats.parts(id, { turns, limit, before, cursor })` | The chat's past as its stream told it, a page at a time from its newest end back, for a client's `loadOlder` through your backend: `limit` of its events, or back to where `turns` more of its turns open (the page says how many opened, `turns`). See [A chat in an app](#a-chat-in-an-app). |
+| `chats.stop(id)` | Stops the turn the agent is on. What it wrote stays. A message sent while it worked that it had not read yet (`"next"`) is not lost with it: it starts the next turn, with any other such message, and the chat tells it delivered into that turn. Answers the stopped turn's id, or `null` when none ran. |
 | `chats.approve(id, approvalId, { reason, as })`, `chats.deny(…)` | A call that waits for a person's yes, made or not. Denied, the agent is told the reason and goes on. |
 | `chats.answer(id, callId, output, { isError, as, workspaceTree })` | A client tool's answer, or a deferred tool's: `true` when it is the one taken, `false` when another came first. `workspaceTree` is the tree a tool's writes left (`chats.workspace.write`'s answer). |
 | `chats.sendToSubagent(id, runId, text, { as })` | A message for a subagent at work, at its next step. |
@@ -14064,7 +14065,7 @@ A workspace's machine is `ai.workspaces` on the bill: $0.09681 an hour of the ti
 
 A chat reaches its members through a gateway declared with `chat: true`. When its first member joins, the gateway pipes the chat into its channel. From then on the **platform** writes the chat there itself: the members' messages, each answer as it is written, the tool calls, the approvals, the subagents' work and the advisor's readings. The backend is not in the stream. The channel keeps the chat a day (or what `durable` says), so a member who joins later, or was away, has all of it. What a member does in the chat (a message, a yes or a no, a client tool's answer, stop) comes to the gateway as one of its messages, and the backend does it **as them**.
 
-The channel keeps a day of the chat. A chat opened later is read back at `GET /ai/chats/{id}/parts?limit=&cursor=`, a page at a time from its newest end back: the same parts the stream told, in their order, each under the id the channel told it (`part_id`). A client that holds the channel's parts and pages of these keeps each one once. An answer's text is placed by its offset, as in the stream. The last page reaches the chat's start and begins where a fork began. A client that already holds the channel's day passes the `id` of the oldest part it holds as `before=<id>`, and the first page starts just before that part, so the day is not read twice. Each page after it is read by its `next_cursor`. A call with both `cursor` and `before` is refused (`400`). A voice's end is in the pages under the id the channel told it (`vclosed:<voice>`). For a voice the engine lost, whose end its journal never says, it comes right after the voice's last part. Reading a page changes nothing. A client's `loadOlder()` reads the page before the oldest it holds.
+The channel keeps a day of the chat. A chat opened later is read back at `GET /ai/chats/{id}/parts?limit=&cursor=`, a page at a time from its newest end back: the same parts the stream told, in their order, each under the id the channel told it (`part_id`). A client that holds the channel's parts and pages of these keeps each one once. An answer's text is placed by its offset, as in the stream. The last page reaches the chat's start and begins where a fork began. A client that already holds the channel's day passes the `id` of the oldest part it holds as `before=<id>`, and the first page starts just before that part, so the day is not read twice. Each page after it is read by its `next_cursor`. A call with both `cursor` and `before` is refused (`400`). A page reads `limit` of the chat's events (1 to 1000, 300 by default), or, with `turns=<n>` (1 to 20), back to where the chat's n-th turn before the cursor opens: `?turns=1` is the last turn whole, its opening first (a goal's turn opens at the goal's `turn_started`, any other at its start, the messages that began it right after), and `?turns=1&cursor=` of its `next_cursor` the turn before. Such a page says how many turns open in it (`turns`). One that would read more than 5000 events ends there with fewer, and its `next_cursor` reads on. A call with both `limit` and `turns` is refused (`400`). From a server, `Palbase.ai.chats.parts(id, { turns: 1, before })` reads the same page. A voice's end is in the pages under the id the channel told it (`vclosed:<voice>`). For a voice the engine lost, whose end its journal never says, it comes right after the voice's last part. Reading a page changes nothing. A client's `loadOlder()` reads the page before the oldest it holds, and `loadOlder({ turns: 1 })` the turn before it.
 
 A tool call's answer is in the stream by its end: its last 16 KiB, with `omitted_bytes` saying what was left out. A build's log ends with what failed. A member who opens the call reads it whole at `GET /ai/chats/{id}/tool-calls/{callId}`, with secrets masked as the stream masks them. Your server reads a turn's tool calls as the engine committed them, arguments and results as they were, a page at a time, at `GET /ai/chats/{id}/tool-calls?turn=<responseId>&limit=&cursor=`. That is what a diff of the files the turn wrote is made of. A subagent's calls are read by its response (an agent part's `response_id`). A project reads two of these, or of a chat's past pages, at once (`429 too_many_reads`).
 
@@ -16365,7 +16366,7 @@ The web SDK is `palbase/web`, a part of the npm package `palbase`: `npm install 
 ```json
 {
   "dependencies": {
-    "palbase": "^0.50.0"
+    "palbase": "^0.51.5"
   }
 }
 ```
@@ -17909,7 +17910,43 @@ await joinMine();
 
 ## When the connection drops
 
-The socket sends a heartbeat every 25 seconds. One that goes unanswered closes the socket, because a network that went away without a close leaves a socket half-open. A socket that drops is opened again after 0.5, 1, 2, 5, 10, then every 30 seconds, each pause jittered by ±20%, and every channel that was joined is joined again. A broadcast published while the socket was down is not delivered: broadcasts are delivered at most once. A channel's state comes back whole with the snapshot of the new join. `pb.socket.reconnects` counts the reopens, for your own diagnostics.
+The socket sends a heartbeat every 25 seconds. One that goes unanswered closes the socket, because a network that went away without a close leaves a socket half-open. A socket that drops is opened again after 0.5, 1, 2, 5, 10, then every 30 seconds, each pause jittered by ±20%, and every channel that was joined is joined again. When the network comes back (the browser's `online`, or the tab shown again) it is opened at once, without waiting out its pause. A broadcast published while the socket was down is not delivered: broadcasts are delivered at most once. A channel's state comes back whole with the snapshot of the new join.
+
+`pb.socket.status` is the connection now, and `pb.socket.onStatus(listener)` tells each change (it returns the unsubscribe):
+
+| Status | What it means |
+|---|---|
+| `idle` | Never opened: nothing has joined a channel yet. |
+| `connecting` | Being opened. |
+| `connected` | Open; the channels wanted are joined on it. |
+| `reconnecting` | A channel is wanted and the socket is not open — it dropped, or could not open — and it is opened again after a pause. Show this as offline. |
+| `disconnected` | Closed by the client (the user signed out), or no channel is wanted. |
+
+`pb.socket.reconnects` counts the times the socket opened again after it had been open: one drop and its return is one, however many attempts the return took. An app begun offline whose socket opens at last has not reopened. Each one is the status going from `reconnecting` to `connected`, the moment to read again what a channel that keeps no log missed.
+
+```ts
+// src/connection.ts
+import { pb } from "./lib/palbase";
+
+const offline = document.querySelector<HTMLElement>("#offline")!;
+pb.socket.onStatus((status) => {
+  offline.hidden = status !== "reconnecting";
+});
+```
+
+A channel joined while the socket cannot open waits for it: `join()` gives no error for being offline, and resolves once the socket opens and the channel is joined. A join the socket dropped under, before the server answered, is asked again on the next socket the same way. `join()` rejects only when the server refuses the channel, or when the socket is closed for good. To bound the wait, race it with a timer of your own. The channel is still joined when the socket comes back, until you leave it:
+
+```ts
+// src/lobby.ts
+import { pb } from "./lib/palbase";
+
+const room = pb.socket.channel("room:lobby");
+const joined = await Promise.race([
+  room.join().then(() => true),
+  new Promise<false>((done) => setTimeout(() => done(false), 10_000)),
+]);
+if (!joined) console.log("still offline; the room joins once the connection is back");
+```
 
 `pb.socket.disconnect()` closes it for good. The next `join()` opens a new one.
 
@@ -18684,7 +18721,7 @@ The channel's first handle decides: a second handle of the same channel gets the
 
 ## When the connection drops
 
-The socket reconnects by itself ([Realtime](/docs/web/realtime#when-the-connection-drops)), and every gateway that was joined is joined again with it. Meanwhile a `send` answers `not joined`. An event a gateway that is not durable sent while the socket was down is not delivered.
+The socket reconnects by itself ([Realtime](/docs/web/realtime#when-the-connection-drops)), and every gateway that was joined is joined again with it. Meanwhile a `send` answers `not joined`, and `pb.socket.status` is `reconnecting`: show that as offline. A `join` asked while the socket cannot open waits for it, with no error. An event a gateway that is not durable sent while the socket was down is not delivered.
 
 When the socket closes for good (a sign-out, or another user's sign-in) every handle on it ends: its listeners are dropped, and `send` answers `not joined`. Join again, as the user who is there now.
 
@@ -18697,7 +18734,7 @@ A gateway declared with `chat: true` carries a chat of the project's agents, whi
 | `state` | The chat now. The same object until something changes. |
 | `subscribe(listener)` | Told each time the state changes, at most once a microtask. Returns the unsubscribe. |
 | `for await (const state of handle.chat)` | The state now, then each change, until the gateway is left. |
-| `hasOlder`, `loadOlder({ limit? })` | The channel keeps a day of the chat. `loadOlder` reads the page before what the state holds, with the member's own session, and folds it in; it resolves with `hasOlder`, `false` once a page reaches the chat's start. |
+| `hasOlder`, `loadOlder({ limit?, turns? })` | The channel keeps a day of the chat. `loadOlder` reads the page before what the state holds, with the member's own session, and folds it in front: what the state holds is not folded again. It resolves with `hasOlder`, `false` once a page reaches the chat's start. `limit` reads that many of the chat's events (1 to 1000, 300 by default). `turns` (1 to 20) reads back to where that many more of the chat's turns open instead: `loadOlder({ turns: 1 })` as the chat opens makes its last turn whole, however many thousand parts it holds, and each `loadOlder({ turns: 1 })` after it reads the turn before. A turn longer than one page takes is read page by page, each folded in as it comes. Not both. |
 
 What `state` holds:
 
@@ -18759,7 +18796,7 @@ function Conversation({ support }: { support: Support }) {
   const act = (work: Promise<unknown>) => work.catch((e: unknown) => setProblem(e instanceof GatewayError ? e.reason : "unavailable"));
   return (
     <section>
-      {support.chat.hasOlder && <button onClick={() => void support.chat.loadOlder()}>Earlier messages</button>}
+      {support.chat.hasOlder && <button onClick={() => void support.chat.loadOlder({ turns: 1 })}>Earlier messages</button>}
       {state.goal && <p className="goal">Goal: {state.goal.objective} ({state.goal.status})</p>}
       {state.items.map((item, i) => <Item key={keyOf(item, i)} item={item} />)}
       {state.waiting.approvals.map((call) => {
@@ -19685,7 +19722,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.16.6")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.17.0")
 ```
 
 | Product | What it is |
@@ -20575,7 +20612,7 @@ struct SupportChat: View {
 | `state` | The chat now: the same value until something changes. |
 | `onChange(_:)` | Told each time the state changes; a burst of parts is one change. Returns what stops it. |
 | `updates` | An `AsyncStream` of the state now, then each change (the newest, for a reader that falls behind), until the gateway is left. |
-| `hasOlder`, `loadOlder(_:chatId:limit:)` | The channel keeps a day of the chat. `loadOlder(pb, chatId:)` reads the page before what the state holds, with the member's own session (the project's AI settings let its users' sessions reach their chats: `clients`), and folds it in front; it returns whether there is more, `false` once a page reached the chat's start. `loadOlder(limit:load:)` reads the page through your backend instead: `load` is given a `PBChat.PartsQuery` and returns a `PBChat.PartsPage`. |
+| `hasOlder`, `loadOlder(_:chatId:limit:turns:)` | The channel keeps a day of the chat. `loadOlder(pb, chatId:)` reads the page before what the state holds, with the member's own session (the project's AI settings let its users' sessions reach their chats: `clients`), and folds it in front: what the state holds is not folded again. It returns whether there is more, `false` once a page reached the chat's start or the gateway was left. `limit` reads that many of the chat's events (1 to 1000, 300 by default); `turns` (1 to 20) reads back to where that many more of the chat's turns open instead — `turns: 1` as the chat opens makes its last turn whole, however many thousand parts it holds, read page after page when it is longer than one. Not both. `loadOlder(limit:turns:load:)` reads the page through your backend instead: `load` is given a `PBChat.PartsQuery` (`before`, `cursor`, `limit`, `turns`) and returns a `PBChat.PartsPage(parts:nextCursor:turns:)`, its `turns` as palbase/ai's `chats.parts` says it. |
 
 What `state` holds:
 
@@ -20651,7 +20688,7 @@ Payloads and values are `JSONValue`: `.string`, `.number`, `.bool`, `.object`, `
 
 | Member | What it does |
 |---|---|
-| `join()` | Joins; returns once the server let the user in, throws its reason when it did not. |
+| `join()` | Joins; returns once the server let the user in, throws its reason when it did not. Asked while the socket cannot open, it waits for it, with no error, and returns once the socket opens and the channel is joined; a `Task` cancelled meanwhile ends the wait (`CancellationError`), and the channel is still joined when the socket comes back, until it is left. |
 | `leave()` | Leaves, and forgets the state it held. |
 | `onBroadcast(_:_:)` | Listens to one event's broadcasts, a member's or the project's server's. Returns what stops it (an `async` closure). |
 | `broadcast(_:_:)` | Sends an event to the channel's other members; the sender does not hear its own. The call does not wait for the server: one it refuses comes to `onRefused`. |
@@ -20698,10 +20735,10 @@ struct ConnectionBadge: View {
 | `idle` | Never opened: nothing has joined a channel yet. |
 | `connecting` | Being opened. |
 | `connected` | Open; the channels wanted are joined on it. |
-| `reconnecting` | Dropped (the network went, a heartbeat went unanswered), and opened again after a pause. |
+| `reconnecting` | A channel is wanted and the socket is not open — it dropped (the network went, a heartbeat went unanswered) or could not open — and it is opened again after a pause. Show this as offline. |
 | `disconnected` | Closed by the client: someone signed out or in, or no channel is wanted. |
 
-`status.since` is when it last changed, and `status.changes` is an `AsyncStream` of every change in order, where a view reading `state` is drawn with the newest only.
+`status.since` is when it last changed, and `status.changes` is an `AsyncStream` of every change in order, where a view reading `state` is drawn with the newest only. `await pb.socket.reconnects` counts the times the socket opened again after it had been open: one drop and its return is one, however many attempts the return took, and an app begun offline whose socket opens at last has not reopened. Each one is `state` going from `reconnecting` to `connected`, the moment to read again what a channel that keeps no log missed.
 
 The socket sends a heartbeat every 25 seconds. One that goes unanswered closes the socket, and a socket that drops is opened again after 0.5, 1, 2, 5, 10, then every 30 seconds, each pause jittered, with every channel still wanted joined again. A broadcast sent while the socket was down is not delivered; a channel's state comes back whole with the new join. When the session is refreshed, the new token goes to every joined channel without leaving it.
 
@@ -20728,7 +20765,7 @@ The project holds its clients to limits the platform sets and the project may lo
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.16.6 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.17.0 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -20960,7 +20997,7 @@ When the person signs out, what the phone kept of their conversations is dropped
 The calls are a Swift package of their own, so an app that makes no calls takes none of their weight. Add `https://github.com/palgroup/palbase-swift-calls` with Swift Package Manager, at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.16.6")
+.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.17.0")
 ```
 
 Link `PalbaseCalls` to the app — and `PalbaseCallsBroadcast` to its Broadcast Upload Extension alone, when it shares the whole screen ([Sharing a screen](#sharing-a-screen)). `PalbaseCalls` brings Palbase's core and `PalbaseNotify` of the same version, and LiveKit's WebRTC and client SDK, which the media server's calls go through. **Do not add LiveKit's own Swift package beside them**: its client SDK is already inside `PalbaseCalls`. It needs iOS 18 and Xcode 16.3 or newer.
@@ -22002,7 +22039,7 @@ A chat of the project's agents can be talked to out loud ([AI › Voice](/docs/b
 `PalbaseVoice` is a package of its own, [github.com/palgroup/palbase-swift-voice](https://github.com/palgroup/palbase-swift-voice), because it brings WebRTC (LiveKit's build, [livekit/webrtc-xcframework](https://github.com/livekit/webrtc-xcframework)): an app that talks to no voice resolves none of it. Add it at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-voice", exact: "0.16.6")
+.package(url: "https://github.com/palgroup/palbase-swift-voice", exact: "0.17.0")
 ```
 
 Link `PalbaseVoice`; it brings the `Palbase` core of the same version. An app that also takes LiveKit's SDK resolves the one WebRTC package. The app's Info.plist says why it asks for the microphone, in `NSMicrophoneUsageDescription`.
@@ -22184,7 +22221,7 @@ On the device alone: nothing of the console is sent anywhere. It keeps the last 
 
 The Android SDK is `studio.palbase:palbase` and one artifact per module, in Kotlin, with coroutines. `palbase` holds the project's address and publishable key, the transport every call goes through, the signed-in user's session, the realtime socket, consent and auth. Each module (flags, analytics, realtime, notify, storage, purchases) is an artifact of its own that hangs off the same client, as `pb.flags`, `pb.notify` and so on. A backend of yours is a typed client that `palbase apps:sync` writes into the app, and it calls through the same client too.
 
-The version on this page is **0.16.7**.
+The version on this page is **0.17.0**.
 
 ## Requirements
 
@@ -22229,7 +22266,7 @@ android {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.16.7"))
+    implementation(platform("studio.palbase:palbase-bom:0.17.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-flags")     // and the other modules the app uses
     implementation("studio.palbase:palbase-palbe")     // when the app calls a backend of yours
@@ -22409,7 +22446,7 @@ Every request says the user's languages in `Accept-Language`, the device's in th
 pb.setPreferredLanguages(listOf("tr", "en"))   // null goes back to the device's
 ```
 
-Requests also carry `X-Palbase-SDK: android/0.16.7` (`PalbaseClient.VERSION`).
+Requests also carry `X-Palbase-SDK: android/0.17.0` (`PalbaseClient.VERSION`).
 
 ### Observable state
 
@@ -22766,7 +22803,7 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.16.7"))
+    implementation(platform("studio.palbase:palbase-bom:0.17.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-palbe")
 }
@@ -23083,7 +23120,7 @@ What the user does in the chat (a message, a yes or a no, stop) is the gateway's
 
 ### The chat's past
 
-The channel keeps a day of the chat. `chat.loadOlder(pb, chatId)` reads the page before what the state holds (`GET /ai/chats/{id}/parts`) and folds it in front, each part once. It reads with the member's own session, which the project allows its app's users with its AI settings' `clients` (`Palbase.ai.settings.put`, [AI](/docs/backend/ai#chats)). It returns whether there is more before it, and `chat.hasOlder` says the same without reading.
+The channel keeps a day of the chat. `chat.loadOlder(pb, chatId)` reads the page before what the state holds (`GET /ai/chats/{id}/parts`) and folds it in front, each part once: what the state holds is not folded again. `limit` reads that many of the chat's events (1 to 1000, 300 by default); `turns` (1 to 20) reads back to where that many more of the chat's turns open instead — `chat.loadOlder(pb, chatId, turns = 1)` as the chat opens makes its last turn whole, however many thousand parts it holds, read page after page when it is longer than one. Not both. It reads with the member's own session, which the project allows its app's users with its AI settings' `clients` (`Palbase.ai.settings.put`, [AI](/docs/backend/ai#chats)). It returns whether there is more before it, and `chat.hasOlder` says the same without reading.
 
 <!-- given: support: ChatGatewayHandle<SupportGatewayEvent, SupportGatewaySend>, chatId: String, fun enoughShown(): Boolean -->
 
@@ -23093,7 +23130,7 @@ while (support.chat.loadOlder(pb, chatId)) {
 }
 ```
 
-When the project's app reaches no chat of its own, the app's backend can read the page for it: `support.chat.loadOlder { query -> … }` hands the lambda the page asked for (`PBChat.PartsQuery`: `before`, `cursor`, `limit`), and the lambda answers it as a `PBChat.PartsPage(parts, nextCursor)` read through a route of yours.
+When the project's app reaches no chat of its own, the app's backend can read the page for it: `support.chat.loadOlder { query -> … }` hands the lambda the page asked for (`PBChat.PartsQuery`: `before`, `cursor`, `limit`, `turns`), and the lambda answers it as a `PBChat.PartsPage(parts, nextCursor, turns)` read through a route of yours, its `turns` as palbase/ai's `chats.parts` says it.
 
 ### Attachments, tool calls and workspace files
 
@@ -23219,7 +23256,7 @@ A refused join throws `PalbaseError` with the code `join_refused` and the server
 | `IDLE` | Never opened: nothing has joined a channel yet. |
 | `CONNECTING` | Being opened. |
 | `CONNECTED` | Open, and the channels wanted are joined on it. |
-| `RECONNECTING` | Dropped (the network went, a heartbeat was not answered), and opened again after a pause. |
+| `RECONNECTING` | A channel is wanted and the socket is not open — it dropped (the network went, a heartbeat was not answered) or could not open — and it is opened again after a pause. Show this as offline. |
 | `DISCONNECTED` | Closed by the client: the user signed out, or no channel is wanted any more. |
 
 ```kotlin
@@ -23232,7 +23269,9 @@ fun Connection() {
 }
 ```
 
-The socket sends a heartbeat every 25 seconds. A socket that drops is opened again after 0.5, 1, 2, 5, 10, then every 30 seconds, each pause jittered, and every channel still wanted is joined again. A broadcast sent while the socket was down is not delivered: broadcasts are delivered at most once. A channel's state comes back whole with the snapshot of the new join. `pb.socket.reconnects` counts the reopens.
+The socket sends a heartbeat every 25 seconds. A socket that drops is opened again after 0.5, 1, 2, 5, 10, then every 30 seconds, each pause jittered, and every channel still wanted is joined again. A broadcast sent while the socket was down is not delivered: broadcasts are delivered at most once. A channel's state comes back whole with the snapshot of the new join. `pb.socket.reconnects` counts the times the socket opened again after it had been open: one drop and its return is one, however many attempts the return took, and an app begun offline whose socket opens at last has not reopened. Each one is the status going from `RECONNECTING` to `CONNECTED`.
+
+A channel joined while the socket cannot open waits for it: `join()` throws nothing for being offline, and returns once the socket opens and the channel is joined. It throws only when the server refuses the channel, or when the socket is closed for good. To bound the wait, wrap it in `withTimeout`: the wait ends, and the channel is still joined when the socket comes back, until it is left.
 
 ### One socket, one user
 
@@ -23300,7 +23339,7 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.16.7"))
+    implementation(platform("studio.palbase:palbase-bom:0.17.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // pushes: the FCM token, and the service that draws them
     implementation("studio.palbase:palbase-messaging")  // pb.messaging
@@ -23513,7 +23552,7 @@ The phone's copy is kept in the app's own SQLite, in files not backed up. When t
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.16.7"))
+    implementation(platform("studio.palbase:palbase-bom:0.17.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // the FCM token, and the service a ring arrives through
     implementation("studio.palbase:palbase-calls")      // pb.calls
@@ -23941,7 +23980,7 @@ pluginManagement { repositories { gradlePluginPortal(); google(); mavenCentral()
 // app/build.gradle.kts
 plugins {
     id("com.android.application")
-    id("studio.palbase") version "0.16.7"
+    id("studio.palbase") version "0.17.0"
 }
 ```
 

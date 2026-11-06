@@ -31,7 +31,7 @@ Start a Next.js app and give it the web SDK:
 ```json
 {
   "dependencies": {
-    "palbase": "^0.50.0",
+    "palbase": "^0.51.5",
     "next": "^16.3.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
@@ -159,7 +159,7 @@ notes-backend/
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.50.0"
+    "palbase": "^0.51.5"
   }
 }
 ```

@@ -92,7 +92,7 @@ Clients may also write **ephemeral** entries — their own presence — which ar
 
 ## The socket, from the client's side
 
-The socket is `GET /realtime/v1/websocket` at the project's address — Phoenix Channels v2 frames, one socket per client for every channel it is on. The publishable key opens it; a client says who it is with the access token each join carries, so the user's rights on a channel are decided per join and again when the declaration changes. The web SDK speaks it for you (`pb.socket`): it opens on the first join, sends a heartbeat every 25 s, reconnects with growing pauses, and joins its channels again after a drop.
+The socket is `GET /realtime/v1/websocket` at the project's address — Phoenix Channels v2 frames, one socket per client for every channel it is on. The publishable key opens it; a client says who it is with the access token each join carries, so the user's rights on a channel are decided per join and again when the declaration changes. The web SDK speaks it for you (`pb.socket`): it opens on the first join, sends a heartbeat every 25 s, reconnects with growing pauses, and joins its channels again after a drop; `pb.socket.status` says whether it is connected, and a join asked while it cannot open waits for it.
 
 Your backend never subscribes: `palbase/server` has no socket. What a client sends that the server must act on is a call to one of your backend's routes.
 

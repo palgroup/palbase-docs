@@ -250,7 +250,7 @@ The channel's first handle decides: a second handle of the same channel gets the
 
 ## When the connection drops
 
-The socket reconnects by itself ([Realtime](https://palbase.studio/docs/web/realtime#when-the-connection-drops)), and every gateway that was joined is joined again with it. Meanwhile a `send` answers `not joined`. An event a gateway that is not durable sent while the socket was down is not delivered.
+The socket reconnects by itself ([Realtime](https://palbase.studio/docs/web/realtime#when-the-connection-drops)), and every gateway that was joined is joined again with it. Meanwhile a `send` answers `not joined`, and `pb.socket.status` is `reconnecting`: show that as offline. A `join` asked while the socket cannot open waits for it, with no error. An event a gateway that is not durable sent while the socket was down is not delivered.
 
 When the socket closes for good (a sign-out, or another user's sign-in) every handle on it ends: its listeners are dropped, and `send` answers `not joined`. Join again, as the user who is there now.
 
@@ -263,7 +263,7 @@ A gateway declared with `chat: true` carries a chat of the project's agents, whi
 | `state` | The chat now. The same object until something changes. |
 | `subscribe(listener)` | Told each time the state changes, at most once a microtask. Returns the unsubscribe. |
 | `for await (const state of handle.chat)` | The state now, then each change, until the gateway is left. |
-| `hasOlder`, `loadOlder({ limit? })` | The channel keeps a day of the chat. `loadOlder` reads the page before what the state holds, with the member's own session, and folds it in; it resolves with `hasOlder`, `false` once a page reaches the chat's start. |
+| `hasOlder`, `loadOlder({ limit?, turns? })` | The channel keeps a day of the chat. `loadOlder` reads the page before what the state holds, with the member's own session, and folds it in front: what the state holds is not folded again. It resolves with `hasOlder`, `false` once a page reaches the chat's start. `limit` reads that many of the chat's events (1 to 1000, 300 by default). `turns` (1 to 20) reads back to where that many more of the chat's turns open instead: `loadOlder({ turns: 1 })` as the chat opens makes its last turn whole, however many thousand parts it holds, and each `loadOlder({ turns: 1 })` after it reads the turn before. A turn longer than one page takes is read page by page, each folded in as it comes. Not both. |
 
 What `state` holds:
 
@@ -325,7 +325,7 @@ function Conversation({ support }: { support: Support }) {
   const act = (work: Promise<unknown>) => work.catch((e: unknown) => setProblem(e instanceof GatewayError ? e.reason : "unavailable"));
   return (
     <section>
-      {support.chat.hasOlder && <button onClick={() => void support.chat.loadOlder()}>Earlier messages</button>}
+      {support.chat.hasOlder && <button onClick={() => void support.chat.loadOlder({ turns: 1 })}>Earlier messages</button>}
       {state.goal && <p className="goal">Goal: {state.goal.objective} ({state.goal.status})</p>}
       {state.items.map((item, i) => <Item key={keyOf(item, i)} item={item} />)}
       {state.waiting.approvals.map((call) => {

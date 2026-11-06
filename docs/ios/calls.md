@@ -9,7 +9,7 @@
 The calls are a Swift package of their own, so an app that makes no calls takes none of their weight. Add `https://github.com/palgroup/palbase-swift-calls` with Swift Package Manager, at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.16.6")
+.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.17.0")
 ```
 
 Link `PalbaseCalls` to the app — and `PalbaseCallsBroadcast` to its Broadcast Upload Extension alone, when it shares the whole screen ([Sharing a screen](#sharing-a-screen)). `PalbaseCalls` brings Palbase's core and `PalbaseNotify` of the same version, and LiveKit's WebRTC and client SDK, which the media server's calls go through. **Do not add LiveKit's own Swift package beside them**: its client SDK is already inside `PalbaseCalls`. It needs iOS 18 and Xcode 16.3 or newer.

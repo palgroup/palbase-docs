@@ -97,7 +97,7 @@ A refused join throws `PalbaseError` with the code `join_refused` and the server
 | `IDLE` | Never opened: nothing has joined a channel yet. |
 | `CONNECTING` | Being opened. |
 | `CONNECTED` | Open, and the channels wanted are joined on it. |
-| `RECONNECTING` | Dropped (the network went, a heartbeat was not answered), and opened again after a pause. |
+| `RECONNECTING` | A channel is wanted and the socket is not open — it dropped (the network went, a heartbeat was not answered) or could not open — and it is opened again after a pause. Show this as offline. |
 | `DISCONNECTED` | Closed by the client: the user signed out, or no channel is wanted any more. |
 
 ```kotlin
@@ -110,7 +110,9 @@ fun Connection() {
 }
 ```
 
-The socket sends a heartbeat every 25 seconds. A socket that drops is opened again after 0.5, 1, 2, 5, 10, then every 30 seconds, each pause jittered, and every channel still wanted is joined again. A broadcast sent while the socket was down is not delivered: broadcasts are delivered at most once. A channel's state comes back whole with the snapshot of the new join. `pb.socket.reconnects` counts the reopens.
+The socket sends a heartbeat every 25 seconds. A socket that drops is opened again after 0.5, 1, 2, 5, 10, then every 30 seconds, each pause jittered, and every channel still wanted is joined again. A broadcast sent while the socket was down is not delivered: broadcasts are delivered at most once. A channel's state comes back whole with the snapshot of the new join. `pb.socket.reconnects` counts the times the socket opened again after it had been open: one drop and its return is one, however many attempts the return took, and an app begun offline whose socket opens at last has not reopened. Each one is the status going from `RECONNECTING` to `CONNECTED`.
+
+A channel joined while the socket cannot open waits for it: `join()` throws nothing for being offline, and returns once the socket opens and the channel is joined. It throws only when the server refuses the channel, or when the socket is closed for good. To bound the wait, wrap it in `withTimeout`: the wait ends, and the channel is still joined when the socket comes back, until it is left.
 
 ### One socket, one user
 

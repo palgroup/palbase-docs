@@ -131,7 +131,7 @@ What the user does in the chat (a message, a yes or a no, stop) is the gateway's
 
 ### The chat's past
 
-The channel keeps a day of the chat. `chat.loadOlder(pb, chatId)` reads the page before what the state holds (`GET /ai/chats/{id}/parts`) and folds it in front, each part once. It reads with the member's own session, which the project allows its app's users with its AI settings' `clients` (`Palbase.ai.settings.put`, [AI](https://palbase.studio/docs/backend/ai#chats)). It returns whether there is more before it, and `chat.hasOlder` says the same without reading.
+The channel keeps a day of the chat. `chat.loadOlder(pb, chatId)` reads the page before what the state holds (`GET /ai/chats/{id}/parts`) and folds it in front, each part once: what the state holds is not folded again. `limit` reads that many of the chat's events (1 to 1000, 300 by default); `turns` (1 to 20) reads back to where that many more of the chat's turns open instead — `chat.loadOlder(pb, chatId, turns = 1)` as the chat opens makes its last turn whole, however many thousand parts it holds, read page after page when it is longer than one. Not both. It reads with the member's own session, which the project allows its app's users with its AI settings' `clients` (`Palbase.ai.settings.put`, [AI](https://palbase.studio/docs/backend/ai#chats)). It returns whether there is more before it, and `chat.hasOlder` says the same without reading.
 
 <!-- given: support: ChatGatewayHandle<SupportGatewayEvent, SupportGatewaySend>, chatId: String, fun enoughShown(): Boolean -->
 
@@ -141,7 +141,7 @@ while (support.chat.loadOlder(pb, chatId)) {
 }
 ```
 
-When the project's app reaches no chat of its own, the app's backend can read the page for it: `support.chat.loadOlder { query -> … }` hands the lambda the page asked for (`PBChat.PartsQuery`: `before`, `cursor`, `limit`), and the lambda answers it as a `PBChat.PartsPage(parts, nextCursor)` read through a route of yours.
+When the project's app reaches no chat of its own, the app's backend can read the page for it: `support.chat.loadOlder { query -> … }` hands the lambda the page asked for (`PBChat.PartsQuery`: `before`, `cursor`, `limit`, `turns`), and the lambda answers it as a `PBChat.PartsPage(parts, nextCursor, turns)` read through a route of yours, its `turns` as palbase/ai's `chats.parts` says it.
 
 ### Attachments, tool calls and workspace files
 

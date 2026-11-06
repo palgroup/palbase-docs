@@ -97,7 +97,7 @@ pluginManagement { repositories { gradlePluginPortal(); google(); mavenCentral()
 // app/build.gradle.kts
 plugins {
     id("com.android.application")
-    id("studio.palbase") version "0.16.7"
+    id("studio.palbase") version "0.17.0"
 }
 ```
 

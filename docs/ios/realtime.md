@@ -43,7 +43,7 @@ Payloads and values are `JSONValue`: `.string`, `.number`, `.bool`, `.object`, `
 
 | Member | What it does |
 |---|---|
-| `join()` | Joins; returns once the server let the user in, throws its reason when it did not. |
+| `join()` | Joins; returns once the server let the user in, throws its reason when it did not. Asked while the socket cannot open, it waits for it, with no error, and returns once the socket opens and the channel is joined; a `Task` cancelled meanwhile ends the wait (`CancellationError`), and the channel is still joined when the socket comes back, until it is left. |
 | `leave()` | Leaves, and forgets the state it held. |
 | `onBroadcast(_:_:)` | Listens to one event's broadcasts, a member's or the project's server's. Returns what stops it (an `async` closure). |
 | `broadcast(_:_:)` | Sends an event to the channel's other members; the sender does not hear its own. The call does not wait for the server: one it refuses comes to `onRefused`. |
@@ -90,10 +90,10 @@ struct ConnectionBadge: View {
 | `idle` | Never opened: nothing has joined a channel yet. |
 | `connecting` | Being opened. |
 | `connected` | Open; the channels wanted are joined on it. |
-| `reconnecting` | Dropped (the network went, a heartbeat went unanswered), and opened again after a pause. |
+| `reconnecting` | A channel is wanted and the socket is not open — it dropped (the network went, a heartbeat went unanswered) or could not open — and it is opened again after a pause. Show this as offline. |
 | `disconnected` | Closed by the client: someone signed out or in, or no channel is wanted. |
 
-`status.since` is when it last changed, and `status.changes` is an `AsyncStream` of every change in order, where a view reading `state` is drawn with the newest only.
+`status.since` is when it last changed, and `status.changes` is an `AsyncStream` of every change in order, where a view reading `state` is drawn with the newest only. `await pb.socket.reconnects` counts the times the socket opened again after it had been open: one drop and its return is one, however many attempts the return took, and an app begun offline whose socket opens at last has not reopened. Each one is `state` going from `reconnecting` to `connected`, the moment to read again what a channel that keeps no log missed.
 
 The socket sends a heartbeat every 25 seconds. One that goes unanswered closes the socket, and a socket that drops is opened again after 0.5, 1, 2, 5, 10, then every 30 seconds, each pause jittered, with every channel still wanted joined again. A broadcast sent while the socket was down is not delivered; a channel's state comes back whole with the new join. When the session is refreshed, the new token goes to every joined channel without leaving it.
 

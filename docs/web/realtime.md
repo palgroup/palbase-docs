@@ -146,7 +146,43 @@ await joinMine();
 
 ## When the connection drops
 
-The socket sends a heartbeat every 25 seconds. One that goes unanswered closes the socket, because a network that went away without a close leaves a socket half-open. A socket that drops is opened again after 0.5, 1, 2, 5, 10, then every 30 seconds, each pause jittered by ±20%, and every channel that was joined is joined again. A broadcast published while the socket was down is not delivered: broadcasts are delivered at most once. A channel's state comes back whole with the snapshot of the new join. `pb.socket.reconnects` counts the reopens, for your own diagnostics.
+The socket sends a heartbeat every 25 seconds. One that goes unanswered closes the socket, because a network that went away without a close leaves a socket half-open. A socket that drops is opened again after 0.5, 1, 2, 5, 10, then every 30 seconds, each pause jittered by ±20%, and every channel that was joined is joined again. When the network comes back (the browser's `online`, or the tab shown again) it is opened at once, without waiting out its pause. A broadcast published while the socket was down is not delivered: broadcasts are delivered at most once. A channel's state comes back whole with the snapshot of the new join.
+
+`pb.socket.status` is the connection now, and `pb.socket.onStatus(listener)` tells each change (it returns the unsubscribe):
+
+| Status | What it means |
+|---|---|
+| `idle` | Never opened: nothing has joined a channel yet. |
+| `connecting` | Being opened. |
+| `connected` | Open; the channels wanted are joined on it. |
+| `reconnecting` | A channel is wanted and the socket is not open — it dropped, or could not open — and it is opened again after a pause. Show this as offline. |
+| `disconnected` | Closed by the client (the user signed out), or no channel is wanted. |
+
+`pb.socket.reconnects` counts the times the socket opened again after it had been open: one drop and its return is one, however many attempts the return took. An app begun offline whose socket opens at last has not reopened. Each one is the status going from `reconnecting` to `connected`, the moment to read again what a channel that keeps no log missed.
+
+```ts
+// src/connection.ts
+import { pb } from "./lib/palbase";
+
+const offline = document.querySelector<HTMLElement>("#offline")!;
+pb.socket.onStatus((status) => {
+  offline.hidden = status !== "reconnecting";
+});
+```
+
+A channel joined while the socket cannot open waits for it: `join()` gives no error for being offline, and resolves once the socket opens and the channel is joined. A join the socket dropped under, before the server answered, is asked again on the next socket the same way. `join()` rejects only when the server refuses the channel, or when the socket is closed for good. To bound the wait, race it with a timer of your own. The channel is still joined when the socket comes back, until you leave it:
+
+```ts
+// src/lobby.ts
+import { pb } from "./lib/palbase";
+
+const room = pb.socket.channel("room:lobby");
+const joined = await Promise.race([
+  room.join().then(() => true),
+  new Promise<false>((done) => setTimeout(() => done(false), 10_000)),
+]);
+if (!joined) console.log("still offline; the room joins once the connection is back");
+```
 
 `pb.socket.disconnect()` closes it for good. The next `join()` opens a new one.
 
