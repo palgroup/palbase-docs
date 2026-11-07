@@ -77,6 +77,42 @@ Turning it off again is `palbase flags:users:unset <user-id> palbase.debug_conso
 
 The console has two tabs, Console and Realtime, under a floating tab bar, each with its own back stack: the list of records, a network inspector, a body viewer, filters, the launches, and the realtime inspector. It draws edge to edge and keeps its own bars clear of the system's, so give it the whole screen. With `onClose`, each tab's root shows a round ×, and system back (predictive on Android 14 and newer) walks a tab's pages before it closes the console. Without `onClose`, there is no close button, and back at a root is the host's.
 
+### Copying records out
+
+Every page of a record copies what it shows in one tap: the request and response bodies (JSON pretty-printed, text as it came), the headers and cookies as `Name: value` lines, the cURL command. The record's own menu copies its URL, its cURL command, either body or the whole record.
+
+To take several records at once, choose **Select** in the list's menu, tick the records (or **Select All**, which takes the ones the filters and the search show), then:
+
+| Action | What it gives |
+|---|---|
+| **Copy Responses** | Each answer with the request line it answers. |
+| **Copy Requests & Responses** | The same, with each request's headers and body. |
+| **Share Responses**, **Share Requests & Responses** | The same JSON as a `.json` file, through the system's share sheet, for a selection too big to paste. |
+
+A copy holds at most 128 KB, as every copy the console makes: past it, it ends at a whole record, the array closed, and its note says so ("Copied 12 of 300 records — Share takes them all"); a share takes the whole selection. The file is served by the console's own provider (`ConsoleShareProvider`, merged from `palbase-debug`'s manifest under `<application id>.palbase.console.share`), from one folder of the app's cache, to the app chosen in the sheet alone.
+
+Both give a JSON array, in the list's order, the same on iOS and Android:
+
+```json
+[
+  {
+    "durationMs": 138,
+    "method": "POST",
+    "requestId": "8bd341a7-c920-467b-a415-a5a769ddd811",
+    "response": {
+      "body": { "expires_in": 1800, "token_type": "Bearer" },
+      "headers": { "content-type": "application/json" }
+    },
+    "startedAt": "2026-11-06T10:22:09.121+03:00",
+    "state": "success",
+    "status": 200,
+    "url": "https://<ref>.palbase.studio/auth/login"
+  }
+]
+```
+
+A JSON body is JSON, its numbers as the server wrote them, a text body is text, anything else is `"<binary: N bytes>"`. A body the console kept only the size of reads `"<not kept: N bytes>"`, one swept to stay within the disk budget `"<no longer available: N bytes>"`, and a body kept only in part carries `"truncated": true`. A failed request has `error` in place of `status`; a log line is `{ "log": { "level", "label", "message", "at", "metadata" } }`. Everything is as recorded, with the credentials already masked (`***`).
+
 `palbase-debug` brings Compose and `palbase-flags` with it. Compose is in no other artifact of the SDK, so an app that never shows the console does not take it, and its recording is the core's either way.
 
 ## Related

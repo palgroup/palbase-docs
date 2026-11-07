@@ -4,7 +4,7 @@
 
 The Android SDK is `studio.palbase:palbase` and one artifact per module, in Kotlin, with coroutines. `palbase` holds the project's address and publishable key, the transport every call goes through, the signed-in user's session, the realtime socket, consent and auth. Each module (flags, analytics, realtime, notify, storage, purchases) is an artifact of its own that hangs off the same client, as `pb.flags`, `pb.notify` and so on. A backend of yours is a typed client that `palbase apps:sync` writes into the app, and it calls through the same client too.
 
-The version on this page is **0.17.0**.
+The version on this page is **0.18.0**.
 
 ## Requirements
 
@@ -49,7 +49,7 @@ android {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.17.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.18.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-flags")     // and the other modules the app uses
     implementation("studio.palbase:palbase-palbe")     // when the app calls a backend of yours
@@ -229,7 +229,7 @@ Every request says the user's languages in `Accept-Language`, the device's in th
 pb.setPreferredLanguages(listOf("tr", "en"))   // null goes back to the device's
 ```
 
-Requests also carry `X-Palbase-SDK: android/0.17.0` (`PalbaseClient.VERSION`).
+Requests also carry `X-Palbase-SDK: android/0.18.0` (`PalbaseClient.VERSION`).
 
 ### Observable state
 

@@ -21,7 +21,10 @@ struct SettingsView: View {
                 Button("Debug console") { showingConsole = true }
             }
         }
-        .sheet(isPresented: $showingConsole) { pb.debug.view }
+        // onClose: the × on each tab's root dismisses it.
+        .sheet(isPresented: $showingConsole) {
+            pb.debug.view.onClose { showingConsole = false }
+        }
     }
 }
 ```
@@ -75,6 +78,47 @@ On the device alone: nothing of the console is sent anywhere. It keeps the last 
 ## The screens
 
 `pb.debug.view` is a `PalbaseConsoleView`, to place in a sheet, a tab or a pushed screen: the timeline of every record, filters by label and level, each request's headers, bodies (as JSON, text, a cURL command or a hex dump) and timing, the realtime inspector, metrics, and the launches kept.
+
+| Member of `PalbaseConsoleView` | What it does |
+|---|---|
+| `onClose(_:)` | For a console the app presented (a sheet, a full-screen cover, a controller of its own): each tab's root shows an × that runs the action, where a pushed page has its back button. A pushed console needs none, its back button is the way out, and neither does a console that is a tab of the app. |
+| `embedded()` | Drops the console's own navigation stacks, for a place that already has one. |
+
+### Copying records out
+
+Every page of a record copies what it shows in one tap: the request and response bodies (JSON pretty-printed, text as it came), the headers and cookies as `Name: value` lines, the cURL command. The record's own menu copies its URL, its cURL command, either body or the whole record.
+
+To take several records at once, choose **Select** in the list's menu, tick the records (or **Select All**, which takes the ones the filters and the search show), then:
+
+| Action | What it gives |
+|---|---|
+| **Copy Responses** | Each answer with the request line it answers. |
+| **Copy Requests & Responses** | The same, with each request's headers and body. |
+| **Share Responses**, **Share Requests & Responses** | The same JSON as a `.json` file, through the system's share sheet, for a selection too big to paste. |
+
+A copy holds at most 4 MB: past it, it ends at a whole record, the array closed, and its note says so ("Copied 12 of 300 records — Share takes them all"); a share takes the whole selection, written a record at a time into the console's own folder, which goes with the records.
+
+Both give a JSON array, in the list's order, the same on iOS and Android:
+
+```json
+[
+  {
+    "durationMs": 138,
+    "method": "POST",
+    "requestId": "8bd341a7-c920-467b-a415-a5a769ddd811",
+    "response": {
+      "body": { "expires_in": 1800, "token_type": "Bearer" },
+      "headers": { "content-type": "application/json" }
+    },
+    "startedAt": "2026-11-06T10:22:09.121+03:00",
+    "state": "success",
+    "status": 200,
+    "url": "https://<ref>.palbase.studio/auth/login"
+  }
+]
+```
+
+A JSON body is JSON, its numbers as the server wrote them, a text body is text, anything else is `"<binary: N bytes>"`. A body the console kept only the size of reads `"<not kept: N bytes>"`, one swept to stay within the disk budget `"<no longer available: N bytes>"`, and a body kept only in part carries `"truncated": true`. A failed request has `error` in place of `status`; a log line is `{ "log": { "level", "label", "message", "at", "metadata" } }`. Everything is as recorded, with the credentials already masked (`***`).
 
 ## Related
 

@@ -13926,7 +13926,7 @@ export class SupportController {
 | `chats.send(id, { text, clientId, delivery, as, budget, images, files })` | A message for the agent: a turn of its own when none runs. |
 | `chats.messages(id)` | What was written, newest first, a page at a time. |
 | `chats.parts(id, { turns, limit, before, cursor })` | The chat's past as its stream told it, a page at a time from its newest end back, for a client's `loadOlder` through your backend: `limit` of its events, or back to where `turns` more of its turns open (the page says how many opened, `turns`). See [A chat in an app](#a-chat-in-an-app). |
-| `chats.stop(id)` | Stops the turn the agent is on. What it wrote stays. A message sent while it worked that it had not read yet (`"next"`) is not lost with it: it starts the next turn, with any other such message, and the chat tells it delivered into that turn. Answers the stopped turn's id, or `null` when none ran. |
+| `chats.stop(id)` | Stops the turn the agent is on. What it wrote stays, and the agent remembers it: the next turn sees the stopped one's text, cut where it stopped, and a note that the person stopped it on purpose — so the agent answers what comes next instead of redoing the stopped work, and "continue" picks it up where it was cut, not from the start. A message sent while it worked that it had not read yet (`"next"`) is not lost with it: it starts the next turn, with any other such message, and the chat tells it delivered into that turn. Answers the stopped turn's id, or `null` when none ran. |
 | `chats.approve(id, approvalId, { reason, as })`, `chats.deny(…)` | A call that waits for a person's yes, made or not. Denied, the agent is told the reason and goes on. |
 | `chats.answer(id, callId, output, { isError, as, workspaceTree })` | A client tool's answer, or a deferred tool's: `true` when it is the one taken, `false` when another came first. `workspaceTree` is the tree a tool's writes left (`chats.workspace.write`'s answer). |
 | `chats.sendToSubagent(id, runId, text, { as })` | A message for a subagent at work, at its next step. |
@@ -19722,7 +19722,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.17.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.18.1")
 ```
 
 | Product | What it is |
@@ -20765,7 +20765,7 @@ The project holds its clients to limits the platform sets and the project may lo
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.17.0 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.18.1 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -20997,7 +20997,7 @@ When the person signs out, what the phone kept of their conversations is dropped
 The calls are a Swift package of their own, so an app that makes no calls takes none of their weight. Add `https://github.com/palgroup/palbase-swift-calls` with Swift Package Manager, at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.17.0")
+.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.18.1")
 ```
 
 Link `PalbaseCalls` to the app — and `PalbaseCallsBroadcast` to its Broadcast Upload Extension alone, when it shares the whole screen ([Sharing a screen](#sharing-a-screen)). `PalbaseCalls` brings Palbase's core and `PalbaseNotify` of the same version, and LiveKit's WebRTC and client SDK, which the media server's calls go through. **Do not add LiveKit's own Swift package beside them**: its client SDK is already inside `PalbaseCalls`. It needs iOS 18 and Xcode 16.3 or newer.
@@ -22039,7 +22039,7 @@ A chat of the project's agents can be talked to out loud ([AI › Voice](/docs/b
 `PalbaseVoice` is a package of its own, [github.com/palgroup/palbase-swift-voice](https://github.com/palgroup/palbase-swift-voice), because it brings WebRTC (LiveKit's build, [livekit/webrtc-xcframework](https://github.com/livekit/webrtc-xcframework)): an app that talks to no voice resolves none of it. Add it at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-voice", exact: "0.17.0")
+.package(url: "https://github.com/palgroup/palbase-swift-voice", exact: "0.18.1")
 ```
 
 Link `PalbaseVoice`; it brings the `Palbase` core of the same version. An app that also takes LiveKit's SDK resolves the one WebRTC package. The app's Info.plist says why it asks for the microphone, in `NSMicrophoneUsageDescription`.
@@ -22152,7 +22152,10 @@ struct SettingsView: View {
                 Button("Debug console") { showingConsole = true }
             }
         }
-        .sheet(isPresented: $showingConsole) { pb.debug.view }
+        // onClose: the × on each tab's root dismisses it.
+        .sheet(isPresented: $showingConsole) {
+            pb.debug.view.onClose { showingConsole = false }
+        }
     }
 }
 ```
@@ -22207,6 +22210,47 @@ On the device alone: nothing of the console is sent anywhere. It keeps the last 
 
 `pb.debug.view` is a `PalbaseConsoleView`, to place in a sheet, a tab or a pushed screen: the timeline of every record, filters by label and level, each request's headers, bodies (as JSON, text, a cURL command or a hex dump) and timing, the realtime inspector, metrics, and the launches kept.
 
+| Member of `PalbaseConsoleView` | What it does |
+|---|---|
+| `onClose(_:)` | For a console the app presented (a sheet, a full-screen cover, a controller of its own): each tab's root shows an × that runs the action, where a pushed page has its back button. A pushed console needs none, its back button is the way out, and neither does a console that is a tab of the app. |
+| `embedded()` | Drops the console's own navigation stacks, for a place that already has one. |
+
+### Copying records out
+
+Every page of a record copies what it shows in one tap: the request and response bodies (JSON pretty-printed, text as it came), the headers and cookies as `Name: value` lines, the cURL command. The record's own menu copies its URL, its cURL command, either body or the whole record.
+
+To take several records at once, choose **Select** in the list's menu, tick the records (or **Select All**, which takes the ones the filters and the search show), then:
+
+| Action | What it gives |
+|---|---|
+| **Copy Responses** | Each answer with the request line it answers. |
+| **Copy Requests & Responses** | The same, with each request's headers and body. |
+| **Share Responses**, **Share Requests & Responses** | The same JSON as a `.json` file, through the system's share sheet, for a selection too big to paste. |
+
+A copy holds at most 4 MB: past it, it ends at a whole record, the array closed, and its note says so ("Copied 12 of 300 records — Share takes them all"); a share takes the whole selection, written a record at a time into the console's own folder, which goes with the records.
+
+Both give a JSON array, in the list's order, the same on iOS and Android:
+
+```json
+[
+  {
+    "durationMs": 138,
+    "method": "POST",
+    "requestId": "8bd341a7-c920-467b-a415-a5a769ddd811",
+    "response": {
+      "body": { "expires_in": 1800, "token_type": "Bearer" },
+      "headers": { "content-type": "application/json" }
+    },
+    "startedAt": "2026-11-06T10:22:09.121+03:00",
+    "state": "success",
+    "status": 200,
+    "url": "https://<ref>.palbase.studio/auth/login"
+  }
+]
+```
+
+A JSON body is JSON, its numbers as the server wrote them, a text body is text, anything else is `"<binary: N bytes>"`. A body the console kept only the size of reads `"<not kept: N bytes>"`, one swept to stay within the disk budget `"<no longer available: N bytes>"`, and a body kept only in part carries `"truncated": true`. A failed request has `error` in place of `status`; a log line is `{ "log": { "level", "label", "message", "at", "metadata" } }`. Everything is as recorded, with the credentials already masked (`***`).
+
 ## Related
 
 - [Flags](/docs/ios/flags): `palbase.debug_console`, a user's own value
@@ -22221,7 +22265,7 @@ On the device alone: nothing of the console is sent anywhere. It keeps the last 
 
 The Android SDK is `studio.palbase:palbase` and one artifact per module, in Kotlin, with coroutines. `palbase` holds the project's address and publishable key, the transport every call goes through, the signed-in user's session, the realtime socket, consent and auth. Each module (flags, analytics, realtime, notify, storage, purchases) is an artifact of its own that hangs off the same client, as `pb.flags`, `pb.notify` and so on. A backend of yours is a typed client that `palbase apps:sync` writes into the app, and it calls through the same client too.
 
-The version on this page is **0.17.0**.
+The version on this page is **0.18.0**.
 
 ## Requirements
 
@@ -22266,7 +22310,7 @@ android {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.17.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.18.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-flags")     // and the other modules the app uses
     implementation("studio.palbase:palbase-palbe")     // when the app calls a backend of yours
@@ -22446,7 +22490,7 @@ Every request says the user's languages in `Accept-Language`, the device's in th
 pb.setPreferredLanguages(listOf("tr", "en"))   // null goes back to the device's
 ```
 
-Requests also carry `X-Palbase-SDK: android/0.17.0` (`PalbaseClient.VERSION`).
+Requests also carry `X-Palbase-SDK: android/0.18.0` (`PalbaseClient.VERSION`).
 
 ### Observable state
 
@@ -22803,7 +22847,7 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.17.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.18.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-palbe")
 }
@@ -23339,7 +23383,7 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.17.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.18.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // pushes: the FCM token, and the service that draws them
     implementation("studio.palbase:palbase-messaging")  // pb.messaging
@@ -23552,7 +23596,7 @@ The phone's copy is kept in the app's own SQLite, in files not backed up. When t
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.17.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.18.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // the FCM token, and the service a ring arrives through
     implementation("studio.palbase:palbase-calls")      // pb.calls
@@ -23980,7 +24024,7 @@ pluginManagement { repositories { gradlePluginPortal(); google(); mavenCentral()
 // app/build.gradle.kts
 plugins {
     id("com.android.application")
-    id("studio.palbase") version "0.17.0"
+    id("studio.palbase") version "0.18.0"
 }
 ```
 
@@ -24605,6 +24649,42 @@ Turning it off again is `palbase flags:users:unset <user-id> palbase.debug_conso
 ## The screens
 
 The console has two tabs, Console and Realtime, under a floating tab bar, each with its own back stack: the list of records, a network inspector, a body viewer, filters, the launches, and the realtime inspector. It draws edge to edge and keeps its own bars clear of the system's, so give it the whole screen. With `onClose`, each tab's root shows a round ×, and system back (predictive on Android 14 and newer) walks a tab's pages before it closes the console. Without `onClose`, there is no close button, and back at a root is the host's.
+
+### Copying records out
+
+Every page of a record copies what it shows in one tap: the request and response bodies (JSON pretty-printed, text as it came), the headers and cookies as `Name: value` lines, the cURL command. The record's own menu copies its URL, its cURL command, either body or the whole record.
+
+To take several records at once, choose **Select** in the list's menu, tick the records (or **Select All**, which takes the ones the filters and the search show), then:
+
+| Action | What it gives |
+|---|---|
+| **Copy Responses** | Each answer with the request line it answers. |
+| **Copy Requests & Responses** | The same, with each request's headers and body. |
+| **Share Responses**, **Share Requests & Responses** | The same JSON as a `.json` file, through the system's share sheet, for a selection too big to paste. |
+
+A copy holds at most 128 KB, as every copy the console makes: past it, it ends at a whole record, the array closed, and its note says so ("Copied 12 of 300 records — Share takes them all"); a share takes the whole selection. The file is served by the console's own provider (`ConsoleShareProvider`, merged from `palbase-debug`'s manifest under `<application id>.palbase.console.share`), from one folder of the app's cache, to the app chosen in the sheet alone.
+
+Both give a JSON array, in the list's order, the same on iOS and Android:
+
+```json
+[
+  {
+    "durationMs": 138,
+    "method": "POST",
+    "requestId": "8bd341a7-c920-467b-a415-a5a769ddd811",
+    "response": {
+      "body": { "expires_in": 1800, "token_type": "Bearer" },
+      "headers": { "content-type": "application/json" }
+    },
+    "startedAt": "2026-11-06T10:22:09.121+03:00",
+    "state": "success",
+    "status": 200,
+    "url": "https://<ref>.palbase.studio/auth/login"
+  }
+]
+```
+
+A JSON body is JSON, its numbers as the server wrote them, a text body is text, anything else is `"<binary: N bytes>"`. A body the console kept only the size of reads `"<not kept: N bytes>"`, one swept to stay within the disk budget `"<no longer available: N bytes>"`, and a body kept only in part carries `"truncated": true`. A failed request has `error` in place of `status`; a log line is `{ "log": { "level", "label", "message", "at", "metadata" } }`. Everything is as recorded, with the credentials already masked (`***`).
 
 `palbase-debug` brings Compose and `palbase-flags` with it. Compose is in no other artifact of the SDK, so an app that never shows the console does not take it, and its recording is the core's either way.
 
