@@ -217,6 +217,25 @@ How it runs:
 - **Cleanup.** `palbase auth:test-users:delete <id>` deletes a user made with a template through the machine that made it: each template's `undo` runs first, and an `undo` that fails keeps the user, to be deleted again. Without an `undo`, the user's deletion is the cleanup — what `ownedByUser()` owns goes with the user (`user.deleted`). Give a template an `undo` when it writes rows that are not owned that way: a plain text column naming the user, a row naming two users (a block between two accounts). Deleted at auth directly (`adminDeleteTestUser`), no `undo` runs.
 - **Who may.** Your role, or an environment's token with `auth:test-users` (`palbase env:tokens:create --scope auth:test-users`): it makes users with a template, writes one again and deletes them, and lists the machines to find the one a template is on. At most 10 users at once with a template. The API is `POST /machines/{name}/test-users` (`{ count, template, with_tokens }`).
 
+### A template can give the user a role
+
+A test user gets the environment's [default role](https://palbase.studio/docs/auth/users#roles), as every new user does. A template gives it another: the template runs in your machine, whose secret key gives roles in any environment, production included — so a check, a person or an agent signs in as a manager without anyone giving the role by hand.
+
+```ts
+// src/staff/manager.template.ts
+import { Palbase, TestUserTemplate, type TemplateUser } from "palbase/backend";
+
+// `palbase auth:test-users:create --template manager`: a test user who holds the manager role.
+@TestUserTemplate({ name: "manager" })
+export class Manager {
+  async seed(user: TemplateUser) {
+    await Palbase.auth.adminAssignUserRole({ path: { uid: user.id, role: "manager" } });
+  }
+}
+```
+
+The role is defined first (`palbase auth:roles:set manager --permissions staff.manage`); one that is not is `400 role_not_defined`, the template's failure, and the user is not left behind. Deleting the user takes the role with it: no `undo` is needed.
+
 ### Right after a push: the command waits for the new code
 
 A template you just added lives in the commit you just pushed, and the machine — or the pull request's preview — answers from the code it **serves**. While the new build is asked for, waiting for its checks, queued, building, testing, or rolling out, the version before still serves, and it has no such template — an asleep preview, too, wakes on the code it ran and rolls the new one out after (the call wakes it). So the platform makes no user then: `POST /machines/{name}/test-users` answers `409 build_in_progress`, naming the build, its commit and where it is.

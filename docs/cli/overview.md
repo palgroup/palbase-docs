@@ -72,7 +72,7 @@ The value is printed once. Tokens are listed with `palbase tokens:list` (never t
 
 ## For an AI agent
 
-An agent that works on one environment gets an environment token rather than an organization's: it does what your role does in that environment alone, for a few hours, and never makes or shows a standing credential, changes people or roles, or deletes a project or an environment.
+An agent that works on one environment gets an environment token rather than an organization's: it does what your role does in that environment alone, for a few hours, and never makes or shows a standing credential, changes people or their roles in the organization, or deletes a project or an environment. Your app's own roles it sets up in a development environment, not in a production one ([Users & Roles](https://palbase.studio/docs/auth/users#who-defines-and-gives-them)).
 
 ```sh
 palbase env:tokens:create --minutes 120 --name coding-agent

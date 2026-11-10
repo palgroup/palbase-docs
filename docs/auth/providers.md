@@ -52,7 +52,7 @@ Register this callback with the provider, for every browser client:
 https://<ref>.palbase.studio/auth/oauth/callback/<provider>
 ```
 
-`<provider>` is `google`, `apple`, `github` or `microsoft`. Studio shows it, ready to copy, as **Backend callback URL** in the provider's settings. After the provider sends the person back there, auth sends them on to your app's **return URI**: one of the client's `return_uris`, exactly as listed, or the sign-in is refused (`invalid_return_uri`).
+`<provider>` is `google`, `apple`, `github` or `microsoft`. The host is the address the environment signs in at: its own, or [your own sign-in domain](#your-own-sign-in-domain) once it signs in there. Studio shows it, ready to copy, as **Backend callback URL** in the provider's settings, and `palbase auth:providers:list` prints each provider's. After the provider sends the person back there, auth sends them on to your app's **return URI**: one of the client's `return_uris`, exactly as listed, or the sign-in is refused (`invalid_return_uri`).
 
 | Provider | Browser client | Its secret | Native clients |
 |---|---|---|---|
@@ -101,6 +101,21 @@ A provider account that is already linked signs in to its user. One that is not:
 - **makes a new account** when no account holds the address.
 
 A signed-in user links another provider to their own account with the same flow (`purpose: "link"`). The app's side of the browser flow is in [Social sign-in](https://palbase.studio/docs/web/auth#social-sign-in).
+
+## Your own sign-in domain
+
+A provider's consent screen names the domain it sends people back to. Google's says *Choose an account to continue to palbase.studio* until it is told otherwise, and so does every browser tab of your sign-in. A subdomain of yours — `auth.example.com` — can answer the environment's sign-in instead: the social providers' callbacks, its [OpenID provider](https://palbase.studio/docs/auth/openid-provider) and the pages its emails link to. Google then says *continue to example.com*; it says your app's name once Google has verified your brand, which asks that you show in Google Search Console the domain is yours and that your home page is on it — that step is yours, at Google.
+
+1. **Add the domain.** `palbase auth:domains:add auth.example.com`, or **Auth › Providers › Sign-in domain** in Studio. It prints two records for your DNS: a `CNAME` of `auth.example.com` to `domains.palbase.app`, and a `TXT` at `_palbase.auth.example.com` that shows it is this environment's. It answers once both are there and its certificate is issued — `palbase auth:domains` says when, and what is missing meanwhile. A subdomain only: your domain itself is your app's.
+2. **Tell the providers.** Each one's callback at the domain is `https://auth.example.com/auth/oauth/callback/<provider>`; `auth:domains` and Studio print them. Add it beside the one at the environment's own address:
+   - Google: the Web application client's **Authorized redirect URIs**, and `example.com` under the consent screen's **Authorized domains**.
+   - Apple: the Services ID's **Domains and Subdomains** (`auth.example.com`) and **Return URLs**.
+   - Microsoft: the app registration's **Web** redirect URIs. GitHub: the OAuth App's **Authorization callback URL** — GitHub takes one, so it moves with sign-in.
+3. **Move sign-in to it.** `palbase auth:domains:use auth.example.com`, or **Sign in here** in Studio. It holds at once: a social sign-in begun after it goes back to the domain's callback — a provider that does not know it refuses the sign-in — and the environment's emails, its device-code page and its recovery pages name the domain.
+
+What stays as it was: the environment's own address answers as before. A session begun there goes on, your backend's checks of its tokens go on, and your app's SDK keeps calling it. An OpenID client is answered as the address it discovered: at `https://auth.example.com/.well-known/openid-configuration` the issuer is `https://auth.example.com`, and the tokens minted there name it; at the environment's own address its own. Passkeys keep their relying party, the environment's own address.
+
+`palbase auth:domains:use --none` moves sign-in back to the environment's own address; `palbase auth:domains:remove auth.example.com` takes the domain away — the one the environment signs in at is kept until sign-in moves. While the domain does not answer (its DNS records gone), the environment signs in at its own address. A sign-in domain counts among the project's [custom domains](https://palbase.studio/docs/getting-started/usage-and-limits), every environment's together, and one is one environment's: another environment's, or another customer's, is refused.
 
 ## Guests
 

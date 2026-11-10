@@ -54,7 +54,7 @@ This is how Supabase's `inviteUserByEmail`, Firebase's `createUser` and Cognito'
 
 ### An invitation's life
 
-1. **Invited.** The user has `invited: true` and an `invited_at` (Studio's **Users** shows *Invited*). Roles can be given to it already; it holds those you give it — a sign-up's default roles are a sign-up's.
+1. **Invited.** The user has `invited: true` and an `invited_at` (Studio's **Users** shows *Invited*). Roles can be given to it already; it holds the [default role](#roles), as every new user does, and those you give it.
 2. **The email names your app, and the link lives seven days.** It reads "**Koz** invited you to join. *Accept the invitation* and choose your password" ("Koz sizi davet etti. *Daveti kabul et* …" in Turkish) — your app's name is the [auth settings](https://palbase.studio/docs/auth/overview#your-apps-name)' `app_name` (`palbase auth:settings:set app_name=Koz`, or **Auth › Settings › Your app**); without one it says "An app invited you". The link opens Palbase's page at the environment's address, in the email's language (`locale`, else the environment's): its title names the app ("Join Koz"), the address the invitation was sent to is shown in a field that cannot be changed, and the person chooses the password — held to the environment's password policy and the known-breaches check. A link that opens nothing — expired, replaced by a later invitation, already taken up — says so as the page opens, before any password is typed.
 3. **Taken up.** The password is set and the address confirmed (`email_verified`), and `invited` is false. The person signs in with their email and that password. `auth.invitation.accept` is in the audit log; the invitation itself is `admin.invite`.
 4. **Expired or replaced.** A link older than seven days says it has expired; one that a later invitation replaced says it is not valid, and one opened after the account is set up says so. Invite the address again for a new link. **The account stays when its link expires**: whoever owns the address can still take it up another way that proves the address — a password reset, a sign-in link — with the roles it was given.
@@ -149,7 +149,7 @@ Everything auth holds about one person, as they may ask for it under the GDPR (a
 
 ## Roles
 
-A role is a name your app gives users, with the permissions it stands for. Roles are defined in the environment and given to users with the secret key; your code decides what they allow.
+A role is a name your app gives users, with the permissions it stands for. Roles are defined in the environment and given to users; your code decides what they allow.
 
 ```sh
 palbase auth:roles:set editor --permissions posts.publish,posts.delete_any --description "Edits everyone's posts"
@@ -160,7 +160,7 @@ palbase auth:roles:delete editor --force
 
 - A role's name is lowercase letters, digits and `_`, 64 at most. `anon`, `authenticated`, `service_role` and names starting `backend_` are the platform's.
 - A permission is `resource.action`: lowercase, one dot, no wildcard (`posts.delete_any`). `--permissions` replaces the role's list; `""` empties it. Users who hold the role have the new list at once.
-- `--default yes` gives the role to every new user. One role at most is the default.
+- `--default yes` gives the role to every new user, however the account is made: a sign-up with a password, a provider (Google, Apple …), a phone code or a passkey, a guest, an account made in Studio or with `POST /admin/users`, an invitation, a [test user](https://palbase.studio/docs/backend/test-users), an import. It is theirs from the account's first answer (`user.roles`), and `user.permissions_changed` says so. One role at most is the default; the users who were there before it keep what they hold.
 - A role users hold is deleted only with `--force`, which takes it from them; without it the answer is `409`.
 
 There is no CLI command that gives a user a role: that is your app's decision, made from your server.
@@ -171,6 +171,16 @@ There is no CLI command that gives a user a role: that is your app's decision, m
 | `DELETE /admin/users/{uid}/roles/{role}` | Takes it from them. |
 | `GET /admin/users/{uid}/roles` | The roles they hold. |
 | `PUT /admin/roles/{name}`, `DELETE /admin/roles/{name}` | What `auth:roles:set` and `auth:roles:delete` call. |
+
+### Who defines and gives them
+
+| Who | A development environment | A production environment |
+|---|---|---|
+| A person, signed in to the CLI (`palbase auth:roles:set`) | Yes | Yes |
+| The app's backend, with its secret key (`Palbase.auth.adminAssignUserRole`, [Authentication](https://palbase.studio/docs/backend/authentication#roles)) | Yes | Yes |
+| An environment's token: an agent's, a CI job's ([Access Tokens](https://palbase.studio/docs/getting-started/access-tokens#what-no-environment-token-can-do)) | Yes, as its minter's role allows | No: `403 token_out_of_scope` |
+
+An agent that builds the app sets up its roles where the app is built: in a development environment its token runs `palbase auth:roles:set customer --default yes`, and gives a test user another role with `PUT /admin/users/{uid}/roles/staff` — or makes the user with a [test user template](https://palbase.studio/docs/backend/test-users#a-template-can-give-the-user-a-role) that gives it. In a production environment — and in one not known to be a development environment: of no Studio project — the same calls answer `403 token_out_of_scope`, saying what does them there: a person, signed in; the backend's own code, with its secret key; or the default role, which every new user gets. A test user the token makes in production holds the default role too, as every new account does: what a default role lets a person do, give it to anyone who signs up. A token narrowed with `--scope` reaches roles in neither.
 
 The roles a user holds are in the `user` of every sign-in answer, as `roles`, not in their access token. A backend asks for them where it decides (the [Roles](https://palbase.studio/docs/backend/authentication#roles) section of Authentication shows how), and hears `user.permissions_changed`, with the user's whole permission list, each time a role is given, taken or changed. `palbase types:pull` writes the environment's role names into `palbase/palbase-env.d.ts`.
 

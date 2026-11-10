@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.51.5 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.52.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-458 commands in 35 groups.
+462 commands in 35 groups.
 
 ## Global flags
 
@@ -440,6 +440,7 @@ palbase billing:project [-P <project>] [--plan free|pay_as_you_go] [--limit <usd
 With no flag it shows the project: its plan, limit and month, item by item, and what each of its environments used.
 A project is billed as one: its environments' usage together, past its one free quota. Pay as you go: what it uses past its free quota is owed to the payment account that pays for its organization (palbase billing:payer), charged at the month's end and as it comes to the account's threshold — and every environment of it, a new one too, has the paid sizes. A project is moved to it only while its organization is paid for by an account with a card.
 At its limit it is Free until the month ends; the organization's other projects go on.
+A project of an organization that is not billed is priced and billed to no one: its limit holds nothing — its owners and admins are emailed as its month nears it and when it passes it.
 
 ```text
       --plan <free|pay_as_you_go>  Free (charged nothing, held to the free quotas) or Pay as you go (what its environments use past its free quota is charged)
@@ -640,11 +641,13 @@ palbase auth:settings:get lists the keys.
 
 ### `palbase auth:providers:list`
 
-The sign-in methods: email, phone and the social providers, whether each is on, their clients and stored secrets (by name)
+The sign-in methods: email, phone and the social providers, whether each is on, their clients, stored secrets (by name) and callback URLs
 
 ```sh
 palbase auth:providers:list
 ```
+
+Each social provider sends its people back to a callback at the address the environment signs in at — its own, or one of its own domains (auth:domains): register it at the provider (Google's Authorized redirect URIs, Apple's Services ID Return URLs, Microsoft's and GitHub's redirect URIs).
 
 ### `palbase auth:providers:set`
 
@@ -690,6 +693,53 @@ Delete a sign-in provider's stored secret by its name; one a client still uses i
 ```sh
 palbase auth:providers:secret:delete <name>
 ```
+
+### `palbase auth:domains`
+
+The environment's own domains — auth.example.com — its sign-in answers at: whether each answers, what its DNS still needs, and where the environment signs in
+
+```sh
+palbase auth:domains
+```
+
+A domain of your own answers the environment's sign-in — its social providers' callbacks, its OpenID provider, its pages — so Google's consent screen, Apple's and your users' browsers show it, not the platform's address.
+
+### `palbase auth:domains:add`
+
+Have the environment's sign-in answer at a subdomain of your own too (auth.example.com)
+
+```sh
+palbase auth:domains:add <host>
+```
+
+It answers once its DNS points at the platform (a CNAME) and says it is this environment's (the TXT record): both are printed. A subdomain only — your domain itself is your app's.
+Then register its callback URLs at each social provider (printed), and move sign-in to it: palbase auth:domains:use `<host>`.
+It counts among the project's domains, every environment's together.
+
+### `palbase auth:domains:use`
+
+Sign the environment's people in at one of its own domains — or, with --none, at its own address again
+
+```sh
+palbase auth:domains:use <host> | --none
+```
+
+It holds at once: a social sign-in begun after it sends its provider back to the domain's callback, which the provider must know first (auth:domains prints them) — one that does not refuses the sign-in. The environment's emails and pages name the domain, and an OpenID client that discovers it is answered as it.
+Its own address keeps answering as before: a session begun there, and your backend's checks of its tokens, go on.
+
+```text
+      --none  sign in at the environment's own address
+```
+
+### `palbase auth:domains:remove`
+
+Stop the environment's sign-in answering at one of its own domains: at once, and another environment may add it
+
+```sh
+palbase auth:domains:remove <host>
+```
+
+The one it signs in at is kept: move sign-in first (auth:domains:use).
 
 ### `palbase auth:roles:list`
 

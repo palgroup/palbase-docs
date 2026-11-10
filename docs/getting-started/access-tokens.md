@@ -79,7 +79,8 @@ They answer `403 token_out_of_scope` (or `person_only`), whoever minted the toke
 - sign in as one of the environment's users, or make a password reset for one;
 - set a user's password or email: create or import users, change a user's email (test users are its to make);
 - create an OAuth client or a service account, rotate one's key, or change where an OAuth client's codes go;
-- define a role, or give or take one from a user; make, change or remove an auth hook, whose claims go into every user's token, an app's role among them;
+- make, change or remove an auth hook, whose claims go into every user's token, an app's role among them;
+- in a production environment, define an app's role or give or take one from a user (see below);
 - create a database, or make new passwords for one: both answers show its passwords;
 - read a secret's value, a task's payload (it may carry a token) or a coupon's one-time codes. Setting a secret is allowed;
 - set or remove a sign-in provider's client secret, or change which apps' sign-ins with it the environment takes (its client ids);
@@ -95,6 +96,8 @@ Each module refuses these itself, on the route it matched, so writing the path a
 A link the token signs does not outlive it either. A signed download or upload URL, a package's upload link, a link to hand over an Apple or Stripe key, a signed bundle's download link and the link that connects GitHub all end no later than the token. The answer's `expires_at` says when.
 
 Test users, and the sign-ins made for them, are open: they are test fixtures, and `auth:test-users` is for them.
+
+An app's roles are the token's in any environment but a production one: in a development environment an agent defines them (`palbase auth:roles:set`) and gives them to its test users (`PUT /admin/users/{uid}/roles/{role}`), at its minter's role, where the app is built. In a production environment, and in one not known to be a development environment (one of no Studio project, or not known yet), those calls answer `403 token_out_of_scope`, saying what does them there: a person, signed in; the app's backend, with its secret key; or the default role ([Users & Roles](https://palbase.studio/docs/auth/users#who-defines-and-gives-them)). A test user it makes holds the default role, in production too, as every new account does.
 
 ### Narrowing it
 

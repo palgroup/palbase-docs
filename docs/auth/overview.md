@@ -129,7 +129,7 @@ The origins a passkey is accepted from are the environment's web apps; see [Pass
 |---|---|---|
 | `risk_engine_enabled` | `false` | Score every sign-up and sign-in for risk, from 0 to 1. |
 | `risk_step_up` | `0.3` | At this score a sign-in asks for a second factor: an email code when the account has none (it proves the inbox; the session it opens is `aal1`, as an email code is not a second factor). |
-| `risk_strict_step_up` | `0.6` | At this score it asks for a strong one, an authenticator app or a passkey, when the account has one. |
+| `risk_strict_step_up` | `0.6` | At this score it asks for a strong one, an authenticator app or a passkey, when the account has one. A recovery code does not stand in for it: `/auth/mfa/recovery` answers `400 factor_not_allowed`, and the challenge's `mfa_token` stays for the strong factor. |
 | `risk_block` | `0.8` | At this score the sign-up or sign-in is refused, answered as a wrong password or a failed sign-up would be, so the refusal does not tell anyone the account exists. |
 
 The three scores are set together, in that order (step up < strict step up < block). The score is made from the device's attestation, the account's own sign-in history, and, when the environment connects its own account with them, [Fingerprint](https://fingerprint.com) and [MaxMind](https://www.maxmind.com). A risk engine that cannot answer refuses a sign-up with `503` rather than letting it through.

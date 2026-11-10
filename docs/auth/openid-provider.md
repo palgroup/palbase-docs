@@ -10,6 +10,8 @@ The provider's issuer is the project's address, and everything about it is in it
 https://<ref>.palbase.studio/.well-known/openid-configuration
 ```
 
+With [your own sign-in domain](https://palbase.studio/docs/auth/providers#your-own-sign-in-domain), the provider answers there too, as its own issuer: `https://auth.example.com/.well-known/openid-configuration` names `https://auth.example.com` as the issuer and every endpoint there, and the pages a person signs in through are on it. A client keeps the issuer it discovered — tokens minted at one address name that address — so point a new client at your domain, and leave one already set up at the project's address as it is.
+
 | Endpoint | What it is |
 |---|---|
 | `GET /oauth/authorize` | The authorization endpoint: the browser leg of the authorization code flow, with PKCE (`S256`). |
@@ -59,7 +61,7 @@ Without it, `/oauth/authorize` refuses: there is nowhere to sign the person in. 
 
 1. The client sends the browser to `GET /oauth/authorize` with its `client_id`, `redirect_uri`, `scope`, `state` and PKCE challenge.
 2. The provider sends the browser to your page with `?auth_request_id=…`.
-3. Your page signs the person in with `POST /auth/login`, sending the `auth_request_id` with the email and password. The answer's `oidc_callback_url` is where the browser goes next.
+3. Your page signs the person in, naming the `auth_request_id`: with a password (`POST /auth/login`), or with a provider (Google, Apple, GitHub, Microsoft: `POST /auth/oauth/transactions`, then the transaction's completion). The answer that signs them in carries `oidc_callback_url`: where the browser goes next. A sign-in that asks for a second factor carries the request in its `mfa_token`, and the challenge's answer carries `oidc_callback_url`.
 4. From there, the provider sends the browser back to the client's `redirect_uri` with the `code`, the `state` and the issuer (`iss`). The client exchanges the code at `POST /oauth/token`.
 
 The request answers the browser that opened it and completed it, once. `/oauth/authorize` leaves a cookie on the project's address (`__Host-palbase_oauth_…`, five minutes, `SameSite=Lax`) naming the request, and the sign-in that completes it is given a secret, carried in `oidc_callback_url` (`done=`) and nowhere else. The callback answers only a browser that holds both: someone who opened a request and sent its sign-in page to another person has the cookie but never the secret, and the person who signed in has the secret but not their cookie — each is answered `400 auth_request_other_browser` and no code. Once the callback sends the browser back to the client, the request is gone; visiting it again gives nothing. So the page signs the person in within the browser the flow started in, and goes to `oidc_callback_url` there, as it is, as a top-level navigation.
@@ -75,17 +77,91 @@ export const pb = createClient({ url: "https://k3xq81w4m.palbase.studio", publis
 // src/oauth-login.ts
 import { pb } from "./lib/palbase";
 
-/** The form on https://app.example.com/oauth/login?auth_request_id=… */
-export async function signInForClient(email: string, password: string): Promise<string> {
-  const authRequestId = new URLSearchParams(window.location.search).get("auth_request_id") ?? "";
+/**
+ * The page /oauth/authorize sends the browser to: https://app.example.com/oauth/login?auth_request_id=…
+ * A provider sends the person back to this same page, without the id: the tab keeps it.
+ */
+const fromQuery = new URLSearchParams(window.location.search).get("auth_request_id");
+if (fromQuery) sessionStorage.setItem("auth_request_id", fromQuery);
+const authRequestId = sessionStorage.getItem("auth_request_id") ?? "";
+
+/** The sign-in that completed the request: on to the callback, in this browser, as it is. */
+function goOn(answer: { oidc_callback_url?: string }): boolean {
+  if (!answer.oidc_callback_url) return false;
+  window.location.assign(answer.oidc_callback_url);
+  return true;
+}
+
+export async function withPassword(email: string, password: string): Promise<string> {
   const { data } = await pb.auth.api.login({ body: { email, password, auth_request_id: authRequestId } });
-  if ("mfa_required" in data) return "This account signs in with a second factor, which this page does not complete.";
-  if (data.oidc_callback_url) window.location.assign(data.oidc_callback_url);
-  return "Signed in";
+  if ("mfa_required" in data) {
+    sessionStorage.setItem("mfa_token", data.mfa_token);
+    return `second factor: ${data.factors.join(", ")}`;
+  }
+  return goOn(data) ? "on to the app" : "signed in";
+}
+
+function base64url(bytes: ArrayBuffer | Uint8Array): string {
+  const u = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  return btoa(String.fromCharCode(...u)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** clientKey: the provider's browser client, whose return URIs hold this page's address. */
+export async function withProvider(clientKey: string): Promise<void> {
+  const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
+  const challenge = base64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  const begun = await pb.auth.api.socialBegin({
+    body: {
+      client_key: clientKey,
+      completion_challenge: challenge,
+      completion_challenge_method: "S256",
+      purpose: "sign_in",
+      return_uri: "https://app.example.com/oauth/login",
+      auth_request_id: authRequestId,
+    },
+  });
+  sessionStorage.setItem(`social:${begun.data.transaction_id}`, verifier);
+  if (begun.data.authorization_url) window.location.assign(begun.data.authorization_url);
+}
+
+/** Back from the provider: ?transaction_id=…&result_code=… */
+export async function finishProvider(): Promise<string> {
+  const q = new URLSearchParams(window.location.search);
+  const id = q.get("transaction_id") ?? "";
+  const verifier = sessionStorage.getItem(`social:${id}`) ?? "";
+  const { data } = await pb.auth.api.socialComplete({
+    path: { id },
+    body: { completion_verifier: verifier, result_code: q.get("result_code") ?? "" },
+  });
+  if (data.status === "mfa_required") {
+    sessionStorage.setItem("mfa_token", data.mfa_token);
+    return `second factor: ${data.factors.join(", ")}`;
+  }
+  return data.status === "signed_in" && goOn(data) ? "on to the app" : "signed in";
+}
+
+/** The code from the person's authenticator app. */
+export async function withSecondFactor(code: string): Promise<string> {
+  const mfaToken = sessionStorage.getItem("mfa_token") ?? "";
+  const { data } = await pb.auth.api.mfaChallenge({ body: { mfa_token: mfaToken, type: "totp", code } });
+  return goOn(data) ? "on to the app" : "signed in";
 }
 ```
 
-The request is completed by a password sign-in: a sign-in that answers `mfa_required` does not complete it.
+The sign-in that completes the request says how the person signed in, and the tokens the client gets say it too: `amr` is `["pwd"]` for a password, the provider's name (`["google"]`, `["apple"]`, `["github"]`, `["microsoft"]`) for a provider, and the first factor with the second (`["google", "otp"]`, `["pwd", "otp"]`) after a code; `acr` is `urn:nist:800-63:aal2` after an authenticator app's or a text's code, `urn:nist:800-63:aal1` otherwise (a recovery code, an email code). A provider's sign-in follows the project's sign-up switch: a person who has no account yet gets one when sign-ups are open, as in your own app.
+
+What the client asks of the sign-in is held to it, as other providers hold it:
+
+| Parameter | What the provider does |
+|---|---|
+| `prompt=none` | Answered at once at the client's `redirect_uri` with `error=login_required`: the provider keeps no session of its own — every authorization is a sign-in on your page — so it can never answer without showing it. |
+| `prompt=login`, `max_age` | Met by this provider: the sign-in that completes the request is made after the client asked, on your page, and the ID token's `auth_time` says when. A provider the person signs in with may use its own session: Microsoft is told `prompt=login` and asks for the password again; Google, Apple and GitHub take no such parameter. A client that needs proof of a fresh credential asks for `acr_values=urn:nist:800-63:aal2`: a second factor's code, typed now. |
+| `acr_values` | The sign-in must reach the least level the values name, of those the provider knows (`urn:nist:800-63:aal1`, `urn:nist:800-63:aal2`). With `aal2` the password sign-in asks for an authenticator app's or a text's code — even on a trusted device — and an account with none is refused (`400 auth_request_invalid`); a provider's sign-in completes the request after the second factor it asks for. A request asking only for `urn:nist:800-63:aal3`, which no sign-in here reaches, is answered at once at the client's `redirect_uri` with `error=unmet_authentication_requirements`. Values the provider does not know ask nothing; at most 8 values of 128 characters. |
+| `prompt=consent`, `select_account` | Your page decides: the provider shows no consent screen of its own. A client you register is one you allow on your users' behalf. |
+
+A request asking for a sensitive scope (`cli:admin` by default) needs `urn:nist:800-63:aal2` the same way. A second factor's code that cannot reach the level a request needs — a recovery code, an email code — is refused before it is spent.
+
+A request no sign-in can complete, unknown, expired (five minutes after `/oauth/authorize`) or completed already, is refused when the sign-in names it: `POST /auth/login` answers `400 auth_request_invalid` before it checks the password, and `POST /auth/oauth/transactions` before the person goes to the provider. Only a browser client's sign-in (`purpose: "sign_in"`) takes one; linking a provider to an account signs no one in. A request that expires while the person is at the provider or typing their code ends that sign-in with `400 auth_request_invalid`, and the client starts again. Completing a transaction again with the same body answers the same `oidc_callback_url`, and the callback answers once: two visits of it at the same moment (a double navigation, a prefetch) give one code, and the other is answered `409 auth_request_in_progress`.
 
 ## Signing in a device
 

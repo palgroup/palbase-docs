@@ -55,7 +55,7 @@ Every member of the organization reads it ([Organizations](https://palbase.studi
 | `machines.builds.seconds` | **Build hours** |
 | `machines.runs.seconds` | **Test and migration runs**: how long a machine's test, migration and contract runs ran, billed as build minutes |
 | `machines.images.bytes`, `machines.logs.bytes` | **Machine images** kept, the month's largest, and **Machine logs** kept |
-| `machines.domains` | **Custom domains** of the machines and sites, the month's most |
+| `machines.domains` | **Custom domains** of the machines and sites, and the environments' own [sign-in domains](https://palbase.studio/docs/auth/providers#your-own-sign-in-domain), the month's most |
 | `machines.tasks` | **Tasks** put on the machines' queues |
 | `sites.bytes` | **Site files** kept: every kept release's and preview's, the month's largest |
 | `sites.egress` | **Site traffic**: what the sites sent out that their CDN did not answer from its own copy |
