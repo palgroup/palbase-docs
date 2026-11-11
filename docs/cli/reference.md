@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.52.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.54.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-462 commands in 35 groups.
+476 commands in 36 groups.
 
 ## Global flags
 
@@ -702,7 +702,8 @@ The environment's own domains — auth.example.com — its sign-in answers at: w
 palbase auth:domains
 ```
 
-A domain of your own answers the environment's sign-in — its social providers' callbacks, its OpenID provider, its pages — so Google's consent screen, Apple's and your users' browsers show it, not the platform's address.
+A domain of your own answers the environment's sign-in — its social providers' callbacks, its OpenID provider, its pages, its passkeys — so Google's consent screen, Apple's, the passkey sheet and your users' browsers show it, not the platform's address.
+It says where the environment's passkeys are saved: while it has none they follow where it signs in, and the first one saved keeps them there for good.
 
 ### `palbase auth:domains:add`
 
@@ -726,6 +727,7 @@ palbase auth:domains:use <host> | --none
 
 It holds at once: a social sign-in begun after it sends its provider back to the domain's callback, which the provider must know first (auth:domains prints them) — one that does not refuses the sign-in. The environment's emails and pages name the domain, and an OpenID client that discovers it is answered as it.
 Its own address keeps answering as before: a session begun there, and your backend's checks of its tokens, go on.
+While the environment has no passkey saved, its passkeys follow: the passkey sheet names the domain, and the first one saved keeps them there for good. An iOS app lists `webcredentials:<host>` in its Associated Domains — palbase apps:sync writes it — so sync and ship a build first.
 
 ```text
       --none  sign in at the environment's own address
@@ -740,6 +742,7 @@ palbase auth:domains:remove <host>
 ```
 
 The one it signs in at is kept: move sign-in first (auth:domains:use).
+The one the environment's passkeys are saved at is kept while it has any: they sign in only there.
 
 ### `palbase auth:roles:list`
 
@@ -3019,13 +3022,13 @@ palbase stores:packages:get <package id>
 
 ### `palbase stores:packages:create`
 
-Make a package of an app: its build number, and the URL and token its .ipa is uploaded with
+Make a package of an app: its build number, and the URL and token its build is uploaded with
 
 ```sh
 palbase stores:packages:create <app id> --command-id <id> [--notes <text>] [--entitlements-file <json>]
 ```
 
-The build is made with the build number it answers (CFBundleVersion), then uploaded: palbase stores:packages:upload.
+The build is made with the build number it answers (an iOS app's CFBundleVersion, an Android app's versionCode), then uploaded: palbase stores:packages:upload.
 The same --command-id again answers the same package, with a new upload token while it waits for its build: a build machine sends its run's id.
 
 ```text
@@ -3036,18 +3039,19 @@ The same --command-id again answers the same package, with a new upload token wh
 
 ### `palbase stores:packages:upload`
 
-Hand a package its build: the .ipa or .aab goes straight to the environment's address with the upload token
+Hand a package its build: the .ipa, .aab or .apk goes straight to the environment's address with the upload token
 
 ```sh
-palbase stores:packages:upload <package id> --file <app.ipa|app.aab> --token <upload token>
+palbase stores:packages:upload <package id> --file <app.ipa|app.aab|app.apk> --token <upload token>
 ```
 
+An Android app's App Bundle (.aab) goes to Play; its APK is installed directly on testers' phones (stores:deliver --channel development), signed with the app's upload key whatever it came signed with. The file is told by what it holds, not by its name.
 The token is the one stores:packages:create printed; PALBASE_UPLOAD_TOKEN stands in for --token, out of the process list.
 The file goes with its Content-Length. While the module is busy with another upload it is sent again, after the wait the module names, five times at most; a package that has its build already (this token's upload arrived before) counts as uploaded.
 
 ```text
-      --file <app.ipa|app.aab>  the unsigned .ipa, or the Android App Bundle (unsigned, or signed with the app's upload key), the build machine made
-      --token <upload token>    the package's upload token
+      --file <app.ipa|app.aab|app.apk>  the unsigned .ipa, the Android App Bundle (unsigned, or signed with the app's upload key) or the Android APK the build machine made
+      --token <upload token>            the package's upload token
 ```
 
 ### `palbase stores:packages:bundle`
@@ -3068,19 +3072,21 @@ The bytes come from the environment's address on a link the module sealed for th
 
 ### `palbase stores:deliver`
 
-Send a package to a channel's testers: signed, handed to Apple or Play, and given to the testers
+Send a package to a channel's testers: signed, handed to Apple or Play — or installed on their own phones directly
 
 ```sh
-palbase stores:deliver <package id> [--channel testflight|play_internal] [--groups <group,…>] [--what-to-test <text>] [--locale <locale>]
+palbase stores:deliver <package id> [--channel testflight|play_internal|development] [--groups <group,…>] [--what-to-test <text>] [--locale <locale>]
 ```
 
 An iOS app goes to TestFlight: processed, then given to the groups; an export compliance question is answered with stores:export-compliance.
 An Android app goes to Play's internal testing track, to the testers it lists in Play Console. An invite given in Play Console just now takes a while to reach Play's API: a delivery Play refuses then (google_not_allowed) is sent again later.
+--channel development installs it directly, with no TestFlight: each person of the development groups named is mailed a link, their iPhone registers itself, and the package is signed for their phones — again, with no new build, when another phone comes. Sent again, it invites who joined the groups since. palbase stores:invitations `<package id>` shows where each person is.
+An Android app's APK goes to development alone (its default), its bundle to Play alone: the APK is signed with the app's upload key and is ready for everyone invited at once — an Android phone registers nowhere.
 palbase stores:deliveries `<package id>` follows it.
 
 ```text
-      --channel <channel>    where it goes: testflight, or play_internal (default: the app's platform's)
-      --groups <group,…>     the groups it goes to once ready, by id or name
+      --channel <channel>    where it goes: testflight, play_internal (default: the app's platform's), or development (direct install; an APK's default)
+      --groups <group,…>     the groups it goes to, by id or name: the channel's own kind (TestFlight groups, or development groups)
       --what-to-test <text>  the note testers read
       --locale <locale>      the note's locale (default: the app's primary one)
 ```
@@ -3092,6 +3098,52 @@ A package's deliveries: where each is now, and what to do when one failed
 ```sh
 palbase stores:deliveries <package id>
 ```
+
+### `palbase stores:invitations`
+
+The people invited to install a package directly: how far each got, their mail, their phones
+
+```sh
+palbase stores:invitations <package id>
+```
+
+invited → opened (the link) → enrolled (a phone of theirs registered) → downloaded (a phone took the build to install it); or revoked, or expired.
+A phone is signed once the package's build installs on it; registering, processing (Apple holds a new device up to 72 hours) or refused before that. Links are not listed: palbase stores:invite `<package id>` `<email>` answers a person's.
+
+### `palbase stores:invite`
+
+Invite one person to install a package directly: mails their link, and prints it
+
+```sh
+palbase stores:invite <package id> <email> [--no-mail] [--locale <language>]
+```
+
+A person invited already keeps their link — mailed again unless --no-mail —; an expired or revoked invitation is made again, with a new link. The package gets its development delivery when it had none.
+The link works for 14 days. A person registers two new iPhones at most in 30 days, through whatever links they hold; a phone already theirs registers again freely. With an environment token the link works no longer than the token.
+
+```text
+      --no-mail            only print the link: nothing is mailed
+      --locale <language>  the mail's and the page's language (en, tr; default: the project's)
+```
+
+### `palbase stores:invitations:revoke`
+
+Revoke an invitation: its link, its build and its registration stop working
+
+```sh
+palbase stores:invitations:revoke <invitation id>
+```
+
+### `palbase stores:devices`
+
+The phones registered for the project's development builds, and where each stands at Apple
+
+```sh
+palbase stores:devices
+```
+
+registering (to be registered at Apple when a build is signed for it), enabled, processing (Apple holds a new membership's 11th to 100th device out of builds for 24 to 72 hours) or refused, in Apple's words.
+An Apple account registers 100 iPhones a membership year, and a removed one keeps its place until the year ends.
 
 ### `palbase stores:what-to-test:set`
 
@@ -3118,10 +3170,17 @@ palbase stores:groups <app id>
 
 ### `palbase stores:groups:create`
 
-Make a group of testers for an app (in TestFlight an internal and an external group)
+Make a group of testers for an app: a TestFlight group, or a development group for direct install
 
 ```sh
-palbase stores:groups:create <app id> <name>
+palbase stores:groups:create <app id> <name> [--kind testflight|development]
+```
+
+A TestFlight group (an iOS app's default) is an internal and an external group at Apple, whose people Apple mails TestFlight's invitations.
+A development group (an Android app's default) is Palbase's own list of the people a package is installed for directly (stores:deliver --channel development): nothing at Apple, no TestFlight invitation.
+
+```text
+      --kind <kind>  testflight or development (default: testflight for an iOS app, development for an Android app)
 ```
 
 ### `palbase stores:groups:rename`
@@ -6118,4 +6177,162 @@ No database is asked: the app is started in its types mode, which reads its sche
 ```text
       --entry <file>  the app's entry, what it is started with (default src/main.ts)
       --file <path>   the file (default palbase/palbase-env.d.ts)
+```
+
+## `access`
+
+### `palbase access:schema:set`
+
+Puts an access schema into a database: its types, relations and permissions, compiled into the database's own views and row policies
+
+```sh
+palbase access:schema:set <file> [--url <postgres-url> | --db <name>] [--dry-run] [--drop-relationships]
+```
+
+The schema is a text of its own (type / table / relation / permission / rows): the docs page "Access" writes it out. `-` reads it from the input.
+It is checked against the database as it is — a table or a column the schema names that is not there is refused, and nothing changes — and applied in one transaction as the tables' owner.
+The database needs nothing of Palgres or the backend framework: any backend asks through SQL (access.check, access.objects, access.subjects, the `access.<type>__<name>` views).
+A schema that no longer keeps a relation which has relationships is refused, unless --drop-relationships takes them away.
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --dry-run             say what would change, change nothing
+      --drop-relationships  take away the relationships of relations the schema no longer keeps
+```
+
+### `palbase access:schema:get`
+
+The access schema a database answers from, as its text
+
+```sh
+palbase access:schema:get [--url <postgres-url> | --db <name>]
+```
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+```
+
+### `palbase access:test`
+
+Holds an access schema to a file of expected answers: ends with 1, naming each expectation it breaks — no database is asked
+
+```sh
+palbase access:test <file>
+```
+
+The file is JSON: the schema it is about ("schema": a path beside it, or "schema_text"), rows ("tables"), relationships ("type:id#relation@user:id") and what is expected ("expect").
+An expectation is { subject, can / cannot, on: "type:id" }, { subject, holds, of: "type", exactly: [ids] } or { who: "permission", on: "type:id", exactly: [subjects] }.
+Run it in CI before a schema is deployed: a change that opens or closes something nobody meant fails there.
+
+### `palbase access:check`
+
+Whether a subject holds a relation or a permission on an object, as the database answers it
+
+```sh
+palbase access:check <subject> <permission> <type:id> [--url <postgres-url> | --db <name>]
+```
+
+Ends with 0 when it does and 1 when it does not; a name the schema does not have is refused.
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+```
+
+### `palbase access:objects`
+
+The objects of a type a subject holds a relation or a permission on
+
+```sh
+palbase access:objects <subject> <permission> <type> [--url <postgres-url> | --db <name>]
+```
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+```
+
+### `palbase access:subjects`
+
+The subjects that hold a relation or a permission on an object
+
+```sh
+palbase access:subjects <permission> <type:id> [--url <postgres-url> | --db <name>]
+```
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+```
+
+### `palbase access:relationships:list`
+
+The relationships a database keeps: who is what of which object
+
+```sh
+palbase access:relationships:list [--object <type:id>] [--subject <user:id>] [--relation <name>] [--limit <n>] [--url <postgres-url> | --db <name>]
+```
+
+Only what is given and taken through access is listed; a relation the schema reads from a column of a table is that table's row.
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --object <type:id>    of this object (or of every object of a type: type:*)
+      --subject <user:id>   given to this subject (user:<id>, or an object: <type>:<id>)
+      --relation <name>     of this relation
+      --limit <n>           at most this many (default 100, at most 1000)
+```
+
+### `palbase access:relationships:grant`
+
+Gives a subject a relation on an object
+
+```sh
+palbase access:relationships:grant <type:id> <relation> <user:id | type:id> [--by <who>] [--url <postgres-url> | --db <name>]
+```
+
+The object must be there (its row, where its type has a table), and the relation one the schema keeps and gives to that kind of subject.
+The history records it, with who did it: --by, or `cli:<your email>`.
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --by <who>            who the history says did it (default cli:<your email>)
+```
+
+### `palbase access:relationships:revoke`
+
+Takes a relation on an object away from a subject
+
+```sh
+palbase access:relationships:revoke <type:id> <relation> <user:id | type:id> [--by <who>] [--url <postgres-url> | --db <name>]
+```
+
+What is taken stops holding with the statement that takes it.
+The history records it, with who did it: --by, or `cli:<your email>`.
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --by <who>            who the history says did it (default cli:<your email>)
+```
+
+### `palbase access:history`
+
+Who gave and took which relationship, and when: the newest first
+
+```sh
+palbase access:history [--object <type:id>] [--subject <user:id>] [--relation <name>] [--limit <n>] [--url <postgres-url> | --db <name>]
+```
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --object <type:id>    of this object (or of every object of a type: type:*)
+      --subject <user:id>   given to this subject (user:<id>, or an object: <type>:<id>)
+      --relation <name>     of this relation
+      --limit <n>           at most this many (default 100, at most 1000)
 ```

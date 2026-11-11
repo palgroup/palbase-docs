@@ -187,7 +187,7 @@ Start a Next.js app and give it the web SDK:
 ```json
 {
   "dependencies": {
-    "palbase": "^0.52.2",
+    "palbase": "^0.54.0",
     "next": "^16.3.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
@@ -315,7 +315,7 @@ notes-backend/
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.52.2"
+    "palbase": "^0.54.0"
   }
 }
 ```
@@ -1060,7 +1060,7 @@ An app with no database has no `src/db/`, and no `db` in its config.
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.52.2"
+    "palbase": "^0.54.0"
   }
 }
 ```
@@ -1295,7 +1295,7 @@ It stops working when it expires, when it is revoked (`DELETE /v1/environments/{
 
 Each project is billed on its own, by the calendar month (UTC): it has one plan and one free quota, and its environments — production, staging, a preview's — use them together, as one project does on Firebase. What it owes is charged to a **payment account** — an organization's cards and billing details — which pays for every organization linked to it: its own, and others its owners or admins link to it. Nothing is paid ahead. Each project is on one of two plans:
 
-- **Free**: charged nothing. Every item has a free quota each month, the project's environments together, and past it they are slowed or stopped ([Usage & Limits](/docs/getting-started/usage-and-limits#what-a-free-project-gets)); its machines and databases are of the free sizes. Every project starts on Free. Until the organization is paid for by a payment account that has paid a charge, a person opens at most 2 projects of 2 environments each — one deleted counts until the month is out, so deleting and opening again brings no new month of free quotas — and a Free project is opened by a person, not an organization's access token.
+- **Free**: charged nothing. Every item has a free quota each month, the project's environments together, and past it they are slowed or stopped ([Usage & Limits](/docs/getting-started/usage-and-limits#what-a-free-project-gets)); its machines and databases are of the free sizes. Every project starts on Free. Until the organization is paid for by a payment account that has paid a charge, a person opens at most 2 projects of 2 environments each — one deleted counts until the month is out, so deleting and opening again brings no new month of free quotas — and a Free project is opened by a person, not an organization's access token. An [account token](/docs/cloud/overview#an-organization-for-each-customer-account-tokens) opens 2 projects of 2 environments in each organization it opened, counted to that organization alone.
 - **Pay as you go**: an owner or an admin moves the project there, while a payment account with a card pays for its organization — never on its own. What its environments use past its free quota is priced and owed to that account as it is used; every environment of it — one opened later too — may open every size of machine and database. There is no monthly fee.
 
 When a project's month reaches its limit, only it falls back to the free quotas; the organization's other projects go on. Deleting an environment gives its project no free quota back: what it used that month stays the project's. The prices, the free quotas and the terms are on the [billing terms](https://palbase.studio/legal/billing) page.
@@ -1775,9 +1775,9 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.52.2 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.54.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-462 commands in 35 groups.
+476 commands in 36 groups.
 
 ## Global flags
 
@@ -2475,7 +2475,8 @@ The environment's own domains — auth.example.com — its sign-in answers at: w
 palbase auth:domains
 ```
 
-A domain of your own answers the environment's sign-in — its social providers' callbacks, its OpenID provider, its pages — so Google's consent screen, Apple's and your users' browsers show it, not the platform's address.
+A domain of your own answers the environment's sign-in — its social providers' callbacks, its OpenID provider, its pages, its passkeys — so Google's consent screen, Apple's, the passkey sheet and your users' browsers show it, not the platform's address.
+It says where the environment's passkeys are saved: while it has none they follow where it signs in, and the first one saved keeps them there for good.
 
 ### `palbase auth:domains:add`
 
@@ -2499,6 +2500,7 @@ palbase auth:domains:use <host> | --none
 
 It holds at once: a social sign-in begun after it sends its provider back to the domain's callback, which the provider must know first (auth:domains prints them) — one that does not refuses the sign-in. The environment's emails and pages name the domain, and an OpenID client that discovers it is answered as it.
 Its own address keeps answering as before: a session begun there, and your backend's checks of its tokens, go on.
+While the environment has no passkey saved, its passkeys follow: the passkey sheet names the domain, and the first one saved keeps them there for good. An iOS app lists `webcredentials:<host>` in its Associated Domains — palbase apps:sync writes it — so sync and ship a build first.
 
 ```text
       --none  sign in at the environment's own address
@@ -2513,6 +2515,7 @@ palbase auth:domains:remove <host>
 ```
 
 The one it signs in at is kept: move sign-in first (auth:domains:use).
+The one the environment's passkeys are saved at is kept while it has any: they sign in only there.
 
 ### `palbase auth:roles:list`
 
@@ -4792,13 +4795,13 @@ palbase stores:packages:get <package id>
 
 ### `palbase stores:packages:create`
 
-Make a package of an app: its build number, and the URL and token its .ipa is uploaded with
+Make a package of an app: its build number, and the URL and token its build is uploaded with
 
 ```sh
 palbase stores:packages:create <app id> --command-id <id> [--notes <text>] [--entitlements-file <json>]
 ```
 
-The build is made with the build number it answers (CFBundleVersion), then uploaded: palbase stores:packages:upload.
+The build is made with the build number it answers (an iOS app's CFBundleVersion, an Android app's versionCode), then uploaded: palbase stores:packages:upload.
 The same --command-id again answers the same package, with a new upload token while it waits for its build: a build machine sends its run's id.
 
 ```text
@@ -4809,18 +4812,19 @@ The same --command-id again answers the same package, with a new upload token wh
 
 ### `palbase stores:packages:upload`
 
-Hand a package its build: the .ipa or .aab goes straight to the environment's address with the upload token
+Hand a package its build: the .ipa, .aab or .apk goes straight to the environment's address with the upload token
 
 ```sh
-palbase stores:packages:upload <package id> --file <app.ipa|app.aab> --token <upload token>
+palbase stores:packages:upload <package id> --file <app.ipa|app.aab|app.apk> --token <upload token>
 ```
 
+An Android app's App Bundle (.aab) goes to Play; its APK is installed directly on testers' phones (stores:deliver --channel development), signed with the app's upload key whatever it came signed with. The file is told by what it holds, not by its name.
 The token is the one stores:packages:create printed; PALBASE_UPLOAD_TOKEN stands in for --token, out of the process list.
 The file goes with its Content-Length. While the module is busy with another upload it is sent again, after the wait the module names, five times at most; a package that has its build already (this token's upload arrived before) counts as uploaded.
 
 ```text
-      --file <app.ipa|app.aab>  the unsigned .ipa, or the Android App Bundle (unsigned, or signed with the app's upload key), the build machine made
-      --token <upload token>    the package's upload token
+      --file <app.ipa|app.aab|app.apk>  the unsigned .ipa, the Android App Bundle (unsigned, or signed with the app's upload key) or the Android APK the build machine made
+      --token <upload token>            the package's upload token
 ```
 
 ### `palbase stores:packages:bundle`
@@ -4841,19 +4845,21 @@ The bytes come from the environment's address on a link the module sealed for th
 
 ### `palbase stores:deliver`
 
-Send a package to a channel's testers: signed, handed to Apple or Play, and given to the testers
+Send a package to a channel's testers: signed, handed to Apple or Play — or installed on their own phones directly
 
 ```sh
-palbase stores:deliver <package id> [--channel testflight|play_internal] [--groups <group,…>] [--what-to-test <text>] [--locale <locale>]
+palbase stores:deliver <package id> [--channel testflight|play_internal|development] [--groups <group,…>] [--what-to-test <text>] [--locale <locale>]
 ```
 
 An iOS app goes to TestFlight: processed, then given to the groups; an export compliance question is answered with stores:export-compliance.
 An Android app goes to Play's internal testing track, to the testers it lists in Play Console. An invite given in Play Console just now takes a while to reach Play's API: a delivery Play refuses then (google_not_allowed) is sent again later.
+--channel development installs it directly, with no TestFlight: each person of the development groups named is mailed a link, their iPhone registers itself, and the package is signed for their phones — again, with no new build, when another phone comes. Sent again, it invites who joined the groups since. palbase stores:invitations `<package id>` shows where each person is.
+An Android app's APK goes to development alone (its default), its bundle to Play alone: the APK is signed with the app's upload key and is ready for everyone invited at once — an Android phone registers nowhere.
 palbase stores:deliveries `<package id>` follows it.
 
 ```text
-      --channel <channel>    where it goes: testflight, or play_internal (default: the app's platform's)
-      --groups <group,…>     the groups it goes to once ready, by id or name
+      --channel <channel>    where it goes: testflight, play_internal (default: the app's platform's), or development (direct install; an APK's default)
+      --groups <group,…>     the groups it goes to, by id or name: the channel's own kind (TestFlight groups, or development groups)
       --what-to-test <text>  the note testers read
       --locale <locale>      the note's locale (default: the app's primary one)
 ```
@@ -4865,6 +4871,52 @@ A package's deliveries: where each is now, and what to do when one failed
 ```sh
 palbase stores:deliveries <package id>
 ```
+
+### `palbase stores:invitations`
+
+The people invited to install a package directly: how far each got, their mail, their phones
+
+```sh
+palbase stores:invitations <package id>
+```
+
+invited → opened (the link) → enrolled (a phone of theirs registered) → downloaded (a phone took the build to install it); or revoked, or expired.
+A phone is signed once the package's build installs on it; registering, processing (Apple holds a new device up to 72 hours) or refused before that. Links are not listed: palbase stores:invite `<package id>` `<email>` answers a person's.
+
+### `palbase stores:invite`
+
+Invite one person to install a package directly: mails their link, and prints it
+
+```sh
+palbase stores:invite <package id> <email> [--no-mail] [--locale <language>]
+```
+
+A person invited already keeps their link — mailed again unless --no-mail —; an expired or revoked invitation is made again, with a new link. The package gets its development delivery when it had none.
+The link works for 14 days. A person registers two new iPhones at most in 30 days, through whatever links they hold; a phone already theirs registers again freely. With an environment token the link works no longer than the token.
+
+```text
+      --no-mail            only print the link: nothing is mailed
+      --locale <language>  the mail's and the page's language (en, tr; default: the project's)
+```
+
+### `palbase stores:invitations:revoke`
+
+Revoke an invitation: its link, its build and its registration stop working
+
+```sh
+palbase stores:invitations:revoke <invitation id>
+```
+
+### `palbase stores:devices`
+
+The phones registered for the project's development builds, and where each stands at Apple
+
+```sh
+palbase stores:devices
+```
+
+registering (to be registered at Apple when a build is signed for it), enabled, processing (Apple holds a new membership's 11th to 100th device out of builds for 24 to 72 hours) or refused, in Apple's words.
+An Apple account registers 100 iPhones a membership year, and a removed one keeps its place until the year ends.
 
 ### `palbase stores:what-to-test:set`
 
@@ -4891,10 +4943,17 @@ palbase stores:groups <app id>
 
 ### `palbase stores:groups:create`
 
-Make a group of testers for an app (in TestFlight an internal and an external group)
+Make a group of testers for an app: a TestFlight group, or a development group for direct install
 
 ```sh
-palbase stores:groups:create <app id> <name>
+palbase stores:groups:create <app id> <name> [--kind testflight|development]
+```
+
+A TestFlight group (an iOS app's default) is an internal and an external group at Apple, whose people Apple mails TestFlight's invitations.
+A development group (an Android app's default) is Palbase's own list of the people a package is installed for directly (stores:deliver --channel development): nothing at Apple, no TestFlight invitation.
+
+```text
+      --kind <kind>  testflight or development (default: testflight for an iOS app, development for an Android app)
 ```
 
 ### `palbase stores:groups:rename`
@@ -7893,6 +7952,164 @@ No database is asked: the app is started in its types mode, which reads its sche
       --file <path>   the file (default palbase/palbase-env.d.ts)
 ```
 
+## `access`
+
+### `palbase access:schema:set`
+
+Puts an access schema into a database: its types, relations and permissions, compiled into the database's own views and row policies
+
+```sh
+palbase access:schema:set <file> [--url <postgres-url> | --db <name>] [--dry-run] [--drop-relationships]
+```
+
+The schema is a text of its own (type / table / relation / permission / rows): the docs page "Access" writes it out. `-` reads it from the input.
+It is checked against the database as it is — a table or a column the schema names that is not there is refused, and nothing changes — and applied in one transaction as the tables' owner.
+The database needs nothing of Palgres or the backend framework: any backend asks through SQL (access.check, access.objects, access.subjects, the `access.<type>__<name>` views).
+A schema that no longer keeps a relation which has relationships is refused, unless --drop-relationships takes them away.
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --dry-run             say what would change, change nothing
+      --drop-relationships  take away the relationships of relations the schema no longer keeps
+```
+
+### `palbase access:schema:get`
+
+The access schema a database answers from, as its text
+
+```sh
+palbase access:schema:get [--url <postgres-url> | --db <name>]
+```
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+```
+
+### `palbase access:test`
+
+Holds an access schema to a file of expected answers: ends with 1, naming each expectation it breaks — no database is asked
+
+```sh
+palbase access:test <file>
+```
+
+The file is JSON: the schema it is about ("schema": a path beside it, or "schema_text"), rows ("tables"), relationships ("type:id#relation@user:id") and what is expected ("expect").
+An expectation is { subject, can / cannot, on: "type:id" }, { subject, holds, of: "type", exactly: [ids] } or { who: "permission", on: "type:id", exactly: [subjects] }.
+Run it in CI before a schema is deployed: a change that opens or closes something nobody meant fails there.
+
+### `palbase access:check`
+
+Whether a subject holds a relation or a permission on an object, as the database answers it
+
+```sh
+palbase access:check <subject> <permission> <type:id> [--url <postgres-url> | --db <name>]
+```
+
+Ends with 0 when it does and 1 when it does not; a name the schema does not have is refused.
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+```
+
+### `palbase access:objects`
+
+The objects of a type a subject holds a relation or a permission on
+
+```sh
+palbase access:objects <subject> <permission> <type> [--url <postgres-url> | --db <name>]
+```
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+```
+
+### `palbase access:subjects`
+
+The subjects that hold a relation or a permission on an object
+
+```sh
+palbase access:subjects <permission> <type:id> [--url <postgres-url> | --db <name>]
+```
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+```
+
+### `palbase access:relationships:list`
+
+The relationships a database keeps: who is what of which object
+
+```sh
+palbase access:relationships:list [--object <type:id>] [--subject <user:id>] [--relation <name>] [--limit <n>] [--url <postgres-url> | --db <name>]
+```
+
+Only what is given and taken through access is listed; a relation the schema reads from a column of a table is that table's row.
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --object <type:id>    of this object (or of every object of a type: type:*)
+      --subject <user:id>   given to this subject (user:<id>, or an object: <type>:<id>)
+      --relation <name>     of this relation
+      --limit <n>           at most this many (default 100, at most 1000)
+```
+
+### `palbase access:relationships:grant`
+
+Gives a subject a relation on an object
+
+```sh
+palbase access:relationships:grant <type:id> <relation> <user:id | type:id> [--by <who>] [--url <postgres-url> | --db <name>]
+```
+
+The object must be there (its row, where its type has a table), and the relation one the schema keeps and gives to that kind of subject.
+The history records it, with who did it: --by, or `cli:<your email>`.
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --by <who>            who the history says did it (default cli:<your email>)
+```
+
+### `palbase access:relationships:revoke`
+
+Takes a relation on an object away from a subject
+
+```sh
+palbase access:relationships:revoke <type:id> <relation> <user:id | type:id> [--by <who>] [--url <postgres-url> | --db <name>]
+```
+
+What is taken stops holding with the statement that takes it.
+The history records it, with who did it: --by, or `cli:<your email>`.
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --by <who>            who the history says did it (default cli:<your email>)
+```
+
+### `palbase access:history`
+
+Who gave and took which relationship, and when: the newest first
+
+```sh
+palbase access:history [--object <type:id>] [--subject <user:id>] [--relation <name>] [--limit <n>] [--url <postgres-url> | --db <name>]
+```
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --object <type:id>    of this object (or of every object of a type: type:*)
+      --subject <user:id>   given to this subject (user:<id>, or an object: <type>:<id>)
+      --relation <name>     of this relation
+      --limit <n>           at most this many (default 100, at most 1000)
+```
+
 
 
 <!-- ===== backend/overview ===== -->
@@ -9791,6 +10008,7 @@ type NewTodo = Tables["todos"]["insert"];
 | `$atomic(fn, opts?)` | an independently committed transaction, with retries |
 | `$attempt(fn)` | `fn` inside a `SAVEPOINT`: its failure rolls back only what its handle wrote |
 | `$asService()` | the same surface as the service role, past RLS |
+| `$access` | the app's [access schema](/docs/access/backend#asking-databaseaccess): whether the caller holds a permission on an object, the objects they hold it on, and — as the service — giving and taking relationships |
 | `$lockRows(table, ids)` | locks those rows in primary-key order — never the caller's order, so two callers cannot deadlock on it |
 | `$lockRowsWhere(table, where, { mode })` | locks the rows a filter matches, in one statement |
 | `$advisoryXactLock(key)` | locks a **name** until the transaction ends — "one invoice run at a time" |
@@ -10237,6 +10455,7 @@ The default driver is Bun's built-in SQL, which is why the examples' images run 
 - [Databases](/docs/machines/databases) — opening one, its credentials, and giving it to a machine
 - [Responses & Errors](/docs/backend/errors) — the envelope a thrown error becomes
 - [Event Hooks](/docs/backend/hooks) — `@On` handlers, which run in a transaction of their own
+- [Access](/docs/access/overview) — permissions that depend on the object: `Database.$access` and `p.can()`
 
 
 
@@ -10671,6 +10890,10 @@ The migration runs `CREATE EXTENSION IF NOT EXISTS` for each, as the database's 
 
 RLS is declared beside the columns, in each table's `policies`, and it is on for every table that does not say `rls: false`. The builder, the roles a policy names, membership policies and the service role are on [Row-Level Security](/docs/backend/row-level-security).
 
+### Permissions that depend on the object
+
+A rule such as *the product's developers, or the owner of its company* is not a policy to write by hand on every table that hangs off a product. It is said once, in the app's [access schema](/docs/access/backend) — a file beside the schema files, given as `db.access` — and a table's policy names it: `policy("holders read").for("select").using(p.can("view"))`. The access schema is migrated with the tables, as part of the same version.
+
 ## From a declaration to a database
 
 Edit `src/db/public.ts`, commit and push to the machine's branch. The machine builds your image, and before the new version serves, the platform runs that image once with `PALBASE_DB_MIGRATE=start`: it migrates the database to the schema the image carries, while the version before keeps serving. Once nothing of the old version is left, it runs `complete`. You run nothing yourself, and a change that cannot run under both versions is refused before anything changes. How each kind of change goes — and which take two releases — is [Schema changes](/docs/backend/migrations).
@@ -10682,6 +10905,7 @@ Edit `src/db/public.ts`, commit and push to the machine's branch. The machine bu
 - [Schema changes](/docs/backend/migrations) — how a release migrates, `renamedFrom`, `fillWith`, `ignored`, and what is refused
 - [Databases](/docs/machines/databases) — giving a machine a database, and its migrations
 - [Event Hooks](/docs/backend/hooks) — `user.deleted`, and the webhook secret an app that keeps users' ids needs
+- [Access](/docs/access/overview) — the access schema: who may do what on which object, named in policies with `p.can()`
 
 
 
@@ -10817,6 +11041,7 @@ A write a `WITH CHECK` refuses, or a statement on a table the caller's role has 
 | `.and(…)`, `.or(…)`, `.not()`, `p.and(…)`, `p.or(…)`, `p.not(…)` | combinations |
 | `p.lit(v)` | a value, said explicitly |
 | `p.existsIn(table, (row) => …)` | a correlated `EXISTS` subquery into another table |
+| `p.can("view")` | the caller holds this permission on the row, as the app's [access schema](/docs/access/backend#a-policy-names-a-permission) defines it |
 
 A plain value on the right of `.eq()` is a literal, never a column: `.eq("owner")` compares with the string `"owner"`. A column is always `p.col("owner")`.
 
@@ -10913,6 +11138,8 @@ export default defineSchema("public", { tables: [channels, channel_members, mess
 
 > **Note:** A policy `.for("select")` decides only what is visible. Writes need their own — `.for("insert")` with a `withCheck`, as `messages` has — or `.for("all")` when one condition governs both.
 
+When membership comes in kinds — a designer here, a developer there, an owner of the company above both — the subqueries multiply and the rule ends up spread over every table that hangs off the thing. That is what an [access schema](/docs/access/overview) is for: the rule is written once, and each table's policy is one name, `p.can("view")`.
+
 ## RLS guards reads, not foreign-key checks
 
 A `SELECT`, `UPDATE` or `DELETE` only ever reaches rows the caller may see. A **foreign-key check is not filtered**: when a row's foreign key points at a parent, Postgres validates that the parent exists whoever owns it. Without a policy that says otherwise, a caller can attach a child row to a parent it cannot read. Nothing leaks — it still cannot read the parent — but say what you mean, in the child's `withCheck`:
@@ -10970,6 +11197,7 @@ Edit `policies` in the schema file, commit and push to the machine's branch. The
 - [Database](/docs/backend/database) — the request's transaction, `$query`, and `$asService()`
 - [Authentication](/docs/backend/authentication) — who the caller is, and routes with `auth: false`
 - [Schema changes](/docs/backend/migrations) — how a release applies a policy change
+- [Access](/docs/access/overview) — permissions that depend on the object, named in a policy with `p.can()`
 
 
 
@@ -12539,14 +12767,32 @@ A send is **queued**, not delivered: it answers `202` with the message's id, and
 
 | Channel | Goes through |
 |---|---|
-| Email | The platform's **shared sender**, within the project's limits — for the platform's templates only (the auth emails: verify, reset, magic link, codes …, as the project overrode them), and the invitations your backend sends to your organizations ([below](#invitations-with-no-provider-of-your-own)). Anything else — a message composed whole, a template of your own — goes through **your own email provider**: Azure Communication Services, Amazon SES, SendGrid or SMTP. |
+| Email | The platform's **shared sender**, within the project's limits — for the platform's templates only (the auth emails: verify, reset, magic link, codes …, as the project overrode them), the invitations your backend sends to your organizations ([below](#invitations-with-no-provider-of-your-own)), and App Distribution's [install invitations](/docs/distribution/direct-install#the-invitation-mail). Anything else — a message composed whole, a template of your own — goes through **your own email provider**: Azure Communication Services, Amazon SES, SendGrid or SMTP. |
 | Push | Your own FCM, APNs or Expo account — a browser's through its own push service, with the project's Web Push key (nothing to set up). |
 | Inbox, in-app messages | Palbase itself: nothing to set up. |
 | SMS | Your own SMS providers — Twilio, Vonage or Azure Communication Services — in failover order. |
 | One-time codes | Your own verification service (Twilio Verify), or your SMS providers — and with neither, **Palbase's Twilio Verify**: nothing to set up, billed at Twilio's price and 10% past $4 a month (`notify.sms.shared`, [Usage & Limits](/docs/getting-started/usage-and-limits)). |
 | WhatsApp | Your own WhatsApp Business account (Meta). |
 
-An email the shared sender may not send is refused with `403 own_provider_required` — one of auth's templates your key sends, with `403 auth_template_reserved`: auth's own flows send them —; past the shared sender's limits a send is `429 send_limit_reached`. A project with an active email provider sends all its email through it.
+An email the shared sender may not send is refused with `403 own_provider_required` — one of auth's templates your key sends, with `403 auth_template_reserved`: auth's own flows send them —; past the shared sender's limits a send is `429 send_limit_reached` ([below](#the-shared-senders-limits)). A project with an active email provider sends all its email through it.
+
+### The shared sender's limits
+
+The shared sender is Palbase's own accounts — Cloudflare Email Service, and a backup that takes what Cloudflare cannot send at the moment — and every project's auth mail leaves through them. Mail providers suspend an account whose mail bounces or is reported as spam, for every sender on it at once, so the shared sender holds each project, and each address, to what a real app sends:
+
+| Limit | Free | Pay as you go |
+|---|---|---|
+| Shared emails a minute, per project | 10 | 60 |
+| Shared emails an hour, per project | 100 | 1,000 |
+| Shared emails a month | your quota: 3,000 on Free, then usage ([Usage & Limits](/docs/getting-started/usage-and-limits)) | usage |
+
+- **Past a minute's or an hour's limit** a send is `429 send_limit_reached`, with `Retry-After` and the moment the window ends in its message. Auth's mail and your invitations share one pool.
+- **An address takes 5 shared emails an hour and 20 a day**, every project's together: no sign-in form mails one person without end. Past it, a send of your key's is `429 recipient_limit_reached`, until the hour or the day ends; auth's own emails are skipped (`skip_reason: recipient_limit`), since auth answers the same whether an address has an account or not.
+- **An address whose domain takes no mail** — no MX record, a null one, no address — is refused before anything is queued: `400 invalid_email_domain`. (On your own provider this check is yours to turn on: `mx_check`.)
+- **An address that bounced for good, or reported a shared email as spam**, is sent nothing again by the shared sender, whichever project's mail it is: the message is `skipped`, `skip_reason: suppressed`.
+- **A project whose shared mail bounces stops for a day.** When at least 10 of its shared emails, and at least a tenth of them, bounced for good since the later of a day before and its last stop, its sends through the shared sender are refused with `429 shared_sender_paused` for 24 hours. `getDeliverability()` says why and when it sends again, `notification.shared_paused` is emitted, and the organization's owners are mailed. When the day is over it sends again, and stops again if its mail goes on bouncing. Check where the addresses your sign-ups use come from — a form a bot fills in, an imported list —; your own provider is held to none of this.
+
+Auth's routes that send an email to whoever they name ask a [proof of work](/docs/web/auth#proof-of-work) first, priced by how fast your project is being asked: a bot that posts them in a loop pays for each email, a person's device does not notice.
 
 Providers are set in Studio (**Notifications › Providers**) or with `putNotifyProvider({ path: { channel, provider }, body: { credentials, priority, active } })`: the credentials are sealed with the project's own key, checked as the sender will use them, and never answered back. `getDeliverability()` says, per channel, whether it can send now, through what, why not and what to do.
 
@@ -12628,7 +12874,7 @@ palbase notify:send email ada@example.com --template auth.org_invitation \
 - **Its words are names and a time**: `inviter_name` and `org_name` 1 to 100 characters (`inviter_name` may be an email address), `expires_at` 40 at most, each one line, with no link or web address (`://`, `www.`, a domain such as `example.com`), no invisible or direction-changing character, and not naming Palbase — the mail's reader opens a web address as a link, and the link it may carry is `accept_link`. Otherwise the send is `400 invalid_invitation`.
 - **It goes in Palbase's words**, English or Turkish by `locale`: who invited whom to what, the link, its expiry when `expires_at` is not empty, and that it came through Palbase, which does not check the names an invitation gives. Your own words over it go through your own provider.
 - **It waits behind your codes**: an invitation is sent after the sign-in codes and links in the shared sender's queue, and waits up to a day when the sender is throttled.
-- **It counts against the shared sender's limits** in one pool with your auth mail — sign-up codes, resets, sign-in links: past them every send of the window is `429 send_limit_reached`, until the window ends or your own provider carries your email.
+- **It counts against the shared sender's limits** in one pool with your auth mail — sign-up codes, resets, sign-in links: past them every send of the window is `429 send_limit_reached`, until the window ends or your own provider carries your email ([The shared sender's limits](#the-shared-senders-limits)).
 - **What accepting does is yours**: the link opens your page, which checks your own invitation's token and adds the person. Auth's other templates stay auth's own flows' (`403 auth_template_reserved`), and a journey's step sends no invitation.
 
 ## Push
@@ -15052,7 +15298,7 @@ An app whose schema keeps users' ids (columns declared with `ownedByUser()` or `
 
 ## What the app needs to receive events
 
-An app that has an `@On` handler, or whose schema keeps users' ids, must know the endpoint's secret. On a machine the platform gives it as `PALBASE_WEBHOOK_SECRET`; anywhere else the app reads it from there (`whsec_` and 64 hex characters), or from `PalbaseFactory.create(…, { palbase: { webhookSecret } })`. Without it the app does not start:
+An app that has an `@On` handler, whose schema keeps users' ids, or that has an [access schema](/docs/access/backend#when-a-user-is-deleted) — the relationships a user holds are kept by their id — must know the endpoint's secret. On a machine the platform gives it as `PALBASE_WEBHOOK_SECRET`; anywhere else the app reads it from there (`whsec_` and 64 hex characters), or from `PalbaseFactory.create(…, { palbase: { webhookSecret } })`. Without it the app does not start:
 
 ```text
 [palbase] the app cannot start:
@@ -16459,7 +16705,7 @@ The web SDK is `palbase/web`, a part of the npm package `palbase`: `npm install 
 ```json
 {
   "dependencies": {
-    "palbase": "^0.52.2"
+    "palbase": "^0.54.0"
   }
 }
 ```
@@ -16772,7 +17018,7 @@ console.log(await pb.auth.passkey.list());
 
 The ceremony runs through `navigator.credentials`, or the `webauthn` you give `createClient`. Outside a browser with neither, a passkey method throws once the ceremony's first call has answered.
 
-The passkey's relying party is the project's own host, and a page on your origin uses it through WebAuthn's related origins: the project publishes its registered web apps' origins at `GET /.well-known/webauthn`, and the same list decides which origins a ceremony is accepted from. Register your site as a web app of the environment, with its origin (`https://app.example.com`): at most five registrable domains across the environment's web apps. A browser without related-origin support refuses a passkey from an origin that is not the project's host.
+The passkey's relying party is where the environment's passkeys are saved — its own host, or [its sign-in domain](/docs/auth/providers#your-own-sign-in-domain) (`palbase auth:domains` says which) — and a page on your origin uses it through WebAuthn's related origins: that address publishes the environment's registered web apps' origins at `GET /.well-known/webauthn`, and the same list decides which origins a ceremony is accepted from. Register your site as a web app of the environment, with its origin (`https://app.example.com`): at most five registrable domains across the environment's web apps. A browser without related-origin support refuses a passkey from an origin that is not the project's host.
 
 `passkey.remove(id)` removes one. Renaming is `pb.auth.api.webauthnRenameCredential(...)`.
 
@@ -16786,7 +17032,11 @@ await pb.auth.magicLink.send("ada@example.com");
 
 // On the page the link opened (https://app.example.com/auth/magic-link?token=…):
 const token = new URLSearchParams(window.location.search).get("token");
-if (token) await pb.auth.magicLink.verify(token);
+if (token) {
+  const result = await pb.auth.magicLink.verify(token);
+  if (result.mfaRequired) console.log("a second factor is needed");
+  else console.log("signed in", result.user.id);
+}
 ```
 
 ## Phone codes
@@ -16958,6 +17208,8 @@ The `/admin/*` operations are in the same client, and every one of them needs th
 ## Proof of work
 
 The auth module may answer a sign-in, a sign-up or a code request with `403 pow_required` and a challenge when the address looks like a bot. The client solves it (a SHA-256 search, longer the harder the challenge) and sends the same request once more with the answer. You never see the challenge. One the client cannot solve comes back as `pow_unsolved`.
+
+The requests that send an email to the address they name — `signUp` (its verification), `magicLink.send`, `password.requestReset`, `email.resendVerification` and starting an account recovery — always ask it: a bot that posts them in a loop would otherwise mail whoever it names. Its work rises with how fast your project is being asked: the usual one (16 bits, a fraction of a second on a phone) at a person's rate, 20 bits past 30 such emails a minute, 24 (a few seconds) past 120. One address counts no more than 10 a minute toward that (an IPv6 one by its /64), and a challenge solved before the work rose is asked again at the new price. Your own server, calling with the secret key, is asked none: the email is its decision.
 
 ## Related
 
@@ -17438,7 +17690,7 @@ A session that changed under a refresh (another tab signed out, or signed in as 
 
 ## Proof of work
 
-Auth may answer a sign-in, a sign-up or a code request `403 pow_required` with a challenge, when the address it comes from looks like a bot. The client solves it and sends the same request once more with the answer. You see nothing of it unless solving fails, which comes back as `403 pow_unsolved`. A request whose body cannot be read twice (a stream) is not sent again, and the `pow_required` error comes to you.
+Auth may answer a sign-in, a sign-up or a code request `403 pow_required` with a challenge, when the address it comes from looks like a bot — and always a request that sends an email (a sign-in link, a reset, a verification sent again), priced by how fast the project is being asked ([Proof of work](/docs/web/auth#proof-of-work)). The client solves it and sends the same request once more with the answer. You see nothing of it unless solving fails, which comes back as `403 pow_unsolved`. A request whose body cannot be read twice (a stream) is not sent again, and the `pow_required` error comes to you.
 
 ## Errors the client makes itself
 
@@ -19885,7 +20137,7 @@ A configuration that names no environment, or one the app is not set in, stops t
 | Capability | Value | Who needs it |
 |---|---|---|
 | **Keychain Sharing** | the document's `keychain_group` without its team prefix (`com.example.shop.palbase`; Xcode adds `$(AppIdentifierPrefix)`) | The app and every extension that uses Palbase: they share the session, the device's key, the install and the consent choices through it. |
-| **Associated Domains** | each entry of `auth.associated_domains` (`webcredentials:<ref>.palbase.studio`) | An app that signs in with [passkeys](/docs/ios/auth#passkeys). |
+| **Associated Domains** | each entry of `auth.associated_domains` (`webcredentials:<ref>.palbase.studio`, or the [sign-in domain](/docs/auth/providers#your-own-sign-in-domain) its passkeys are saved at) | An app that signs in with [passkeys](/docs/ios/auth#passkeys). |
 | **Push Notifications** | — | An app that registers for [push](/docs/ios/notifications). |
 
 ## The client
@@ -20156,7 +20408,7 @@ A guest becomes an account, keeping its id, with an address and a password: `pb.
 
 ## Passkeys
 
-A passkey signs in with Face ID or Touch ID, and nothing is typed. The app needs the **Associated Domains** capability with the `webcredentials:` entry its client document names (`auth.associated_domains` in `palbase/environments/<env>/<app>.json`, `webcredentials:<ref>.palbase.studio`). The project publishes the app at `/.well-known/apple-app-site-association` once its bundle is set in the environment ([`apps:env:set`](/docs/cli/reference#palbase-appsenvset)); Apple caches that file, so a device can take a day to see a change.
+A passkey signs in with Face ID or Touch ID, and nothing is typed. The app needs the **Associated Domains** capability with the `webcredentials:` entry its client document names (`auth.associated_domains` in `palbase/environments/<env>/<app>.json`: `webcredentials:<ref>.palbase.studio`, or `webcredentials:` the [sign-in domain](/docs/auth/providers#your-own-sign-in-domain) the environment's passkeys are saved at). The project publishes the app at `/.well-known/apple-app-site-association` once its bundle is set in the environment ([`apps:env:set`](/docs/cli/reference#palbase-appsenvset)); Apple caches that file, so a device can take a day to see a change.
 
 ```swift
 import Palbase
@@ -25193,8 +25445,9 @@ palbase account:tokens:revoke <id>
 - It reaches the organizations it opened, and only those: you are their owner, the token an admin of each. Every other organization answers `404`.
 - In them it does what an admin does — projects, environments, their modules, billing — and renames an organization or deletes an empty one; never more than your own role there now. Members, invitations, tokens and project keys stay yours, in person.
 - It stops at once, everywhere, when you delete it, when you leave one of its organizations (there, for good), or when your account is deleted. The keys of the environments it opened go with it.
+- In each organization it opened it opens 2 Free projects of 2 environments each with nothing paid, counted to that organization alone — a project or an environment deleted counts until the month is out. A third answers `402 payment_account_required` until the organization is paid for by a payment account that has paid a charge; then it has no limit. Linking it to an account whose first charge is still to come (at the month's end, or when what it owes comes to its threshold) lets you move its projects to Pay as you go, but lifts no limit until that charge is paid.
 
-One payment account pays for every organization you link to it: you are charged once a month for all of them, and its report is each organization's month, item by item — what you bill your own customers by. Save two cards on it, from different banks if you can: a charge its default card declines is taken from the next. Declined by every card, it is tried again each day — and its environments go Free 7 days later, or as soon as what it owes, unpaid and not yet charged, comes to 50 USD: within hours for an account that spends much, at once for one charged at 50.
+Your customers pay you, and you pay Palbase: when a customer moves to a paid plan of yours, link their organization to your own payment account and move their project to Pay as you go. One payment account pays for every organization you link to it: you are charged once a month for all of them, and its report is each organization's month, item by item — what you bill your own customers by. Save two cards on it, from different banks if you can: a charge its default card declines is taken from the next. Declined by every card, it is tried again each day — and its environments go Free 7 days later, or as soon as what it owes, unpaid and not yet charged, comes to 50 USD: within hours for an account that spends much, at once for one charged at 50.
 
 ```ts
 // customers.ts
@@ -25202,11 +25455,14 @@ import { PalbaseCloud } from "palbase/cloud";
 
 const cloud = new PalbaseCloud({ token: process.env.PALBASE_ACCOUNT_TOKEN! });
 
-// An organization for a new customer, paid for by your own organization's payment account.
+// An organization for a new customer, and their project — Free, nothing paid.
 const { data: customer } = await cloud.orgs.create({ body: { name: "Customer 1042" } });
-await cloud.billing.payer({ path: { id: customer.id }, body: { account: process.env.PALBASE_PAYER_ORG_ID! } });
 const { data: made } = await cloud.projects.create({ path: { id: customer.id }, body: { name: "shop" } });
 await cloud.projects.addEnvironment({ path: { id: made.project.id }, body: { name: "main", slug: "main" } });
+
+// The customer moved to your paid plan: your payment account pays for their organization, their project on Pay as you go.
+await cloud.billing.payer({ path: { id: customer.id }, body: { account: process.env.PALBASE_PAYER_ORG_ID! } });
+await cloud.billing.steer({ path: { id: customer.id, project: made.project.id }, body: { plan: "pay_as_you_go", monthly_limit_micros: 100_000_000 } });
 
 // At the month's end: what each customer's organization owed, environment by environment.
 const { data: month } = await cloud.billing.report({ path: { id: process.env.PALBASE_PAYER_ORG_ID! }, query: { period: "2026-11" } });
@@ -25504,7 +25760,7 @@ Keys rotate on their own every 90 days. A key is published in the key set a day 
 
 Auth sends its emails through the project's notifications, from templates that belong to the environment: `auth.email_verify` and `auth.email_verify_code` (confirming an address), `auth.password_reset`, `auth.magic_link`, `auth.user_invitation` (an [invitation](/docs/auth/users#inviting-someone)), `auth.mfa_otp` (a sign-in code by email), and the security emails above. A phone code is the SMS template `auth.sms_otp`.
 
-**Auth › Templates** edits them in each language and sends a test. Until the environment has its own email provider, auth's mail goes through the platform's shared sender with the default text; your edits are used once your own provider is connected ([Notifications](/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)). The same templates are reachable as any others: `palbase notify:templates:set`, or `PUT /notify/templates/email/{slug}/{locale}` ([Templates](/docs/backend/notifications#templates)).
+**Auth › Templates** edits them in each language and sends a test. Until the environment has its own email provider, auth's mail goes through the platform's shared sender with the default text; your edits are used once your own provider is connected ([Notifications](/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours)). The shared sender holds each environment to its limits — 10 emails a minute and 100 an hour on Free, 60 and 1,000 when it pays —, each address to 5 an hour and 20 a day, sends nothing to an address that bounced or to a domain that takes no mail, and stops an environment whose mail bounces for a day ([The shared sender's limits](/docs/backend/notifications#the-shared-senders-limits)). The routes that send these emails to the address they name — a sign-in link, a reset, a verification sent again, a recovery started — ask a [proof of work](/docs/web/auth#proof-of-work) first, which the SDKs solve. The same templates are reachable as any others: `palbase notify:templates:set`, or `PUT /notify/templates/email/{slug}/{locale}` ([Templates](/docs/backend/notifications#templates)).
 
 ## Between environments
 
@@ -25631,18 +25887,20 @@ A signed-in user links another provider to their own account with the same flow 
 
 ## Your own sign-in domain
 
-A provider's consent screen names the domain it sends people back to. Google's says *Choose an account to continue to palbase.studio* until it is told otherwise, and so does every browser tab of your sign-in. A subdomain of yours — `auth.example.com` — can answer the environment's sign-in instead: the social providers' callbacks, its [OpenID provider](/docs/auth/openid-provider) and the pages its emails link to. Google then says *continue to example.com*; it says your app's name once Google has verified your brand, which asks that you show in Google Search Console the domain is yours and that your home page is on it — that step is yours, at Google.
+A provider's consent screen names the domain it sends people back to. Google's says *Choose an account to continue to palbase.studio* until it is told otherwise, and so does every browser tab of your sign-in, and the passkey sheet. A subdomain of yours — `auth.example.com` — can answer the environment's sign-in instead: the social providers' callbacks, its [OpenID provider](/docs/auth/openid-provider), the pages its emails link to, and its passkeys. Google then says *continue to example.com*; it says your app's name once Google has verified your brand, which asks that you show in Google Search Console the domain is yours and that your home page is on it — that step is yours, at Google.
 
 1. **Add the domain.** `palbase auth:domains:add auth.example.com`, or **Auth › Providers › Sign-in domain** in Studio. It prints two records for your DNS: a `CNAME` of `auth.example.com` to `domains.palbase.app`, and a `TXT` at `_palbase.auth.example.com` that shows it is this environment's. It answers once both are there and its certificate is issued — `palbase auth:domains` says when, and what is missing meanwhile. A subdomain only: your domain itself is your app's.
 2. **Tell the providers.** Each one's callback at the domain is `https://auth.example.com/auth/oauth/callback/<provider>`; `auth:domains` and Studio print them. Add it beside the one at the environment's own address:
    - Google: the Web application client's **Authorized redirect URIs**, and `example.com` under the consent screen's **Authorized domains**.
    - Apple: the Services ID's **Domains and Subdomains** (`auth.example.com`) and **Return URLs**.
    - Microsoft: the app registration's **Web** redirect URIs. GitHub: the OAuth App's **Authorization callback URL** — GitHub takes one, so it moves with sign-in.
-3. **Move sign-in to it.** `palbase auth:domains:use auth.example.com`, or **Sign in here** in Studio. It holds at once: a social sign-in begun after it goes back to the domain's callback — a provider that does not know it refuses the sign-in — and the environment's emails, its device-code page and its recovery pages name the domain.
+3. **Move sign-in to it.** `palbase auth:domains:use auth.example.com`, or **Sign in here** in Studio. It holds at once: a social sign-in begun after it goes back to the domain's callback — a provider that does not know it refuses the sign-in — and the environment's emails, its device-code page and its recovery pages name the domain. So do its passkeys, while it has none: see below.
 
-What stays as it was: the environment's own address answers as before. A session begun there goes on, your backend's checks of its tokens go on, and your app's SDK keeps calling it. An OpenID client is answered as the address it discovered: at `https://auth.example.com/.well-known/openid-configuration` the issuer is `https://auth.example.com`, and the tokens minted there name it; at the environment's own address its own. Passkeys keep their relying party, the environment's own address.
+What stays as it was: the environment's own address answers as before. A session begun there goes on, your backend's checks of its tokens go on, and your app's SDK keeps calling it. An OpenID client is answered as the address it discovered: at `https://auth.example.com/.well-known/openid-configuration` the issuer is `https://auth.example.com`, and the tokens minted there name it; at the environment's own address its own.
 
-`palbase auth:domains:use --none` moves sign-in back to the environment's own address; `palbase auth:domains:remove auth.example.com` takes the domain away — the one the environment signs in at is kept until sign-in moves. While the domain does not answer (its DNS records gone), the environment signs in at its own address. A sign-in domain counts among the project's [custom domains](/docs/getting-started/usage-and-limits), every environment's together, and one is one environment's: another environment's, or another customer's, is refused.
+**Passkeys.** A passkey is bound for life to the address it was saved at — its relying party, the name the passkey sheet shows. While the environment has none saved, its passkeys follow where it signs in: move sign-in to `auth.example.com` first, and the sheet says *auth.example.com*. The first passkey saved keeps them there for good, wherever the environment signs in later; an environment that already has passkeys keeps them at its own address. `palbase auth:domains` and Studio say where they are saved and how many. A web app on your site uses them through [related origins](/docs/web/auth#passkeys), which the domain publishes; an iOS app lists `webcredentials:auth.example.com` in its Associated Domains and an Android app is published at the domain — `palbase apps:sync` writes the address into the app's settings, so sync and ship a build before it saves passkeys there.
+
+`palbase auth:domains:use --none` moves sign-in back to the environment's own address; `palbase auth:domains:remove auth.example.com` takes the domain away — the one the environment signs in at is kept until sign-in moves, and the one its passkeys are saved at is kept while it has any (the refusal says how many). Keep the domain's DNS records while passkeys are saved there: without them, they sign no one in. While the domain does not answer (its DNS records gone), the environment signs in at its own address. A sign-in domain counts among the project's [custom domains](/docs/getting-started/usage-and-limits), every environment's together, and one is one environment's: another environment's, or another customer's, is refused.
 
 ## Guests
 
@@ -26243,7 +26501,7 @@ Without it, `/oauth/authorize` refuses: there is nowhere to sign the person in. 
 
 1. The client sends the browser to `GET /oauth/authorize` with its `client_id`, `redirect_uri`, `scope`, `state` and PKCE challenge.
 2. The provider sends the browser to your page with `?auth_request_id=…`.
-3. Your page signs the person in, naming the `auth_request_id`: with a password (`POST /auth/login`), or with a provider (Google, Apple, GitHub, Microsoft: `POST /auth/oauth/transactions`, then the transaction's completion). The answer that signs them in carries `oidc_callback_url`: where the browser goes next. A sign-in that asks for a second factor carries the request in its `mfa_token`, and the challenge's answer carries `oidc_callback_url`.
+3. Your page signs the person in, naming the `auth_request_id`, with any sign-in it offers: a password (`POST /auth/login`), a new account (`POST /auth/signup`), a provider (Google, Apple, GitHub, Microsoft: `POST /auth/oauth/transactions`, then the transaction's completion), a passkey (`POST /auth/webauthn/login/begin`, then `…/finish`), an email link (`POST /auth/magic-link`, then `…/verify`) or a phone code (`POST /auth/otp`, then `…/verify`). The answer that signs them in carries `oidc_callback_url`: where the browser goes next. A sign-in that asks for a second factor carries the request in its `mfa_token`, and the challenge's answer carries `oidc_callback_url`.
 4. From there, the provider sends the browser back to the client's `redirect_uri` with the `code`, the `state` and the issuer (`iss`). The client exchanges the code at `POST /oauth/token`.
 
 The request answers the browser that opened it and completed it, once. `/oauth/authorize` leaves a cookie on the project's address (`__Host-palbase_oauth_…`, five minutes, `SameSite=Lax`) naming the request, and the sign-in that completes it is given a secret, carried in `oidc_callback_url` (`done=`) and nowhere else. The callback answers only a browser that holds both: someone who opened a request and sent its sign-in page to another person has the cookie but never the secret, and the person who signed in has the secret but not their cookie — each is answered `400 auth_request_other_browser` and no code. Once the callback sends the browser back to the client, the request is gone; visiting it again gives nothing. So the page signs the person in within the browser the flow started in, and goes to `oidc_callback_url` there, as it is, as a top-level navigation.
@@ -26328,9 +26586,69 @@ export async function withSecondFactor(code: string): Promise<string> {
   const { data } = await pb.auth.api.mfaChallenge({ body: { mfa_token: mfaToken, type: "totp", code } });
   return goOn(data) ? "on to the app" : "signed in";
 }
+
+/** A passkey: the request is bound when the ceremony begins, and its finish completes it. */
+export async function withPasskey(): Promise<string> {
+  const begun = await pb.auth.api.webauthnLoginBegin({ body: { auth_request_id: authRequestId } });
+  // The options are the WebAuthn spec's JSON (the SDK types them as an open object): the browser parses them.
+  const json = begun.data.options.publicKey as unknown as PublicKeyCredentialRequestOptionsJSON;
+  const options = PublicKeyCredential.parseRequestOptionsFromJSON(json);
+  const credential = (await navigator.credentials.get({ publicKey: options })) as PublicKeyCredential;
+  const { data } = await pb.auth.api.webauthnLoginFinish({ body: credential.toJSON() });
+  return goOn(data) ? "on to the app" : "signed in";
+}
+
+/** An email link: the email carries a link and a six-digit code. */
+export async function withEmailLink(email: string): Promise<string> {
+  await pb.auth.api.magicLinkRequest({ body: { email, auth_request_id: authRequestId } });
+  return "check your email: open the link here, or type its code";
+}
+
+/** The code from the email, typed in this tab: the link was opened on another device. */
+export async function withEmailCode(code: string): Promise<string> {
+  const { data } = await pb.auth.api.magicLinkVerify({ body: { auth_request_id: authRequestId, code } });
+  if ("mfa_required" in data) {
+    sessionStorage.setItem("mfa_token", data.mfa_token);
+    return `second factor: ${data.factors.join(", ")}`;
+  }
+  return goOn(data) ? "on to the app" : "signed in";
+}
+
+/** Back from the email's link, in this browser: ?auth_request_id=…&email_token=… */
+export async function finishEmailLink(): Promise<string> {
+  const token = new URLSearchParams(window.location.search).get("email_token") ?? "";
+  const { data } = await pb.auth.api.magicLinkVerify({ body: { auth_request_id: authRequestId, token } });
+  if ("mfa_required" in data) {
+    sessionStorage.setItem("mfa_token", data.mfa_token);
+    return `second factor: ${data.factors.join(", ")}`;
+  }
+  return goOn(data) ? "on to the app" : "signed in";
+}
+
+/** A phone code: the request is named when the code is sent and when it is checked. */
+export async function sendPhoneCode(phone: string): Promise<void> {
+  await pb.auth.api.requestPhoneOtp({ body: { phone, auth_request_id: authRequestId } });
+}
+
+export async function withPhoneCode(phone: string, token: string): Promise<string> {
+  const { data } = await pb.auth.api.verifyPhoneOtp({ body: { phone, token, auth_request_id: authRequestId } });
+  if ("mfa_required" in data) {
+    sessionStorage.setItem("mfa_token", data.mfa_token);
+    return `second factor: ${data.factors.join(", ")}`;
+  }
+  return goOn(data) ? "on to the app" : "signed in";
+}
+
+/** A new account: it signs in at once, unless its address is to be confirmed first. */
+export async function signUp(email: string, password: string): Promise<string> {
+  const { data } = await pb.auth.api.signup({ body: { email, password, auth_request_id: authRequestId } });
+  return goOn(data) ? "on to the app" : "confirm your email, then sign in";
+}
 ```
 
-The sign-in that completes the request says how the person signed in, and the tokens the client gets say it too: `amr` is `["pwd"]` for a password, the provider's name (`["google"]`, `["apple"]`, `["github"]`, `["microsoft"]`) for a provider, and the first factor with the second (`["google", "otp"]`, `["pwd", "otp"]`) after a code; `acr` is `urn:nist:800-63:aal2` after an authenticator app's or a text's code, `urn:nist:800-63:aal1` otherwise (a recovery code, an email code). A provider's sign-in follows the project's sign-up switch: a person who has no account yet gets one when sign-ups are open, as in your own app.
+The email link opens at the provider, on the address the request was opened at. In the browser that opened the request it goes on to your page with `?auth_request_id=…&email_token=…` (`finishEmailLink`). Opened anywhere else — a phone's mail app — it asks the person to go back to the tab they started in and type the six-digit code the email carries (`withEmailCode`), and spends nothing: the link and the code still work there. The code is good for as long as the request is. Five wrong codes and the email's code stops working (`400 code_max_attempts`); twenty tried for an address in a day and no code works until the day is over (`400 code_limit_reached`) — either way the link still signs the person in from the browser that opened the request. An address gets at most five such emails an hour from one network (an IPv4 address, an IPv6 /64) and thirty from all of them, each site (an IPv6 /56) counting at most five toward the thirty. A network the person has signed in from by email before is held by its own five alone: others on other networks cannot spend it, though anyone sharing that network (a carrier's or an office's) shares its five. On a network new to them, others asking from several sites can hold their email back for the hour. The email names the app the person is signing in to, and tells them to type the code only in a tab they opened themselves.
+
+The sign-in that completes the request says how the person signed in, and the tokens the client gets say it too: `amr` is `["pwd"]` for a password (and a new account's), the provider's name (`["google"]`, `["apple"]`, `["github"]`, `["microsoft"]`) for a provider, `["swk"]` for a passkey that syncs and `["hwk"]` for one bound to its device (the authenticator's own word), `["email"]` for an email link or its code, `["sms"]` for a phone code, and the first factor with the second (`["google", "otp"]`, `["pwd", "otp"]`, `["sms", "otp"]`) after a code; `acr` is `urn:nist:800-63:aal2` after an authenticator app's or a text's code and for a passkey, `urn:nist:800-63:aal1` otherwise (a password, a provider, an email link, a phone code alone; a recovery code, an email code). A provider's sign-in follows the project's sign-up switch: a person who has no account yet gets one when sign-ups are open, as in your own app.
 
 What the client asks of the sign-in is held to it, as other providers hold it:
 
@@ -26338,12 +26656,12 @@ What the client asks of the sign-in is held to it, as other providers hold it:
 |---|---|
 | `prompt=none` | Answered at once at the client's `redirect_uri` with `error=login_required`: the provider keeps no session of its own — every authorization is a sign-in on your page — so it can never answer without showing it. |
 | `prompt=login`, `max_age` | Met by this provider: the sign-in that completes the request is made after the client asked, on your page, and the ID token's `auth_time` says when. A provider the person signs in with may use its own session: Microsoft is told `prompt=login` and asks for the password again; Google, Apple and GitHub take no such parameter. A client that needs proof of a fresh credential asks for `acr_values=urn:nist:800-63:aal2`: a second factor's code, typed now. |
-| `acr_values` | The sign-in must reach the least level the values name, of those the provider knows (`urn:nist:800-63:aal1`, `urn:nist:800-63:aal2`). With `aal2` the password sign-in asks for an authenticator app's or a text's code — even on a trusted device — and an account with none is refused (`400 auth_request_invalid`); a provider's sign-in completes the request after the second factor it asks for. A request asking only for `urn:nist:800-63:aal3`, which no sign-in here reaches, is answered at once at the client's `redirect_uri` with `error=unmet_authentication_requirements`. Values the provider does not know ask nothing; at most 8 values of 128 characters. |
+| `acr_values` | The sign-in must reach the least level the values name, of those the provider knows (`urn:nist:800-63:aal1`, `urn:nist:800-63:aal2`). With `aal2` the password sign-in asks for an authenticator app's or a text's code — even on a trusted device — and an account with none is refused (`400 auth_request_invalid`); a provider's, an email link's and a phone code's sign-in complete the request after the second factor they ask for (after a phone code, an authenticator app: a second text adds nothing); a passkey reaches it alone; a new account, which has no second factor yet, is refused before it is opened. When the second factor named in `factors` is `webauthn`, the account's passkey, the page signs in with the passkey instead. A request asking only for `urn:nist:800-63:aal3`, which no sign-in here reaches yet, is answered at once at the client's `redirect_uri` with `error=unmet_authentication_requirements`. Values the provider does not know ask nothing; at most 8 values of 128 characters. |
 | `prompt=consent`, `select_account` | Your page decides: the provider shows no consent screen of its own. A client you register is one you allow on your users' behalf. |
 
 A request asking for a sensitive scope (`cli:admin` by default) needs `urn:nist:800-63:aal2` the same way. A second factor's code that cannot reach the level a request needs — a recovery code, an email code — is refused before it is spent.
 
-A request no sign-in can complete, unknown, expired (five minutes after `/oauth/authorize`) or completed already, is refused when the sign-in names it: `POST /auth/login` answers `400 auth_request_invalid` before it checks the password, and `POST /auth/oauth/transactions` before the person goes to the provider. Only a browser client's sign-in (`purpose: "sign_in"`) takes one; linking a provider to an account signs no one in. A request that expires while the person is at the provider or typing their code ends that sign-in with `400 auth_request_invalid`, and the client starts again. Completing a transaction again with the same body answers the same `oidc_callback_url`, and the callback answers once: two visits of it at the same moment (a double navigation, a prefetch) give one code, and the other is answered `409 auth_request_in_progress`.
+A request no sign-in can complete, unknown, expired (five minutes after `/oauth/authorize`) or completed already, is refused when the sign-in names it: `POST /auth/login` answers `400 auth_request_invalid` before it checks the password, `POST /auth/signup` before the account is opened, `POST /auth/oauth/transactions` before the person goes to the provider, `POST /auth/webauthn/login/begin` before the person is asked for a passkey, and `POST /auth/magic-link` and `POST /auth/otp` before an email or a text is sent. Only a browser client's sign-in (`purpose: "sign_in"`) takes one; linking a provider to an account signs no one in. A request that expires while the person is at the provider or typing their code ends that sign-in with `400 auth_request_invalid`, and the client starts again. Completing a transaction again with the same body answers the same `oidc_callback_url`, and the callback answers once: two visits of it at the same moment (a double navigation, a prefetch) give one code, and the other is answered `409 auth_request_in_progress`.
 
 ## Signing in a device
 
@@ -26432,6 +26750,1079 @@ export async function signInWith(customToken: string): Promise<string> {
 - [Blocking Hooks](/docs/auth/hooks): approving a sign-in, a token or a device from your own code
 - [Audit Trail](/docs/auth/audit): `token.issue`, `serviceaccount.*` and the rest
 - [CLI reference](/docs/cli/reference#palbase-authoauth-clientscreate): `auth:oauth-clients:create` and its flags
+
+
+
+<!-- ===== access/overview ===== -->
+
+# Access
+
+Access answers one question for your app — **may this user do this, on this object?** — and it answers it inside your project's own database, in the same transaction as the query the answer guards. You describe who can hold what in a small schema: the kinds of object your app has, the relationships a user can have to them, and the permissions those relationships add up to. Palbase compiles that schema into your Postgres, and from then on a check is a query, a list is filtered by the same rule that would refuse a single row, and taking a role away is in force for the very next statement.
+
+It is for the case a role on the user cannot express: one person who is a **designer in one product and a developer in the next**, an owner of one company and a guest in another, a member of this channel and not that one. A role in the access token says what somebody is everywhere; a relationship says what they are **here**.
+
+## A first schema
+
+```text
+type company
+  table companies
+  relation owner, member: user
+
+type product
+  table products
+  relation company: company from company_id
+  relation designer, developer, tester: user
+  permission design.write = designer + company->owner
+  permission code.write   = developer + company->owner
+  permission view         = designer + developer + tester + company->owner
+```
+
+Read it as sentences. A company has owners and members. A product belongs to a company — the `company_id` column of its row says which — and has designers, developers and testers of its own. Whoever is the product's developer, **or** the owner of the company the product belongs to, may write its code.
+
+Nothing here names a user or a product: the schema says what *can* be held. Who holds it is a **relationship**, one fact each:
+
+```text
+company:1   owner      user:olga
+product:10  designer   user:una
+product:11  developer  user:una
+```
+
+With those three, `una` may `design.write` on product 10 and `code.write` on product 11, and not the other way round; `olga` may do both on every product of company 1 — including one created tomorrow, with no relationship of its own.
+
+## The three questions
+
+| Question | In a `palbase/backend` app | In SQL |
+|---|---|---|
+| May the caller do this on this object? | `Database.$access.can("code.write", { type: "product", id })` | `access.can('code.write', 'product', '11')` |
+| Which objects may they do it on? | `Database.$access.objects("view", "product")`, or a row policy that names the permission | `access.my_objects('view', 'product')`, or the policy |
+| Who may do it on this object? | `Database.$asService().$access.subjects("view", { type: "product", id })` | `access.subjects('view', 'product', '11')` |
+
+The second question is the one that matters at scale. A list — the last 50 sessions of a product, every product the caller can see — is not checked row by row: the permission is compiled to a set the database joins against, so the list comes back already filtered, by an index, in the time a list takes.
+
+## Where it runs
+
+In your project's database, as views and functions the schema is compiled to. There is no service between your code and the answer, and nothing to keep in step:
+
+- **A check sees the transaction's own writes.** Give a role and ask in the same transaction: the answer is yes. Take it away: the next statement is refused. There is no cache to wait out.
+- **A row that is deleted takes its relationships with it**, so an id that is used again starts with nobody holding anything on it.
+- **The rule and the data cannot drift.** A relation read from a column (`company: company from company_id`) *is* the column: move the product to another company and its owner changes with the update.
+- **A migration that would break the schema is stopped.** A column the schema reads cannot be dropped out from under it; the database refuses, naming what depends on it.
+
+## Two ways to use it
+
+**In a `palbase/backend` app** the schema is a file beside your tables. It is migrated with them, a row policy names a permission with `p.can("view")`, and handlers ask through `Database.$access`, typed by the schema's own names. That is [Access in a Backend](/docs/access/backend).
+
+**From any backend, in any language**, the schema goes into a database of the project from the command line, and your code asks in SQL — through whatever driver or ORM it already uses. Nothing of Palbase's is installed in the app. That is [Access from SQL](/docs/access/sql), and it is also the way in for a system that already has its tables and its users: [Moving an Existing System](/docs/access/moving-in).
+
+Both speak the same schema language ([The Access Schema](/docs/access/schema)) and keep relationships the same way. A database's schema has one owner, though: its `palbase/backend` app's deploys carry it, or the command line puts it in — neither replaces the other's.
+
+## Trying a schema before it ships
+
+A schema is a rule about who sees what, and a rule that is widened by mistake is found by somebody who should not have seen something. `palbase access:test` holds a schema to a file of answers you expect — *una may not write code in product 10; exactly olga and una may view it* — without a database, and ends with `1` naming each expectation a change broke. Run it where you run your tests. See [Testing a Schema](/docs/access/testing).
+
+## What it is not
+
+- **Not sign-in.** Who the user *is* comes from [Auth](/docs/auth/overview): the verified access token's `sub` is the subject every check is about.
+- **Not the roles in the token.** [Roles](/docs/auth/users#roles) say what a user is across the whole app (`admin`, `support`) and travel in the token. Use them for that. Use Access when the answer depends on *which* object.
+- **Not a place for your data.** Relationships say who is what of which object. The objects themselves stay in your tables.
+
+## The pages
+
+- [The Access Schema](/docs/access/schema): types, relations kept or read from a column, permissions and how they combine, row rules, and the limits.
+- [Access in a Backend](/docs/access/backend): `db.access`, `p.can()`, `Database.$access`, types, migrations, and deleted users.
+- [Access from SQL](/docs/access/sql): putting a schema into a database, the functions and views, who may call what, and using it from an ORM.
+- [Testing a Schema](/docs/access/testing): the validation file and `palbase access:test`.
+- [Moving an Existing System](/docs/access/moving-in): from a roles table of your own to relationships, without a day when both are wrong.
+
+
+
+<!-- ===== access/schema ===== -->
+
+# The Access Schema
+
+The access schema is a text file in a language of its own — not TypeScript, not SQL — so a backend in any language, the command line and the tests all read the same thing. It says three things: what kinds of object exist, what a user can be to each, and what that lets them do. This page is the language, statement by statement, and the rules a schema is held to.
+
+```text
+type company
+  table companies
+  relation owner, member: user
+
+type team
+  relation member: user
+
+type product
+  table products
+  relation company: company from company_id
+  relation designer, developer, tester: user
+  relation squad: team
+  permission design.write = designer + company->owner
+  permission code.write   = developer + company->owner
+  permission view         = designer + developer + tester + squad->member + company->owner
+
+type session
+  table sessions
+  relation product: product from product_id
+  relation creator: user from creator_id
+  relation member: user
+  relation team: product from product_id where private = false
+  permission view = creator + member + team->view
+```
+
+A statement is a line. `//` and `#` start a comment. Indentation is for the reader.
+
+## `type`
+
+```text
+type product
+```
+
+A kind of object. Its name is lowercase letters, digits and single underscores, starting with a letter, 40 characters at most. `user` is taken: it is whoever asks.
+
+An object is a type and an id — `product:10`. A **subject** is who holds something: a user, by the id your [auth](/docs/auth/overview) gives them (the access token's `sub`).
+
+## `table`
+
+```text
+  table products
+  table billing.invoices key number
+```
+
+The table whose rows are the type's objects. With it:
+
+- **an object exists when its row does.** Nothing is held on an object that is not there, and a relationship cannot be given on one;
+- **a row that is deleted takes its relationships**, a key that is updated carries them to the new id — row by row, in the order the statement changed them, before any trigger of the table's own (access' triggers' names begin with `!`, which comes before any letter or digit; a trigger of the table's own that fires after a change and is named to come before `!access_move` — beginning with a space, say, or `!a` — is refused when the schema is put in: rename it, or make it fire before the change) — and a table that is truncated leaves none, each written in the history as the database's own doing. A row that is made starts with nobody holding anything on it, whatever its id was before;
+- the type's relations can be read from the row's columns (below), and its permissions can guard the rows ([in a backend](/docs/access/backend#a-policy-names-a-permission), or with [`rows`](#rows)).
+
+The object's id is the table's primary key. A table whose primary key is several columns, or that has none, names one column that identifies a row: `table invoices key number`. The key is text, a uuid or an integer, and it identifies a row **by itself, at every moment**: `NOT NULL`, and unique alone — the primary key, or a unique constraint or index of that column and no other — by a check that is not `DEFERRABLE`. A schema other than `public` is written before the name.
+
+A type is given its table once. Giving a type a table later, or another table, while relationships of it are kept is refused: the ids they name are not that table's rows.
+
+A type **without** a table is a grouping that lives only in relationships — the `team` above. Its objects exist as far as relationships name them, and its ids are any text you choose (`team:blue`).
+
+What cannot carry a type: a view, a foreign table, a partitioned table or one of its partitions, a table that inherits from another, and a table with `FORCE ROW LEVEL SECURITY`.
+
+## `relation`
+
+A relation is something a subject **is** to an object. There are two kinds, told apart by `from`.
+
+### Kept: given and taken
+
+```text
+  relation designer, developer, tester: user
+  relation squad: team
+  relation viewer: user | team
+```
+
+A relationship of a kept relation is a fact Palbase stores — *una is designer of product 10* — given and taken through the API ([`grant` and `revoke`](/docs/access/backend#giving-and-taking)). After the colon is what can hold it: `user`, one or more types, or both, separated by `|`. Several relations that take the same subjects share a line.
+
+A relation that takes a **type** is not held by any user directly. It links two objects — *team blue is the squad of product 10* — and a permission follows it with an [arrow](#arrows-through-a-relation).
+
+### Read: from a column
+
+```text
+  relation company: company from company_id
+  relation creator: user from creator_id
+  relation team: product from product_id where private = false
+```
+
+The relationship is the row's own column: the product's company is whatever `company_id` says, now. There is nothing to give, take or keep in step — change the column and the relationship has changed. One relation a line, one kind of subject.
+
+The column holds a user's id (`: user from …` — text, a uuid or an integer) or the key of another type's object (`: company from …` — the same type as that table's key). The relationship is there when the column is not null **and** the `where` holds.
+
+`where` says when the column counts:
+
+| Written | Meaning |
+|---|---|
+| `private = false`, `state != 'draft'`, `level >= 3` | a comparison with a value: `'text'` (256 characters at most), a number, `true` or `false`. Order (`<`, `<=`, `>`, `>=`) is for numbers |
+| `deleted_at is null`, `owner_id is not null` | null or not |
+| `state in ('open', 'review')` | one of several values |
+| `a and b`, `a or b`, `not a`, `( … )` | combinations; `and` beside `or` needs parentheses |
+
+A condition that is unknown — a comparison with a null — is not true, as in SQL: the relationship is not there.
+
+The same column can be read twice under different conditions. Above, a session's `product` is always its product, and its `team` is its product *only while the session is not private* — which is how "everyone who sees the product sees its open sessions, and a private one is its creator's and its members'" is said in one line.
+
+## `permission`
+
+```text
+  permission code.write = developer + company->owner
+```
+
+A permission is what relations add up to. Its name follows a type's naming rule and may carry one dot (`code.write`, `billing.read`), to group permissions the way your app talks about them.
+
+A type's name and a name of it are asked together — `access.product__code__write` — and a name in Postgres holds 63 characters: the two with their separators (a dot counts as two) fit in 63, or the schema is refused where it is read.
+
+| Written | Holds for a subject when |
+|---|---|
+| `developer` | they hold `developer` on this object — a relation, or another permission of the same type |
+| `a + b` | either |
+| `a & b` | both |
+| `a - b` | `a`, and not `b` |
+| `company->owner` | they hold `owner` on the object this one's `company` relation leads to |
+| `( … )` | grouping |
+
+`a - b` is *holds `a` and does not hold `b`* — and a relation read from a column does not hold while its `where` is unknown. So *unless suspended*, read from a column that may be null, lets everyone through while it is null: make such a column `NOT NULL`, or say the null case in the condition.
+
+Two different operators in one expression need parentheses — `a + b & c` is refused rather than guessed at. An expression continues on the next line after an operator, before one, or inside parentheses:
+
+```text
+  permission view = designer + developer + tester
+                  + squad->member
+                  + (company->owner - suspended)
+```
+
+### Arrows: through a relation
+
+`company->owner` reads: *go to this product's company; is the subject its owner?* The left side is a relation of this type that leads to objects; the right side is a relation or a permission of the type it leads to. When the relation takes several types (`viewer: user | team`), every one of them must have the name.
+
+An arrow is how a role on something large reaches everything inside it without a relationship for each: one `owner` on a company is `code.write` on every product of it, today's and tomorrow's.
+
+Arrows chain through types, not through one type into itself. `session → product → company` is three levels and any number more is fine. A type that contains itself — a folder in a folder, to any depth — is not supported: a permission that reaches itself through its own type is refused when the schema is read.
+
+## `rows`
+
+```text
+type product
+  table products
+  …
+  rows select: view
+  rows update, delete: code.write
+```
+
+For a database that is **not** migrated by a `palbase/backend` app: makes the type's permission the table's row policy for the commands named (`select`, `insert`, `update`, `delete`), for the `authenticated` role, and turns row-level security on for the table. A signed-in user's `SELECT * FROM products` then returns the products they hold `view` on, whatever wrote the query. See [Access from SQL](/docs/access/sql#row-policies).
+
+In a `palbase/backend` app the tables' policies are written with the tables, and a schema with `rows` is refused: say [`p.can("view")`](/docs/access/backend#a-policy-names-a-permission) in the table's `policies` instead, where it can stand beside the table's other conditions.
+
+## What a schema means, exactly
+
+- **A relation holds** for a subject on an object when the relationship is kept (`product:10 designer user:una`), or the row's column says so.
+- **A permission holds** when its expression is true, each name in it asked of the same subject and object, each arrow of the objects the relation leads to.
+- **Nothing holds on an object that does not exist**, and nobody holds anything while nobody is signed in.
+- **Ids are compared as the key compares them**: a uuid in either case is the same uuid, `07` and `7` are the same integer, and text is compared exactly. A user's id in a kept relationship is text, compared exactly: give it as your sign-in writes it.
+
+"Who holds this on that object" is answered from the subjects the permission's own relations name there — each then asked — so the list is exact, and bounded by how many subjects are related to the object.
+
+## What is refused, and when
+
+A schema is checked whole before anything is changed, and the refusal names the line:
+
+```text
+line 9: permission doc.view: holder->member — type org has no relation or permission "member"
+line 3: "&" beside another operator: put parentheses around one of them
+relation product.company: public.products has no column "firm_id"
+```
+
+Against the database it is also held to the tables as they are: every table and column it reads exists, a key is a type an id can be, and a column that leads to another type has that type's key type.
+
+| Limit | |
+|---|---|
+| Types in a schema | 200 |
+| Relations and permissions in a type | 100 |
+| Terms in one permission's expression | 200 |
+| Comparisons in one `where` | 50 |
+| Parentheses and `not`, nested | 32 |
+| A type's name with one of its names, as `type__name` | 63 characters |
+| Relations a permission comes to once everything it is derived from is written out | 200 |
+| Lookups the database plans for one permission | 300 |
+| Indexes on a type's table | 150 |
+| What the database spends planning one name, measured when the schema is put in | 96 MB and 100 ms |
+| Terms the whole schema comes to, written out | 25,000 |
+| Permissions derived from one another, in a chain | 16 |
+| An id | 256 characters |
+| The schema's text | 256 KiB |
+
+Four of these are the ones a real schema can meet.
+
+- **Relations written out.** Permissions that name each other through several paths multiply. Say the shared part once, as a permission of its own, and name that.
+- **Lookups planned.** A permission read through another type's — `company->view` — is planned by the database with that permission's whole definition inside it, twice over through a relation read from a column and four times over through a kept one. Each level multiplies: a chain org → company → product → session → record, read from columns, is 133 lookups — about 19 MB of the database's memory and 7.5 ms to plan, on every statement it guards. Past 300, read fewer levels deep through other types' permissions, or through relations read from columns rather than kept ones.
+- **Indexes on a type's table.** The database reads every index of a table each time a lookup reads it, and the cost grows faster than their number: the same chain plans in 5 ms on tables with their key alone, 10 ms with 150 indexes on each, 46 ms with 300 and 169 ms with 600. A table with more than 150 is refused as a type's table when the schema is put in. Up to that, and however many columns the tables have, a permission costs at most about two and a half times what it does on bare tables: the chain on tables of 1,500 columns with 150 indexes each plans in 12 ms and 24 MB.
+- **What planning takes.** What an index carries — a partial index's predicate, an index's expressions — and a table's statistics, and the indexes of `access.relationships`, are planned with every lookup that reads them. So the database itself is asked: each name's view is planned (not run) when the schema is put in, smallest first, and the schema is refused past 96 MB or 100 ms for one name, by name — a name the smaller ones show would be far past is refused without being planned. It is asked again each time the schema is put in, the same one too: by `access:schema:set`, and at every deploy of an app that carries its schema, so an index made since is found at the next.
+  - The bound is per statement on a type's table: a name is planned once for each place the table's policies read it, and the places add up. An `UPDATE` under `rows select, update: view` reads `view` in three places — the rows it reads, its `USING` and its `WITH CHECK` — and is counted as three plans of it (Postgres plans it about twice: the count leaves room), held to the bound together, as is a policy that names several permissions; an upsert (`INSERT … ON CONFLICT DO UPDATE`) adds the `INSERT`'s check to the `UPDATE`'s.
+  - A statement that reads a guarded table more than once (the table joined with itself) plans its rule once for each: that is the query's to keep in mind.
+  - The time is a connection's that has planned before; the first statement of a new connection also loads the database's catalog, whatever it asks.
+  - Palbase's databases run with JIT off. Postgres costs a rule's lookups by the plan it does not take — each related row read one by one — so a list over a large table is estimated far past what JIT compiles, and compiling took 2 s of a list that runs in 12 ms (110,000 sessions, in prod). On a Postgres of your own, turn it off for the app's logins: `ALTER ROLE <login> SET jit = off`.
+
+Each is refused when the schema is put in — with the count, and the line or the table — rather than found slow, or out of memory, in production.
+
+## Changing a schema
+
+A schema is replaced whole, and the replacement is one transaction: every question is answered by the old schema or by the new one, never by half of each. In a `palbase/backend` app the change travels with a deploy, and each version of the app is answered by its own schema while both serve ([Migrations](/docs/access/backend#a-schema-changes-with-a-deploy)).
+
+Relationships are kept across a change. One thing needs a decision: a kept relation that the new schema no longer has, while relationships of it exist. They would mean nothing — and would mean something again, unseen, if the name came back — so the change is refused until they are taken away, or you say they go with it ([`--drop-relationships`](/docs/access/sql#changing-the-schema)).
+
+
+
+<!-- ===== access/backend ===== -->
+
+# Access in a Backend
+
+In a `palbase/backend` app the [access schema](/docs/access/schema) is a file beside your tables. It is migrated with them, a table's row policy names a permission, and handlers ask through `Database.$access`. This page builds one app that way: a company's products, each with its own people.
+
+## The schema is a file of the app
+
+```text
+src/
+├── main.ts
+└── db/
+    ├── public.ts          the tables
+    └── access.schema      who may do what on them
+```
+
+```text
+// src/db/access.schema
+type company
+  table companies
+  relation owner, member: user
+
+type product
+  table products
+  relation company: company from company_id
+  relation designer, developer, tester: user
+  permission design.write = designer + company->owner
+  permission code.write   = developer + company->owner
+  permission manage       = company->owner
+  permission view         = designer + developer + tester + company->owner
+```
+
+```ts
+// src/db/public.ts
+import { bigint, defineSchema, defineTable, policy, text } from "palbase/backend";
+
+export const companies = defineTable("companies", {
+  columns: { id: bigint().primaryKey(), name: text() },
+  rls: false,
+});
+
+export const products = defineTable("products", {
+  columns: { id: bigint().primaryKey(), company_id: bigint(), name: text() },
+  // The row policy is the permission: a product is read by whoever holds `view` on it.
+  policies: (p) => [policy("holders read").for("select").using(p.can("view"))],
+});
+
+export default defineSchema("public", { tables: [companies, products] });
+```
+
+```ts
+// src/main.ts
+import { Module, PalbaseFactory } from "palbase/backend";
+import schema from "./db/public";
+
+@Module({})
+class AppModule {}
+
+await PalbaseFactory.create(AppModule, {
+  db: {
+    schemas: [schema],
+    // The file itself: the app reads it when it starts, the command line when you test it.
+    access: new URL("./db/access.schema", import.meta.url),
+  },
+});
+```
+
+`db.access` is the file's URL, or the schema's text. A schema that does not hold together stops the app when it starts, with the line:
+
+```text
+line 13: permission product.manage: company->boss — type company has no relation or permission "boss"
+```
+
+The schema is held to your tables as you declared them — every table and column it reads, and their types — before anything reaches a database.
+
+## A policy names a permission
+
+`p.can(name)` in a table's `policies` is *the caller holds this on the row*:
+
+```ts
+import { bigint, boolean, defineTable, policy, text } from "palbase/backend";
+
+export const sessions = defineTable("sessions", {
+  columns: { id: bigint().primaryKey(), product_id: bigint(), private: boolean().default(false), creator_id: text(), title: text() },
+  policies: (p) => [
+    policy("holders read").for("select").using(p.can("view")),
+    // A row that is not there yet: what its writer holds on the product it names.
+    policy("viewers add").for("insert").withCheck(p.and(p.can("add"), p.col("creator_id").eq(p.auth.uid()))),
+  ],
+});
+```
+
+- In `using`, it filters: `Database.public.sessions.findMany()` returns the sessions the caller may view, and a route that forgets a filter cannot read past it ([Row-Level Security](/docs/backend/row-level-security)).
+- In `withCheck`, it judges the row being written. A permission that goes through a column — `permission add = product->view` on the session type — asks what the writer holds on the product the **new** row names, so *whoever sees a product may start a session in it* is one line.
+- It stands beside the table's other conditions with `p.and(…)` and `p.or(…)`.
+- The table must be a type's table in the schema, and the type must have the name: anything else is refused when the migration is planned, by name.
+- The policy is for `authenticated` (the default) or `service_role`. One for `anon` is refused: a permission answers for a signed-in user.
+
+A list filtered this way is not checked row by row. The permission compiles to a set the database joins against, and the columns it reads are indexed like any column a policy reads.
+
+## Asking: `Database.$access`
+
+```ts
+// src/modules/products/products.controller.ts
+import { Controller, Database, Forbidden, Get, Param, Post } from "palbase/backend";
+
+@Controller("/products")
+export class ProductsController {
+  @Post("/{id}/code")
+  async push(@Param("id") id: string): Promise<{ pushed: boolean }> {
+    if (!(await Database.$access.can("code.write", { type: "product", id }))) {
+      throw new Forbidden("You do not write code in this product", "not_a_developer");
+    }
+    return { pushed: true };
+  }
+
+  // The ids of every product the caller may view.
+  @Get("/mine")
+  mine(): Promise<string[]> {
+    return Database.$access.objects("view", "product");
+  }
+}
+```
+
+`can`, `objects` and `held` are about **the request's caller** — the access token's `sub` — and run on the request's own transaction, so they see what the request has written. With nobody signed in (a route with `auth: false`) the answer is no, and the database is not asked.
+
+| | Answers |
+|---|---|
+| `can(name, { type, id })` | whether the caller holds the relation or permission on the object |
+| `objects(name, type)` | the ids of the objects of the type the caller holds it on, sorted |
+| `held({ type, id })` | every relation and permission the caller holds on the object, sorted — one statement, for a screen that shows or hides by them |
+
+An id is a string or a whole number; it is compared the way the table's key compares.
+
+### As the service: any user, and who holds what
+
+What names another user is the service role's, reached the explicit way — `Database.$asService().$access`:
+
+```ts
+// src/modules/products/people.controller.ts
+import { Body, Controller, Database, Delete, Forbidden, Get, Param, Post, z } from "palbase/backend";
+
+const Role = z.object({ user: z.string(), relation: z.enum(["designer", "developer", "tester"]) });
+type Role = z.infer<typeof Role>;
+
+@Controller("/products/{id}/people")
+export class PeopleController {
+  // Who tests this product — for whoever may see it.
+  @Get("/testers")
+  async testers(@Param("id") id: string): Promise<string[]> {
+    if (!(await Database.$access.can("view", { type: "product", id }))) throw new Forbidden();
+    return Database.$asService().$access.subjects("tester", { type: "product", id });
+  }
+
+  @Post("")
+  async give(@Param("id") id: string, @Body(Role) body: Role): Promise<{ given: boolean }> {
+    // Your rule for who may give: here, the company's owner.
+    if (!(await Database.$access.can("manage", { type: "product", id }))) throw new Forbidden();
+    return { given: await Database.$asService().$access.grant({ type: "product", id }, body.relation, body.user) };
+  }
+
+  @Delete("")
+  async take(@Param("id") id: string, @Body(Role) body: Role): Promise<{ taken: boolean }> {
+    if (!(await Database.$access.can("manage", { type: "product", id }))) throw new Forbidden();
+    return { taken: await Database.$asService().$access.revoke({ type: "product", id }, body.relation, body.user) };
+  }
+}
+```
+
+| | Answers |
+|---|---|
+| `check(user, name, object)` | whether that user holds it |
+| `objectsOf(user, name, type)` | the objects that user holds it on |
+| `subjects(name, object)` | the users who hold it on the object, sorted |
+| `grant(object, relation, subject, { by? })` | gives the relationship; `false` when it was already there |
+| `revoke(object, relation, subject, { by? })` | takes it; `false` when it was not there |
+| `relationships(filter?)` | what is kept: `{ object, relation, subject, since }` |
+| `history(filter?)` | what was given and taken, the latest first: `{ at, action, object, relation, subject, by }` |
+
+On `$asService()`, `can`, `objects` and `held` are still about the request's caller: the service's transaction carries the caller's token.
+
+Access decides nothing about **who may give a role** — that is a rule of your app, and the pattern above is the whole of it: ask what the caller holds, then act as the service. Calling a service-only operation on the request's own `Database.$access` is refused before anything is sent.
+
+### Giving and taking
+
+A relationship is given on a **kept** relation (`designer`, not `company`, which is the row's column) to what the relation takes:
+
+```ts
+import { Database } from "palbase/backend";
+
+export async function examples(): Promise<void> {
+  const access = Database.$asService().$access;
+  await access.grant({ type: "product", id: 10 }, "designer", "user_2f9c");
+  // The same, said in full; and who did it, when it is not the request's user.
+  await access.grant({ type: "product", id: 10 }, "tester", { user: "user_81aa" }, { by: "import of 2026-11" });
+  await access.revoke({ type: "product", id: 10 }, "designer", "user_2f9c");
+}
+```
+
+- The object must exist — a type with a table has its row — and is locked against being deleted while the relationship is written.
+- It is in force **from the next statement**: taken away, the user's next request is refused, and the rows are gone from their lists.
+- A row's relationships go with the row: deleted, they go; its key changed — by the statement, or by a trigger of the table's own — they follow it. A transaction at `repeatable read` or `serializable` that deletes a row, or changes its key, after a grant it could not see was committed fails with a serialization failure, to be run again, rather than leave the grant behind (`$atomic` runs it again by itself).
+- Every change is written to the history with who did it: `by` when you say it, else the request's user, else the database login.
+- It is written in the service role's own transaction, which commits with the request — after the caller's own, and apart from it. A change that must stand or fall with other writes is made beside them, on the same `$asService()`.
+- A relation that takes objects is given the same way: `grant({ type: "product", id: 10 }, "squad", { type: "team", id: "blue" })`.
+
+`relationships` and `history` take a filter — `{ object: { type, id? }, relation?, subject?, limit? }`, 100 rows unless `limit` says otherwise, 1,000 at most.
+
+### What is refused
+
+`Database.$access` throws `AccessRefused`, with a `code`:
+
+| `code` | |
+|---|---|
+| `unknown_type`, `unknown_name` | the schema has no such type, or the type no such relation or permission a user can hold |
+| `not_kept` | the relation is not one relationships are kept of, or does not take that kind of subject |
+| `bad_id` | an id that is empty, longer than 256 characters, or not a string or whole number |
+| `not_the_service` | an operation of the service role's, called on the caller's `Database.$access` |
+| `no_schema` | the app declares no access schema |
+| `no_object` | `grant` on an object that does not exist |
+| `too_many` | `subjects` on an object more than 10,000 subjects, or more than 10,000 objects through kept relations, are related to — or subjects × objects past 1,000,000: ask `check` instead |
+
+All but the last two are decided by the schema alone and thrown **before anything is sent**, so a wrong name does not end the request's transaction. They are mistakes of the code, not answers for a client: left to reach it, the request answers `500`. A name that comes from a request is checked against your own list first — the `z.enum([...])` above.
+
+## The names, typed
+
+`palbase db:types` writes the schema into `palbase/palbase-env.d.ts` beside your tables' types:
+
+```sh
+palbase db:types
+```
+
+From then on `Database.$access` takes only what the schema has. `can("code.wirte", …)` does not compile; neither does `grant(…, "view", …)` — a permission is not given — nor a team where the relation takes a user. Run it again when the schema changes. Until it has run, every name is a string and the checks above happen at run time alone.
+
+## A schema changes with a deploy
+
+The access schema is part of the app's schema. `palbase db:plan` says what a deploy would change, and the deploy's migration makes it:
+
+```sh
+palbase db:plan
+```
+
+```text
+  + access schema 9c41d07a2b11 in place of 5e1f3a8c0d27
+  + policy public.sessions.holders read changes
+```
+
+A deploy has a window in which the version being replaced and the new one both serve ([Migrations](/docs/backend/migrations)). Through it **each version is answered by its own rules** — its policies, plain ones too, and whether the table has row security at all: a request of the old version by the old schema and policies, a request of the new one by the new — in the same table, at the same moment — including a policy only one of them has. Anything else that reaches the tables in that window is held to the old version's rules, all of them. When the old version is gone, the old schema is. If the deploy is abandoned, the new schema is removed, the old policies are as they were, and what the new version gave on a type only it had is taken back.
+
+Three things a deploy will not do, and says so before it changes anything:
+
+- **Rename or retype a column the schema reads in the same deploy.** Ship the rename, then have the schema read the new name in the next.
+- **Give a type a table, or another table, while relationships of the type are kept.** Their ids name what the type was before. And until that deploy completes, no relationship of the type is given — by either version: each would read the other's by its own meaning. `grant` answers SQLSTATE `55000` meanwhile.
+- **Drop a kept relation that still has relationships.** Take them away first (`revoke`, or [`palbase access:relationships:revoke`](/docs/cli/reference#palbase-accessrelationshipsrevoke)): relationships of a name the schema no longer has would mean nothing, and would mean something again if the name came back.
+
+## When a user is deleted
+
+An app with an access schema hears [`user.deleted`](/docs/backend/hooks) without writing a handler: every relationship the user held is taken back, in the delivery's own transaction, and the history says it was the deletion. A new user who is later given the same id starts with nothing. The history keeps its rows — who had what, and when it was taken — with the user's id in them: the record of access, not the user's data.
+
+## Testing
+
+`palbase access:test` holds the schema file to the answers you expect, without a database — see [Testing a Schema](/docs/access/testing). Code that calls `Database.$access` is tested against a real database: the in-memory `fakeDatabase()` keeps rows, not relationships, and refuses the question.
+
+## From outside the app
+
+The same relationships can be read and changed from the command line, on the environment's database — useful for support, a first owner, or a look at who has what:
+
+```sh
+palbase access:check user_2f9c code.write product:11
+palbase access:subjects view product:10
+palbase access:relationships:grant company:1 owner user:user_81aa
+palbase access:history --object product:11
+```
+
+See [Access from SQL](/docs/access/sql#from-the-command-line) for each.
+
+
+
+<!-- ===== access/sql ===== -->
+
+# Access from SQL
+
+Access lives in the database, so anything that speaks SQL can use it: a backend in Go, Python, Ruby or Java, an ORM, a script, `psql`. Nothing of Palbase's is installed in the program. The [access schema](/docs/access/schema) is put into the database from the command line, and your code asks with ordinary statements.
+
+This is the whole of it, for a database that already has its tables:
+
+```sh
+palbase access:schema:set access.schema
+```
+
+```sql
+-- in a request's transaction, as the signed-in user
+SELECT access.can('code.write', 'product', '11');
+```
+
+## Putting a schema into a database
+
+`access:schema:set` reads the schema file, checks it against the database's own tables, and compiles it in — in one transaction, as the tables' owner:
+
+```sh
+palbase access:schema:set access.schema --dry-run   # what it would do; changes nothing
+palbase access:schema:set access.schema
+```
+
+```text
+production › main now answers from access schema dc239a3a0b78
+  company: public.companies, by id
+  product: public.products, by id
+  session: public.sessions, by id
+  13 relations and permissions a subject can hold
+  row policy: public.products select
+  row policy: public.sessions select
+```
+
+It acts on the environment chosen with `palbase use` (or `-E`), on its only database or the one `--db` names; a production environment asks first. `--url postgres://…` acts on a database of your own instead — a Postgres on your computer, for development and tests. It needs `psql` installed.
+
+`palbase access:schema:get` prints the schema a database answers from.
+
+A database whose `palbase/backend` app carries an access schema ([`db.access`](/docs/access/backend)) has it changed by that app's deploys, and `access:schema:set` is refused there: each version of the app asks the schema it was migrated with. The other commands of this page work on it as on any.
+
+What it leaves in the database:
+
+| | |
+|---|---|
+| `access.relationships`, `access.history` | who is what of which object, and every change to it |
+| `access.can`, `access.check`, … | the functions below |
+| `access.<type>__<name>` | a view for each relation and permission: the ids the asker holds it on |
+| triggers on each type's table (`!access_fresh`, `!access_forget`, `!access_move`, `!access_empty`) | a deleted row takes its relationships, an updated key carries them, a new row starts with none |
+| `access_<digest>` | the compiled schema itself. Yours to read, not to write in: it is replaced when the schema changes |
+
+The schema is bound to your tables. A migration of yours that would drop or retype a column the schema reads is stopped by the database, naming what depends on it:
+
+```text
+ERROR:  cannot drop column company_id of table products because other objects depend on it
+DETAIL:  view access_dc239a3a0b78.product__code__write depends on column company_id of table products
+```
+
+Change the schema first so that it no longer reads the column, then drop it.
+
+## Who is asking
+
+A [database of the project](/docs/machines/databases#connecting) has two logins. Your program connects as the **app** login and takes a role for each transaction:
+
+| Role | Take it for | Access answers |
+|---|---|---|
+| `authenticated` | a signed-in user's request | for that user alone — the `sub` of `request.jwt.claims` |
+| `service_role` | your backend acting for itself | for any user it names |
+
+A request of a signed-in user:
+
+```sql
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claims', json_build_object('sub', $1)::text, true);  -- $1: the user's id
+
+-- … the request's statements …
+
+COMMIT;
+```
+
+Both settings end with the transaction, so nothing carries to the next request on a pooled connection. The id is the one your sign-in gives the user — with Palbase [Auth](/docs/auth/overview), the access token's `sub`, **after** you have verified the token. The database trusts what the transaction says; who may say it is your program.
+
+`authenticated` cannot ask about anybody else. `access.check` is not its to run, the `access.subject` setting is ignored for it, and `access.relationships` is not its to read — a mistake in a query cannot turn one user into another.
+
+## The questions
+
+As `authenticated` — about the user of the transaction:
+
+```sql
+SELECT access.can('code.write', 'product', '11');             -- true or false
+SELECT * FROM access.my_objects('view', 'product');           -- the ids, as text
+```
+
+As `service_role` — about any user, and the third question:
+
+```sql
+SELECT access.check('user_2f9c', 'code.write', 'product', '11');
+SELECT * FROM access.objects('user_2f9c', 'view', 'product');
+SELECT * FROM access.subjects('view', 'product', '10');        -- who holds it
+```
+
+| Function | Returns |
+|---|---|
+| `access.can(permission, type, id)` | `boolean` — the asker holds it |
+| `access.my_objects(permission, type)` | `setof text` — the ids the asker holds it on |
+| `access.check(subject, permission, type, id)` | `boolean` |
+| `access.objects(subject, permission, type)` | `setof text` |
+| `access.subjects(permission, type, id)` | `setof text` — the users who hold it. Each one related to the object is asked in turn — about a second at 10,000 — and past that it is refused; so is an object whose holders are looked for through more than 10,000 related objects (`team->member` on a product with that many teams), whether or not they name anyone, and one where the subjects times the related objects pass 1,000,000 (each subject is checked through all of them) |
+
+Ids go in and come out as text, whatever the key's type; they are compared as the key compares them. A name the schema does not have raises an error (below) rather than answering `false`. An object that does not exist is held by nobody.
+
+## Lists
+
+Asking `can` for each row of a list is the slow way, and it is never needed.
+
+### Row policies
+
+With [`rows`](/docs/access/schema#rows) in the schema, the table filters itself for `authenticated`:
+
+```text
+type session
+  table sessions
+  …
+  rows select: view
+```
+
+```sql
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claims', json_build_object('sub', $1)::text, true);
+SELECT * FROM sessions WHERE product_id = $2 ORDER BY id DESC LIMIT 50;   -- only what this user may view
+COMMIT;
+```
+
+The query is the one you would write anyway, from any ORM. Postgres adds the permission to it, uses your indexes, and returns the page already filtered. `rows insert`, `update` and `delete` judge writes the same way: a row the user may not write is refused with SQLSTATE `42501`.
+
+`rows` turns row-level security on for the table and adds policies named `access_select`, `access_insert`, … for `authenticated`. Policies of your own on the same table stay as they are and combine with them as Postgres combines policies; one of your own that already has one of those names stops the schema, by name, rather than being replaced — rename it. `service_role` and the owner pass row-level security, as always.
+
+Row-level security on a table is for every role that is not its owner: a role of your own, or `anon`, reads nothing there until a policy of yours says what it may. It stays on when a `rows` rule is removed — the table then shows `authenticated` nothing, rather than everything.
+
+Index what a permission reads of the row — the columns its relations are `from` (`product_id`, `creator_id` above) — as you would any column you filter by.
+
+A permission says who may write a row *in* a product; it cannot say whose name the row carries. `rows insert: add` lets a user who sees the product start a session — under anybody's `creator_id`. Say the rest in a policy of the table's own, beside it; a restrictive one holds whatever else allows:
+
+```sql
+CREATE POLICY started_as_oneself ON sessions AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (creator_id = nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub');
+```
+
+Grant a request's role only what its requests do — `SELECT` on what they read, `INSERT` where they write — and leave the rest to the service role. A table with no `rows` rule and no policy of yours has no row security: whatever the role is granted there, it does to every row.
+
+### A view to join
+
+Every relation and permission is also a view of the ids the asker holds it on — `access.<type>__<name>`, a dot in the name written as two underscores. Join it, or use it in `IN`:
+
+```sql
+SELECT s.*
+  FROM sessions s
+  JOIN access.session__view v ON v.id = s.id
+ WHERE s.product_id = $1
+ ORDER BY s.id DESC
+ LIMIT 50;
+
+SELECT * FROM products WHERE id IN (SELECT id FROM access.product__code__write);
+```
+
+The view's `id` has the key's own type. For `authenticated` it is about the transaction's user. A backend that runs everything as `service_role` says whom it is asking for first, for the rest of the transaction:
+
+```sql
+BEGIN;
+SET LOCAL ROLE service_role;
+SELECT access.act_as($1);                                   -- the user's id
+SELECT s.* FROM sessions s JOIN access.session__view v ON v.id = s.id ORDER BY s.id DESC LIMIT 50;
+COMMIT;
+```
+
+`access.act_as` is the service role's (and the owner's); any other role is told so, not silently answered for itself.
+
+## Relationships
+
+Given and taken as `service_role`:
+
+```sql
+SELECT access.grant ('product', '10', 'designer', 'user', 'user_2f9c', 'user_81aa');   -- true; false if it was there
+SELECT access.revoke('product', '10', 'designer', 'user', 'user_2f9c', 'user_81aa');   -- true; false if it was not
+```
+
+The arguments: the object's type and id, the relation, the subject's kind and id, and who did it. The kind is `'user'`, or a type for a relation that takes objects (`'team', 'blue'`). The last argument is written to the history; left out, it is the transaction's user, else the login.
+
+- Only a [kept relation](/docs/access/schema#kept-given-and-taken) is given; one read from a column is changed by changing the column.
+- The object must exist. The row is locked against being deleted while the relationship is written.
+- It is in force from the next statement, in this transaction and — once it commits — every other.
+
+`access.relationships` and `access.history` are tables the service role reads:
+
+```sql
+SELECT relation, subject_id, created_at FROM access.relationships WHERE object_type = 'product' AND object_id = '10';
+SELECT at, action, relation, subject_id, actor FROM access.history WHERE object_type = 'product' AND object_id = '10' ORDER BY id DESC;
+```
+
+Write them only through `grant` and `revoke`: those check the relation, the object and the id's spelling, and nothing else does.
+
+When a user is deleted in your system, take back what they held:
+
+```sql
+SELECT access.forget_subject('user_2f9c');   -- how many relationships went
+```
+
+## What an error means
+
+| SQLSTATE | |
+|---|---|
+| `PA001` | the type has no such relation or permission — or there is no such type |
+| `PA002` | `grant` on an object that does not exist |
+| `PA003` | an id that is empty or longer than 256 characters |
+| `PA004` | `subjects` on an object more than 10,000 subjects, or more than 10,000 objects through kept relations, are related to — or subjects × objects past 1,000,000: ask `check` |
+| `PA005` | the relation is not kept, or does not take that kind of subject |
+| `PA006` | a role that asks for itself alone tried to ask as another subject |
+| `42501` | Postgres' own: the role may not run the function, or a row policy refused a write |
+
+An error ends the transaction, as any does. Names come from your code, not from a request: check a name that does against your own list before it reaches SQL.
+
+## Changing the schema
+
+Run `access:schema:set` again with the new file. The change is one transaction: every statement is answered by the old schema or by the new one. What the new schema no longer has is removed; relationships are kept.
+
+Two cases stop it. A kept relation the new schema drops while relationships of it exist; and a type whose table has not been watched until now — the type is given a table or another one, the table was dropped and made again, or access' triggers on it were off — while relationships of the type exist: the ids they name may not be the rows they were given on. Say that they go with it —
+
+```sh
+palbase access:schema:set access.schema --drop-relationships
+```
+
+— and the history records each as taken by the change.
+
+## From the command line
+
+For support, a first owner, and looking at what is there:
+
+```sh
+palbase access:check user_2f9c code.write product:11          # ends with 0 (holds) or 1
+palbase access:objects user_2f9c view product
+palbase access:subjects view product:10
+palbase access:relationships:list --object product:10
+palbase access:relationships:grant company:1 owner user:user_81aa
+palbase access:relationships:revoke product:10 designer user:user_2f9c
+palbase access:history --object product:10
+```
+
+Each takes `--db` or `--url` as `access:schema:set` does. A change is written to the history as `cli:<your email>` unless `--by` says otherwise. The [CLI reference](/docs/cli/reference#palbase-accessschemaset) has every flag.
+
+
+
+<!-- ===== access/testing ===== -->
+
+# Testing a Schema
+
+An access schema is a rule about who sees what. A change that narrows it by mistake is found at once — somebody cannot do their work. A change that **widens** it is found by somebody who should not have seen something. `palbase access:test` is for the second kind: it holds a schema to answers you wrote down, and names each one a change broke.
+
+It needs no database. The questions are answered by a second implementation of the schema's meaning, kept equal to the database's by Palbase's own tests, so it runs in a second, anywhere your tests run.
+
+## A validation file
+
+```json
+{
+  "schema": "access.schema",
+  "tables": {
+    "company": { "columns": { "id": "int" }, "rows": [{ "id": 1 }, { "id": 2 }] },
+    "product": {
+      "columns": { "id": "int", "company_id": "int" },
+      "rows": [{ "id": 10, "company_id": 1 }, { "id": 11, "company_id": 1 }, { "id": 20, "company_id": 2 }]
+    }
+  },
+  "relationships": [
+    "company:1#owner@user:olga",
+    "product:10#designer@user:una",
+    "product:11#developer@user:una",
+    "product:10#tester@user:tess"
+  ],
+  "expect": [
+    { "subject": "una", "can": ["code.write", "view"], "on": "product:11" },
+    { "subject": "una", "can": "design.write", "cannot": "code.write", "on": "product:10" },
+    { "subject": "olga", "cannot": "view", "on": "product:20" },
+    { "subject": "tess", "holds": "view", "of": "product", "exactly": ["10"] },
+    { "who": "code.write", "on": "product:11", "exactly": ["olga", "una"] }
+  ]
+}
+```
+
+| Key | |
+|---|---|
+| `schema` | the schema file, beside this one |
+| `tables` | for each type with a table: the columns the schema reads (the key, and every column a relation is `from` or a `where` compares), each `text`, `uuid`, `int`, `bool` or `numeric` — and the rows of the example |
+| `relationships` | the kept relationships of the example, each `type:id#relation@user:id` — or `@type:id` for a relation that takes objects |
+| `expect` | what must be true |
+
+Three kinds of expectation:
+
+| Written | Holds when |
+|---|---|
+| `{ "subject", "can", "cannot", "on" }` | the subject holds every name under `can`, and none under `cannot`, on the object. Either may be one name or a list |
+| `{ "subject", "holds", "of", "exactly" }` | the objects of type `of` the subject holds the name on are exactly these ids |
+| `{ "who", "on", "exactly" }` | the subjects who hold the name on the object are exactly these |
+
+`exactly` is the one that catches a widening: it fails for an answer that has grown.
+
+## Running it
+
+```sh
+palbase access:test access.test.json
+```
+
+```text
+7 expectations hold
+```
+
+It ends with `0`. Now widen a rule — an edit that lets designers write code, `permission code.write = developer + designer + company->owner`:
+
+```text
+✗ una cannot code.write on product:10 — the schema says they can
+1 of 7 expectations do not hold
+```
+
+and it ends with `1`, naming the expectation: `una` designs product 10, and the file says she does not write its code.
+
+A file that is itself wrong — a type the schema does not have, a row without its key — is said as that, not as a failed expectation.
+
+## What to write down
+
+A validation file is worth the most where a mistake would cost the most:
+
+- **For each role, one thing it must not reach.** *A tester cannot write code. A member of the company cannot manage it.* `cannot` lines are short and they are the ones that fail when a `+` goes where a `&` belonged.
+- **Across the boundary you sell.** One company's owner, another company's product: `cannot`, for every permission.
+- **`exactly`, for the lists that matter.** Who may read the payroll, who may delete a workspace.
+- **The cases with a condition.** A private session and an open one; an archived product and a live one — both rows in `tables`, an expectation for each.
+
+Run it in the same place as your tests, before a deploy and in review. In a `palbase/backend` app the schema file it reads is the one the app starts with, so what it passes is what ships.
+
+## What it does not test
+
+Whether your code *asks*. A route that forgets to call `can`, or a table without its policy, is not something a schema can know. For tables, a row policy that names the permission ([in a backend](/docs/access/backend#a-policy-names-a-permission), or [`rows`](/docs/access/schema#rows)) closes that gap for every query at once; test the route itself against a real database.
+
+
+
+<!-- ===== access/moving-in ===== -->
+
+# Moving an Existing System
+
+A system that already runs has its answer to *who may do what* somewhere: a `role` column, a members table for each kind of thing, `if` statements in handlers, roles in a token. This page moves that answer into an [access schema](/docs/access/schema) without a day when the old answer and the new one disagree and nobody knows — in six steps, each of which leaves the system working, and the first four of which change nothing a user can see.
+
+It needs your tables in a database of the project, and nothing else: your backend, its language, its ORM and its migrations stay as they are. Everything here is SQL and the command line ([Access from SQL](/docs/access/sql)).
+
+The example is a product tool that keeps its roles in two tables:
+
+```sql
+-- what the system has today
+CREATE TABLE company_members (company_id bigint, user_id text, role text);   -- 'owner', 'member'
+CREATE TABLE product_members (product_id bigint, user_id text, role text);   -- 'designer', 'developer', 'tester'
+```
+
+and checks them in code: *a developer of the product, or an owner of its company, may write its code*.
+
+## 1. Write down what the code already does
+
+Read the checks, and write each as a line of the schema. What you find maps like this:
+
+| In the system today | In the schema |
+|---|---|
+| a foreign key to the thing it belongs to (`products.company_id`) | `relation company: company from company_id` |
+| a column that names a user (`sessions.creator_id`) | `relation creator: user from creator_id` |
+| a members table with a `role` column | a **kept** relation for each role: `relation designer, developer, tester: user` |
+| a flag that changes who sees a row (`private`, `archived`) | a `where` on the relation that depends on it |
+| "A, or B of the parent" in a handler | `permission code.write = developer + company->owner` |
+| "A, unless B" | `permission edit = editor - suspended` |
+| a role in the token that means the same everywhere (`admin`, `support`) | leave it where it is — it is not about an object |
+
+```text
+type company
+  table companies
+  relation owner, member: user
+
+type product
+  table products
+  relation company: company from company_id
+  relation designer, developer, tester: user
+  permission code.write = developer + company->owner
+  permission view       = designer + developer + tester + company->owner
+```
+
+Relations read `from` a column need no moving at all: they are your data, read where it is. Only the members tables hold facts that will live in Access.
+
+Leave [`rows`](/docs/access/schema#rows) out for now. Without it the schema filters nothing, and putting it in changes no query's answer.
+
+## 2. Hold it to the cases you know
+
+Write a [validation file](/docs/access/testing) from real cases — three or four people you can name, what each must and must not reach — and run it until it passes:
+
+```sh
+palbase access:test access.test.json
+```
+
+This is where a misreading of the old code shows, before a database is involved.
+
+## 3. Put the schema in
+
+```sh
+palbase access:schema:set access.schema
+```
+
+The database now answers `access.check(…)` — from no relationships yet, so everything that depends on a members table answers no. Nothing reads it. The app is as it was.
+
+## 4. Copy the roles, and keep them in step
+
+One statement a table, as the owner or the service role:
+
+```sql
+SELECT count(*) FROM (
+  SELECT access.grant('product', product_id::text, role, 'user', user_id, 'import') FROM product_members
+) copied;
+
+SELECT count(*) FROM (
+  SELECT access.grant('company', company_id::text, role, 'user', user_id, 'import') FROM company_members
+) copied;
+```
+
+`grant` is safe to run again — a relationship that is there is left alone — and refuses a row whose role the schema does not have, or whose product does not exist, naming it: fix the row or the schema, and run it again.
+
+From here until the old tables are gone, a change to one must reach the other. A trigger does it without touching your code:
+
+```sql
+CREATE FUNCTION mirror_product_member() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $$
+BEGIN
+  IF TG_OP <> 'INSERT' THEN
+    PERFORM access.revoke('product', OLD.product_id::text, OLD.role, 'user', OLD.user_id, 'mirror');
+  END IF;
+  IF TG_OP <> 'DELETE' THEN
+    PERFORM access.grant('product', NEW.product_id::text, NEW.role, 'user', NEW.user_id, 'mirror');
+  END IF;
+  RETURN NULL;
+END $$;
+
+CREATE TRIGGER mirror AFTER INSERT OR UPDATE OR DELETE ON product_members
+  FOR EACH ROW EXECUTE FUNCTION mirror_product_member();
+```
+
+Create it as the tables' owner, in the same transaction as the copy, so that no change falls between them. It runs inside the statement that changed the members table: both change, or neither.
+
+## 5. Compare, until nothing differs
+
+The old answer and the new one now exist side by side. Ask both, for everything:
+
+```sql
+-- the old table says yes, Access says no
+SELECT m.* FROM product_members m
+ WHERE NOT access.check(m.user_id, m.role, 'product', m.product_id::text);
+
+-- Access keeps a relationship the old table does not have
+SELECT r.* FROM access.relationships r
+ WHERE r.object_type = 'product'
+   AND NOT EXISTS (SELECT 1 FROM product_members m
+                    WHERE m.product_id::text = r.object_id AND m.user_id = r.subject_id AND m.role = r.relation);
+```
+
+Both return nothing when the copy is whole. That compares the stored facts; the rules built on them are compared where they run. In each place the code decides, ask Access as well and log a disagreement, while still acting on the old answer:
+
+```sql
+SELECT access.check($1, 'code.write', 'product', $2);   -- beside the old check, not instead of it
+```
+
+Leave it for as long as it takes every path to be walked — a release, a week. A disagreement is a line of the schema that misreads the code, or a path of the code nobody remembered. Fix the schema, [test](#2-hold-it-to-the-cases-you-know), `access:schema:set` again.
+
+## 6. Switch, then remove the old
+
+When the log has been quiet:
+
+1. **Checks.** Replace each old check with `access.can` (as the user) or `access.check` (as the service). The comparison code goes.
+2. **Lists.** Add `rows select: view` to the types whose tables should filter themselves, and take the hand-written `WHERE` filters out as you reach them — or leave them: the policy holds either way. Queries that must see everything run as `service_role`.
+3. **Writes to roles.** Have the code that adds and removes members call `access.grant` and `access.revoke` in place of writing the members tables.
+4. **The old tables.** Drop the triggers, then the tables.
+
+Each of the four is its own release. After the first, a wrong answer is one release back.
+
+## Users and their ids
+
+A subject is the id your sign-in gives a user — whatever your backend puts in `request.jwt.claims` as `sub`. Relationships must use that same id. If the system is moving its users to Palbase [Auth](/docs/auth/overview) too, bring the users over first ([importing users](/docs/auth/users)) and copy the roles under the ids they have there.
+
+When a user is deleted, `SELECT access.forget_subject($1)` takes back everything they held.
+
+## One owner for a database's schema
+
+A database's access schema is put in from the command line, as on this page, or carried by a `palbase/backend` app's deploys ([Access in a Backend](/docs/access/backend)) — one or the other. An app's migration does not take over a schema the command line put in, and `access:schema:set` does not replace an app's: each refuses, saying which the database has. A system that moves in with this page stays on the command line; relationships are given and taken from it either way.
 
 
 
@@ -29649,11 +31040,11 @@ Every environment serves three files at its address, `https://<ref>.palbase.stud
 |---|---|---|
 | `GET /.well-known/apple-app-site-association` | `webcredentials.apps`: `<App ID prefix>.<bundle>` for each iOS app, its App Clip and its watch app | iOS, before the app may use the environment's passkeys |
 | `GET /.well-known/assetlinks.json` | One statement per Android app with a certificate: `delegate_permission/common.get_login_creds` for its package and the SHA-256 of each certificate | Android's Credential Manager, before the app may use the environment's passkeys and saved passwords |
-| `GET /.well-known/webauthn` | `origins`: the web apps' `https` origins, sorted | A browser on one of those sites, before it uses a passkey whose relying party is the environment's address |
+| `GET /.well-known/webauthn` | `origins`: the web apps' `https` origins, sorted | A browser on one of those sites, before it uses a passkey of the environment |
 
 Each answers `200` with `application/json` and `Cache-Control: public, max-age=300`, and an empty list when the environment has no such app, so a device that is not associated says "not associated" rather than failing to fetch. Universal Links and App Links are not claimed: links on the environment's address are not an app's to open.
 
-Apple's CDN caches its file: an iOS device sees a change in a day or so. Android 15 checks again within a week. The app's own half on iOS is the **Associated Domains** entitlement `webcredentials:<ref>.palbase.studio`, which its settings name in `auth.associated_domains` ([iOS SDK](/docs/ios/overview#connect-the-app-to-the-project)).
+The environment's own address answers them, and so does [its sign-in domain](/docs/auth/providers#your-own-sign-in-domain): the one its passkeys are saved at is the one a device asks. Apple's CDN caches its file: an iOS device sees a change in a day or so. Android 15 checks again within a week. The app's own half on iOS is the **Associated Domains** entitlement `webcredentials:<ref>.palbase.studio` — or `webcredentials:` the sign-in domain its passkeys are saved at —, which its settings name in `auth.associated_domains` ([iOS SDK](/docs/ios/overview#connect-the-app-to-the-project)).
 
 ## What else an app decides
 
@@ -29791,7 +31182,7 @@ palbase/
 | `app` | The app, with what it is in this environment (`ios`, `android` or `web`) |
 | `url`, `publishable_key` | What the app's client is made with: the environment's address and the app's own key |
 | `keychain_group` | An iOS app's: `<App ID prefix>.<bundle>.palbase`, the keychain access group the app and its extensions keep the sign-in in |
-| `auth` | The passkeys' relying party, and the iOS app's Associated Domains entry |
+| `auth` | The passkeys' relying party — where the environment's passkeys are saved: its own address, or [its sign-in domain](/docs/auth/providers#your-own-sign-in-domain) — and the iOS app's Associated Domains entry |
 | `backends` | The environment's machines: each one's address, and the digest of the contract its serving build answers (none while it is unread) |
 | `digest` | The SHA-256 of the document without this field: a build made with another digest is not current |
 
@@ -29864,7 +31255,7 @@ An environment token sees its own environment alone, so a sync made with one wri
 
 # App Distribution
 
-App Distribution takes the builds your build machine makes to your testers: an iOS app's to TestFlight, an Android app's to Google Play's internal testing track. Your build machine makes an unsigned build with a build number the environment gives it and uploads it. Palbase signs it, hands it to Apple or Play with your own account, follows it until testers can install it, and gives it to the groups you name. No signing certificate, provisioning profile or keystore lives on the build machine, and no Apple ID signs in there.
+App Distribution takes the builds your build machine makes to your testers: an iOS app's to TestFlight, an Android app's to Google Play's internal testing track, and either straight to the testers' own phones, with no store in between ([Direct Install](/docs/distribution/direct-install)). Your build machine makes an unsigned build with a build number the environment gives it and uploads it. Palbase signs it, hands it to Apple or Play with your own account, follows it until testers can install it, and gives it to the groups you name. No signing certificate, provisioning profile or keystore lives on the build machine, and no Apple ID signs in there.
 
 It is the environment's stores module. Studio shows it under **App Distribution**, and the CLI's `stores` commands do the same: `palbase stores:deliver`, `palbase stores:groups`, …
 
@@ -29874,7 +31265,7 @@ It is the environment's stores module. Studio shows it under **App Distribution*
 2. **Connect the store**, once per environment: an App Store Connect API key ([TestFlight](/docs/distribution/testflight#connect-app-store-connect)), or a service account Palbase makes for you to invite in Play Console ([Google Play](/docs/distribution/google-play#connect-google-play)).
 3. **Link the app to its store** (`palbase stores:apps:link <app id>`). An iOS app's bundle id is registered with Apple and its App Store Connect record looked up; an Android app gets the upload key Palbase signs its builds with.
 4. **Make a package** (`palbase stores:packages:create`). It answers the build number to build with and a token to upload the build.
-5. **Build and upload it** (`palbase stores:packages:upload`): the unsigned `.ipa`, or the `.aab`.
+5. **Build and upload it** (`palbase stores:packages:upload`): the unsigned `.ipa`, the `.aab`, or — for a direct install — the Android APK.
 6. **Deliver it** (`palbase stores:deliver`). It is signed, handed to Apple or Play, processed, and given to the testers.
 
 Steps 1 to 3 are done once. A build machine runs 4 to 6 on every build.
@@ -29992,7 +31383,9 @@ Every change emits a `stores.*` event to the environment's [webhooks](/docs/serv
 | `stores.app.changed` | An app was linked to its store, or its App Store Connect record made or removed with the [Apple ID](/docs/distribution/app-store#an-apple-id) |
 | `stores.package.changed` | A package was made, or its build arrived |
 | `stores.delivery.requested` | A delivery was sent, or sent again |
-| `stores.delivery.changed` | A delivery moved: `queued`, `signing`, `uploading`, `processing`, `compliance`, `ready` or `failed` |
+| `stores.delivery.changed` | A delivery moved: `queued`, `signing`, `uploading`, `processing`, `compliance`, `ready` or `failed`; a direct install's also `waiting`, with the phones it is signed for (`signed_devices`) |
+| `stores.invitation.changed` | A person was invited to install a package directly, opened the link, registered a phone, took the build, was mailed, or was revoked. Never their address. |
+| `stores.device.changed` | A phone registered for direct installs, Apple took it, is processing it, or refused it. Never its UDID. |
 | `stores.group.changed` | A group was made, renamed or deleted, its testers set, or a build given to it |
 | `stores.action.changed` | An action was planned, done, declined or failed |
 | `stores.version.changed` | An app's App Store version came to a new state: sent to App Review, in review, approved, rejected, withdrawn, released. `source` says who told it: `apple_webhook`, `poll` or `action` |
@@ -30032,6 +31425,7 @@ The module's API is the environment's, at its address under `/stores`, with the 
 ## Related
 
 - [TestFlight](/docs/distribution/testflight): the Apple account, signing, groups, Beta App Review
+- [Direct Install](/docs/distribution/direct-install): a build on testers' own phones, with no store in between
 - [App Store](/docs/distribution/app-store): the App Store page, the version, App Review and the release
 - [Google Play](/docs/distribution/google-play): the Play connection, the upload key, internal testing
 - [App Health](/docs/distribution/health): the App Store Connect webhook, testers' crashes, the stores' crash data and their events
@@ -30227,8 +31621,162 @@ The general ones (`build_changed`, `build_gone`, `step_timed_out`, `gave_up`) ar
 ## Related
 
 - [App Distribution](/docs/distribution/overview): packages, deliveries, actions and events
+- [Direct Install](/docs/distribution/direct-install): the same build on testers' own iPhones, with no TestFlight
 - [Test Apple Purchases](/docs/purchases/testing-apple): sandbox testers, and buying in TestFlight
 - [iOS SDK](/docs/ios/overview): the app's settings, capabilities and client
+- [CLI reference: `stores`](/docs/cli/reference#stores)
+
+
+
+<!-- ===== distribution/direct-install ===== -->
+
+# Direct Install
+
+A build reaches a tester's own phone with no store in between: no TestFlight, no Beta App Review, no Play track. You send a package to the people who should try it. Each gets a link by mail; an iPhone registers itself from the link and the build is signed for it, an Android phone downloads the build. It is the way to hand a branch's build to the people testing that branch, minutes after it was built.
+
+It is the `development` channel of [App Distribution](/docs/distribution/overview). The build is the same unsigned build a build machine uploads for TestFlight or Play; what changes is where it goes.
+
+| | iPhone | Android |
+|---|---|---|
+| The build | The unsigned `.ipa` | The app's APK |
+| Signed with | The Apple account's development certificate, for the phones of the people invited | The app's upload key |
+| A tester's phone | Registers itself once, from the link | Registers nowhere |
+| Needs | An App Store Connect key connected ([TestFlight](/docs/distribution/testflight#connect-app-store-connect)) and a paid Apple Developer membership | The app linked ([Google Play](/docs/distribution/google-play#link-the-app)); no Play connection |
+
+## Send a build
+
+```sh
+palbase stores:groups:create 4f6c2d10-… "Branch testers" --kind development -E main
+palbase stores:groups:testers:set 7a1e5c33-… --emails ada@example.com,grace@example.com -E main
+palbase stores:deliver "$PACKAGE" --channel development --groups "Branch testers" \
+  --what-to-test "The new login screen" -E main -y
+```
+
+Each person of the groups named is invited to the package: mailed their own link. The package is made and uploaded as for any channel ([from a build machine](/docs/distribution/overview#from-a-build-machine)). Sent again, the delivery invites who joined the groups since and those whose link ran out; it mails nobody twice.
+
+One person is invited by their address, with no group:
+
+```sh
+palbase stores:invite "$PACKAGE" ada@example.com -E main
+```
+
+It prints their link, and mails it unless `--no-mail`. A person invited already keeps their link, mailed again; an expired or revoked invitation is made again with a new link, and the old one stops working.
+
+### Groups
+
+A group reaches its testers one way, chosen when it is made:
+
+| Kind | What it is |
+|---|---|
+| `testflight` | A pair of TestFlight groups at Apple; Apple invites its testers. A delivery to `testflight` takes these. |
+| `development` | A list of people kept in the environment. Nothing goes to Apple. A delivery to `development` takes these. |
+
+An Android app's groups are `development` groups: its Play testers are listed in Play Console. A person taken out of a development group, and the people of one that is deleted, lose the install links the group gave them: each of those invitations is revoked. An invitation made for a person by their address is revoked by you alone.
+
+## What the tester does
+
+The link opens the app's install page, at the environment's own address, in the tester's language (English and Turkish).
+
+**On an iPhone**, in Safari:
+
+1. **Register this iPhone.** Safari asks to download a configuration profile; the tester allows it, opens **Settings**, taps **Profile Downloaded**, then **Install**. The profile only reads the phone's identifier and installs nothing: once it has answered, iOS removes it.
+2. The page comes back and says the build is being signed. It follows itself; nobody types anything.
+3. **Install.** The app appears on the home screen.
+
+The first time, iOS asks for **Developer Mode** before the app opens: **Settings › Privacy & Security › Developer Mode**, on, and a restart. This is once for a phone.
+
+A tester who registered a phone before skips step 1: an invitation to the next package goes straight to the install, on every phone they registered.
+
+**On an Android phone**: **Download**, then open the file and tap **Install**. The phone asks once to allow installs from the browser.
+
+The page says what it is waiting for and why: the owner's Apple account is not connected, Apple is processing the phone, a signing failed. A link that is wrong, expired or revoked is answered with one page, the same for each.
+
+## Follow it
+
+```sh
+palbase stores:invitations "$PACKAGE" -E main
+palbase stores:devices -E main
+palbase stores:invitations:revoke 5b0d2f44-… -E main -y
+```
+
+An invitation says how far its person got and what became of their mail:
+
+| Status | |
+|---|---|
+| `invited` | Made; the link has not been opened |
+| `opened` | The page was opened |
+| `enrolled` | A phone of theirs is registered (an iPhone's) |
+| `downloaded` | Their phone took the build |
+| `revoked` | Stopped: the link answers as no link's |
+
+| Mail | |
+|---|---|
+| `none` | Not mailed: the link was printed |
+| `requested` | On its way; a limit of the sender may hold it until its window ends |
+| `queued` | Handed to the mail provider |
+| `failed` | Not sent, with why: the address takes no mail, the month's email is used up |
+
+A link works for 14 days, and no longer than the access token that made it.
+
+The delivery itself is `waiting` while nobody invited has a phone to sign for, `signing`, then `ready`; `stores:deliveries` shows it with the number of phones the build is signed for.
+
+## iPhones and Apple's limits
+
+A build installs on an iPhone only when Apple's profile names that phone, so each tester's iPhone is registered on your Apple account. Palbase does it when the phone answers the registration; you never copy a UDID.
+
+- **A new phone, no new build.** When another phone registers, the same package is signed again for every phone of the people invited. The build number does not change, and the build already installed keeps running.
+- **100 iPhones a membership year.** Apple counts each registered phone until the membership renews, also one removed since. A person registers two new iPhones at most in 30 days, through whatever links they hold, so a link that is passed around cannot spend the account's places. A phone already theirs registers again freely.
+- **Apple may take up to 72 hours.** On a new or just-renewed membership Apple processes a registered phone before it puts it in profiles. The phone shows as `processing`, its page says so, and the build is signed for it by itself once Apple is done.
+- **A phone Apple refuses** is `refused`, with Apple's words, or the account's limit. Its person is told on their page; nobody else's build waits on it.
+
+`palbase stores:devices` lists the phones with whose each is.
+
+The first direct install makes an Apple Development certificate on the account, with a private key Palbase keeps sealed, beside the distribution certificate TestFlight builds are signed with. A build signed so talks to Apple's sandbox: StoreKit's sandbox and the development push environment.
+
+## Android
+
+An Android app has two builds, and each goes one way. Its App Bundle (`.aab`) goes to [Google Play](/docs/distribution/google-play). Its APK is installed directly:
+
+```sh
+./gradlew :app:assembleRelease -PbuildNumber="$BUILD_NUMBER"
+palbase stores:packages:upload "$PACKAGE" --file app/build/outputs/apk/release/app-release-unsigned.apk -E main -y
+palbase stores:deliver "$PACKAGE" --groups "Branch testers" -E main -y
+```
+
+The upload is told from a bundle by what the file holds. An APK goes to `development` when no channel is named; sending it to Play, or a bundle to `development`, is refused (`409 not_an_aab`, `not_an_apk`).
+
+- **One key signs every build.** The APK is signed with the app's upload key, the one Palbase made when the app was linked, whatever it came signed with: an unsigned release build, or one a debug key signed. A newer build installs over an older one on a tester's phone, whoever's machine built it. `palbase stores:apps:upload-key <app id>` prints the key's SHA-256: the signer a phone shows for the app.
+- **As Android verifies it.** An app for Android 7.0 and later is signed with APK Signature Scheme v2 and none of its bytes is touched; one that still installs on an older Android carries the JAR signature too.
+- **Not an Android Studio Run build.** An APK the IDE's Run button made is marked `testOnly`, and a phone installs it only from `adb`. It is refused at upload (`422 test_only_apk`): build with Gradle.
+
+An Android phone registers nowhere, so the build is ready for everyone invited as soon as it is signed, and the same build serves whoever is invited after.
+
+## The invitation mail
+
+The mail says the app, its version and build number, what to test, and the link. It leaves through the environment's own [email provider](/docs/backend/notifications#every-channel-but-one-needs-a-provider-of-yours) when one is set.
+
+Without one it leaves from Palbase's shared sender, under [its limits](/docs/backend/notifications#the-shared-senders-limits), and says less: the note on what to test and the app's icon stay on the install page, which the link opens, and an app name that reads as a web address or a telephone number is refused (the invitation's mail is `failed`, and its link is still yours to hand over). A mail a limit holds waits and goes out when the limit's window ends.
+
+## Events
+
+| Event | When |
+|---|---|
+| `stores.invitation.changed` | A person was invited, opened the link, registered a phone, took the build, was mailed, or was revoked (`change`) |
+| `stores.device.changed` | A phone registered, Apple took it, is processing it, or refused it |
+| `stores.delivery.changed` | The delivery moved: `waiting`, `signing`, `ready`, with `signed_devices` |
+
+An invitation's and a phone's event carry ids and states, never a person's address or a phone's UDID: read those with `stores:invitations` and `stores:devices`. Both are typed for a backend's [`@On` handlers](/docs/backend/hooks) and for [webhooks](/docs/server/webhooks).
+
+## In Studio
+
+**App Distribution › Packages › a package** has a **Direct install** panel: the people invited with where each is, their mail and their phones, **Invite a person** and **Send to a group**. **Groups** shows each group's kind and makes either. **Devices** lists the registered phones and what Apple said of each.
+
+## Related
+
+- [App Distribution](/docs/distribution/overview): packages, deliveries, actions and events
+- [TestFlight](/docs/distribution/testflight): the Apple account, the unsigned `.ipa` and its entitlements
+- [Google Play](/docs/distribution/google-play): linking an Android app, and its upload key
+- [Notifications](/docs/backend/notifications): email providers and the shared sender
 - [CLI reference: `stores`](/docs/cli/reference#stores)
 
 
@@ -30629,6 +32177,7 @@ A package cannot be made at all once Play has seen the highest version code it t
 ## Related
 
 - [App Distribution](/docs/distribution/overview): packages, deliveries, actions and events
+- [Direct Install](/docs/distribution/direct-install): the app's APK on testers' own phones, with no Play track
 - [Client Apps](/docs/apps/overview): an Android app's package and the certificates its passkeys trust
 - [CLI reference: `stores`](/docs/cli/reference#stores)
 

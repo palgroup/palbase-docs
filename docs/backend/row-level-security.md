@@ -130,6 +130,7 @@ A write a `WITH CHECK` refuses, or a statement on a table the caller's role has 
 | `.and(…)`, `.or(…)`, `.not()`, `p.and(…)`, `p.or(…)`, `p.not(…)` | combinations |
 | `p.lit(v)` | a value, said explicitly |
 | `p.existsIn(table, (row) => …)` | a correlated `EXISTS` subquery into another table |
+| `p.can("view")` | the caller holds this permission on the row, as the app's [access schema](https://palbase.studio/docs/access/backend#a-policy-names-a-permission) defines it |
 
 A plain value on the right of `.eq()` is a literal, never a column: `.eq("owner")` compares with the string `"owner"`. A column is always `p.col("owner")`.
 
@@ -226,6 +227,8 @@ export default defineSchema("public", { tables: [channels, channel_members, mess
 
 > **Note:** A policy `.for("select")` decides only what is visible. Writes need their own — `.for("insert")` with a `withCheck`, as `messages` has — or `.for("all")` when one condition governs both.
 
+When membership comes in kinds — a designer here, a developer there, an owner of the company above both — the subqueries multiply and the rule ends up spread over every table that hangs off the thing. That is what an [access schema](https://palbase.studio/docs/access/overview) is for: the rule is written once, and each table's policy is one name, `p.can("view")`.
+
 ## RLS guards reads, not foreign-key checks
 
 A `SELECT`, `UPDATE` or `DELETE` only ever reaches rows the caller may see. A **foreign-key check is not filtered**: when a row's foreign key points at a parent, Postgres validates that the parent exists whoever owns it. Without a policy that says otherwise, a caller can attach a child row to a parent it cannot read. Nothing leaks — it still cannot read the parent — but say what you mean, in the child's `withCheck`:
@@ -283,3 +286,4 @@ Edit `policies` in the schema file, commit and push to the machine's branch. The
 - [Database](https://palbase.studio/docs/backend/database) — the request's transaction, `$query`, and `$asService()`
 - [Authentication](https://palbase.studio/docs/backend/authentication) — who the caller is, and routes with `auth: false`
 - [Schema changes](https://palbase.studio/docs/backend/migrations) — how a release applies a policy change
+- [Access](https://palbase.studio/docs/access/overview) — permissions that depend on the object, named in a policy with `p.can()`

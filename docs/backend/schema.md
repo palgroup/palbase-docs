@@ -429,6 +429,10 @@ The migration runs `CREATE EXTENSION IF NOT EXISTS` for each, as the database's 
 
 RLS is declared beside the columns, in each table's `policies`, and it is on for every table that does not say `rls: false`. The builder, the roles a policy names, membership policies and the service role are on [Row-Level Security](https://palbase.studio/docs/backend/row-level-security).
 
+### Permissions that depend on the object
+
+A rule such as *the product's developers, or the owner of its company* is not a policy to write by hand on every table that hangs off a product. It is said once, in the app's [access schema](https://palbase.studio/docs/access/backend) — a file beside the schema files, given as `db.access` — and a table's policy names it: `policy("holders read").for("select").using(p.can("view"))`. The access schema is migrated with the tables, as part of the same version.
+
 ## From a declaration to a database
 
 Edit `src/db/public.ts`, commit and push to the machine's branch. The machine builds your image, and before the new version serves, the platform runs that image once with `PALBASE_DB_MIGRATE=start`: it migrates the database to the schema the image carries, while the version before keeps serving. Once nothing of the old version is left, it runs `complete`. You run nothing yourself, and a change that cannot run under both versions is refused before anything changes. How each kind of change goes — and which take two releases — is [Schema changes](https://palbase.studio/docs/backend/migrations).
@@ -440,3 +444,4 @@ Edit `src/db/public.ts`, commit and push to the machine's branch. The machine bu
 - [Schema changes](https://palbase.studio/docs/backend/migrations) — how a release migrates, `renamedFrom`, `fillWith`, `ignored`, and what is refused
 - [Databases](https://palbase.studio/docs/machines/databases) — giving a machine a database, and its migrations
 - [Event Hooks](https://palbase.studio/docs/backend/hooks) — `user.deleted`, and the webhook secret an app that keeps users' ids needs
+- [Access](https://palbase.studio/docs/access/overview) — the access schema: who may do what on which object, named in policies with `p.can()`

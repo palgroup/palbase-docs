@@ -27,8 +27,9 @@ palbase account:tokens:revoke <id>
 - It reaches the organizations it opened, and only those: you are their owner, the token an admin of each. Every other organization answers `404`.
 - In them it does what an admin does — projects, environments, their modules, billing — and renames an organization or deletes an empty one; never more than your own role there now. Members, invitations, tokens and project keys stay yours, in person.
 - It stops at once, everywhere, when you delete it, when you leave one of its organizations (there, for good), or when your account is deleted. The keys of the environments it opened go with it.
+- In each organization it opened it opens 2 Free projects of 2 environments each with nothing paid, counted to that organization alone — a project or an environment deleted counts until the month is out. A third answers `402 payment_account_required` until the organization is paid for by a payment account that has paid a charge; then it has no limit. Linking it to an account whose first charge is still to come (at the month's end, or when what it owes comes to its threshold) lets you move its projects to Pay as you go, but lifts no limit until that charge is paid.
 
-One payment account pays for every organization you link to it: you are charged once a month for all of them, and its report is each organization's month, item by item — what you bill your own customers by. Save two cards on it, from different banks if you can: a charge its default card declines is taken from the next. Declined by every card, it is tried again each day — and its environments go Free 7 days later, or as soon as what it owes, unpaid and not yet charged, comes to 50 USD: within hours for an account that spends much, at once for one charged at 50.
+Your customers pay you, and you pay Palbase: when a customer moves to a paid plan of yours, link their organization to your own payment account and move their project to Pay as you go. One payment account pays for every organization you link to it: you are charged once a month for all of them, and its report is each organization's month, item by item — what you bill your own customers by. Save two cards on it, from different banks if you can: a charge its default card declines is taken from the next. Declined by every card, it is tried again each day — and its environments go Free 7 days later, or as soon as what it owes, unpaid and not yet charged, comes to 50 USD: within hours for an account that spends much, at once for one charged at 50.
 
 ```ts
 // customers.ts
@@ -36,11 +37,14 @@ import { PalbaseCloud } from "palbase/cloud";
 
 const cloud = new PalbaseCloud({ token: process.env.PALBASE_ACCOUNT_TOKEN! });
 
-// An organization for a new customer, paid for by your own organization's payment account.
+// An organization for a new customer, and their project — Free, nothing paid.
 const { data: customer } = await cloud.orgs.create({ body: { name: "Customer 1042" } });
-await cloud.billing.payer({ path: { id: customer.id }, body: { account: process.env.PALBASE_PAYER_ORG_ID! } });
 const { data: made } = await cloud.projects.create({ path: { id: customer.id }, body: { name: "shop" } });
 await cloud.projects.addEnvironment({ path: { id: made.project.id }, body: { name: "main", slug: "main" } });
+
+// The customer moved to your paid plan: your payment account pays for their organization, their project on Pay as you go.
+await cloud.billing.payer({ path: { id: customer.id }, body: { account: process.env.PALBASE_PAYER_ORG_ID! } });
+await cloud.billing.steer({ path: { id: customer.id, project: made.project.id }, body: { plan: "pay_as_you_go", monthly_limit_micros: 100_000_000 } });
 
 // At the month's end: what each customer's organization owed, environment by environment.
 const { data: month } = await cloud.billing.report({ path: { id: process.env.PALBASE_PAYER_ORG_ID! }, query: { period: "2026-11" } });

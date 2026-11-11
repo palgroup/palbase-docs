@@ -176,7 +176,7 @@ console.log(await pb.auth.passkey.list());
 
 The ceremony runs through `navigator.credentials`, or the `webauthn` you give `createClient`. Outside a browser with neither, a passkey method throws once the ceremony's first call has answered.
 
-The passkey's relying party is the project's own host, and a page on your origin uses it through WebAuthn's related origins: the project publishes its registered web apps' origins at `GET /.well-known/webauthn`, and the same list decides which origins a ceremony is accepted from. Register your site as a web app of the environment, with its origin (`https://app.example.com`): at most five registrable domains across the environment's web apps. A browser without related-origin support refuses a passkey from an origin that is not the project's host.
+The passkey's relying party is where the environment's passkeys are saved — its own host, or [its sign-in domain](https://palbase.studio/docs/auth/providers#your-own-sign-in-domain) (`palbase auth:domains` says which) — and a page on your origin uses it through WebAuthn's related origins: that address publishes the environment's registered web apps' origins at `GET /.well-known/webauthn`, and the same list decides which origins a ceremony is accepted from. Register your site as a web app of the environment, with its origin (`https://app.example.com`): at most five registrable domains across the environment's web apps. A browser without related-origin support refuses a passkey from an origin that is not the project's host.
 
 `passkey.remove(id)` removes one. Renaming is `pb.auth.api.webauthnRenameCredential(...)`.
 
@@ -190,7 +190,11 @@ await pb.auth.magicLink.send("ada@example.com");
 
 // On the page the link opened (https://app.example.com/auth/magic-link?token=…):
 const token = new URLSearchParams(window.location.search).get("token");
-if (token) await pb.auth.magicLink.verify(token);
+if (token) {
+  const result = await pb.auth.magicLink.verify(token);
+  if (result.mfaRequired) console.log("a second factor is needed");
+  else console.log("signed in", result.user.id);
+}
 ```
 
 ## Phone codes
@@ -362,6 +366,8 @@ The `/admin/*` operations are in the same client, and every one of them needs th
 ## Proof of work
 
 The auth module may answer a sign-in, a sign-up or a code request with `403 pow_required` and a challenge when the address looks like a bot. The client solves it (a SHA-256 search, longer the harder the challenge) and sends the same request once more with the answer. You never see the challenge. One the client cannot solve comes back as `pow_unsolved`.
+
+The requests that send an email to the address they name — `signUp` (its verification), `magicLink.send`, `password.requestReset`, `email.resendVerification` and starting an account recovery — always ask it: a bot that posts them in a loop would otherwise mail whoever it names. Its work rises with how fast your project is being asked: the usual one (16 bits, a fraction of a second on a phone) at a person's rate, 20 bits past 30 such emails a minute, 24 (a few seconds) past 120. One address counts no more than 10 a minute toward that (an IPv6 one by its /64), and a challenge solved before the work rose is asked again at the new price. Your own server, calling with the secret key, is asked none: the email is its decision.
 
 ## Related
 

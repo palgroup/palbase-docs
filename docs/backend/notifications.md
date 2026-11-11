@@ -33,14 +33,32 @@ A send is **queued**, not delivered: it answers `202` with the message's id, and
 
 | Channel | Goes through |
 |---|---|
-| Email | The platform's **shared sender**, within the project's limits — for the platform's templates only (the auth emails: verify, reset, magic link, codes …, as the project overrode them), and the invitations your backend sends to your organizations ([below](#invitations-with-no-provider-of-your-own)). Anything else — a message composed whole, a template of your own — goes through **your own email provider**: Azure Communication Services, Amazon SES, SendGrid or SMTP. |
+| Email | The platform's **shared sender**, within the project's limits — for the platform's templates only (the auth emails: verify, reset, magic link, codes …, as the project overrode them), the invitations your backend sends to your organizations ([below](#invitations-with-no-provider-of-your-own)), and App Distribution's [install invitations](https://palbase.studio/docs/distribution/direct-install#the-invitation-mail). Anything else — a message composed whole, a template of your own — goes through **your own email provider**: Azure Communication Services, Amazon SES, SendGrid or SMTP. |
 | Push | Your own FCM, APNs or Expo account — a browser's through its own push service, with the project's Web Push key (nothing to set up). |
 | Inbox, in-app messages | Palbase itself: nothing to set up. |
 | SMS | Your own SMS providers — Twilio, Vonage or Azure Communication Services — in failover order. |
 | One-time codes | Your own verification service (Twilio Verify), or your SMS providers — and with neither, **Palbase's Twilio Verify**: nothing to set up, billed at Twilio's price and 10% past $4 a month (`notify.sms.shared`, [Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)). |
 | WhatsApp | Your own WhatsApp Business account (Meta). |
 
-An email the shared sender may not send is refused with `403 own_provider_required` — one of auth's templates your key sends, with `403 auth_template_reserved`: auth's own flows send them —; past the shared sender's limits a send is `429 send_limit_reached`. A project with an active email provider sends all its email through it.
+An email the shared sender may not send is refused with `403 own_provider_required` — one of auth's templates your key sends, with `403 auth_template_reserved`: auth's own flows send them —; past the shared sender's limits a send is `429 send_limit_reached` ([below](#the-shared-senders-limits)). A project with an active email provider sends all its email through it.
+
+### The shared sender's limits
+
+The shared sender is Palbase's own accounts — Cloudflare Email Service, and a backup that takes what Cloudflare cannot send at the moment — and every project's auth mail leaves through them. Mail providers suspend an account whose mail bounces or is reported as spam, for every sender on it at once, so the shared sender holds each project, and each address, to what a real app sends:
+
+| Limit | Free | Pay as you go |
+|---|---|---|
+| Shared emails a minute, per project | 10 | 60 |
+| Shared emails an hour, per project | 100 | 1,000 |
+| Shared emails a month | your quota: 3,000 on Free, then usage ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)) | usage |
+
+- **Past a minute's or an hour's limit** a send is `429 send_limit_reached`, with `Retry-After` and the moment the window ends in its message. Auth's mail and your invitations share one pool.
+- **An address takes 5 shared emails an hour and 20 a day**, every project's together: no sign-in form mails one person without end. Past it, a send of your key's is `429 recipient_limit_reached`, until the hour or the day ends; auth's own emails are skipped (`skip_reason: recipient_limit`), since auth answers the same whether an address has an account or not.
+- **An address whose domain takes no mail** — no MX record, a null one, no address — is refused before anything is queued: `400 invalid_email_domain`. (On your own provider this check is yours to turn on: `mx_check`.)
+- **An address that bounced for good, or reported a shared email as spam**, is sent nothing again by the shared sender, whichever project's mail it is: the message is `skipped`, `skip_reason: suppressed`.
+- **A project whose shared mail bounces stops for a day.** When at least 10 of its shared emails, and at least a tenth of them, bounced for good since the later of a day before and its last stop, its sends through the shared sender are refused with `429 shared_sender_paused` for 24 hours. `getDeliverability()` says why and when it sends again, `notification.shared_paused` is emitted, and the organization's owners are mailed. When the day is over it sends again, and stops again if its mail goes on bouncing. Check where the addresses your sign-ups use come from — a form a bot fills in, an imported list —; your own provider is held to none of this.
+
+Auth's routes that send an email to whoever they name ask a [proof of work](https://palbase.studio/docs/web/auth#proof-of-work) first, priced by how fast your project is being asked: a bot that posts them in a loop pays for each email, a person's device does not notice.
 
 Providers are set in Studio (**Notifications › Providers**) or with `putNotifyProvider({ path: { channel, provider }, body: { credentials, priority, active } })`: the credentials are sealed with the project's own key, checked as the sender will use them, and never answered back. `getDeliverability()` says, per channel, whether it can send now, through what, why not and what to do.
 
@@ -122,7 +140,7 @@ palbase notify:send email ada@example.com --template auth.org_invitation \
 - **Its words are names and a time**: `inviter_name` and `org_name` 1 to 100 characters (`inviter_name` may be an email address), `expires_at` 40 at most, each one line, with no link or web address (`://`, `www.`, a domain such as `example.com`), no invisible or direction-changing character, and not naming Palbase — the mail's reader opens a web address as a link, and the link it may carry is `accept_link`. Otherwise the send is `400 invalid_invitation`.
 - **It goes in Palbase's words**, English or Turkish by `locale`: who invited whom to what, the link, its expiry when `expires_at` is not empty, and that it came through Palbase, which does not check the names an invitation gives. Your own words over it go through your own provider.
 - **It waits behind your codes**: an invitation is sent after the sign-in codes and links in the shared sender's queue, and waits up to a day when the sender is throttled.
-- **It counts against the shared sender's limits** in one pool with your auth mail — sign-up codes, resets, sign-in links: past them every send of the window is `429 send_limit_reached`, until the window ends or your own provider carries your email.
+- **It counts against the shared sender's limits** in one pool with your auth mail — sign-up codes, resets, sign-in links: past them every send of the window is `429 send_limit_reached`, until the window ends or your own provider carries your email ([The shared sender's limits](#the-shared-senders-limits)).
 - **What accepting does is yours**: the link opens your page, which checks your own invitation's token and adds the person. Auth's other templates stay auth's own flows' (`403 auth_template_reserved`), and a journey's step sends no invitation.
 
 ## Push

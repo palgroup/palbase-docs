@@ -81,7 +81,7 @@ palbase/
 | `app` | The app, with what it is in this environment (`ios`, `android` or `web`) |
 | `url`, `publishable_key` | What the app's client is made with: the environment's address and the app's own key |
 | `keychain_group` | An iOS app's: `<App ID prefix>.<bundle>.palbase`, the keychain access group the app and its extensions keep the sign-in in |
-| `auth` | The passkeys' relying party, and the iOS app's Associated Domains entry |
+| `auth` | The passkeys' relying party — where the environment's passkeys are saved: its own address, or [its sign-in domain](https://palbase.studio/docs/auth/providers#your-own-sign-in-domain) — and the iOS app's Associated Domains entry |
 | `backends` | The environment's machines: each one's address, and the digest of the contract its serving build answers (none while it is unread) |
 | `digest` | The SHA-256 of the document without this field: a build made with another digest is not current |
 

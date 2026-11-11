@@ -206,6 +206,7 @@ type NewTodo = Tables["todos"]["insert"];
 | `$atomic(fn, opts?)` | an independently committed transaction, with retries |
 | `$attempt(fn)` | `fn` inside a `SAVEPOINT`: its failure rolls back only what its handle wrote |
 | `$asService()` | the same surface as the service role, past RLS |
+| `$access` | the app's [access schema](https://palbase.studio/docs/access/backend#asking-databaseaccess): whether the caller holds a permission on an object, the objects they hold it on, and — as the service — giving and taking relationships |
 | `$lockRows(table, ids)` | locks those rows in primary-key order — never the caller's order, so two callers cannot deadlock on it |
 | `$lockRowsWhere(table, where, { mode })` | locks the rows a filter matches, in one statement |
 | `$advisoryXactLock(key)` | locks a **name** until the transaction ends — "one invoice run at a time" |
@@ -652,3 +653,4 @@ The default driver is Bun's built-in SQL, which is why the examples' images run 
 - [Databases](https://palbase.studio/docs/machines/databases) — opening one, its credentials, and giving it to a machine
 - [Responses & Errors](https://palbase.studio/docs/backend/errors) — the envelope a thrown error becomes
 - [Event Hooks](https://palbase.studio/docs/backend/hooks) — `@On` handlers, which run in a transaction of their own
+- [Access](https://palbase.studio/docs/access/overview) — permissions that depend on the object: `Database.$access` and `p.can()`

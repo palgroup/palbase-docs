@@ -114,7 +114,7 @@ An app whose schema keeps users' ids (columns declared with `ownedByUser()` or `
 
 ## What the app needs to receive events
 
-An app that has an `@On` handler, or whose schema keeps users' ids, must know the endpoint's secret. On a machine the platform gives it as `PALBASE_WEBHOOK_SECRET`; anywhere else the app reads it from there (`whsec_` and 64 hex characters), or from `PalbaseFactory.create(…, { palbase: { webhookSecret } })`. Without it the app does not start:
+An app that has an `@On` handler, whose schema keeps users' ids, or that has an [access schema](https://palbase.studio/docs/access/backend#when-a-user-is-deleted) — the relationships a user holds are kept by their id — must know the endpoint's secret. On a machine the platform gives it as `PALBASE_WEBHOOK_SECRET`; anywhere else the app reads it from there (`whsec_` and 64 hex characters), or from `PalbaseFactory.create(…, { palbase: { webhookSecret } })`. Without it the app does not start:
 
 ```text
 [palbase] the app cannot start:

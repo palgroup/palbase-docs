@@ -48,7 +48,7 @@ The web SDK is `palbase/web`, a part of the npm package `palbase`: `npm install 
 ```json
 {
   "dependencies": {
-    "palbase": "^0.52.2"
+    "palbase": "^0.54.0"
   }
 }
 ```

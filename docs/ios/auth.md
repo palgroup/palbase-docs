@@ -161,7 +161,7 @@ A guest becomes an account, keeping its id, with an address and a password: `pb.
 
 ## Passkeys
 
-A passkey signs in with Face ID or Touch ID, and nothing is typed. The app needs the **Associated Domains** capability with the `webcredentials:` entry its client document names (`auth.associated_domains` in `palbase/environments/<env>/<app>.json`, `webcredentials:<ref>.palbase.studio`). The project publishes the app at `/.well-known/apple-app-site-association` once its bundle is set in the environment ([`apps:env:set`](https://palbase.studio/docs/cli/reference#palbase-appsenvset)); Apple caches that file, so a device can take a day to see a change.
+A passkey signs in with Face ID or Touch ID, and nothing is typed. The app needs the **Associated Domains** capability with the `webcredentials:` entry its client document names (`auth.associated_domains` in `palbase/environments/<env>/<app>.json`: `webcredentials:<ref>.palbase.studio`, or `webcredentials:` the [sign-in domain](https://palbase.studio/docs/auth/providers#your-own-sign-in-domain) the environment's passkeys are saved at). The project publishes the app at `/.well-known/apple-app-site-association` once its bundle is set in the environment ([`apps:env:set`](https://palbase.studio/docs/cli/reference#palbase-appsenvset)); Apple caches that file, so a device can take a day to see a change.
 
 ```swift
 import Palbase

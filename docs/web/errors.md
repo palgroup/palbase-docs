@@ -98,7 +98,7 @@ A session that changed under a refresh (another tab signed out, or signed in as 
 
 ## Proof of work
 
-Auth may answer a sign-in, a sign-up or a code request `403 pow_required` with a challenge, when the address it comes from looks like a bot. The client solves it and sends the same request once more with the answer. You see nothing of it unless solving fails, which comes back as `403 pow_unsolved`. A request whose body cannot be read twice (a stream) is not sent again, and the `pow_required` error comes to you.
+Auth may answer a sign-in, a sign-up or a code request `403 pow_required` with a challenge, when the address it comes from looks like a bot — and always a request that sends an email (a sign-in link, a reset, a verification sent again), priced by how fast the project is being asked ([Proof of work](https://palbase.studio/docs/web/auth#proof-of-work)). The client solves it and sends the same request once more with the answer. You see nothing of it unless solving fails, which comes back as `403 pow_unsolved`. A request whose body cannot be read twice (a stream) is not sent again, and the `pow_required` error comes to you.
 
 ## Errors the client makes itself
 

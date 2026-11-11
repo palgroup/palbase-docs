@@ -87,11 +87,11 @@ Every environment serves three files at its address, `https://<ref>.palbase.stud
 |---|---|---|
 | `GET /.well-known/apple-app-site-association` | `webcredentials.apps`: `<App ID prefix>.<bundle>` for each iOS app, its App Clip and its watch app | iOS, before the app may use the environment's passkeys |
 | `GET /.well-known/assetlinks.json` | One statement per Android app with a certificate: `delegate_permission/common.get_login_creds` for its package and the SHA-256 of each certificate | Android's Credential Manager, before the app may use the environment's passkeys and saved passwords |
-| `GET /.well-known/webauthn` | `origins`: the web apps' `https` origins, sorted | A browser on one of those sites, before it uses a passkey whose relying party is the environment's address |
+| `GET /.well-known/webauthn` | `origins`: the web apps' `https` origins, sorted | A browser on one of those sites, before it uses a passkey of the environment |
 
 Each answers `200` with `application/json` and `Cache-Control: public, max-age=300`, and an empty list when the environment has no such app, so a device that is not associated says "not associated" rather than failing to fetch. Universal Links and App Links are not claimed: links on the environment's address are not an app's to open.
 
-Apple's CDN caches its file: an iOS device sees a change in a day or so. Android 15 checks again within a week. The app's own half on iOS is the **Associated Domains** entitlement `webcredentials:<ref>.palbase.studio`, which its settings name in `auth.associated_domains` ([iOS SDK](https://palbase.studio/docs/ios/overview#connect-the-app-to-the-project)).
+The environment's own address answers them, and so does [its sign-in domain](https://palbase.studio/docs/auth/providers#your-own-sign-in-domain): the one its passkeys are saved at is the one a device asks. Apple's CDN caches its file: an iOS device sees a change in a day or so. Android 15 checks again within a week. The app's own half on iOS is the **Associated Domains** entitlement `webcredentials:<ref>.palbase.studio` — or `webcredentials:` the sign-in domain its passkeys are saved at —, which its settings name in `auth.associated_domains` ([iOS SDK](https://palbase.studio/docs/ios/overview#connect-the-app-to-the-project)).
 
 ## What else an app decides
 

@@ -61,7 +61,7 @@ Without it, `/oauth/authorize` refuses: there is nowhere to sign the person in. 
 
 1. The client sends the browser to `GET /oauth/authorize` with its `client_id`, `redirect_uri`, `scope`, `state` and PKCE challenge.
 2. The provider sends the browser to your page with `?auth_request_id=…`.
-3. Your page signs the person in, naming the `auth_request_id`: with a password (`POST /auth/login`), or with a provider (Google, Apple, GitHub, Microsoft: `POST /auth/oauth/transactions`, then the transaction's completion). The answer that signs them in carries `oidc_callback_url`: where the browser goes next. A sign-in that asks for a second factor carries the request in its `mfa_token`, and the challenge's answer carries `oidc_callback_url`.
+3. Your page signs the person in, naming the `auth_request_id`, with any sign-in it offers: a password (`POST /auth/login`), a new account (`POST /auth/signup`), a provider (Google, Apple, GitHub, Microsoft: `POST /auth/oauth/transactions`, then the transaction's completion), a passkey (`POST /auth/webauthn/login/begin`, then `…/finish`), an email link (`POST /auth/magic-link`, then `…/verify`) or a phone code (`POST /auth/otp`, then `…/verify`). The answer that signs them in carries `oidc_callback_url`: where the browser goes next. A sign-in that asks for a second factor carries the request in its `mfa_token`, and the challenge's answer carries `oidc_callback_url`.
 4. From there, the provider sends the browser back to the client's `redirect_uri` with the `code`, the `state` and the issuer (`iss`). The client exchanges the code at `POST /oauth/token`.
 
 The request answers the browser that opened it and completed it, once. `/oauth/authorize` leaves a cookie on the project's address (`__Host-palbase_oauth_…`, five minutes, `SameSite=Lax`) naming the request, and the sign-in that completes it is given a secret, carried in `oidc_callback_url` (`done=`) and nowhere else. The callback answers only a browser that holds both: someone who opened a request and sent its sign-in page to another person has the cookie but never the secret, and the person who signed in has the secret but not their cookie — each is answered `400 auth_request_other_browser` and no code. Once the callback sends the browser back to the client, the request is gone; visiting it again gives nothing. So the page signs the person in within the browser the flow started in, and goes to `oidc_callback_url` there, as it is, as a top-level navigation.
@@ -146,9 +146,69 @@ export async function withSecondFactor(code: string): Promise<string> {
   const { data } = await pb.auth.api.mfaChallenge({ body: { mfa_token: mfaToken, type: "totp", code } });
   return goOn(data) ? "on to the app" : "signed in";
 }
+
+/** A passkey: the request is bound when the ceremony begins, and its finish completes it. */
+export async function withPasskey(): Promise<string> {
+  const begun = await pb.auth.api.webauthnLoginBegin({ body: { auth_request_id: authRequestId } });
+  // The options are the WebAuthn spec's JSON (the SDK types them as an open object): the browser parses them.
+  const json = begun.data.options.publicKey as unknown as PublicKeyCredentialRequestOptionsJSON;
+  const options = PublicKeyCredential.parseRequestOptionsFromJSON(json);
+  const credential = (await navigator.credentials.get({ publicKey: options })) as PublicKeyCredential;
+  const { data } = await pb.auth.api.webauthnLoginFinish({ body: credential.toJSON() });
+  return goOn(data) ? "on to the app" : "signed in";
+}
+
+/** An email link: the email carries a link and a six-digit code. */
+export async function withEmailLink(email: string): Promise<string> {
+  await pb.auth.api.magicLinkRequest({ body: { email, auth_request_id: authRequestId } });
+  return "check your email: open the link here, or type its code";
+}
+
+/** The code from the email, typed in this tab: the link was opened on another device. */
+export async function withEmailCode(code: string): Promise<string> {
+  const { data } = await pb.auth.api.magicLinkVerify({ body: { auth_request_id: authRequestId, code } });
+  if ("mfa_required" in data) {
+    sessionStorage.setItem("mfa_token", data.mfa_token);
+    return `second factor: ${data.factors.join(", ")}`;
+  }
+  return goOn(data) ? "on to the app" : "signed in";
+}
+
+/** Back from the email's link, in this browser: ?auth_request_id=…&email_token=… */
+export async function finishEmailLink(): Promise<string> {
+  const token = new URLSearchParams(window.location.search).get("email_token") ?? "";
+  const { data } = await pb.auth.api.magicLinkVerify({ body: { auth_request_id: authRequestId, token } });
+  if ("mfa_required" in data) {
+    sessionStorage.setItem("mfa_token", data.mfa_token);
+    return `second factor: ${data.factors.join(", ")}`;
+  }
+  return goOn(data) ? "on to the app" : "signed in";
+}
+
+/** A phone code: the request is named when the code is sent and when it is checked. */
+export async function sendPhoneCode(phone: string): Promise<void> {
+  await pb.auth.api.requestPhoneOtp({ body: { phone, auth_request_id: authRequestId } });
+}
+
+export async function withPhoneCode(phone: string, token: string): Promise<string> {
+  const { data } = await pb.auth.api.verifyPhoneOtp({ body: { phone, token, auth_request_id: authRequestId } });
+  if ("mfa_required" in data) {
+    sessionStorage.setItem("mfa_token", data.mfa_token);
+    return `second factor: ${data.factors.join(", ")}`;
+  }
+  return goOn(data) ? "on to the app" : "signed in";
+}
+
+/** A new account: it signs in at once, unless its address is to be confirmed first. */
+export async function signUp(email: string, password: string): Promise<string> {
+  const { data } = await pb.auth.api.signup({ body: { email, password, auth_request_id: authRequestId } });
+  return goOn(data) ? "on to the app" : "confirm your email, then sign in";
+}
 ```
 
-The sign-in that completes the request says how the person signed in, and the tokens the client gets say it too: `amr` is `["pwd"]` for a password, the provider's name (`["google"]`, `["apple"]`, `["github"]`, `["microsoft"]`) for a provider, and the first factor with the second (`["google", "otp"]`, `["pwd", "otp"]`) after a code; `acr` is `urn:nist:800-63:aal2` after an authenticator app's or a text's code, `urn:nist:800-63:aal1` otherwise (a recovery code, an email code). A provider's sign-in follows the project's sign-up switch: a person who has no account yet gets one when sign-ups are open, as in your own app.
+The email link opens at the provider, on the address the request was opened at. In the browser that opened the request it goes on to your page with `?auth_request_id=…&email_token=…` (`finishEmailLink`). Opened anywhere else — a phone's mail app — it asks the person to go back to the tab they started in and type the six-digit code the email carries (`withEmailCode`), and spends nothing: the link and the code still work there. The code is good for as long as the request is. Five wrong codes and the email's code stops working (`400 code_max_attempts`); twenty tried for an address in a day and no code works until the day is over (`400 code_limit_reached`) — either way the link still signs the person in from the browser that opened the request. An address gets at most five such emails an hour from one network (an IPv4 address, an IPv6 /64) and thirty from all of them, each site (an IPv6 /56) counting at most five toward the thirty. A network the person has signed in from by email before is held by its own five alone: others on other networks cannot spend it, though anyone sharing that network (a carrier's or an office's) shares its five. On a network new to them, others asking from several sites can hold their email back for the hour. The email names the app the person is signing in to, and tells them to type the code only in a tab they opened themselves.
+
+The sign-in that completes the request says how the person signed in, and the tokens the client gets say it too: `amr` is `["pwd"]` for a password (and a new account's), the provider's name (`["google"]`, `["apple"]`, `["github"]`, `["microsoft"]`) for a provider, `["swk"]` for a passkey that syncs and `["hwk"]` for one bound to its device (the authenticator's own word), `["email"]` for an email link or its code, `["sms"]` for a phone code, and the first factor with the second (`["google", "otp"]`, `["pwd", "otp"]`, `["sms", "otp"]`) after a code; `acr` is `urn:nist:800-63:aal2` after an authenticator app's or a text's code and for a passkey, `urn:nist:800-63:aal1` otherwise (a password, a provider, an email link, a phone code alone; a recovery code, an email code). A provider's sign-in follows the project's sign-up switch: a person who has no account yet gets one when sign-ups are open, as in your own app.
 
 What the client asks of the sign-in is held to it, as other providers hold it:
 
@@ -156,12 +216,12 @@ What the client asks of the sign-in is held to it, as other providers hold it:
 |---|---|
 | `prompt=none` | Answered at once at the client's `redirect_uri` with `error=login_required`: the provider keeps no session of its own — every authorization is a sign-in on your page — so it can never answer without showing it. |
 | `prompt=login`, `max_age` | Met by this provider: the sign-in that completes the request is made after the client asked, on your page, and the ID token's `auth_time` says when. A provider the person signs in with may use its own session: Microsoft is told `prompt=login` and asks for the password again; Google, Apple and GitHub take no such parameter. A client that needs proof of a fresh credential asks for `acr_values=urn:nist:800-63:aal2`: a second factor's code, typed now. |
-| `acr_values` | The sign-in must reach the least level the values name, of those the provider knows (`urn:nist:800-63:aal1`, `urn:nist:800-63:aal2`). With `aal2` the password sign-in asks for an authenticator app's or a text's code — even on a trusted device — and an account with none is refused (`400 auth_request_invalid`); a provider's sign-in completes the request after the second factor it asks for. A request asking only for `urn:nist:800-63:aal3`, which no sign-in here reaches, is answered at once at the client's `redirect_uri` with `error=unmet_authentication_requirements`. Values the provider does not know ask nothing; at most 8 values of 128 characters. |
+| `acr_values` | The sign-in must reach the least level the values name, of those the provider knows (`urn:nist:800-63:aal1`, `urn:nist:800-63:aal2`). With `aal2` the password sign-in asks for an authenticator app's or a text's code — even on a trusted device — and an account with none is refused (`400 auth_request_invalid`); a provider's, an email link's and a phone code's sign-in complete the request after the second factor they ask for (after a phone code, an authenticator app: a second text adds nothing); a passkey reaches it alone; a new account, which has no second factor yet, is refused before it is opened. When the second factor named in `factors` is `webauthn`, the account's passkey, the page signs in with the passkey instead. A request asking only for `urn:nist:800-63:aal3`, which no sign-in here reaches yet, is answered at once at the client's `redirect_uri` with `error=unmet_authentication_requirements`. Values the provider does not know ask nothing; at most 8 values of 128 characters. |
 | `prompt=consent`, `select_account` | Your page decides: the provider shows no consent screen of its own. A client you register is one you allow on your users' behalf. |
 
 A request asking for a sensitive scope (`cli:admin` by default) needs `urn:nist:800-63:aal2` the same way. A second factor's code that cannot reach the level a request needs — a recovery code, an email code — is refused before it is spent.
 
-A request no sign-in can complete, unknown, expired (five minutes after `/oauth/authorize`) or completed already, is refused when the sign-in names it: `POST /auth/login` answers `400 auth_request_invalid` before it checks the password, and `POST /auth/oauth/transactions` before the person goes to the provider. Only a browser client's sign-in (`purpose: "sign_in"`) takes one; linking a provider to an account signs no one in. A request that expires while the person is at the provider or typing their code ends that sign-in with `400 auth_request_invalid`, and the client starts again. Completing a transaction again with the same body answers the same `oidc_callback_url`, and the callback answers once: two visits of it at the same moment (a double navigation, a prefetch) give one code, and the other is answered `409 auth_request_in_progress`.
+A request no sign-in can complete, unknown, expired (five minutes after `/oauth/authorize`) or completed already, is refused when the sign-in names it: `POST /auth/login` answers `400 auth_request_invalid` before it checks the password, `POST /auth/signup` before the account is opened, `POST /auth/oauth/transactions` before the person goes to the provider, `POST /auth/webauthn/login/begin` before the person is asked for a passkey, and `POST /auth/magic-link` and `POST /auth/otp` before an email or a text is sent. Only a browser client's sign-in (`purpose: "sign_in"`) takes one; linking a provider to an account signs no one in. A request that expires while the person is at the provider or typing their code ends that sign-in with `400 auth_request_invalid`, and the client starts again. Completing a transaction again with the same body answers the same `oidc_callback_url`, and the callback answers once: two visits of it at the same moment (a double navigation, a prefetch) give one code, and the other is answered `409 auth_request_in_progress`.
 
 ## Signing in a device
 

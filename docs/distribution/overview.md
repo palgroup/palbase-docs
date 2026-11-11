@@ -2,7 +2,7 @@
 
 # App Distribution
 
-App Distribution takes the builds your build machine makes to your testers: an iOS app's to TestFlight, an Android app's to Google Play's internal testing track. Your build machine makes an unsigned build with a build number the environment gives it and uploads it. Palbase signs it, hands it to Apple or Play with your own account, follows it until testers can install it, and gives it to the groups you name. No signing certificate, provisioning profile or keystore lives on the build machine, and no Apple ID signs in there.
+App Distribution takes the builds your build machine makes to your testers: an iOS app's to TestFlight, an Android app's to Google Play's internal testing track, and either straight to the testers' own phones, with no store in between ([Direct Install](https://palbase.studio/docs/distribution/direct-install)). Your build machine makes an unsigned build with a build number the environment gives it and uploads it. Palbase signs it, hands it to Apple or Play with your own account, follows it until testers can install it, and gives it to the groups you name. No signing certificate, provisioning profile or keystore lives on the build machine, and no Apple ID signs in there.
 
 It is the environment's stores module. Studio shows it under **App Distribution**, and the CLI's `stores` commands do the same: `palbase stores:deliver`, `palbase stores:groups`, …
 
@@ -12,7 +12,7 @@ It is the environment's stores module. Studio shows it under **App Distribution*
 2. **Connect the store**, once per environment: an App Store Connect API key ([TestFlight](https://palbase.studio/docs/distribution/testflight#connect-app-store-connect)), or a service account Palbase makes for you to invite in Play Console ([Google Play](https://palbase.studio/docs/distribution/google-play#connect-google-play)).
 3. **Link the app to its store** (`palbase stores:apps:link <app id>`). An iOS app's bundle id is registered with Apple and its App Store Connect record looked up; an Android app gets the upload key Palbase signs its builds with.
 4. **Make a package** (`palbase stores:packages:create`). It answers the build number to build with and a token to upload the build.
-5. **Build and upload it** (`palbase stores:packages:upload`): the unsigned `.ipa`, or the `.aab`.
+5. **Build and upload it** (`palbase stores:packages:upload`): the unsigned `.ipa`, the `.aab`, or — for a direct install — the Android APK.
 6. **Deliver it** (`palbase stores:deliver`). It is signed, handed to Apple or Play, processed, and given to the testers.
 
 Steps 1 to 3 are done once. A build machine runs 4 to 6 on every build.
@@ -130,7 +130,9 @@ Every change emits a `stores.*` event to the environment's [webhooks](https://pa
 | `stores.app.changed` | An app was linked to its store, or its App Store Connect record made or removed with the [Apple ID](https://palbase.studio/docs/distribution/app-store#an-apple-id) |
 | `stores.package.changed` | A package was made, or its build arrived |
 | `stores.delivery.requested` | A delivery was sent, or sent again |
-| `stores.delivery.changed` | A delivery moved: `queued`, `signing`, `uploading`, `processing`, `compliance`, `ready` or `failed` |
+| `stores.delivery.changed` | A delivery moved: `queued`, `signing`, `uploading`, `processing`, `compliance`, `ready` or `failed`; a direct install's also `waiting`, with the phones it is signed for (`signed_devices`) |
+| `stores.invitation.changed` | A person was invited to install a package directly, opened the link, registered a phone, took the build, was mailed, or was revoked. Never their address. |
+| `stores.device.changed` | A phone registered for direct installs, Apple took it, is processing it, or refused it. Never its UDID. |
 | `stores.group.changed` | A group was made, renamed or deleted, its testers set, or a build given to it |
 | `stores.action.changed` | An action was planned, done, declined or failed |
 | `stores.version.changed` | An app's App Store version came to a new state: sent to App Review, in review, approved, rejected, withdrawn, released. `source` says who told it: `apple_webhook`, `poll` or `action` |
@@ -170,6 +172,7 @@ The module's API is the environment's, at its address under `/stores`, with the 
 ## Related
 
 - [TestFlight](https://palbase.studio/docs/distribution/testflight): the Apple account, signing, groups, Beta App Review
+- [Direct Install](https://palbase.studio/docs/distribution/direct-install): a build on testers' own phones, with no store in between
 - [App Store](https://palbase.studio/docs/distribution/app-store): the App Store page, the version, App Review and the release
 - [Google Play](https://palbase.studio/docs/distribution/google-play): the Play connection, the upload key, internal testing
 - [App Health](https://palbase.studio/docs/distribution/health): the App Store Connect webhook, testers' crashes, the stores' crash data and their events

@@ -185,6 +185,7 @@ The general ones (`build_changed`, `build_gone`, `step_timed_out`, `gave_up`) ar
 ## Related
 
 - [App Distribution](https://palbase.studio/docs/distribution/overview): packages, deliveries, actions and events
+- [Direct Install](https://palbase.studio/docs/distribution/direct-install): the same build on testers' own iPhones, with no TestFlight
 - [Test Apple Purchases](https://palbase.studio/docs/purchases/testing-apple): sandbox testers, and buying in TestFlight
 - [iOS SDK](https://palbase.studio/docs/ios/overview): the app's settings, capabilities and client
 - [CLI reference: `stores`](https://palbase.studio/docs/cli/reference#stores)

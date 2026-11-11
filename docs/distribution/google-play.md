@@ -116,5 +116,6 @@ A package cannot be made at all once Play has seen the highest version code it t
 ## Related
 
 - [App Distribution](https://palbase.studio/docs/distribution/overview): packages, deliveries, actions and events
+- [Direct Install](https://palbase.studio/docs/distribution/direct-install): the app's APK on testers' own phones, with no Play track
 - [Client Apps](https://palbase.studio/docs/apps/overview): an Android app's package and the certificates its passkeys trust
 - [CLI reference: `stores`](https://palbase.studio/docs/cli/reference#stores)

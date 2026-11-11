@@ -106,7 +106,7 @@ A configuration that names no environment, or one the app is not set in, stops t
 | Capability | Value | Who needs it |
 |---|---|---|
 | **Keychain Sharing** | the document's `keychain_group` without its team prefix (`com.example.shop.palbase`; Xcode adds `$(AppIdentifierPrefix)`) | The app and every extension that uses Palbase: they share the session, the device's key, the install and the consent choices through it. |
-| **Associated Domains** | each entry of `auth.associated_domains` (`webcredentials:<ref>.palbase.studio`) | An app that signs in with [passkeys](https://palbase.studio/docs/ios/auth#passkeys). |
+| **Associated Domains** | each entry of `auth.associated_domains` (`webcredentials:<ref>.palbase.studio`, or the [sign-in domain](https://palbase.studio/docs/auth/providers#your-own-sign-in-domain) its passkeys are saved at) | An app that signs in with [passkeys](https://palbase.studio/docs/ios/auth#passkeys). |
 | **Push Notifications** | — | An app that registers for [push](https://palbase.studio/docs/ios/notifications). |
 
 ## The client

@@ -21,7 +21,7 @@
 - [Architecture](https://palbase.studio/docs/getting-started/architecture): How a palbase/backend app is shaped: a root module and one module per domain, thin controllers, services that arrive by constructor, schemas beside them, and the database declared in db/.
 - [Project Structure](https://palbase.studio/docs/getting-started/project-structure): How a backend repository is laid out for a machine: src/main.ts, src/modules/<domain>/, src/db/, its Dockerfile, .env.example and tsconfig.json.
 - [Access Tokens](https://palbase.studio/docs/getting-started/access-tokens): Organization access tokens for CI and agents: PALBASE_TOKEN, the member and admin roles, what a token cannot do, expiry, and deleting one.
-- [Billing](https://palbase.studio/docs/getting-started/billing): The Free plan and Pay as you go: the payment account and the organizations it pays for, charges at the month's end and at the threshold, what is charged, each project's plan and cap — its environments together — an environment's freeze, what happens when a charge goes unpaid, and the billing API.
+- [Billing](https://palbase.studio/docs/getting-started/billing): The Free plan and Pay as you go: the payment account and the organizations it pays for, when and what is charged, each project's plan and cap — its environments together — an environment's freeze, an unpaid charge, and the billing API.
 - [Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits): What is metered for each environment and where Studio shows it, the rates and monthly limits it runs under, what a free project gets — its environments together — and what each limit answers.
 - [Logs](https://palbase.studio/docs/getting-started/logs): Studio's Logs by category: every request to the environment's address, auth's events, notifications, machine output and builds — and the request lines read from a server.
 
@@ -54,8 +54,8 @@
 - [Gateways](https://palbase.studio/docs/backend/gateways): @Gateway — a realtime channel of the app: who may join, typed events, members' messages and their acks, the channel's moments, durable gateways that keep what they send, and pipes.
 - [Channels](https://palbase.studio/docs/backend/channels): The realtime module's own channel declaration, for a backend that is not a palbase/backend app: who may join, publish and write state.
 - [AI](https://palbase.studio/docs/backend/ai): Palbase.ai — one-shot answers, tools that run on your machine, agents defined at each turn, and chats your backend starts, which their members reach through a gateway.
-- [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines): Runner pools of your own Macs and Linux machines: one type each, machines enrolled with palai and a single-use key, a chat started on a pool, the state your own loop scales by, cordon then delete — and the variables, secrets and setup script every session has.
-- [Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync): A chat's workspace on a machine of yours, live and both ways with palai workspace sync and a workspace token; .palaisync; files your backend writes; conflicts and ai.workspace.conflict; what a tool sees of the workspace, and what it answers.
+- [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines): Runner pools of your own Macs and Linux machines: one type each, machines enrolled with palai and a single-use key, a chat started on a pool, the state your loop scales by, cordon then delete, and every session's variables, secrets and setup script.
+- [Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync): A chat's workspace on a machine of yours, live and both ways with palai workspace sync and a workspace token; .palaisync; files your backend writes; conflicts (ai.workspace.conflict); what a tool sees of the workspace.
 - [Webhooks](https://palbase.studio/docs/backend/webhooks): @Webhook — a third party's deliveries (Stripe, GitHub, Slack, …) at POST /webhooks/<name>, each signature checked before an @On of its event runs.
 - [Event Hooks](https://palbase.studio/docs/backend/hooks): @On — handle the platform's events (user.deleted, file.uploaded, …) in your backend, each delivery signed and run once.
 - [Cron](https://palbase.studio/docs/backend/cron): @Cron — a provider the platform runs on a schedule (five fields of cron's, on a time zone's clocks), waking the machine for it; run now, paused and resumed from Studio and the CLI.
@@ -75,7 +75,7 @@
 - [Flags](https://palbase.studio/docs/web/flags): pb.flags — the project's flags and remote configuration for this reader, read without the network, kept current over realtime, with experiments' exposures.
 - [Realtime](https://palbase.studio/docs/web/realtime): Channels over the project's one socket: join, listen to broadcasts, leave — and who may join what.
 - [Messaging](https://palbase.studio/docs/web/messaging): pb.messaging — the person's conversations kept in IndexedDB and current over the socket: lists, timelines and threads to subscribe to, an outbox that sends once, files encrypted in the browser, and onIncoming for the page's own banner.
-- [Calls](https://palbase.studio/docs/web/calls): pb.calls — voice and video calls in the browser: making, answering and joining one, the session's state the app draws its own screens from, microphone, camera, screen sharing and audio output, a call at a place (pb.calls.place: watch, start, join unasked, PlaceBusyError), the media through the media server, ringing through the service worker, history, permissions and errors.
+- [Calls](https://palbase.studio/docs/web/calls): pb.calls — voice and video calls in the browser: making, answering and joining one, the session's state the app draws its screens from, microphone, camera, screen sharing, pb.calls.place, ringing through the service worker, history and errors.
 - [Gateways](https://palbase.studio/docs/web/gateways): Your backend's gateways from the generated module: join, typed events, messages and their acks, GatewayError's reasons, durable history, and a chat gateway's state.
 - [Analytics](https://palbase.studio/docs/web/analytics): pb.analytics — events, page views, person properties and the browser's own measures, held to the person's consent — and the people, places and audiences the project reads back.
 - [Consent](https://palbase.studio/docs/web/consent): pb.consent — what the person allowed, key by key: the platform's keys, starting values, a consent screen, Global Privacy Control, and the calls under it.
@@ -90,7 +90,7 @@
 - [Gateways](https://palbase.studio/docs/ios/gateways): Your backend's gateways from Swift: join, the Event, Send and Reply enums, PBGatewayError's reasons, durable history, and a chat gateway's PBChat for SwiftUI.
 - [Realtime](https://palbase.studio/docs/ios/realtime): pb.realtime: channels on the project's one socket, broadcasts, the state every member shares, presence, who may join, and the socket's observable status.
 - [Messaging](https://palbase.studio/docs/ios/messaging): PalbaseMessaging: @Observable conversations, timelines and threads, an outbox that sends once, incoming() for the app's own banner, and the notification service extension that brings a message onto the phone while the app is closed.
-- [Calls](https://palbase.studio/docs/ios/calls): PalbaseCalls: calls that ring on the lock screen through CallKit and PushKit, configure(.init(callKit:)), the APNs key and the VoIP token, pb.calls.call/callGroup/join/history, the @Observable PBCall the app draws its own screens from (phase, cameras, shared screens, who is speaking, controls), screen sharing (in the app, or the whole screen through a Broadcast Upload Extension with PalbaseCallsBroadcast) and a call at a place (pb.calls.place).
+- [Calls](https://palbase.studio/docs/ios/calls): PalbaseCalls: calls that ring on the lock screen (CallKit, PushKit), the APNs key and VoIP token, pb.calls.call/callGroup/join/history, the @Observable PBCall the app draws its screens from, screen sharing (PalbaseCallsBroadcast) and pb.calls.place.
 - [Flags](https://palbase.studio/docs/ios/flags): pb.flags: feature flags read without waiting, observable in SwiftUI, kept current over realtime, a signed-in user's values, and experiments' $flag_exposure.
 - [Analytics](https://palbase.studio/docs/ios/analytics): pb.analytics: events, screens, the person's properties, the app's own events such as $install and $app_open, timings, diagnostics, and App Tracking Transparency.
 - [Consent](https://palbase.studio/docs/ios/consent): pb.consent: the platform's keys and the app's own, starting values, the person's choices, region and needsAsking, and whose the choices are across sign-in and sign-out.
@@ -108,7 +108,7 @@
 - [Gateways](https://palbase.studio/docs/android/gateways): A backend's @Gateway classes from the generated Kotlin client: join, typed events, messages and their acks, PBGatewayError, durable gateways, and a chat gateway's state in Compose.
 - [Realtime](https://palbase.studio/docs/android/realtime): pb.realtime channels on Android: broadcasts, a shared state and presence, who may join, and the one socket's connection as a StateFlow.
 - [Messaging](https://palbase.studio/docs/android/messaging): palbase-messaging: conversations, timelines and threads as StateFlows, an outbox that sends once, incoming for the app's own banner, pushes that bring a message onto the phone while the app is closed, and FLAG_SECURE for what is seen once.
-- [Calls](https://palbase.studio/docs/android/calls): palbase-calls: a ring over the lock screen from a high-priority FCM message, CallStyle and Telecom, the permissions and canRingFullScreen, pb.calls.call/callGroup/join/open/history/current, PBCall's StateFlows and actions the app draws its own screens from, the app's own call activity over the lock screen (pb.calls.callActivity), screen sharing (MediaProjection) and a call at a place (pb.calls.place).
+- [Calls](https://palbase.studio/docs/android/calls): palbase-calls: a ring over the lock screen from an FCM message (CallStyle, Telecom), canRingFullScreen, pb.calls.call/callGroup/join/open/history/current, PBCall's StateFlows, pb.calls.callActivity, screen sharing (MediaProjection) and pb.calls.place.
 - [Flags](https://palbase.studio/docs/android/flags): pb.flags on Android: values read without waiting from what the device kept, typed reads, Compose state, per-user values, and live updates over the socket.
 - [Analytics](https://palbase.studio/docs/android/analytics): pb.analytics on Android: events, screens, timings and diagnostics, each behind its consent category, batched and kept on the device until sent.
 - [Notifications](https://palbase.studio/docs/android/notifications): FCM push on Android: the project's FCM provider, pb.notify.register for the signed-in user, showing the data message a push arrives as, preferences and topics.
@@ -135,6 +135,15 @@
 - [Audit Trail](https://palbase.studio/docs/auth/audit): Who did what in an environment's auth — sign-ins, changes to users and settings, admin actions — read, exported as JSON lines or CSV, and verified as an unbroken chain.
 - [OpenID Provider](https://palbase.studio/docs/auth/openid-provider): Other apps signing in with your users' accounts through the environment's OAuth 2.0 and OpenID Connect provider, service accounts for machines, and sign-in tokens your own server makes.
 
+## Access
+
+- [Overview](https://palbase.studio/docs/access/overview): Who may do what on which object.
+- [The Access Schema](https://palbase.studio/docs/access/schema): Types, relations, permissions, rows, limits.
+- [Access in a Backend](https://palbase.studio/docs/access/backend): db.access, p.can(), Database.$access.
+- [Access from SQL](https://palbase.studio/docs/access/sql): Any backend or ORM: access:schema:set, access.can.
+- [Testing a Schema](https://palbase.studio/docs/access/testing): palbase access:test: expected answers, no database.
+- [Moving an Existing System](https://palbase.studio/docs/access/moving-in): From role tables to a schema, in six steps.
+
 ## Purchases
 
 - [Overview](https://palbase.studio/docs/purchases/overview): One catalog sold in the App Store, on Google Play and on the web through your Stripe account, and one answer to what each customer has: products, plans, entitlements, credits, limits, the stores and test purchases.
@@ -152,12 +161,12 @@
 
 ## Messaging
 
-- [Overview](https://palbase.studio/docs/messaging/overview): Chat between a project's people: direct conversations and groups, threads, files, timers, seen once, vanish mode; history that belongs to the account, encrypted per conversation; pushes, screenshots, your server's reads, moderation, settings and prices.
+- [Overview](https://palbase.studio/docs/messaging/overview): Chat between a project's people: direct conversations and groups, threads, files, timers, seen once, vanish mode; history that belongs to the account, encrypted per conversation; pushes, your server's reads, moderation, settings and prices.
 
 ## Calls
 
 - [Overview](https://palbase.studio/docs/calls/overview): Voice and video calls between a project's people: direct calls device to device with a relay to fall back on, groups of up to 100 on the media server, huddles; who may call whom, a call's life from ring to end, history, settings and prices.
-- [Calls over HTTP](https://palbase.studio/docs/calls/http): What the SDKs send for a person's device: making, answering, declining, joining and leaving a call, the heartbeat, the media (ICE servers or a media-server ticket), a direct call's signals, the calls:<ref>:<user_id> channel and the call's shape.
+- [Calls over HTTP](https://palbase.studio/docs/calls/http): What the SDKs send for a person's device: making, answering, declining, joining and leaving a call, the heartbeat, the media (ICE servers or a media-server ticket), a direct call's signals and the calls:<ref>:<user_id> channel.
 - [Ringing](https://palbase.studio/docs/calls/ringing): How a call rings a locked phone: a PushKit VoIP push and CallKit on iOS, a high-priority data message and a full-screen CallStyle notification on Android, a notification in a browser; missed calls, and what each push carries.
 - [Your Server](https://palbase.studio/docs/calls/server): The secret key's calls: the module's settings, the calls.can_call hook that decides who may call whom and its signature, reading and ending the project's calls, and the calls.* webhooks.
 - [Agents](https://palbase.studio/docs/calls/agents): Letting your own agent into a call with a ticket: the media server's url and token, each speaker's audio as a track named by their user id, publishing its own voice, and when to send it in.
@@ -177,9 +186,10 @@
 
 - [App Distribution](https://palbase.studio/docs/distribution/overview): Builds from your build machine to TestFlight and Google Play's internal testing: packages and build numbers, deliveries and their states, the actions a person confirms, Studio's screens and the stores events.
 - [TestFlight](https://palbase.studio/docs/distribution/testflight): An iOS app's builds to TestFlight with your own Apple account: connecting an App Store Connect key, the unsigned .ipa and its entitlements, signing, groups and testers, Beta App Review and export compliance.
-- [App Store](https://palbase.studio/docs/distribution/app-store): An iOS app's App Store page and the version App Review gets: the draft page and its screenshots, planned and confirmed; preparing the version, what is missing, sending it to App Review, releasing it, the phased release, and App Review's answer.
+- [Direct Install](https://palbase.studio/docs/distribution/direct-install): A build on a tester's own phone, with no store: invitation links, an iPhone that registers itself, Apple's device limits, an Android APK.
+- [App Store](https://palbase.studio/docs/distribution/app-store): An iOS app's App Store page and the version App Review gets: the draft page and its screenshots; preparing the version, what is missing, sending it to review, releasing it, the phased release, and App Review's answer.
 - [Google Play](https://palbase.studio/docs/distribution/google-play): An Android app's builds to Google Play's internal testing: the service account Play Console invites, the upload key Palbase signs with, the .aab and its version code, and the first release made in Play Console.
-- [App Health](https://palbase.studio/docs/distribution/health): Each linked app in its store: the App Store Connect webhook Palbase makes and the key role it needs, the events it tells and their source, testers' crashes and screenshots, the App Store's crash data and Play's vitals, and Play's releases read every 10 minutes.
+- [App Health](https://palbase.studio/docs/distribution/health): Each linked app in its store: the App Store Connect webhook Palbase makes and the key role it needs, the events it tells, testers' crashes and screenshots, App Store crash data, Play's vitals, and Play's releases every 10 minutes.
 
 ## Machines & Databases
 
