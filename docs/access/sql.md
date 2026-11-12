@@ -38,6 +38,15 @@ It acts on the environment chosen with `palbase use` (or `-E`), on its only data
 
 `palbase access:schema:get` prints the schema a database answers from.
 
+The schema is compiled into SQL by the **engine** of the `palbase` that put it in, and answers as that engine wrote it until it is put in again. After you update `palbase`, a command that reads the database says when its schema was compiled by an older engine — a line on stderr that starts `note:` and names both engines, beside the answer, which is as before (`stale_engine` in `--json`; `access:schema:get --json` names the engine). To take what the newer engine mends, put the same schema in again:
+
+```sh
+palbase access:schema:get > access.schema
+palbase access:schema:set access.schema
+```
+
+Putting the same schema in again compiles it with the engine you have. (A [`palbase/backend`](https://palbase.studio/docs/access/backend) app's schema is compiled again by its next deploy, with nothing to run — the note says so there.) The other way round is refused: a schema compiled by a newer engine than your `palbase`'s is not written over by `access:schema:set` (`newer_engine`) — it would take back what the newer engine mended — until `palbase` is updated.
+
 A database whose `palbase/backend` app carries an access schema ([`db.access`](https://palbase.studio/docs/access/backend)) has it changed by that app's deploys, and `access:schema:set` is refused there: each version of the app asks the schema it was migrated with. The other commands of this page work on it as on any.
 
 What it leaves in the database:
@@ -66,6 +75,7 @@ A [database of the project](https://palbase.studio/docs/machines/databases#conne
 | Role | Take it for | Access answers |
 |---|---|---|
 | `authenticated` | a signed-in user's request | for that user alone — the `sub` of `request.jwt.claims` |
+| `anon` | a request with nobody signed in | for a visitor: what the schema opens to the [`public`](https://palbase.studio/docs/access/open#a-visitor), and no other name |
 | `service_role` | your backend acting for itself | for any user it names |
 
 A request of a signed-in user:
@@ -107,7 +117,8 @@ SELECT * FROM access.subjects('view', 'product', '10');        -- who holds it
 | `access.my_objects(permission, type)` | `setof text` — the ids the asker holds it on |
 | `access.check(subject, permission, type, id)` | `boolean` |
 | `access.objects(subject, permission, type)` | `setof text` |
-| `access.subjects(permission, type, id)` | `setof text` — the users who hold it. Each one related to the object is asked in turn — about a second at 10,000 — and past that it is refused; so is an object whose holders are looked for through more than 10,000 related objects (`team->member` on a product with that many teams), whether or not they name anyone, and one where the subjects times the related objects pass 1,000,000 (each subject is checked through all of them) |
+| `access.open(permission, type, id)` | `text` — how wide it is open on the object: `'public'`, `'users'` (every signed-in user), `'visitors'` (who has not signed in, alone) or null ([Open to Everyone](https://palbase.studio/docs/access/open#how-wide-is-it-open)) |
+| `access.subjects(permission, type, id)` | `setof text` — the users who hold it by name; what is everyone's is `access.open`'s to say. Each one related to the object is asked in turn — about a second at 10,000 — and past that it is refused; so is an object whose holders are looked for through more than 10,000 related objects (`team->member` on a product with that many teams), whether or not they name anyone, and one where the subjects times the related objects pass 1,000,000 (each subject is checked through all of them) |
 
 Ids go in and come out as text, whatever the key's type; they are compared as the key compares them. A name the schema does not have raises an error (below) rather than answering `false`. An object that does not exist is held by nobody.
 
@@ -136,7 +147,7 @@ COMMIT;
 
 The query is the one you would write anyway, from any ORM. Postgres adds the permission to it, uses your indexes, and returns the page already filtered. `rows insert`, `update` and `delete` judge writes the same way: a row the user may not write is refused with SQLSTATE `42501`.
 
-`rows` turns row-level security on for the table and adds policies named `access_select`, `access_insert`, … for `authenticated`. Policies of your own on the same table stay as they are and combine with them as Postgres combines policies; one of your own that already has one of those names stops the schema, by name, rather than being replaced — rename it. `service_role` and the owner pass row-level security, as always.
+`rows` turns row-level security on for the table and adds policies named `access_select`, `access_insert`, … for `authenticated` — and for `anon` as well, for a permission the [public can hold](https://palbase.studio/docs/access/open#a-visitor). Policies of your own on the same table stay as they are and combine with them as Postgres combines policies; one of your own that already has one of those names stops the schema, by name, rather than being replaced — rename it. `service_role` and the owner pass row-level security, as always.
 
 Row-level security on a table is for every role that is not its owner: a role of your own, or `anon`, reads nothing there until a policy of yours says what it may. It stays on when a `rows` rule is removed — the table then shows `authenticated` nothing, rather than everything.
 
@@ -187,7 +198,17 @@ SELECT access.grant ('product', '10', 'designer', 'user', 'user_2f9c', 'user_81a
 SELECT access.revoke('product', '10', 'designer', 'user', 'user_2f9c', 'user_81aa');   -- true; false if it was not
 ```
 
-The arguments: the object's type and id, the relation, the subject's kind and id, and who did it. The kind is `'user'`, or a type for a relation that takes objects (`'team', 'blue'`). The last argument is written to the history; left out, it is the transaction's user, else the login.
+The arguments: the object's type and id, the relation, the subject's kind and id, and who did it. The kind is `'user'`, or a type for a relation that takes objects (`'team', 'blue'`). Who did it is written to the history; left out, it is the transaction's user, else the login.
+
+Two more, where the relation takes them:
+
+```sql
+SELECT access.grant('doc', '42', 'viewer', 'user:*', '*');                                      -- every signed-in user
+SELECT access.grant('doc', '42', 'viewer', 'public', '*');                                      -- everyone, signed in or not
+SELECT access.grant('product', '10', 'tester', 'user', 'user_2f9c', 'user_81aa', now() + interval '30 days');   -- until a moment
+```
+
+[Open to Everyone](https://palbase.studio/docs/access/open) and [Until a Moment](https://palbase.studio/docs/access/expiring) say what each means. Everyone is a kind — `'user:*'`, `'public'` — and never an id: `'*'` given as a user's id is refused, so an id that comes from a request names one user or nobody.
 
 - Only a [kept relation](https://palbase.studio/docs/access/schema#kept-given-and-taken) is given; one read from a column is changed by changing the column.
 - The object must exist. The row is locked against being deleted while the relationship is written.
@@ -196,9 +217,12 @@ The arguments: the object's type and id, the relation, the subject's kind and id
 `access.relationships` and `access.history` are tables the service role reads:
 
 ```sql
-SELECT relation, subject_id, created_at FROM access.relationships WHERE object_type = 'product' AND object_id = '10';
+SELECT relation, subject_id, created_at, expires_at FROM access.relationships
+ WHERE object_type = 'product' AND object_id = '10' AND (expires_at IS NULL OR expires_at > now());
 SELECT at, action, relation, subject_id, actor FROM access.history WHERE object_type = 'product' AND object_id = '10' ORDER BY id DESC;
 ```
+
+A relationship given until a moment keeps its row after it has ended, until it is swept: read the table with its `expires_at`, as above. `access.past` is the history with those endings in it ([Until a Moment](https://palbase.studio/docs/access/expiring#what-is-kept-and-what-happened)).
 
 Write them only through `grant` and `revoke`: those check the relation, the object and the id's spelling, and nothing else does.
 
@@ -213,11 +237,16 @@ SELECT access.forget_subject('user_2f9c');   -- how many relationships went
 | SQLSTATE | |
 |---|---|
 | `PA001` | the type has no such relation or permission — or there is no such type |
-| `PA002` | `grant` on an object that does not exist |
-| `PA003` | an id that is empty or longer than 256 characters |
+| `PA002` | `grant` on an object that does not exist — or a row of a [nested type](https://palbase.studio/docs/access/nested) put in one that is not there |
+| `PA003` | an id that is empty or longer than 256 characters — or `*`, which is nobody's id |
 | `PA004` | `subjects` on an object more than 10,000 subjects, or more than 10,000 objects through kept relations, are related to — or subjects × objects past 1,000,000: ask `check` |
 | `PA005` | the relation is not kept, or does not take that kind of subject |
 | `PA006` | a role that asks for itself alone tried to ask as another subject |
+| `PA007` | `grant` until a moment that has passed |
+| `PA008` | a row or a relationship would put an object of a [nested type](https://palbase.studio/docs/access/nested) inside itself |
+| `PA009` | … more levels below a top than its type's `depth` |
+| `PA010` | … in a 33rd object of its type |
+| `55000` | an object of a nested type placed by a `REPEATABLE READ` or `SERIALIZABLE` transaction (place it in a `READ COMMITTED` one) |
 | `42501` | Postgres' own: the role may not run the function, or a row policy refused a write |
 
 An error ends the transaction, as any does. Names come from your code, not from a request: check a name that does against your own list before it reaches SQL.
@@ -244,8 +273,13 @@ palbase access:objects user_2f9c view product
 palbase access:subjects view product:10
 palbase access:relationships:list --object product:10
 palbase access:relationships:grant company:1 owner user:user_81aa
+palbase access:relationships:grant product:10 tester user:user_2f9c --until 30d
+palbase access:relationships:grant doc:42 viewer 'user:*'
 palbase access:relationships:revoke product:10 designer user:user_2f9c
+palbase access:relationships:sweep
 palbase access:history --object product:10
 ```
+
+`access:subjects` says on a line of its own when the name is open to every signed-in user or to everyone, and `access:relationships:list` shows each relationship's end.
 
 Each takes `--db` or `--url` as `access:schema:set` does. A change is written to the history as `cli:<your email>` unless `--by` says otherwise. The [CLI reference](https://palbase.studio/docs/cli/reference#palbase-accessschemaset) has every flag.

@@ -187,7 +187,7 @@ Start a Next.js app and give it the web SDK:
 ```json
 {
   "dependencies": {
-    "palbase": "^0.54.0",
+    "palbase": "^0.58.0",
     "next": "^16.3.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
@@ -315,7 +315,7 @@ notes-backend/
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.54.0"
+    "palbase": "^0.58.0"
   }
 }
 ```
@@ -900,7 +900,7 @@ These are the shapes a code assistant reaches for by default. Every one is wrong
 
 ## Give this to your agent
 
-For the full reference — every decorator, every module call, every schema builder — point your coding assistant at **`/llms.txt`**, the index of these docs, or **`/llms-backend.txt`**, the slice for writing a backend: getting started, the backend SDK, the server SDK and machines, in one file. Assistants fetch those when you name them; they do not go looking.
+For the full reference — every decorator, every module call, every schema builder — point your coding assistant at **`/llms.txt`**, the index of these docs (it names every page; what each page of a section covers is in that section's own index, `/llms/<section>.txt`, linked from it), or **`/llms-backend.txt`**, the slice for writing a backend: getting started, the backend SDK, the server SDK and machines, in one file. Assistants fetch those when you name them; they do not go looking.
 
 ## Related
 
@@ -1060,7 +1060,7 @@ An app with no database has no `src/db/`, and no `db` in its config.
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.54.0"
+    "palbase": "^0.58.0"
   }
 }
 ```
@@ -1296,9 +1296,15 @@ It stops working when it expires, when it is revoked (`DELETE /v1/environments/{
 Each project is billed on its own, by the calendar month (UTC): it has one plan and one free quota, and its environments — production, staging, a preview's — use them together, as one project does on Firebase. What it owes is charged to a **payment account** — an organization's cards and billing details — which pays for every organization linked to it: its own, and others its owners or admins link to it. Nothing is paid ahead. Each project is on one of two plans:
 
 - **Free**: charged nothing. Every item has a free quota each month, the project's environments together, and past it they are slowed or stopped ([Usage & Limits](/docs/getting-started/usage-and-limits#what-a-free-project-gets)); its machines and databases are of the free sizes. Every project starts on Free. Until the organization is paid for by a payment account that has paid a charge, a person opens at most 2 projects of 2 environments each — one deleted counts until the month is out, so deleting and opening again brings no new month of free quotas — and a Free project is opened by a person, not an organization's access token. An [account token](/docs/cloud/overview#an-organization-for-each-customer-account-tokens) opens 2 projects of 2 environments in each organization it opened, counted to that organization alone.
-- **Pay as you go**: an owner or an admin moves the project there, while a payment account with a card pays for its organization — never on its own. What its environments use past its free quota is priced and owed to that account as it is used; every environment of it — one opened later too — may open every size of machine and database. There is no monthly fee.
+- **Pay as you go**: an owner or an admin moves the project there, while a payment account with a card pays for its organization — never on its own; in an [organization not billed](#an-organization-not-billed), with neither. What its environments use past its free quota is priced and owed to that account as it is used; every environment of it — one opened later too — may open every size of machine and database. There is no monthly fee.
 
 When a project's month reaches its limit, only it falls back to the free quotas; the organization's other projects go on. Deleting an environment gives its project no free quota back: what it used that month stays the project's. The prices, the free quotas and the terms are on the [billing terms](https://palbase.studio/legal/billing) page.
+
+## An organization not billed
+
+An organization Palbase agreed not to bill — a platform's own, holding its customers' apps as its projects — shows **Not billed** on its Billing page. Its projects open Free, as every project does, and are held to the free quotas and sizes as any Free project is; the limit of 2 projects is not its. An owner or an admin, or its admin access token, moves one to **Pay as you go** with no payment account and no card: it then may open every size of machine and database, and what it uses is priced as anywhere — each project's month past its free quota, on **Usage** and in its CSV — and charged to no one. Its monthly limit holds nothing: its owners and admins are emailed as the month nears it and when it passes it. Moved back to Free, its machines and databases of a paid size stop and its data is kept.
+
+A platform opens each customer's project Free, moves it to Pay as you go when that customer pays it, and bills each customer from the CSV ([Your customers' projects in an organization not billed](/docs/cloud/overview#your-customers-projects-in-an-organization-not-billed)).
 
 ## Opening a payment account
 
@@ -1775,9 +1781,9 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.54.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.58.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-476 commands in 36 groups.
+480 commands in 36 groups.
 
 ## Global flags
 
@@ -2213,7 +2219,7 @@ palbase billing:project [-P <project>] [--plan free|pay_as_you_go] [--limit <usd
 With no flag it shows the project: its plan, limit and month, item by item, and what each of its environments used.
 A project is billed as one: its environments' usage together, past its one free quota. Pay as you go: what it uses past its free quota is owed to the payment account that pays for its organization (palbase billing:payer), charged at the month's end and as it comes to the account's threshold — and every environment of it, a new one too, has the paid sizes. A project is moved to it only while its organization is paid for by an account with a card.
 At its limit it is Free until the month ends; the organization's other projects go on.
-A project of an organization that is not billed is priced and billed to no one: its limit holds nothing — its owners and admins are emailed as its month nears it and when it passes it.
+In an organization that is not billed a project starts Free too, held to the free quotas, and is moved to Pay as you go with no payment account and no card: it is then priced and billed to no one, with the paid sizes, and its limit holds nothing — its owners and admins are emailed as its month nears it and when it passes it.
 
 ```text
       --plan <free|pay_as_you_go>  Free (charged nothing, held to the free quotas) or Pay as you go (what its environments use past its free quota is charged)
@@ -2726,6 +2732,34 @@ Let a banned user sign in again
 ```sh
 palbase auth:users:unban <user-id>
 ```
+
+### `palbase auth:users:roles:list`
+
+The roles a user holds
+
+```sh
+palbase auth:users:roles:list <user-id>
+```
+
+### `palbase auth:users:roles:grant`
+
+Give a user a role of the environment; giving one they hold changes nothing
+
+```sh
+palbase auth:users:roles:grant <user-id> <role>
+```
+
+Roles are the environment's: palbase auth:roles:list names them, palbase auth:roles:set makes one. What the user's next token carries follows at once.
+
+### `palbase auth:users:roles:revoke`
+
+Take a role back from a user; taking one they do not hold changes nothing
+
+```sh
+palbase auth:users:roles:revoke <user-id> <role>
+```
+
+Roles are the environment's: palbase auth:roles:list names them, palbase auth:roles:set makes one. What the user's next token carries follows at once.
 
 ### `palbase auth:users:sign-out`
 
@@ -7996,7 +8030,9 @@ palbase access:test <file>
 ```
 
 The file is JSON: the schema it is about ("schema": a path beside it, or "schema_text"), rows ("tables"), relationships ("type:id#relation@user:id") and what is expected ("expect").
+A relationship for everyone is written `"type:id#relation@user:*"` (every signed-in user) or "@public"; one that ends, { "is": "type:id#relation@user:id", "until": "2026-12-01T00:00:00Z" } — and "now" is the moment the file is asked at.
 An expectation is { subject, can / cannot, on: "type:id" }, { subject, holds, of: "type", exactly: [ids] } or { who: "permission", on: "type:id", exactly: [subjects] }.
+"visitor": true stands in place of "subject" for somebody who has not signed in; { open: "permission", on: "type:id", to: "public" | "users" | "visitors" | "nobody" } expects how wide a name is open.
 Run it in CI before a schema is deployed: a change that opens or closes something nobody meant fails there.
 
 ### `palbase access:check`
@@ -8029,11 +8065,14 @@ palbase access:objects <subject> <permission> <type> [--url <postgres-url> | --d
 
 ### `palbase access:subjects`
 
-The subjects that hold a relation or a permission on an object
+The subjects that hold a relation or a permission on an object — and whether it is open to everyone
 
 ```sh
 palbase access:subjects <permission> <type:id> [--url <postgres-url> | --db <name>]
 ```
+
+The subjects are those something names: a relationship of their own, a column, a group they are in.
+What is open to everyone names nobody, and is said on a line of its own: to every signed-in user (`user:*`), to everyone, signed in or not (public) — or to who has not signed in alone, where the schema takes it from every signed-in user.
 
 ```text
       --url <postgres-url>  a database of your own (a local Postgres), by its address
@@ -8049,12 +8088,13 @@ palbase access:relationships:list [--object <type:id>] [--subject <user:id>] [--
 ```
 
 Only what is given and taken through access is listed; a relation the schema reads from a column of a table is that table's row.
+One given until a moment is listed with it, until it has ended: what has ended is in the history (access:history).
 
 ```text
       --url <postgres-url>  a database of your own (a local Postgres), by its address
       --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
       --object <type:id>    of this object (or of every object of a type: type:*)
-      --subject <user:id>   given to this subject (user:<id>, or an object: <type>:<id>)
+      --subject <user:id>   given to this subject (user:<id>, an object <type>:<id>, user:* or public)
       --relation <name>     of this relation
       --limit <n>           at most this many (default 100, at most 1000)
 ```
@@ -8064,15 +8104,19 @@ Only what is given and taken through access is listed; a relation the schema rea
 Gives a subject a relation on an object
 
 ```sh
-palbase access:relationships:grant <type:id> <relation> <user:id | type:id> [--by <who>] [--url <postgres-url> | --db <name>]
+palbase access:relationships:grant <type:id> <relation> <user:id | type:id | user:* | public> [--until <when>] [--by <who>] [--url <postgres-url> | --db <name>]
 ```
 
 The object must be there (its row, where its type has a table), and the relation one the schema keeps and gives to that kind of subject.
+`user:*` gives it to every signed-in user and public to everyone, signed in or not — one relationship, where the schema says the relation takes them (relation viewer: user | `user:*` | public).
+--until gives it until a moment: a length of time from now (90s, 30m, 12h, 30d, 2w) or the moment itself (2026-12-01T00:00:00Z). It stops holding at that moment by itself, and the history says so.
+Given again while it is held, it takes the end said now — none, without --until.
 The history records it, with who did it: --by, or `cli:<your email>`.
 
 ```text
       --url <postgres-url>  a database of your own (a local Postgres), by its address
       --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --until <when>        the moment it ends: from now (90s, 30m, 12h, 30d, 2w) or a moment (2026-12-01T00:00:00Z)
       --by <who>            who the history says did it (default cli:<your email>)
 ```
 
@@ -8081,10 +8125,11 @@ The history records it, with who did it: --by, or `cli:<your email>`.
 Takes a relation on an object away from a subject
 
 ```sh
-palbase access:relationships:revoke <type:id> <relation> <user:id | type:id> [--by <who>] [--url <postgres-url> | --db <name>]
+palbase access:relationships:revoke <type:id> <relation> <user:id | type:id | user:* | public> [--by <who>] [--url <postgres-url> | --db <name>]
 ```
 
 What is taken stops holding with the statement that takes it.
+`user:*` and public take back what was given to everyone; what somebody holds by name stays theirs.
 The history records it, with who did it: --by, or `cli:<your email>`.
 
 ```text
@@ -8093,19 +8138,38 @@ The history records it, with who did it: --by, or `cli:<your email>`.
       --by <who>            who the history says did it (default cli:<your email>)
 ```
 
+### `palbase access:relationships:sweep`
+
+Removes the relationships whose time has passed: nothing reads them, and each is told in the history as it ended
+
+```sh
+palbase access:relationships:sweep [--limit <n>] [--url <postgres-url> | --db <name>]
+```
+
+A relationship given until a moment stops holding at that moment by itself; its row stays until it is given again or taken, something is given on its object, or this runs. No answer is another before and after.
+It takes --limit at most (default and most: 10000), the longest ended first, and says how many went: run it again while it says the limit. In SQL: SELECT access.sweep().
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --limit <n>           at most this many (default 10000, at most 10000)
+```
+
 ### `palbase access:history`
 
-Who gave and took which relationship, and when: the newest first
+Who gave and took which relationship, which ended by itself, and when: the newest first
 
 ```sh
 palbase access:history [--object <type:id>] [--subject <user:id>] [--relation <name>] [--limit <n>] [--url <postgres-url> | --db <name>]
 ```
 
+A relationship given until a moment is told with its end, and told again — "ended" — at the moment it stopped holding.
+
 ```text
       --url <postgres-url>  a database of your own (a local Postgres), by its address
       --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
       --object <type:id>    of this object (or of every object of a type: type:*)
-      --subject <user:id>   given to this subject (user:<id>, or an object: <type>:<id>)
+      --subject <user:id>   given to this subject (user:<id>, an object <type>:<id>, user:* or public)
       --relation <name>     of this relation
       --limit <n>           at most this many (default 100, at most 1000)
 ```
@@ -16365,6 +16429,51 @@ describe("NotesService", () => {
 
 `fakeDatabase()` answers the engine's operations with the engine's filters and refusals: `seed(table, rows)` puts rows in, `inserted`, `updated` and `deleted` say what the code wrote, and raw SQL is recorded in `queries`, not run. What it cannot answer as Postgres would — a unique key, a relation, a cursor, search, an `$atomic`'s isolation — it refuses by name. It has no schema (no column's default, type or constraint is applied), it reads text of digits as the number it spells, it gives rows in the order they were written unless `orderBy` says otherwise, and there is no row-level security. What depends on those is tested against the app over HTTP, or against a Postgres of your own (below).
 
+### An access schema in memory: `fakeDatabase({ access })`
+
+Given the app's [access schema](/docs/access/backend) as text, the database in memory answers `Database.$access` as well. The relationships a test gives are kept beside the rows it seeded, and each question is answered by the schema itself — the evaluator the database's compiled SQL is held to — over the rows as they are when it is asked:
+
+```ts
+// tests/push.test.ts
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "bun:test";
+import { Database } from "palbase/backend";
+import { fakeDatabase, withServices } from "palbase/backend/test";
+
+const schema = readFileSync(new URL("../src/db/access.schema", import.meta.url), "utf8");
+
+/** What a handler asks before it lets a push through. */
+const mayPush = (productId: number) => Database.$access.can("code.write", { type: "product", id: productId });
+
+describe("pushing code", () => {
+  it("is a developer's of that product, and nobody else's", async () => {
+    const db = fakeDatabase({ access: schema, user: "una" });
+    db.seed("companies", [{ id: 1, name: "C" }]);
+    db.seed("products", [
+      { id: 10, company_id: 1, name: "A" },
+      { id: 11, company_id: 1, name: "B" },
+    ]);
+    await db.db.$asService().$access.grant({ type: "product", id: 11 }, "developer", "una");
+
+    expect(await withServices({ Database: db.raw }, () => mayPush(11))).toBe(true);
+    expect(await withServices({ Database: db.raw }, () => mayPush(10))).toBe(false);
+
+    db.signedInAs("tess");
+    expect(await withServices({ Database: db.raw }, () => mayPush(11))).toBe(false);
+  });
+});
+```
+
+- `user` is the caller — whom `can`, `objects` and `held` are about; `signedInAs(id)` changes it, and with nobody signed in (`signedInAs()`) the caller is a visitor: what the schema opens to the [`public`](/docs/access/open) is theirs, and nothing else. What names a subject or changes who holds what (`check`, `subjects`, `grant`, `revoke`, `history` …) is `$asService()`'s, as in a request, and is refused elsewhere the same way.
+- A row that is deleted takes its relationships, and a savepoint that fails puts back what it gave, as in the database. A relation read from a column is read from the seeded rows.
+- A relationship given [`until`](/docs/access/expiring) a moment ends by the test's clock (`Date.now()`): move it with your runner's fake timers and ask again. The database ends it by its own clock. What has ended is kept until it is swept, given again or taken, as in the database: `sweep()` answers the same count.
+- The fake knows no column types: a column is an integer when the rows' values are whole numbers, a numeric when a fraction is among them, a uuid when they are spelled as one, text otherwise — so a text key whose every value is spelled as a uuid is matched whatever its letters' case, where the database's text is not. An object's key is `id` unless the schema names another (`table tickets key code`).
+- A key changed in place carries the row's relationships in the database; in memory they go with the old key. Delete the row and write it again in a test that needs the move.
+- The surface is a request's. Code that runs with no request — a job, an event's handler — acts as the service in production; written as `Database.$asService().$access` it does the same there, and is what a test reaches. With no `by` and nobody signed in, a relationship's history names nobody (the database writes its login).
+- Nothing is planned and nothing is bounded here — the limits, row policies and what a migration does to the schema are the database's, tested against Postgres.
+
+Without `access`, the database in memory refuses an access question and says how to give it the schema.
+
 ## Over HTTP: `api`, as test users
 
 `api` calls the app under test where the run says it answers (`PALBASE_TEST_BASE_URL`), as the test users the run made for it (`PALBASE_TEST_IDENTITIES`, each with its access token). `testRun.stack` says whether an app answers: an HTTP test skips itself where none does, so `bun test` passes on a computer with no app started.
@@ -16705,7 +16814,7 @@ The web SDK is `palbase/web`, a part of the npm package `palbase`: `npm install 
 ```json
 {
   "dependencies": {
-    "palbase": "^0.54.0"
+    "palbase": "^0.58.0"
   }
 }
 ```
@@ -25469,6 +25578,25 @@ const { data: month } = await cloud.billing.report({ path: { id: process.env.PAL
 for (const org of month.organizations) console.log(org.name, org.owed_micros / 1_000_000);
 ```
 
+### Your customers' projects in an organization not billed
+
+When Palbase agreed not to bill your organization (its Billing page says **Not billed**), keep each customer's project in it and bill them yourself: each opens Free, held to the free quotas and sizes, and no limit of 2 holds it. When a customer pays you, your server moves their project to Pay as you go with the organization's admin access token (`pbo_…`) — no payment account, no card: it may then open every size of machine and database, and its month is priced as anywhere and charged to no one. The organization's CSV (`cloud.billing.csv`) gives each project's month, past its free quota — what you bill that customer by. When they stop paying you, move it back to Free: its machines and databases of a paid size stop, and its data is kept.
+
+```ts
+// customers.ts — in your organization not billed
+import { PalbaseCloud } from "palbase/cloud";
+
+const cloud = new PalbaseCloud({ token: process.env.PALBASE_ORG_TOKEN! });
+const org = process.env.PALBASE_ORG_ID!;
+
+// A new customer's project: Free.
+const { data: made } = await cloud.projects.create({ path: { id: org }, body: { name: "Customer 1042" } });
+
+// They paid you: Pay as you go, no card. Stopped paying: back to Free.
+await cloud.billing.steer({ path: { id: org, project: made.project.id }, body: { plan: "pay_as_you_go" } });
+await cloud.billing.steer({ path: { id: org, project: made.project.id }, body: { plan: "free" } });
+```
+
 ## Quick example
 
 ```ts
@@ -26122,22 +26250,33 @@ palbase auth:roles:delete editor --force
 - `--default yes` gives the role to every new user, however the account is made: a sign-up with a password, a provider (Google, Apple …), a phone code or a passkey, a guest, an account made in Studio or with `POST /admin/users`, an invitation, a [test user](/docs/backend/test-users), an import. It is theirs from the account's first answer (`user.roles`), and `user.permissions_changed` says so. One role at most is the default; the users who were there before it keep what they hold.
 - A role users hold is deleted only with `--force`, which takes it from them; without it the answer is `409`.
 
-There is no CLI command that gives a user a role: that is your app's decision, made from your server.
+A role is given to a user, and taken back, from three places:
+
+```sh
+palbase auth:users:roles:grant usr_2f9c editor     # says whether they hold it now, and every role they hold
+palbase auth:users:roles:revoke usr_2f9c editor
+palbase auth:users:roles:list usr_2f9c
+```
+
+- **In Studio**, on the user's page (**Authentication › Users**, the user): **Roles** lists what the account holds; **Give role** offers the environment's other roles, **Remove** takes one back after a confirmation. Giving and taking are an admin's of the organization; a member sees what is held.
+- **From your server**, where the app decides it — a sign-up that makes someone staff, an approval:
 
 | Admin call | What it does |
 |---|---|
 | `PUT /admin/users/{uid}/roles/{role}` | Gives the user the role. A role that is not defined is `400 role_not_defined`. |
 | `DELETE /admin/users/{uid}/roles/{role}` | Takes it from them. |
-| `GET /admin/users/{uid}/roles` | The roles they hold. |
+| `GET /admin/users/{uid}/roles` | The roles they hold; `404 user_not_found` for a user the project does not have. |
 | `PUT /admin/roles/{name}`, `DELETE /admin/roles/{name}` | What `auth:roles:set` and `auth:roles:delete` call. |
 
 ### Who defines and gives them
 
 | Who | A development environment | A production environment |
 |---|---|---|
-| A person, signed in to the CLI (`palbase auth:roles:set`) | Yes | Yes |
+| An admin or the owner of the organization, signed in to the CLI (`palbase auth:roles:set`, `palbase auth:users:roles:grant`) or to Studio (a user's **Roles**) | Yes | Yes |
+| An admin [access token](/docs/getting-started/access-tokens) of the organization (`pbo_…`, a CI job's `PALBASE_TOKEN`) | Yes | Yes |
+| A member of the organization, or a member access token | No: `403 console_role_required` — they read the roles and who holds them | No, the same |
 | The app's backend, with its secret key (`Palbase.auth.adminAssignUserRole`, [Authentication](/docs/backend/authentication#roles)) | Yes | Yes |
-| An environment's token: an agent's, a CI job's ([Access Tokens](/docs/getting-started/access-tokens#what-no-environment-token-can-do)) | Yes, as its minter's role allows | No: `403 token_out_of_scope` |
+| An environment token (`pbe_…`): an agent's ([Access Tokens](/docs/getting-started/access-tokens#what-no-environment-token-can-do)) | Yes, as its minter's role allows | No: `403 token_out_of_scope` |
 
 An agent that builds the app sets up its roles where the app is built: in a development environment its token runs `palbase auth:roles:set customer --default yes`, and gives a test user another role with `PUT /admin/users/{uid}/roles/staff` — or makes the user with a [test user template](/docs/backend/test-users#a-template-can-give-the-user-a-role) that gives it. In a production environment — and in one not known to be a development environment: of no Studio project — the same calls answer `403 token_out_of_scope`, saying what does them there: a person, signed in; the backend's own code, with its secret key; or the default role, which every new user gets. A test user the token makes in production holds the default role too, as every new account does: what a default role lets a person do, give it to anyone who signs up. A token narrowed with `--scope` reaches roles in neither.
 
@@ -26812,7 +26951,7 @@ In your project's database, as views and functions the schema is compiled to. Th
 
 **In a `palbase/backend` app** the schema is a file beside your tables. It is migrated with them, a row policy names a permission with `p.can("view")`, and handlers ask through `Database.$access`, typed by the schema's own names. That is [Access in a Backend](/docs/access/backend).
 
-**From any backend, in any language**, the schema goes into a database of the project from the command line, and your code asks in SQL — through whatever driver or ORM it already uses. Nothing of Palbase's is installed in the app. That is [Access from SQL](/docs/access/sql), and it is also the way in for a system that already has its tables and its users: [Moving an Existing System](/docs/access/moving-in).
+**From any backend, in any language**, the schema goes into a database of the project from the command line, and your code asks in SQL — through whatever driver or ORM it already uses. Nothing of Palbase's is installed in the app. That is [Access from SQL](/docs/access/sql), and it is also the way in for a system that already has its tables and its users: [Moving an Existing System](/docs/access/moving-in). A system whose rows stay in a database of its own uses the same functions with a schema that names no table: [When Your Data Is Elsewhere](/docs/access/elsewhere).
 
 Both speak the same schema language ([The Access Schema](/docs/access/schema)) and keep relationships the same way. A database's schema has one owner, though: its `palbase/backend` app's deploys carry it, or the command line puts it in — neither replaces the other's.
 
@@ -26831,8 +26970,12 @@ A schema is a rule about who sees what, and a rule that is widened by mistake is
 - [The Access Schema](/docs/access/schema): types, relations kept or read from a column, permissions and how they combine, row rules, and the limits.
 - [Access in a Backend](/docs/access/backend): `db.access`, `p.can()`, `Database.$access`, types, migrations, and deleted users.
 - [Access from SQL](/docs/access/sql): putting a schema into a database, the functions and views, who may call what, and using it from an ORM.
+- [Open to Everyone](/docs/access/open): an object every signed-in user holds something on, or everyone does — `user:*` and `public`, a visitor's requests, and how wide a name is open.
+- [Until a Moment](/docs/access/expiring): a relationship that ends by itself — a contractor for thirty days, a link until Friday.
+- [Nested Objects](/docs/access/nested): a folder in a folder, a team in teams — a permission on one holds on everything inside it.
 - [Testing a Schema](/docs/access/testing): the validation file and `palbase access:test`.
 - [Moving an Existing System](/docs/access/moving-in): from a roles table of your own to relationships, without a day when both are wrong.
+- [When Your Data Is Elsewhere](/docs/access/elsewhere): the rows stay in your own database; Palbase keeps who is what of which object, and what is then yours to keep in step.
 
 
 
@@ -26903,7 +27046,7 @@ What cannot carry a type: a view, a foreign table, a partitioned table or one of
 
 ## `relation`
 
-A relation is something a subject **is** to an object. There are two kinds, told apart by `from`.
+A relation is something a subject **is** to an object. It is kept, read from a column of the object's row (`from`), or true of everyone on the rows a condition picks (`where`, with no `from`).
 
 ### Kept: given and taken
 
@@ -26916,6 +27059,16 @@ A relation is something a subject **is** to an object. There are two kinds, told
 A relationship of a kept relation is a fact Palbase stores — *una is designer of product 10* — given and taken through the API ([`grant` and `revoke`](/docs/access/backend#giving-and-taking)). After the colon is what can hold it: `user`, one or more types, or both, separated by `|`. Several relations that take the same subjects share a line.
 
 A relation that takes a **type** is not held by any user directly. It links two objects — *team blue is the squad of product 10* — and a permission follows it with an [arrow](#arrows-through-a-relation).
+
+Two more subjects stand for everyone of a kind, and a relation takes them only where it says so:
+
+```text
+  relation viewer: user | user:* | public
+```
+
+`user:*` is every signed-in user and `public` everyone, signed in or not — one relationship opens the object to all of them ([Open to Everyone](/docs/access/open)). A relation that does not name them is never given to everyone.
+
+A relationship is kept for good, or [until a moment](/docs/access/expiring): given with an end, it stops holding at that moment by itself.
 
 ### Read: from a column
 
@@ -26941,6 +27094,15 @@ The column holds a user's id (`: user from …` — text, a uuid or an integer) 
 A condition that is unknown — a comparison with a null — is not true, as in SQL: the relationship is not there.
 
 The same column can be read twice under different conditions. Above, a session's `product` is always its product, and its `team` is its product *only while the session is not private* — which is how "everyone who sees the product sees its open sessions, and a private one is its creator's and its members'" is said in one line.
+
+### Read: from the row, for everyone
+
+```text
+  relation listed: public where published = true
+  relation internal: user:* where state != 'draft'
+```
+
+With no `from`, no column names who: the relation holds for **everyone** — `public`, or every signed-in user with `user:*` — on each row the `where` picks. Publish the row and it is open; there is nothing to give or take. One relation a line, on a type that has a table; the `where` is written as above. See [Open to Everyone](/docs/access/open).
 
 ## `permission`
 
@@ -26977,7 +27139,7 @@ Two different operators in one expression need parentheses — `a + b & c` is re
 
 An arrow is how a role on something large reaches everything inside it without a relationship for each: one `owner` on a company is `code.write` on every product of it, today's and tomorrow's.
 
-Arrows chain through types, not through one type into itself. `session → product → company` is three levels and any number more is fine. A type that contains itself — a folder in a folder, to any depth — is not supported: a permission that reaches itself through its own type is refused when the schema is read.
+Arrows chain through types: `session → product → company` is three levels and any number more is fine. A type that contains itself — a folder in a folder, a team in teams — derives a permission from itself one level up, `view = viewer + parent->view`, with `depth N` saying how many levels there may be: [Nested Objects](/docs/access/nested). Two types derived from each other, round and back, are refused when the schema is read.
 
 ## `rows`
 
@@ -26989,7 +27151,7 @@ type product
   rows update, delete: code.write
 ```
 
-For a database that is **not** migrated by a `palbase/backend` app: makes the type's permission the table's row policy for the commands named (`select`, `insert`, `update`, `delete`), for the `authenticated` role, and turns row-level security on for the table. A signed-in user's `SELECT * FROM products` then returns the products they hold `view` on, whatever wrote the query. See [Access from SQL](/docs/access/sql#row-policies).
+For a database that is **not** migrated by a `palbase/backend` app: makes the type's permission the table's row policy for the commands named (`select`, `insert`, `update`, `delete`), for the `authenticated` role — and for `anon` too where [the public can hold](/docs/access/open) the permission — and turns row-level security on for the table. A signed-in user's `SELECT * FROM products` then returns the products they hold `view` on, whatever wrote the query. See [Access from SQL](/docs/access/sql#row-policies).
 
 In a `palbase/backend` app the tables' policies are written with the tables, and a schema with `rows` is refused: say [`p.can("view")`](/docs/access/backend#a-policy-names-a-permission) in the table's `policies` instead, where it can stand beside the table's other conditions.
 
@@ -26997,10 +27159,11 @@ In a `palbase/backend` app the tables' policies are written with the tables, and
 
 - **A relation holds** for a subject on an object when the relationship is kept (`product:10 designer user:una`), or the row's column says so.
 - **A permission holds** when its expression is true, each name in it asked of the same subject and object, each arrow of the objects the relation leads to.
-- **Nothing holds on an object that does not exist**, and nobody holds anything while nobody is signed in.
+- **Nothing holds on an object that does not exist.** While nobody is signed in, the asker is a visitor: they hold what the `public` holds, and nothing else.
+- **A relationship that has ended does not hold**, from the first statement that starts after its moment.
 - **Ids are compared as the key compares them**: a uuid in either case is the same uuid, `07` and `7` are the same integer, and text is compared exactly. A user's id in a kept relationship is text, compared exactly: give it as your sign-in writes it.
 
-"Who holds this on that object" is answered from the subjects the permission's own relations name there — each then asked — so the list is exact, and bounded by how many subjects are related to the object.
+"Who holds this on that object" is answered from the subjects the permission's own relations name there — each then asked — so the list is exact, and bounded by how many subjects are related to the object. What is everyone's names nobody: it is not in the list, and is asked as [how wide the name is open](/docs/access/open#how-wide-is-it-open).
 
 ## What is refused, and when
 
@@ -27028,13 +27191,15 @@ Against the database it is also held to the tables as they are: every table and 
 | What the database spends planning one name, measured when the schema is put in | 96 MB and 100 ms |
 | Terms the whole schema comes to, written out | 25,000 |
 | Permissions derived from one another, in a chain | 16 |
+| Levels of a [nested type](/docs/access/nested) (`depth`) | 32 — 16 when not said |
+| Objects of its type one object nested by relationships is in | 32 |
 | An id | 256 characters |
 | The schema's text | 256 KiB |
 
 Four of these are the ones a real schema can meet.
 
 - **Relations written out.** Permissions that name each other through several paths multiply. Say the shared part once, as a permission of its own, and name that.
-- **Lookups planned.** A permission read through another type's — `company->view` — is planned by the database with that permission's whole definition inside it, twice over through a relation read from a column and four times over through a kept one. Each level multiplies: a chain org → company → product → session → record, read from columns, is 133 lookups — about 19 MB of the database's memory and 7.5 ms to plan, on every statement it guards. Past 300, read fewer levels deep through other types' permissions, or through relations read from columns rather than kept ones.
+- **Lookups planned.** A kept relation is a lookup for each way it can be held — `viewer: user | user:* | public` is three — and a permission read through another type's — `company->view` — is planned by the database with that permission's whole definition inside it, twice over through a relation read from a column and four times over through a kept one. Each level multiplies: a chain org → company → product → session → record, read from columns, is 133 lookups — about 19 MB of the database's memory and 7.5 ms to plan, on every statement it guards. Past 300, read fewer levels deep through other types' permissions, or through relations read from columns rather than kept ones.
 - **Indexes on a type's table.** The database reads every index of a table each time a lookup reads it, and the cost grows faster than their number: the same chain plans in 5 ms on tables with their key alone, 10 ms with 150 indexes on each, 46 ms with 300 and 169 ms with 600. A table with more than 150 is refused as a type's table when the schema is put in. Up to that, and however many columns the tables have, a permission costs at most about two and a half times what it does on bare tables: the chain on tables of 1,500 columns with 150 indexes each plans in 12 ms and 24 MB.
 - **What planning takes.** What an index carries — a partial index's predicate, an index's expressions — and a table's statistics, and the indexes of `access.relationships`, are planned with every lookup that reads them. So the database itself is asked: each name's view is planned (not run) when the schema is put in, smallest first, and the schema is refused past 96 MB or 100 ms for one name, by name — a name the smaller ones show would be far past is refused without being planned. It is asked again each time the schema is put in, the same one too: by `access:schema:set`, and at every deploy of an app that carries its schema, so an index made since is found at the next.
   - The bound is per statement on a type's table: a name is planned once for each place the table's policies read it, and the places add up. An `UPDATE` under `rows select, update: view` reads `view` in three places — the rows it reads, its `USING` and its `WITH CHECK` — and is counted as three plans of it (Postgres plans it about twice: the count leaves room), held to the bound together, as is a policy that names several permissions; an upsert (`INSERT … ON CONFLICT DO UPDATE`) adds the `INSERT`'s check to the `UPDATE`'s.
@@ -27148,7 +27313,7 @@ export const sessions = defineTable("sessions", {
 - In `withCheck`, it judges the row being written. A permission that goes through a column — `permission add = product->view` on the session type — asks what the writer holds on the product the **new** row names, so *whoever sees a product may start a session in it* is one line.
 - It stands beside the table's other conditions with `p.and(…)` and `p.or(…)`.
 - The table must be a type's table in the schema, and the type must have the name: anything else is refused when the migration is planned, by name.
-- The policy is for `authenticated` (the default) or `service_role`. One for `anon` is refused: a permission answers for a signed-in user.
+- The policy is for `authenticated` (the default) or `service_role` — and for `anon` too where the [public can hold](/docs/access/open#a-visitor) every name it reads. One for `anon` that reads a name nothing opens to the public is refused, by name: a visitor's statement would fail on it.
 
 A list filtered this way is not checked row by row. The permission compiles to a set the database joins against, and the columns it reads are indexed like any column a policy reads.
 
@@ -27176,7 +27341,7 @@ export class ProductsController {
 }
 ```
 
-`can`, `objects` and `held` are about **the request's caller** — the access token's `sub` — and run on the request's own transaction, so they see what the request has written. With nobody signed in (a route with `auth: false`) the answer is no, and the database is not asked.
+`can`, `objects` and `held` are about **the request's caller** — the access token's `sub` — and run on the request's own transaction, so they see what the request has written. With nobody signed in (a route with `auth: false`) the caller is a visitor: they hold what the schema opens to the [`public`](/docs/access/open), and a name the public cannot hold is answered no without the database being asked.
 
 | | Answers |
 |---|---|
@@ -27225,11 +27390,13 @@ export class PeopleController {
 |---|---|
 | `check(user, name, object)` | whether that user holds it |
 | `objectsOf(user, name, type)` | the objects that user holds it on |
-| `subjects(name, object)` | the users who hold it on the object, sorted |
-| `grant(object, relation, subject, { by? })` | gives the relationship; `false` when it was already there |
+| `subjects(name, object)` | the users who hold it on the object by name, sorted |
+| `openTo(name, object)` | how wide it is open there: `"public"`, `"users"` (every signed-in user), `"visitors"` (who has not signed in, alone) or `null` |
+| `grant(object, relation, subject, { by?, until? })` | gives the relationship — for good, or `until` a moment; `false` when it was already there |
 | `revoke(object, relation, subject, { by? })` | takes it; `false` when it was not there |
-| `relationships(filter?)` | what is kept: `{ object, relation, subject, since }` |
-| `history(filter?)` | what was given and taken, the latest first: `{ at, action, object, relation, subject, by }` |
+| `relationships(filter?)` | what is kept and has not ended: `{ object, relation, subject, since, until }` |
+| `history(filter?)` | what was given, taken and ended, the latest first: `{ at, action, object, relation, subject, by, until }` |
+| `sweep({ limit? })` | removes relationships whose time has passed — nothing reads them — and answers how many went |
 
 On `$asService()`, `can`, `objects` and `held` are still about the request's caller: the service's transaction carries the caller's token.
 
@@ -27257,6 +27424,8 @@ export async function examples(): Promise<void> {
 - Every change is written to the history with who did it: `by` when you say it, else the request's user, else the database login.
 - It is written in the service role's own transaction, which commits with the request — after the caller's own, and apart from it. A change that must stand or fall with other writes is made beside them, on the same `$asService()`.
 - A relation that takes objects is given the same way: `grant({ type: "product", id: 10 }, "squad", { type: "team", id: "blue" })`.
+- One that takes everyone is given to `{ everyUser: true }` — every signed-in user — or `{ public: true }`: [Open to Everyone](/docs/access/open). Never by an id: `"*"` is refused as one, bare or as `{ user: "*" }`.
+- `{ until }` — a `Date`, or ISO 8601 text — gives it until that moment: [Until a Moment](/docs/access/expiring).
 
 `relationships` and `history` take a filter — `{ object: { type, id? }, relation?, subject?, limit? }`, 100 rows unless `limit` says otherwise, 1,000 at most.
 
@@ -27268,13 +27437,15 @@ export async function examples(): Promise<void> {
 |---|---|
 | `unknown_type`, `unknown_name` | the schema has no such type, or the type no such relation or permission a user can hold |
 | `not_kept` | the relation is not one relationships are kept of, or does not take that kind of subject |
-| `bad_id` | an id that is empty, longer than 256 characters, or not a string or whole number |
+| `bad_id` | an id that is empty, longer than 256 characters, or not a string or whole number — or `"*"`, which is nobody's id |
+| `bad_time` | `until` is no moment, or one that has passed |
 | `not_the_service` | an operation of the service role's, called on the caller's `Database.$access` |
 | `no_schema` | the app declares no access schema |
 | `no_object` | `grant` on an object that does not exist |
 | `too_many` | `subjects` on an object more than 10,000 subjects, or more than 10,000 objects through kept relations, are related to — or subjects × objects past 1,000,000: ask `check` instead |
+| `cycle`, `too_deep`, `too_many_parents` | `grant` would put an object of a [nested type](/docs/access/nested) inside itself, deeper than its `depth`, or in a 33rd of its type |
 
-All but the last two are decided by the schema alone and thrown **before anything is sent**, so a wrong name does not end the request's transaction. They are mistakes of the code, not answers for a client: left to reach it, the request answers `500`. A name that comes from a request is checked against your own list first — the `z.enum([...])` above.
+All but `no_object`, `too_many` and the three of a nested type are decided before the database is asked and thrown **before anything is sent**, so a wrong name does not end the request's transaction. They are mistakes of the code, not answers for a client: left to reach it, the request answers `500`. A name that comes from a request is checked against your own list first — the `z.enum([...])` above.
 
 ## The names, typed
 
@@ -27313,7 +27484,7 @@ An app with an access schema hears [`user.deleted`](/docs/backend/hooks) without
 
 ## Testing
 
-`palbase access:test` holds the schema file to the answers you expect, without a database — see [Testing a Schema](/docs/access/testing). Code that calls `Database.$access` is tested against a real database: the in-memory `fakeDatabase()` keeps rows, not relationships, and refuses the question.
+`palbase access:test` holds the schema file to the answers you expect, without a database — see [Testing a Schema](/docs/access/testing). Code that calls `Database.$access` is unit-tested with the database in memory given the same file — `fakeDatabase({ access: schemaText, user })` keeps the relationships a test gives and answers by the schema ([Testing](/docs/backend/testing#an-access-schema-in-memory-fakedatabase-access-)); row policies, limits and migrations are the database's, tested against Postgres.
 
 ## From outside the app
 
@@ -27370,6 +27541,15 @@ It acts on the environment chosen with `palbase use` (or `-E`), on its only data
 
 `palbase access:schema:get` prints the schema a database answers from.
 
+The schema is compiled into SQL by the **engine** of the `palbase` that put it in, and answers as that engine wrote it until it is put in again. After you update `palbase`, a command that reads the database says when its schema was compiled by an older engine — a line on stderr that starts `note:` and names both engines, beside the answer, which is as before (`stale_engine` in `--json`; `access:schema:get --json` names the engine). To take what the newer engine mends, put the same schema in again:
+
+```sh
+palbase access:schema:get > access.schema
+palbase access:schema:set access.schema
+```
+
+Putting the same schema in again compiles it with the engine you have. (A [`palbase/backend`](/docs/access/backend) app's schema is compiled again by its next deploy, with nothing to run — the note says so there.) The other way round is refused: a schema compiled by a newer engine than your `palbase`'s is not written over by `access:schema:set` (`newer_engine`) — it would take back what the newer engine mended — until `palbase` is updated.
+
 A database whose `palbase/backend` app carries an access schema ([`db.access`](/docs/access/backend)) has it changed by that app's deploys, and `access:schema:set` is refused there: each version of the app asks the schema it was migrated with. The other commands of this page work on it as on any.
 
 What it leaves in the database:
@@ -27398,6 +27578,7 @@ A [database of the project](/docs/machines/databases#connecting) has two logins.
 | Role | Take it for | Access answers |
 |---|---|---|
 | `authenticated` | a signed-in user's request | for that user alone — the `sub` of `request.jwt.claims` |
+| `anon` | a request with nobody signed in | for a visitor: what the schema opens to the [`public`](/docs/access/open#a-visitor), and no other name |
 | `service_role` | your backend acting for itself | for any user it names |
 
 A request of a signed-in user:
@@ -27439,7 +27620,8 @@ SELECT * FROM access.subjects('view', 'product', '10');        -- who holds it
 | `access.my_objects(permission, type)` | `setof text` — the ids the asker holds it on |
 | `access.check(subject, permission, type, id)` | `boolean` |
 | `access.objects(subject, permission, type)` | `setof text` |
-| `access.subjects(permission, type, id)` | `setof text` — the users who hold it. Each one related to the object is asked in turn — about a second at 10,000 — and past that it is refused; so is an object whose holders are looked for through more than 10,000 related objects (`team->member` on a product with that many teams), whether or not they name anyone, and one where the subjects times the related objects pass 1,000,000 (each subject is checked through all of them) |
+| `access.open(permission, type, id)` | `text` — how wide it is open on the object: `'public'`, `'users'` (every signed-in user), `'visitors'` (who has not signed in, alone) or null ([Open to Everyone](/docs/access/open#how-wide-is-it-open)) |
+| `access.subjects(permission, type, id)` | `setof text` — the users who hold it by name; what is everyone's is `access.open`'s to say. Each one related to the object is asked in turn — about a second at 10,000 — and past that it is refused; so is an object whose holders are looked for through more than 10,000 related objects (`team->member` on a product with that many teams), whether or not they name anyone, and one where the subjects times the related objects pass 1,000,000 (each subject is checked through all of them) |
 
 Ids go in and come out as text, whatever the key's type; they are compared as the key compares them. A name the schema does not have raises an error (below) rather than answering `false`. An object that does not exist is held by nobody.
 
@@ -27468,7 +27650,7 @@ COMMIT;
 
 The query is the one you would write anyway, from any ORM. Postgres adds the permission to it, uses your indexes, and returns the page already filtered. `rows insert`, `update` and `delete` judge writes the same way: a row the user may not write is refused with SQLSTATE `42501`.
 
-`rows` turns row-level security on for the table and adds policies named `access_select`, `access_insert`, … for `authenticated`. Policies of your own on the same table stay as they are and combine with them as Postgres combines policies; one of your own that already has one of those names stops the schema, by name, rather than being replaced — rename it. `service_role` and the owner pass row-level security, as always.
+`rows` turns row-level security on for the table and adds policies named `access_select`, `access_insert`, … for `authenticated` — and for `anon` as well, for a permission the [public can hold](/docs/access/open#a-visitor). Policies of your own on the same table stay as they are and combine with them as Postgres combines policies; one of your own that already has one of those names stops the schema, by name, rather than being replaced — rename it. `service_role` and the owner pass row-level security, as always.
 
 Row-level security on a table is for every role that is not its owner: a role of your own, or `anon`, reads nothing there until a policy of yours says what it may. It stays on when a `rows` rule is removed — the table then shows `authenticated` nothing, rather than everything.
 
@@ -27519,7 +27701,17 @@ SELECT access.grant ('product', '10', 'designer', 'user', 'user_2f9c', 'user_81a
 SELECT access.revoke('product', '10', 'designer', 'user', 'user_2f9c', 'user_81aa');   -- true; false if it was not
 ```
 
-The arguments: the object's type and id, the relation, the subject's kind and id, and who did it. The kind is `'user'`, or a type for a relation that takes objects (`'team', 'blue'`). The last argument is written to the history; left out, it is the transaction's user, else the login.
+The arguments: the object's type and id, the relation, the subject's kind and id, and who did it. The kind is `'user'`, or a type for a relation that takes objects (`'team', 'blue'`). Who did it is written to the history; left out, it is the transaction's user, else the login.
+
+Two more, where the relation takes them:
+
+```sql
+SELECT access.grant('doc', '42', 'viewer', 'user:*', '*');                                      -- every signed-in user
+SELECT access.grant('doc', '42', 'viewer', 'public', '*');                                      -- everyone, signed in or not
+SELECT access.grant('product', '10', 'tester', 'user', 'user_2f9c', 'user_81aa', now() + interval '30 days');   -- until a moment
+```
+
+[Open to Everyone](/docs/access/open) and [Until a Moment](/docs/access/expiring) say what each means. Everyone is a kind — `'user:*'`, `'public'` — and never an id: `'*'` given as a user's id is refused, so an id that comes from a request names one user or nobody.
 
 - Only a [kept relation](/docs/access/schema#kept-given-and-taken) is given; one read from a column is changed by changing the column.
 - The object must exist. The row is locked against being deleted while the relationship is written.
@@ -27528,9 +27720,12 @@ The arguments: the object's type and id, the relation, the subject's kind and id
 `access.relationships` and `access.history` are tables the service role reads:
 
 ```sql
-SELECT relation, subject_id, created_at FROM access.relationships WHERE object_type = 'product' AND object_id = '10';
+SELECT relation, subject_id, created_at, expires_at FROM access.relationships
+ WHERE object_type = 'product' AND object_id = '10' AND (expires_at IS NULL OR expires_at > now());
 SELECT at, action, relation, subject_id, actor FROM access.history WHERE object_type = 'product' AND object_id = '10' ORDER BY id DESC;
 ```
+
+A relationship given until a moment keeps its row after it has ended, until it is swept: read the table with its `expires_at`, as above. `access.past` is the history with those endings in it ([Until a Moment](/docs/access/expiring#what-is-kept-and-what-happened)).
 
 Write them only through `grant` and `revoke`: those check the relation, the object and the id's spelling, and nothing else does.
 
@@ -27545,11 +27740,16 @@ SELECT access.forget_subject('user_2f9c');   -- how many relationships went
 | SQLSTATE | |
 |---|---|
 | `PA001` | the type has no such relation or permission — or there is no such type |
-| `PA002` | `grant` on an object that does not exist |
-| `PA003` | an id that is empty or longer than 256 characters |
+| `PA002` | `grant` on an object that does not exist — or a row of a [nested type](/docs/access/nested) put in one that is not there |
+| `PA003` | an id that is empty or longer than 256 characters — or `*`, which is nobody's id |
 | `PA004` | `subjects` on an object more than 10,000 subjects, or more than 10,000 objects through kept relations, are related to — or subjects × objects past 1,000,000: ask `check` |
 | `PA005` | the relation is not kept, or does not take that kind of subject |
 | `PA006` | a role that asks for itself alone tried to ask as another subject |
+| `PA007` | `grant` until a moment that has passed |
+| `PA008` | a row or a relationship would put an object of a [nested type](/docs/access/nested) inside itself |
+| `PA009` | … more levels below a top than its type's `depth` |
+| `PA010` | … in a 33rd object of its type |
+| `55000` | an object of a nested type placed by a `REPEATABLE READ` or `SERIALIZABLE` transaction (place it in a `READ COMMITTED` one) |
 | `42501` | Postgres' own: the role may not run the function, or a row policy refused a write |
 
 An error ends the transaction, as any does. Names come from your code, not from a request: check a name that does against your own list before it reaches SQL.
@@ -27576,11 +27776,522 @@ palbase access:objects user_2f9c view product
 palbase access:subjects view product:10
 palbase access:relationships:list --object product:10
 palbase access:relationships:grant company:1 owner user:user_81aa
+palbase access:relationships:grant product:10 tester user:user_2f9c --until 30d
+palbase access:relationships:grant doc:42 viewer 'user:*'
 palbase access:relationships:revoke product:10 designer user:user_2f9c
+palbase access:relationships:sweep
 palbase access:history --object product:10
 ```
 
+`access:subjects` says on a line of its own when the name is open to every signed-in user or to everyone, and `access:relationships:list` shows each relationship's end.
+
 Each takes `--db` or `--url` as `access:schema:set` does. A change is written to the history as `cli:<your email>` unless `--by` says otherwise. The [CLI reference](/docs/cli/reference#palbase-accessschemaset) has every flag.
+
+
+
+<!-- ===== access/open ===== -->
+
+# Open to Everyone
+
+Some objects are not only somebody's. A document shared with everyone in the workspace, a page anybody with its address may read, a post once it is published: each is open to people no relationship names. Access says so with two subjects that stand for everyone of a kind:
+
+| Subject | Holds for |
+|---|---|
+| `user:*` | every signed-in user |
+| `public` | everyone — signed in or not |
+
+They are two on purpose. An object open to every signed-in user is closed to a visitor, and a relation says which of the two it takes — or neither.
+
+## In the schema
+
+```text
+type doc
+  table docs
+  relation owner: user from owner_id
+  relation viewer: user | user:* | public
+  relation editor: user
+  relation listed: public where published = true
+  permission view = owner + viewer + editor + listed
+  permission edit = owner + editor
+  rows select: view
+```
+
+- **A kept relation says what it takes.** `viewer: user | user:* | public` is given to one user, to every signed-in user, or to everyone. `editor: user` is not: a relationship for everyone is refused there (`PA005`), so nothing is opened by a call that was meant for one person.
+- **A relation can read it from the row.** `relation listed: public where published = true` holds for everyone on each doc whose `published` is true. There is nothing to give or take: publish the row and it is open, unpublish it and it is not. `user:* where …` says the same for signed-in users. It has no `from` — no column names who, the `where` says when — one subject a line, on a type that has a table.
+- **A permission is open where what it is made of is.** `view` above is open on a doc that is `listed`, or whose `viewer` was given to everyone. `a + b` is open where either is, `a & b` where both are, and an arrow carries it: `folder->view` is open on a doc whose folder's `view` is.
+- **`a - b` takes people away by name.** `view = (viewer + listed) - banned` shows a published doc to every signed-in user but the banned one. Signed out, that person is a visitor like any other: what is the public's cannot be closed to one person.
+
+`edit` above is nobody's but who is named: none of its relations takes `user:*` or `public`. Keep it so for what writes — a permission the public can hold is one a visitor holds.
+
+## Opening and closing an object
+
+From the command line:
+
+```sh
+palbase access:relationships:grant doc:42 viewer 'user:*'      # every signed-in user
+palbase access:relationships:grant doc:42 viewer public        # everyone, signed in or not
+palbase access:relationships:revoke doc:42 viewer public
+```
+
+In SQL, as `service_role` — everyone is a **kind** of subject, `'user:*'` or `'public'`, with `'*'` where an id would go:
+
+```sql
+SELECT access.grant ('doc', '42', 'viewer', 'user:*', '*');
+SELECT access.grant ('doc', '42', 'viewer', 'public', '*');
+SELECT access.revoke('doc', '42', 'viewer', 'public', '*');
+```
+
+In a `palbase/backend` app:
+
+```ts
+import { Database } from "palbase/backend";
+
+export async function share(id: number, everyone: boolean): Promise<void> {
+  const access = Database.$asService().$access;
+  // Every signed-in user…
+  await access.grant({ type: "doc", id }, "viewer", { everyUser: true });
+  // …and, when the owner says so, anybody with the address.
+  if (everyone) await access.grant({ type: "doc", id }, "viewer", { public: true });
+  else await access.revoke({ type: "doc", id }, "viewer", { public: true });
+}
+```
+
+Each is **one relationship**, however many users there are: in force from the next statement, written to the history, and taken back the same way. Taking it leaves what somebody holds by name as it was. It can be given [until a moment](/docs/access/expiring) like any other.
+
+**Everyone is never said by an id.** `"*"` is nobody's id: `access.grant(…, 'user', '*')` is refused (`PA003`), and so is `grant(…, "*")` or `{ user: "*" }` in a backend (`bad_id`). The kind is what your code writes; the id is what may come from a request — so a statement like `access.grant('doc', $1, 'viewer', 'user', $2)` gives a doc to one user or to nobody, whatever `$2` spells. Opening an object is `'user:*'` or `'public'` in SQL, `{ everyUser: true }` or `{ public: true }` in a backend: said on purpose, in a line of its own.
+
+## A visitor
+
+A request with nobody signed in asks as the role `anon`, with no claims:
+
+```sql
+BEGIN;
+SET LOCAL ROLE anon;
+SELECT title, body FROM docs WHERE id = $1;            -- the row, when it is open to the public
+SELECT access.can('view', 'doc', '42');
+SELECT * FROM access.my_objects('view', 'doc');
+COMMIT;
+```
+
+- `rows select: view` writes the table's policy for `anon` too when the public can hold `view`. What `anon` may do to the table at all is the table's own grant, and yours to give: `GRANT SELECT ON docs TO anon`.
+- `anon` asks only the names the public can hold. `access.can('edit', …)` is not answered `false` for it — the name is not its to ask (`42501`) — and a schema that opens nothing to the public gives `anon` nothing of access at all.
+- A database of your Palbase project has the role. On a Postgres of your own (`--url`), a schema that opens something to the public is refused until there is one: `CREATE ROLE anon NOLOGIN`, granted to the login your program connects as.
+
+In a `palbase/backend` app a route with `auth: false` is a visitor's:
+
+```ts
+// src/modules/docs/public.controller.ts
+import { Controller, Database, Get, NotFound, Param } from "palbase/backend";
+
+@Controller("/public/docs", { auth: false })
+export class PublicDocsController {
+  @Get("/{id}/readable")
+  async readable(@Param("id") id: string): Promise<{ readable: boolean }> {
+    // True where the public holds it; a name the public cannot hold is answered no without a statement.
+    const readable = await Database.$access.can("view", { type: "doc", id });
+    if (!readable) throw new NotFound();
+    return { readable };
+  }
+}
+```
+
+A table's policy may be the visitor's as well — `policy("readers").for("select").to("authenticated", "anon").using(p.can("view"))` — where the public can hold every name it reads. One that reads a name nothing opens to the public is refused when the migration is planned, by name: for `anon` it would not hide the rows, it would fail the statement.
+
+Somebody signed in of whom nothing else is said holds what `user:*` and `public` give, and nothing more.
+
+## How wide is it open
+
+*Who holds this* names people. What is everyone's names nobody, so it is asked on its own:
+
+```sql
+SELECT * FROM access.subjects('view', 'doc', '42');    -- user_81aa: who holds it by name
+SELECT access.open('view', 'doc', '42');               -- 'public', 'users', 'visitors', or null
+```
+
+| `access.open` | |
+|---|---|
+| `'public'` | everyone holds it, signed in or not |
+| `'users'` | every signed-in user does, and a visitor does not |
+| `'visitors'` | who has not signed in holds it, and somebody signed in only where something names them — a banner for visitors, `listed - member` where every signed-in user is a `member` |
+| `null` | only who is named |
+
+```ts
+import { Database } from "palbase/backend";
+
+/** What a share dialog shows: the people, and the switch beside them. */
+export async function sharing(id: number): Promise<{ people: string[]; open: "public" | "users" | "visitors" | null }> {
+  const access = Database.$asService().$access;
+  const doc = { type: "doc", id };
+  return { people: await access.subjects("view", doc), open: await access.openTo("view", doc) };
+}
+```
+
+```sh
+palbase access:subjects view doc:42
+```
+
+```text
+user_81aa
+open to every signed-in user (user:*)
+```
+
+The answer is about the permission, not one relation: a doc that is `listed` is open to the public with no relationship given, and the command says so.
+
+## What to keep in mind
+
+- **`user:*` is everyone who can sign in.** Where sign-up is open to anybody, it is one form away from `public`. It is the right word for *everyone here* only where being here is itself decided — a workspace's own app, an invitation.
+- **Open is for reading.** A `rows insert`, `update` or `delete` rule on a permission the public can hold lets a visitor write, as far as the table's grant goes. Give what writes to relations that take `user` alone.
+- **Nothing is fanned out.** One relationship opens the object and one statement closes it, for the next question anybody asks.
+
+## Testing it
+
+A [validation file](/docs/access/testing) writes them as the schema does, and asks as a visitor. Beside its `schema` and `tables`:
+
+```json
+{
+  "relationships": ["doc:2#viewer@user:*", "doc:3#viewer@public"],
+  "expect": [
+    { "visitor": true, "can": "view", "cannot": "edit", "on": "doc:3" },
+    { "visitor": true, "holds": "view", "of": "doc", "exactly": ["3", "4"] },
+    { "open": "view", "on": "doc:2", "to": "users" },
+    { "open": "edit", "on": "doc:3", "to": "nobody" }
+  ]
+}
+```
+
+`"to"` is `"public"`, `"users"`, `"visitors"` or `"nobody"`.
+
+`{ "visitor": true, "holds", "of", "exactly" }` is the one to write for every type: it fails the day a change shows a visitor one object more.
+
+## A schema from before
+
+Both subjects are kept by a schema that the engine of this `palbase` compiled. On a database whose schema an earlier one put in, giving to everyone is refused, with the two commands that [put the schema in again](/docs/access/sql#putting-a-schema-into-a-database); the relationships it keeps stay as they are.
+
+Until this engine `*` was an id like any other. A relationship an earlier one kept for a user whose id is `*` stops the schema from being put in — read now, it would open the object to every signed-in user: take it first.
+
+Changing what a relation takes is a change to what it keeps. A schema that stops taking `user:*` while objects are open to every signed-in user is refused, as one that drops a relation with relationships is, until they are taken or [said to go with it](/docs/access/sql#changing-the-schema).
+
+
+
+<!-- ===== access/expiring ===== -->
+
+# Until a Moment
+
+A relationship can be given until a moment: a contractor for thirty days, a support engineer for an hour, a link that works until Friday. It stops holding at that moment by itself. Nothing has to run, and nobody has to remember to take it back.
+
+## Giving it
+
+From the command line — a length of time from now, or the moment itself:
+
+```sh
+palbase access:relationships:grant product:10 tester user:user_2f9c --until 30d
+palbase access:relationships:grant product:10 tester user:user_2f9c --until 2026-12-01T00:00:00Z
+```
+
+```text
+user:user_2f9c is now tester of product:10 until 2026-12-11T09:30:00.000Z
+```
+
+`--until` takes `90s`, `30m`, `12h`, `30d`, `2w` — counted by the database's clock, the one that ends it — or a moment in ISO 8601.
+
+In SQL, as `service_role`, the moment is the last argument, after who did it:
+
+```sql
+SELECT access.grant('product', '10', 'tester', 'user', 'user_2f9c', 'user_81aa', now() + interval '30 days');
+```
+
+In a `palbase/backend` app:
+
+```ts
+import { Database } from "palbase/backend";
+
+const DAY = 24 * 60 * 60 * 1000;
+
+export async function invite(productId: number, user: string): Promise<void> {
+  const access = Database.$asService().$access;
+  await access.grant({ type: "product", id: productId }, "tester", user, { until: new Date(Date.now() + 30 * DAY) });
+  // The same, with the moment as text.
+  await access.grant({ type: "product", id: productId }, "tester", user, { until: "2026-12-01T00:00:00Z" });
+}
+```
+
+- **Any kept relation, any subject**: a user, a team (`squad`, until the project ends), [every signed-in user or the public](/docs/access/open) (a link open until Friday).
+- **The moment is still to come.** One that has passed is refused — `PA007` in SQL, `bad_time` in a backend — rather than given and gone.
+- A relation read from a column has no end to give: it is the column, and it changes when the column does.
+
+## What ending means
+
+Every question is answered as of the statement that asks it. From the first statement that starts after the moment the relationship does not hold — for `can` and `check`, for the lists, for a row policy, for *who holds this*, and for everything reached through it: a team's member until Friday stops holding, on Friday, whatever the team gives.
+
+Its row stays where it was until something sweeps it. Nothing reads it there, so no answer waits for that.
+
+## Changing the end
+
+A relationship is held once. Given again while it is held, it takes the end said now:
+
+| Given again | |
+|---|---|
+| with a later `until` | it is extended |
+| with an earlier one | it ends sooner |
+| with none | it has no end any more |
+
+Each answers `false` — it was already held — and each is a line of the history. The command says what changed:
+
+```text
+user:user_2f9c was already tester of product:10 — it now ends 2027-01-01T00:00:00.000Z
+user:user_2f9c was already tester of product:10 until 2027-01-01T00:00:00.000Z — it now has no end
+```
+
+To end it now, [take it](/docs/access/sql#relationships). Given after it has ended, it is given anew, and answers `true`.
+
+## What is kept, and what happened
+
+```sh
+palbase access:relationships:list --object product:10
+palbase access:history --object product:10
+```
+
+```text
+product:10  tester  user:user_2f9c  until 2026-12-11T09:30:00.000Z
+
+2026-12-11T09:30:00+00:00  ended  user:user_2f9c  tester  product:10  by access: its time passed
+2026-11-11T09:30:00+00:00  gave  user:user_2f9c  tester  product:10  by cli:olga@example.com  until 2026-12-11T09:30:00.000Z
+```
+
+The list shows what holds, each with its end; what has ended is not in it. The history tells an ending at the moment it ended — not when its row went — as `ended`, done by access itself.
+
+In a backend, `relationships()` gives `{ object, relation, subject, since, until }` for what holds (`until` is `null` for one with no end), and `history()` gives `{ at, action, object, relation, subject, by, until }`, where `action` is `"grant"`, `"revoke"` or `"expire"`.
+
+In SQL the two tables are read with the end in mind:
+
+```sql
+-- What holds now: a row whose time has passed may still be there.
+SELECT relation, subject_id, expires_at
+  FROM access.relationships
+ WHERE object_type = 'product' AND object_id = '10'
+   AND (expires_at IS NULL OR expires_at > now());
+
+-- What happened, endings included, the latest first.
+SELECT at, action, relation, subject_id, actor, expires_at
+  FROM access.past
+ WHERE object_type = 'product' AND object_id = '10'
+ ORDER BY at DESC, id DESC NULLS FIRST;
+```
+
+`access.past` is `access.history` with each relationship that has ended and is still in its table told at the moment it ended.
+
+## Sweeping
+
+A relationship that has ended is removed when another is next given on the same object, when it is given again or taken — and by a sweep:
+
+```sh
+palbase access:relationships:sweep
+```
+
+```sql
+SELECT access.sweep();         -- how many went: 10,000 at most a call
+SELECT access.sweep(500);      -- or fewer at a time
+```
+
+```ts
+import { Database } from "palbase/backend";
+
+/** For a job of the app's own: how many rows went. */
+export async function tidy(): Promise<number> {
+  return Database.$asService().$access.sweep();
+}
+```
+
+It is housekeeping. Run it from a job of your own — once a day is plenty — if you give many short relationships; every answer is the same before and after, and so is the history, which tells each ending at the moment it ended whether or not its row has gone. One that has ended is in no schema's way: a relation can be dropped from the schema while only ended relationships of it are left.
+
+## Roles in the token have no end
+
+`until` is a relationship's. A [role](/docs/auth/users#roles) — what a user is across the whole app, carried in the token — is given until it is taken. For *support for an hour*, keep it as a relationship on a type of its own and ask access:
+
+```text
+type app
+  relation support: user
+```
+
+```sh
+palbase access:relationships:grant app:main support user:user_2f9c --until 1h
+```
+
+## Testing it
+
+A [validation file](/docs/access/testing) gives a relationship its end, and says the moment the questions are asked at. Beside its `schema` and `tables`:
+
+```json
+{
+  "relationships": [{ "is": "product:10#tester@user:tess", "until": "2026-12-01T00:00:00Z" }],
+  "now": "2026-12-02T00:00:00Z",
+  "expect": [{ "subject": "tess", "cannot": "test.run", "on": "product:10" }]
+}
+```
+
+Without `"now"` it is the moment the file is run — a file that is right today and wrong after the first of December, which is seldom what a test should be.
+
+In a `palbase/backend` unit test the [database in memory](/docs/backend/testing) ends a relationship by the test's clock: move it with your runner's fake timers and ask again.
+
+## A schema from before
+
+An end is kept by a schema that the engine of this `palbase` compiled. On a database whose schema an earlier one put in, `--until` is refused, with the two commands that [put the schema in again](/docs/access/sql#putting-a-schema-into-a-database); the relationships it keeps stay, with no end.
+
+A `palbase/backend` app takes the engine with its next deploy. While that one deploy is open, the version being replaced still answers from the schema the earlier engine compiled, which reads a relationship **between two objects** — a team's to a product — as it stands: an end for one is refused until the deploy completes. What a user holds ends for both versions.
+
+
+
+<!-- ===== access/nested ===== -->
+
+# Nested Objects
+
+A folder holds folders, and a permission on it holds on everything inside. A team holds teams, and its members are members of each one inside. Access says this with a permission that is derived from itself, one level up:
+
+```text
+type folder
+  table folders
+  depth 16
+  relation parent: folder from parent_id
+  relation viewer: user
+  permission view = viewer + parent->view
+  rows select: view
+```
+
+`view = viewer + parent->view` reads: *a viewer of this folder can view it, and so can anyone who can view the folder it is in.* Give `viewer` on a top folder and every folder below it — and every row below those — is viewable, ten levels down or sixteen, with no relationship for each.
+
+## A folder is in one folder; a team is in many
+
+What an object is in comes from one of two places, and they nest differently.
+
+- **A column of its own row** (`relation parent: folder from parent_id`): a row has one `parent_id`, so a folder is in **one** folder. Moving a folder is updating that column. The folder it names must be there, as with a foreign key; a row whose `parent_id` is null, or names a row deleted since, is at the top.
+- **Relationships** (`relation parent: team`): a team is given to the teams it is in, as any relationship is given, and can be in **many** — an on-call team in both Engineering and Operations holds what is given to either. One object is in 32 others at most.
+
+```text
+type team
+  depth 8
+  relation parent: team
+  relation member: user
+  permission in = member + parent->in
+```
+
+```sh
+palbase access:relationships:grant team:web parent team:engineering
+palbase access:relationships:grant team:on-call parent team:engineering
+palbase access:relationships:grant team:on-call parent team:operations
+palbase access:relationships:grant team:engineering member user:user_81aa
+```
+
+`user_81aa` is now `in` `web` and `on-call`. Taking a team out of another is `revoke`; what it held through that one goes with it on the very next question.
+
+In SQL, as `service_role`:
+
+```sql
+SELECT access.grant('team', 'on-call', 'parent', 'team', 'operations');
+SELECT access.revoke('team', 'on-call', 'parent', 'team', 'operations');
+```
+
+## How deep
+
+`depth N` says how many levels below a top its objects may be — 16 when the type does not say, 32 at most. It is a promise the database keeps, and what keeps every question fast: a permission is read at most that many levels up.
+
+The levels are counted along the longest way. A team that is two levels below Engineering and four below Operations is four levels deep.
+
+## What is refused
+
+Every write that places an object is checked by the database when it is made — a row inserted or its column changed, a relationship given — whichever app, backend or SQL session makes it:
+
+| SQLSTATE | `code` in a backend | |
+|---|---|---|
+| `PA008` | `cycle` | the object would be inside itself: put in one of its own, or in itself |
+| `PA009` | `too_deep` | an object would be more levels below a top than the type's `depth` — the one placed, or what is below it |
+| `PA010` | `too_many_parents` | the object is in 32 others already |
+| `PA002` | | a row put in a folder that is not there |
+| `55000` | | the write is in a `REPEATABLE READ` or `SERIALIZABLE` transaction (below) — or teams are put in teams while a deploy changes how deep they nest |
+
+```text
+ERROR:  folder 7 would put objects more than 16 levels below a top, the most a folder is nested (its depth)
+ERROR:  team engineering would be inside itself: it is above the one it would be put in
+```
+
+The write is refused whole and nothing of it stays. In a `palbase/backend` app a refused `grant` throws `AccessRefused` with the `code` above; a refused row write throws the database's error, with the SQLSTATE in its `code`.
+
+```ts
+import { AccessRefused, Database } from "palbase/backend";
+
+/** Puts a team in another; says why not, in a word a client can show. */
+export async function nest(team: string, into: string): Promise<"done" | "inside itself" | "too deep" | "in too many"> {
+  try {
+    await Database.$asService().$access.grant({ type: "team", id: team }, "parent", { type: "team", id: into });
+    return "done";
+  } catch (e) {
+    if (!(e instanceof AccessRefused)) throw e;
+    if (e.code === "cycle") return "inside itself";
+    if (e.code === "too_deep") return "too deep";
+    if (e.code === "too_many_parents") return "in too many";
+    throw e;
+  }
+}
+```
+
+Two writes made at once that are each fine alone — two folders put in each other, a folder moved deeper while one is put in it — never both pass: the second waits for the first, then reads what it left. A folder's write waits only for writes to the folders above it or below it, by the rows' own locks, as a foreign key's do: a bulk insert of a million rows holds nothing else up. Teams of one type are put in one another one at a time — something done far less often.
+
+That needs a write to see what was committed while it waited, which a `READ COMMITTED` transaction does — the default, and what `palbase/backend` and `Database.$atomic` use unless told otherwise. A transaction that reads by one snapshot (`REPEATABLE READ`, `SERIALIZABLE`) could not, and places nothing: `55000`. It may still write a nested type's rows in every way that does not move one — a name, a flag.
+
+## Cutting what comes from above
+
+A folder that keeps its own people out of what the folders above it share:
+
+```text
+type folder
+  table folders
+  depth 16
+  relation parent: folder from parent_id
+  relation up: folder from parent_id where inherits = true
+  relation viewer, hidden: user
+  permission view = (viewer + up->view) - hidden
+  rows select: view
+```
+
+- `up` is `parent` where the row says so: a folder whose `inherits` is false takes nothing from above, and neither does anything below it.
+- `- hidden` takes one person away on this folder; the folders below it read `view` of this one, so it is taken there too.
+
+A permission is derived from itself **once**, through one relation to its own type, on the side that gives: inside `+` and `&`, never on the right of `-` (`view = viewer - parent->view` is refused when the schema is read). Two types derived from each other — a folder's view from its project's, the project's from the folder's — are refused too: a loop is only ever one type in itself.
+
+## When the schema is put in
+
+The rows and relationships already there are checked as writes are — at the deploy, or `access:schema:set`, that first nests a table or changes its `depth`; one that changes something else leaves the table alone. While its rows are checked, writes to it wait and reads go on: about 2 seconds a million rows. a folder inside itself, or deeper than the `depth`, or a team in more than 32, stops `access:schema:set` (and an app's deploy) with the object it found:
+
+```text
+access: folder 4412 is more than 16 levels below its top, or inside itself (public.folders.parent_id): folder is nested at most 16 levels deep — move it, or say a greater depth
+```
+
+Nothing is changed. Move it, or put the schema in with a greater `depth`.
+
+While a `palbase/backend` app's deploy makes teams nest anew, or less deep, the version still serving would put a team in another by the rule it had: until the deploy completes, a team is not put in another (`55000`, *put in another once that deploy completes*). What teams hold, and folders, are written as ever.
+
+## How fast
+
+Measured on a million folders (100 tops, 8 folders in each, six levels — and one branch sixteen deep), 200,000 relationships, `depth 16`, Postgres 18, as a signed-in request:
+
+| | |
+|---|---|
+| can one user view one folder — sixteen levels below where it was given, or not at all | under 1 ms |
+| the folders in one folder that a user can view (`WHERE parent_id = …`, the row policy) | 0.5–1.2 ms |
+| the first 50 a user can view, by id | 1 ms (sees everything) – 55 ms (sees 5,266) |
+| planning one of those statements | 2–3.5 ms |
+| counting every folder a user can view | about 4.4 s |
+
+A question about one object, or the objects in one, is answered by walking up from each row it reads — a lookup a level, at most `depth` of them. What has to read the whole table — a `count(*)`, a list with no filter but the policy — reads every row and walks up from each: seconds on a million rows. Ask it of a folder (`WHERE parent_id = …`), page it (`ORDER BY id LIMIT 50`, then `WHERE id > …`), or keep the count yourself.
+
+A team, nested by relationships, is read by walking up every way there is, each team once a level: as fast for a team in many as for one in one.
+
+## Testing it
+
+In a [validation file](/docs/access/testing) a nested type's rows and relationships must be what the database would keep — none inside itself, none too deep, none in more than 32 — or the file is refused, naming the object. The [database in memory](/docs/backend/testing) refuses the same writes, with the same codes and words, and undoes a refused row write.
+
+## A schema from before
+
+A permission derived from itself is compiled by the engine of `palbase` 0.58 and later. On a database whose schema an earlier one put in, the questions are answered as before, with a note to [put the schema in again](/docs/access/sql#putting-a-schema-into-a-database); a `palbase/backend` app takes the engine with its next deploy.
 
 
 
@@ -27624,16 +28335,20 @@ It needs no database. The questions are answered by a second implementation of t
 |---|---|
 | `schema` | the schema file, beside this one |
 | `tables` | for each type with a table: the columns the schema reads (the key, and every column a relation is `from` or a `where` compares), each `text`, `uuid`, `int`, `bool` or `numeric` — and the rows of the example |
-| `relationships` | the kept relationships of the example, each `type:id#relation@user:id` — or `@type:id` for a relation that takes objects |
+| `relationships` | the kept relationships of the example, each `type:id#relation@user:id` — or `@type:id` for a relation that takes objects, `@user:*` and `@public` for one [everyone holds](/docs/access/open). One that [ends](/docs/access/expiring) is `{ "is": "type:id#relation@user:id", "until": "2026-12-01T00:00:00Z" }` |
+| `now` | the moment the expectations are asked at, for a file with relationships that end; left out, the moment it is run |
 | `expect` | what must be true |
 
-Three kinds of expectation:
+Four kinds of expectation:
 
 | Written | Holds when |
 |---|---|
 | `{ "subject", "can", "cannot", "on" }` | the subject holds every name under `can`, and none under `cannot`, on the object. Either may be one name or a list |
 | `{ "subject", "holds", "of", "exactly" }` | the objects of type `of` the subject holds the name on are exactly these ids |
-| `{ "who", "on", "exactly" }` | the subjects who hold the name on the object are exactly these |
+| `{ "who", "on", "exactly" }` | the subjects who hold the name on the object by name are exactly these |
+| `{ "open", "on", "to" }` | the name is open on the object to `"public"`, to `"users"` (every signed-in user), to `"visitors"` (who has not signed in, alone), or to `"nobody"` but who is named |
+
+`"visitor": true` stands in place of `"subject"` in the first two, for somebody who has not signed in.
 
 `exactly` is the one that catches a widening: it fails for an answer that has grown.
 
@@ -27666,6 +28381,7 @@ A validation file is worth the most where a mistake would cost the most:
 - **Across the boundary you sell.** One company's owner, another company's product: `cannot`, for every permission.
 - **`exactly`, for the lists that matter.** Who may read the payroll, who may delete a workspace.
 - **The cases with a condition.** A private session and an open one; an archived product and a live one — both rows in `tables`, an expectation for each.
+- **What a visitor sees.** For every type something is opened on: `{ "visitor": true, "holds": …, "exactly": […] }`, and `{ "open": …, "to": "nobody" }` for what writes.
 
 Run it in the same place as your tests, before a deploy and in review. In a `palbase/backend` app the schema file it reads is the one the app starts with, so what it passes is what ships.
 
@@ -27823,6 +28539,88 @@ When a user is deleted, `SELECT access.forget_subject($1)` takes back everything
 ## One owner for a database's schema
 
 A database's access schema is put in from the command line, as on this page, or carried by a `palbase/backend` app's deploys ([Access in a Backend](/docs/access/backend)) — one or the other. An app's migration does not take over a schema the command line put in, and `access:schema:set` does not replace an app's: each refuses, saying which the database has. A system that moves in with this page stays on the command line; relationships are given and taken from it either way.
+
+
+
+<!-- ===== access/elsewhere ===== -->
+
+# When Your Data Is Elsewhere
+
+Access runs in a Postgres database of your Palbase project. Your app's own data does not have to be there. A system whose rows live in another database — MySQL, MongoDB, Firestore, a Postgres of your own — keeps them where they are and gives Palbase one thing to hold: **who is what of which object**. Your backend asks in SQL, as [Access from SQL](/docs/access/sql) describes; this page is what differs when no table of yours is here.
+
+## A database for the relationships
+
+Open a database in the project. The `free` size is enough for relationships alone:
+
+```sh
+palbase databases:create access --size free
+```
+
+A `free` database sleeps when it is idle and is woken by the next connection in about 10 seconds; a size that never sleeps answers at once ([Databases](/docs/machines/databases)). An app that asks on every request wants one that does not sleep.
+
+## A schema without tables
+
+No type names a table, so an object is an id your system says — a product's id as your own database has it:
+
+```text
+type company
+  relation owner, member: user
+
+type product
+  relation company: company
+  relation designer, developer, tester: user
+  permission code.write = developer + company->owner
+  permission view       = designer + developer + tester + company->owner + company->member
+```
+
+`relation company: company` is kept here, as a relationship, where a schema beside your tables would read it from a column: when a product is made in your system, say which company it is of. Every relation is [kept](/docs/access/schema#kept-given-and-taken) in a schema like this one.
+
+```sh
+palbase access:schema:set access.schema --db access
+palbase access:test access.test.json          # the cases that must never open, before it ships
+```
+
+## Asking, giving and taking
+
+Your backend connects with the database's application login (`palbase db:url access --role app --with-password`) and takes the service role for each transaction — it acts for itself, and names the user it asks about:
+
+```sql
+BEGIN;
+SET LOCAL ROLE service_role;
+
+-- a product is made in your system: its company, and who develops it
+SELECT access.grant('product', '11', 'company', 'company', '1', 'setup');
+SELECT access.grant('product', '11', 'developer', 'user', 'user_2f9c', 'user_81aa');
+
+SELECT access.check('user_2f9c', 'code.write', 'product', '11');   -- may this user do this, here?
+SELECT * FROM access.objects('user_2f9c', 'view', 'product');      -- the ids they may see
+SELECT * FROM access.subjects('view', 'product', '11');            -- who may see this one
+
+COMMIT;
+```
+
+The functions, the errors and the history are the same as with tables: [Access from SQL](/docs/access/sql#the-questions).
+
+## What is yours to keep in step
+
+With tables, the database does these by itself. Without them, your code does:
+
+- **A list is filtered by you.** Row policies guard rows of this database, and yours are not in it. Ask `access.objects` for the ids the user may see, and read those from your own database — `WHERE id IN (…)`.
+- **An object that is deleted takes nothing with it.** Nothing here knows your row is gone. When you delete it, take its relationships in the same step:
+
+  ```sql
+  SELECT access.revoke(object_type, object_id, relation, subject_type, subject_id, 'product deleted')
+    FROM access.relationships
+   WHERE (object_type = 'product' AND object_id = '11') OR (subject_type = 'product' AND subject_id = '11');
+  ```
+
+- **An object that does not exist can be named.** A relationship is given on any id; a typo in one is a relationship on nothing. Give them from the code that makes the object.
+- **A user who is deleted** is taken back with `SELECT access.forget_subject('user_2f9c')`, as with tables.
+- **Two databases, two transactions.** A product made in your database and its relationships given here do not commit together. Give the relationships after your own write succeeds, and take them before you delete: what a failure between the two leaves is then an object nobody was let into — closed, and mended by doing the step again — never a relationship on an object that is not there, which the next object under that id would be born holding.
+
+## When the data moves in
+
+A system that later brings its tables to a database of the project names them in the schema (`table products`, `relation company: company from company_id`) and gains what this page does by hand — lists filtered by the database, a deleted row's relationships gone with it. [Moving an Existing System](/docs/access/moving-in) is that road.
 
 
 
@@ -31681,11 +32479,11 @@ The link opens the app's install page, at the environment's own address, in the 
 
 1. **Register this iPhone.** Safari asks to download a configuration profile; the tester allows it, opens **Settings**, taps **Profile Downloaded**, then **Install**. The profile only reads the phone's identifier and installs nothing: once it has answered, iOS removes it.
 2. The page comes back and says the build is being signed. It follows itself; nobody types anything.
-3. **Install.** The app appears on the home screen.
+3. **Install.** The page follows the download as the iPhone asks for it (asked, downloading with its percent, downloaded) and iOS installs the app on the home screen. When the iPhone asking is a model none of the tester's registered phones is, the page says this iPhone is not registered, and offers to register it: iOS itself would drop the install without a word. When it is one of theirs that is not in the build yet (Apple is processing it), the page says it waits. A download that stops short is said too.
 
 The first time, iOS asks for **Developer Mode** before the app opens: **Settings › Privacy & Security › Developer Mode**, on, and a restart. This is once for a phone.
 
-A tester who registered a phone before skips step 1: an invitation to the next package goes straight to the install, on every phone they registered.
+A tester who registered a phone before skips step 1: on that phone, an invitation to the next package goes straight to the install. Opened on an iPhone the page does not know (their second one, or one the link was passed to), the page asks first, with **Install** and **Register this iPhone** side by side: an iPhone missing from the build cannot install it, and iOS drops the install without a word.
 
 **On an Android phone**: **Download**, then open the file and tap **Install**. The phone asks once to allow installs from the browser.
 

@@ -38,16 +38,20 @@ It needs no database. The questions are answered by a second implementation of t
 |---|---|
 | `schema` | the schema file, beside this one |
 | `tables` | for each type with a table: the columns the schema reads (the key, and every column a relation is `from` or a `where` compares), each `text`, `uuid`, `int`, `bool` or `numeric` — and the rows of the example |
-| `relationships` | the kept relationships of the example, each `type:id#relation@user:id` — or `@type:id` for a relation that takes objects |
+| `relationships` | the kept relationships of the example, each `type:id#relation@user:id` — or `@type:id` for a relation that takes objects, `@user:*` and `@public` for one [everyone holds](https://palbase.studio/docs/access/open). One that [ends](https://palbase.studio/docs/access/expiring) is `{ "is": "type:id#relation@user:id", "until": "2026-12-01T00:00:00Z" }` |
+| `now` | the moment the expectations are asked at, for a file with relationships that end; left out, the moment it is run |
 | `expect` | what must be true |
 
-Three kinds of expectation:
+Four kinds of expectation:
 
 | Written | Holds when |
 |---|---|
 | `{ "subject", "can", "cannot", "on" }` | the subject holds every name under `can`, and none under `cannot`, on the object. Either may be one name or a list |
 | `{ "subject", "holds", "of", "exactly" }` | the objects of type `of` the subject holds the name on are exactly these ids |
-| `{ "who", "on", "exactly" }` | the subjects who hold the name on the object are exactly these |
+| `{ "who", "on", "exactly" }` | the subjects who hold the name on the object by name are exactly these |
+| `{ "open", "on", "to" }` | the name is open on the object to `"public"`, to `"users"` (every signed-in user), to `"visitors"` (who has not signed in, alone), or to `"nobody"` but who is named |
+
+`"visitor": true` stands in place of `"subject"` in the first two, for somebody who has not signed in.
 
 `exactly` is the one that catches a widening: it fails for an answer that has grown.
 
@@ -80,6 +84,7 @@ A validation file is worth the most where a mistake would cost the most:
 - **Across the boundary you sell.** One company's owner, another company's product: `cannot`, for every permission.
 - **`exactly`, for the lists that matter.** Who may read the payroll, who may delete a workspace.
 - **The cases with a condition.** A private session and an open one; an archived product and a live one — both rows in `tables`, an expectation for each.
+- **What a visitor sees.** For every type something is opened on: `{ "visitor": true, "holds": …, "exactly": […] }`, and `{ "open": …, "to": "nobody" }` for what writes.
 
 Run it in the same place as your tests, before a deploy and in review. In a `palbase/backend` app the schema file it reads is the one the app starts with, so what it passes is what ships.
 

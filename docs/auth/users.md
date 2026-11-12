@@ -163,22 +163,33 @@ palbase auth:roles:delete editor --force
 - `--default yes` gives the role to every new user, however the account is made: a sign-up with a password, a provider (Google, Apple …), a phone code or a passkey, a guest, an account made in Studio or with `POST /admin/users`, an invitation, a [test user](https://palbase.studio/docs/backend/test-users), an import. It is theirs from the account's first answer (`user.roles`), and `user.permissions_changed` says so. One role at most is the default; the users who were there before it keep what they hold.
 - A role users hold is deleted only with `--force`, which takes it from them; without it the answer is `409`.
 
-There is no CLI command that gives a user a role: that is your app's decision, made from your server.
+A role is given to a user, and taken back, from three places:
+
+```sh
+palbase auth:users:roles:grant usr_2f9c editor     # says whether they hold it now, and every role they hold
+palbase auth:users:roles:revoke usr_2f9c editor
+palbase auth:users:roles:list usr_2f9c
+```
+
+- **In Studio**, on the user's page (**Authentication › Users**, the user): **Roles** lists what the account holds; **Give role** offers the environment's other roles, **Remove** takes one back after a confirmation. Giving and taking are an admin's of the organization; a member sees what is held.
+- **From your server**, where the app decides it — a sign-up that makes someone staff, an approval:
 
 | Admin call | What it does |
 |---|---|
 | `PUT /admin/users/{uid}/roles/{role}` | Gives the user the role. A role that is not defined is `400 role_not_defined`. |
 | `DELETE /admin/users/{uid}/roles/{role}` | Takes it from them. |
-| `GET /admin/users/{uid}/roles` | The roles they hold. |
+| `GET /admin/users/{uid}/roles` | The roles they hold; `404 user_not_found` for a user the project does not have. |
 | `PUT /admin/roles/{name}`, `DELETE /admin/roles/{name}` | What `auth:roles:set` and `auth:roles:delete` call. |
 
 ### Who defines and gives them
 
 | Who | A development environment | A production environment |
 |---|---|---|
-| A person, signed in to the CLI (`palbase auth:roles:set`) | Yes | Yes |
+| An admin or the owner of the organization, signed in to the CLI (`palbase auth:roles:set`, `palbase auth:users:roles:grant`) or to Studio (a user's **Roles**) | Yes | Yes |
+| An admin [access token](https://palbase.studio/docs/getting-started/access-tokens) of the organization (`pbo_…`, a CI job's `PALBASE_TOKEN`) | Yes | Yes |
+| A member of the organization, or a member access token | No: `403 console_role_required` — they read the roles and who holds them | No, the same |
 | The app's backend, with its secret key (`Palbase.auth.adminAssignUserRole`, [Authentication](https://palbase.studio/docs/backend/authentication#roles)) | Yes | Yes |
-| An environment's token: an agent's, a CI job's ([Access Tokens](https://palbase.studio/docs/getting-started/access-tokens#what-no-environment-token-can-do)) | Yes, as its minter's role allows | No: `403 token_out_of_scope` |
+| An environment token (`pbe_…`): an agent's ([Access Tokens](https://palbase.studio/docs/getting-started/access-tokens#what-no-environment-token-can-do)) | Yes, as its minter's role allows | No: `403 token_out_of_scope` |
 
 An agent that builds the app sets up its roles where the app is built: in a development environment its token runs `palbase auth:roles:set customer --default yes`, and gives a test user another role with `PUT /admin/users/{uid}/roles/staff` — or makes the user with a [test user template](https://palbase.studio/docs/backend/test-users#a-template-can-give-the-user-a-role) that gives it. In a production environment — and in one not known to be a development environment: of no Studio project — the same calls answer `403 token_out_of_scope`, saying what does them there: a person, signed in; the backend's own code, with its secret key; or the default role, which every new user gets. A test user the token makes in production holds the default role too, as every new account does: what a default role lets a person do, give it to anyone who signs up. A token narrowed with `--scope` reaches roles in neither.
 

@@ -94,7 +94,7 @@ export const sessions = defineTable("sessions", {
 - In `withCheck`, it judges the row being written. A permission that goes through a column — `permission add = product->view` on the session type — asks what the writer holds on the product the **new** row names, so *whoever sees a product may start a session in it* is one line.
 - It stands beside the table's other conditions with `p.and(…)` and `p.or(…)`.
 - The table must be a type's table in the schema, and the type must have the name: anything else is refused when the migration is planned, by name.
-- The policy is for `authenticated` (the default) or `service_role`. One for `anon` is refused: a permission answers for a signed-in user.
+- The policy is for `authenticated` (the default) or `service_role` — and for `anon` too where the [public can hold](https://palbase.studio/docs/access/open#a-visitor) every name it reads. One for `anon` that reads a name nothing opens to the public is refused, by name: a visitor's statement would fail on it.
 
 A list filtered this way is not checked row by row. The permission compiles to a set the database joins against, and the columns it reads are indexed like any column a policy reads.
 
@@ -122,7 +122,7 @@ export class ProductsController {
 }
 ```
 
-`can`, `objects` and `held` are about **the request's caller** — the access token's `sub` — and run on the request's own transaction, so they see what the request has written. With nobody signed in (a route with `auth: false`) the answer is no, and the database is not asked.
+`can`, `objects` and `held` are about **the request's caller** — the access token's `sub` — and run on the request's own transaction, so they see what the request has written. With nobody signed in (a route with `auth: false`) the caller is a visitor: they hold what the schema opens to the [`public`](https://palbase.studio/docs/access/open), and a name the public cannot hold is answered no without the database being asked.
 
 | | Answers |
 |---|---|
@@ -171,11 +171,13 @@ export class PeopleController {
 |---|---|
 | `check(user, name, object)` | whether that user holds it |
 | `objectsOf(user, name, type)` | the objects that user holds it on |
-| `subjects(name, object)` | the users who hold it on the object, sorted |
-| `grant(object, relation, subject, { by? })` | gives the relationship; `false` when it was already there |
+| `subjects(name, object)` | the users who hold it on the object by name, sorted |
+| `openTo(name, object)` | how wide it is open there: `"public"`, `"users"` (every signed-in user), `"visitors"` (who has not signed in, alone) or `null` |
+| `grant(object, relation, subject, { by?, until? })` | gives the relationship — for good, or `until` a moment; `false` when it was already there |
 | `revoke(object, relation, subject, { by? })` | takes it; `false` when it was not there |
-| `relationships(filter?)` | what is kept: `{ object, relation, subject, since }` |
-| `history(filter?)` | what was given and taken, the latest first: `{ at, action, object, relation, subject, by }` |
+| `relationships(filter?)` | what is kept and has not ended: `{ object, relation, subject, since, until }` |
+| `history(filter?)` | what was given, taken and ended, the latest first: `{ at, action, object, relation, subject, by, until }` |
+| `sweep({ limit? })` | removes relationships whose time has passed — nothing reads them — and answers how many went |
 
 On `$asService()`, `can`, `objects` and `held` are still about the request's caller: the service's transaction carries the caller's token.
 
@@ -203,6 +205,8 @@ export async function examples(): Promise<void> {
 - Every change is written to the history with who did it: `by` when you say it, else the request's user, else the database login.
 - It is written in the service role's own transaction, which commits with the request — after the caller's own, and apart from it. A change that must stand or fall with other writes is made beside them, on the same `$asService()`.
 - A relation that takes objects is given the same way: `grant({ type: "product", id: 10 }, "squad", { type: "team", id: "blue" })`.
+- One that takes everyone is given to `{ everyUser: true }` — every signed-in user — or `{ public: true }`: [Open to Everyone](https://palbase.studio/docs/access/open). Never by an id: `"*"` is refused as one, bare or as `{ user: "*" }`.
+- `{ until }` — a `Date`, or ISO 8601 text — gives it until that moment: [Until a Moment](https://palbase.studio/docs/access/expiring).
 
 `relationships` and `history` take a filter — `{ object: { type, id? }, relation?, subject?, limit? }`, 100 rows unless `limit` says otherwise, 1,000 at most.
 
@@ -214,13 +218,15 @@ export async function examples(): Promise<void> {
 |---|---|
 | `unknown_type`, `unknown_name` | the schema has no such type, or the type no such relation or permission a user can hold |
 | `not_kept` | the relation is not one relationships are kept of, or does not take that kind of subject |
-| `bad_id` | an id that is empty, longer than 256 characters, or not a string or whole number |
+| `bad_id` | an id that is empty, longer than 256 characters, or not a string or whole number — or `"*"`, which is nobody's id |
+| `bad_time` | `until` is no moment, or one that has passed |
 | `not_the_service` | an operation of the service role's, called on the caller's `Database.$access` |
 | `no_schema` | the app declares no access schema |
 | `no_object` | `grant` on an object that does not exist |
 | `too_many` | `subjects` on an object more than 10,000 subjects, or more than 10,000 objects through kept relations, are related to — or subjects × objects past 1,000,000: ask `check` instead |
+| `cycle`, `too_deep`, `too_many_parents` | `grant` would put an object of a [nested type](https://palbase.studio/docs/access/nested) inside itself, deeper than its `depth`, or in a 33rd of its type |
 
-All but the last two are decided by the schema alone and thrown **before anything is sent**, so a wrong name does not end the request's transaction. They are mistakes of the code, not answers for a client: left to reach it, the request answers `500`. A name that comes from a request is checked against your own list first — the `z.enum([...])` above.
+All but `no_object`, `too_many` and the three of a nested type are decided before the database is asked and thrown **before anything is sent**, so a wrong name does not end the request's transaction. They are mistakes of the code, not answers for a client: left to reach it, the request answers `500`. A name that comes from a request is checked against your own list first — the `z.enum([...])` above.
 
 ## The names, typed
 
@@ -259,7 +265,7 @@ An app with an access schema hears [`user.deleted`](https://palbase.studio/docs/
 
 ## Testing
 
-`palbase access:test` holds the schema file to the answers you expect, without a database — see [Testing a Schema](https://palbase.studio/docs/access/testing). Code that calls `Database.$access` is tested against a real database: the in-memory `fakeDatabase()` keeps rows, not relationships, and refuses the question.
+`palbase access:test` holds the schema file to the answers you expect, without a database — see [Testing a Schema](https://palbase.studio/docs/access/testing). Code that calls `Database.$access` is unit-tested with the database in memory given the same file — `fakeDatabase({ access: schemaText, user })` keeps the relationships a test gives and answers by the schema ([Testing](https://palbase.studio/docs/backend/testing#an-access-schema-in-memory-fakedatabase-access-)); row policies, limits and migrations are the database's, tested against Postgres.
 
 ## From outside the app
 

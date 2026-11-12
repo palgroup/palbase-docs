@@ -51,11 +51,11 @@ The link opens the app's install page, at the environment's own address, in the 
 
 1. **Register this iPhone.** Safari asks to download a configuration profile; the tester allows it, opens **Settings**, taps **Profile Downloaded**, then **Install**. The profile only reads the phone's identifier and installs nothing: once it has answered, iOS removes it.
 2. The page comes back and says the build is being signed. It follows itself; nobody types anything.
-3. **Install.** The app appears on the home screen.
+3. **Install.** The page follows the download as the iPhone asks for it (asked, downloading with its percent, downloaded) and iOS installs the app on the home screen. When the iPhone asking is a model none of the tester's registered phones is, the page says this iPhone is not registered, and offers to register it: iOS itself would drop the install without a word. When it is one of theirs that is not in the build yet (Apple is processing it), the page says it waits. A download that stops short is said too.
 
 The first time, iOS asks for **Developer Mode** before the app opens: **Settings › Privacy & Security › Developer Mode**, on, and a restart. This is once for a phone.
 
-A tester who registered a phone before skips step 1: an invitation to the next package goes straight to the install, on every phone they registered.
+A tester who registered a phone before skips step 1: on that phone, an invitation to the next package goes straight to the install. Opened on an iPhone the page does not know (their second one, or one the link was passed to), the page asks first, with **Install** and **Register this iPhone** side by side: an iPhone missing from the build cannot install it, and iOS drops the install without a word.
 
 **On an Android phone**: **Download**, then open the file and tap **Install**. The phone asks once to allow installs from the browser.
 

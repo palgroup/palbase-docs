@@ -57,7 +57,7 @@ In your project's database, as views and functions the schema is compiled to. Th
 
 **In a `palbase/backend` app** the schema is a file beside your tables. It is migrated with them, a row policy names a permission with `p.can("view")`, and handlers ask through `Database.$access`, typed by the schema's own names. That is [Access in a Backend](https://palbase.studio/docs/access/backend).
 
-**From any backend, in any language**, the schema goes into a database of the project from the command line, and your code asks in SQL — through whatever driver or ORM it already uses. Nothing of Palbase's is installed in the app. That is [Access from SQL](https://palbase.studio/docs/access/sql), and it is also the way in for a system that already has its tables and its users: [Moving an Existing System](https://palbase.studio/docs/access/moving-in).
+**From any backend, in any language**, the schema goes into a database of the project from the command line, and your code asks in SQL — through whatever driver or ORM it already uses. Nothing of Palbase's is installed in the app. That is [Access from SQL](https://palbase.studio/docs/access/sql), and it is also the way in for a system that already has its tables and its users: [Moving an Existing System](https://palbase.studio/docs/access/moving-in). A system whose rows stay in a database of its own uses the same functions with a schema that names no table: [When Your Data Is Elsewhere](https://palbase.studio/docs/access/elsewhere).
 
 Both speak the same schema language ([The Access Schema](https://palbase.studio/docs/access/schema)) and keep relationships the same way. A database's schema has one owner, though: its `palbase/backend` app's deploys carry it, or the command line puts it in — neither replaces the other's.
 
@@ -76,5 +76,9 @@ A schema is a rule about who sees what, and a rule that is widened by mistake is
 - [The Access Schema](https://palbase.studio/docs/access/schema): types, relations kept or read from a column, permissions and how they combine, row rules, and the limits.
 - [Access in a Backend](https://palbase.studio/docs/access/backend): `db.access`, `p.can()`, `Database.$access`, types, migrations, and deleted users.
 - [Access from SQL](https://palbase.studio/docs/access/sql): putting a schema into a database, the functions and views, who may call what, and using it from an ORM.
+- [Open to Everyone](https://palbase.studio/docs/access/open): an object every signed-in user holds something on, or everyone does — `user:*` and `public`, a visitor's requests, and how wide a name is open.
+- [Until a Moment](https://palbase.studio/docs/access/expiring): a relationship that ends by itself — a contractor for thirty days, a link until Friday.
+- [Nested Objects](https://palbase.studio/docs/access/nested): a folder in a folder, a team in teams — a permission on one holds on everything inside it.
 - [Testing a Schema](https://palbase.studio/docs/access/testing): the validation file and `palbase access:test`.
 - [Moving an Existing System](https://palbase.studio/docs/access/moving-in): from a roles table of your own to relationships, without a day when both are wrong.
+- [When Your Data Is Elsewhere](https://palbase.studio/docs/access/elsewhere): the rows stay in your own database; Palbase keeps who is what of which object, and what is then yours to keep in step.

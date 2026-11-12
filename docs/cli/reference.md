@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.54.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.58.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-476 commands in 36 groups.
+480 commands in 36 groups.
 
 ## Global flags
 
@@ -440,7 +440,7 @@ palbase billing:project [-P <project>] [--plan free|pay_as_you_go] [--limit <usd
 With no flag it shows the project: its plan, limit and month, item by item, and what each of its environments used.
 A project is billed as one: its environments' usage together, past its one free quota. Pay as you go: what it uses past its free quota is owed to the payment account that pays for its organization (palbase billing:payer), charged at the month's end and as it comes to the account's threshold — and every environment of it, a new one too, has the paid sizes. A project is moved to it only while its organization is paid for by an account with a card.
 At its limit it is Free until the month ends; the organization's other projects go on.
-A project of an organization that is not billed is priced and billed to no one: its limit holds nothing — its owners and admins are emailed as its month nears it and when it passes it.
+In an organization that is not billed a project starts Free too, held to the free quotas, and is moved to Pay as you go with no payment account and no card: it is then priced and billed to no one, with the paid sizes, and its limit holds nothing — its owners and admins are emailed as its month nears it and when it passes it.
 
 ```text
       --plan <free|pay_as_you_go>  Free (charged nothing, held to the free quotas) or Pay as you go (what its environments use past its free quota is charged)
@@ -953,6 +953,34 @@ Let a banned user sign in again
 ```sh
 palbase auth:users:unban <user-id>
 ```
+
+### `palbase auth:users:roles:list`
+
+The roles a user holds
+
+```sh
+palbase auth:users:roles:list <user-id>
+```
+
+### `palbase auth:users:roles:grant`
+
+Give a user a role of the environment; giving one they hold changes nothing
+
+```sh
+palbase auth:users:roles:grant <user-id> <role>
+```
+
+Roles are the environment's: palbase auth:roles:list names them, palbase auth:roles:set makes one. What the user's next token carries follows at once.
+
+### `palbase auth:users:roles:revoke`
+
+Take a role back from a user; taking one they do not hold changes nothing
+
+```sh
+palbase auth:users:roles:revoke <user-id> <role>
+```
+
+Roles are the environment's: palbase auth:roles:list names them, palbase auth:roles:set makes one. What the user's next token carries follows at once.
 
 ### `palbase auth:users:sign-out`
 
@@ -6223,7 +6251,9 @@ palbase access:test <file>
 ```
 
 The file is JSON: the schema it is about ("schema": a path beside it, or "schema_text"), rows ("tables"), relationships ("type:id#relation@user:id") and what is expected ("expect").
+A relationship for everyone is written `"type:id#relation@user:*"` (every signed-in user) or "@public"; one that ends, { "is": "type:id#relation@user:id", "until": "2026-12-01T00:00:00Z" } — and "now" is the moment the file is asked at.
 An expectation is { subject, can / cannot, on: "type:id" }, { subject, holds, of: "type", exactly: [ids] } or { who: "permission", on: "type:id", exactly: [subjects] }.
+"visitor": true stands in place of "subject" for somebody who has not signed in; { open: "permission", on: "type:id", to: "public" | "users" | "visitors" | "nobody" } expects how wide a name is open.
 Run it in CI before a schema is deployed: a change that opens or closes something nobody meant fails there.
 
 ### `palbase access:check`
@@ -6256,11 +6286,14 @@ palbase access:objects <subject> <permission> <type> [--url <postgres-url> | --d
 
 ### `palbase access:subjects`
 
-The subjects that hold a relation or a permission on an object
+The subjects that hold a relation or a permission on an object — and whether it is open to everyone
 
 ```sh
 palbase access:subjects <permission> <type:id> [--url <postgres-url> | --db <name>]
 ```
+
+The subjects are those something names: a relationship of their own, a column, a group they are in.
+What is open to everyone names nobody, and is said on a line of its own: to every signed-in user (`user:*`), to everyone, signed in or not (public) — or to who has not signed in alone, where the schema takes it from every signed-in user.
 
 ```text
       --url <postgres-url>  a database of your own (a local Postgres), by its address
@@ -6276,12 +6309,13 @@ palbase access:relationships:list [--object <type:id>] [--subject <user:id>] [--
 ```
 
 Only what is given and taken through access is listed; a relation the schema reads from a column of a table is that table's row.
+One given until a moment is listed with it, until it has ended: what has ended is in the history (access:history).
 
 ```text
       --url <postgres-url>  a database of your own (a local Postgres), by its address
       --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
       --object <type:id>    of this object (or of every object of a type: type:*)
-      --subject <user:id>   given to this subject (user:<id>, or an object: <type>:<id>)
+      --subject <user:id>   given to this subject (user:<id>, an object <type>:<id>, user:* or public)
       --relation <name>     of this relation
       --limit <n>           at most this many (default 100, at most 1000)
 ```
@@ -6291,15 +6325,19 @@ Only what is given and taken through access is listed; a relation the schema rea
 Gives a subject a relation on an object
 
 ```sh
-palbase access:relationships:grant <type:id> <relation> <user:id | type:id> [--by <who>] [--url <postgres-url> | --db <name>]
+palbase access:relationships:grant <type:id> <relation> <user:id | type:id | user:* | public> [--until <when>] [--by <who>] [--url <postgres-url> | --db <name>]
 ```
 
 The object must be there (its row, where its type has a table), and the relation one the schema keeps and gives to that kind of subject.
+`user:*` gives it to every signed-in user and public to everyone, signed in or not — one relationship, where the schema says the relation takes them (relation viewer: user | `user:*` | public).
+--until gives it until a moment: a length of time from now (90s, 30m, 12h, 30d, 2w) or the moment itself (2026-12-01T00:00:00Z). It stops holding at that moment by itself, and the history says so.
+Given again while it is held, it takes the end said now — none, without --until.
 The history records it, with who did it: --by, or `cli:<your email>`.
 
 ```text
       --url <postgres-url>  a database of your own (a local Postgres), by its address
       --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --until <when>        the moment it ends: from now (90s, 30m, 12h, 30d, 2w) or a moment (2026-12-01T00:00:00Z)
       --by <who>            who the history says did it (default cli:<your email>)
 ```
 
@@ -6308,10 +6346,11 @@ The history records it, with who did it: --by, or `cli:<your email>`.
 Takes a relation on an object away from a subject
 
 ```sh
-palbase access:relationships:revoke <type:id> <relation> <user:id | type:id> [--by <who>] [--url <postgres-url> | --db <name>]
+palbase access:relationships:revoke <type:id> <relation> <user:id | type:id | user:* | public> [--by <who>] [--url <postgres-url> | --db <name>]
 ```
 
 What is taken stops holding with the statement that takes it.
+`user:*` and public take back what was given to everyone; what somebody holds by name stays theirs.
 The history records it, with who did it: --by, or `cli:<your email>`.
 
 ```text
@@ -6320,19 +6359,38 @@ The history records it, with who did it: --by, or `cli:<your email>`.
       --by <who>            who the history says did it (default cli:<your email>)
 ```
 
+### `palbase access:relationships:sweep`
+
+Removes the relationships whose time has passed: nothing reads them, and each is told in the history as it ended
+
+```sh
+palbase access:relationships:sweep [--limit <n>] [--url <postgres-url> | --db <name>]
+```
+
+A relationship given until a moment stops holding at that moment by itself; its row stays until it is given again or taken, something is given on its object, or this runs. No answer is another before and after.
+It takes --limit at most (default and most: 10000), the longest ended first, and says how many went: run it again while it says the limit. In SQL: SELECT access.sweep().
+
+```text
+      --url <postgres-url>  a database of your own (a local Postgres), by its address
+      --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
+      --limit <n>           at most this many (default 10000, at most 10000)
+```
+
 ### `palbase access:history`
 
-Who gave and took which relationship, and when: the newest first
+Who gave and took which relationship, which ended by itself, and when: the newest first
 
 ```sh
 palbase access:history [--object <type:id>] [--subject <user:id>] [--relation <name>] [--limit <n>] [--url <postgres-url> | --db <name>]
 ```
 
+A relationship given until a moment is told with its end, and told again — "ended" — at the moment it stopped holding.
+
 ```text
       --url <postgres-url>  a database of your own (a local Postgres), by its address
       --db <name>           a database of the project, acted on where it is bound (default: the environment's only one)
       --object <type:id>    of this object (or of every object of a type: type:*)
-      --subject <user:id>   given to this subject (user:<id>, or an object: <type>:<id>)
+      --subject <user:id>   given to this subject (user:<id>, an object <type>:<id>, user:* or public)
       --relation <name>     of this relation
       --limit <n>           at most this many (default 100, at most 1000)
 ```

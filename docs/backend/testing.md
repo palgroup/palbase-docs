@@ -134,6 +134,51 @@ describe("NotesService", () => {
 
 `fakeDatabase()` answers the engine's operations with the engine's filters and refusals: `seed(table, rows)` puts rows in, `inserted`, `updated` and `deleted` say what the code wrote, and raw SQL is recorded in `queries`, not run. What it cannot answer as Postgres would — a unique key, a relation, a cursor, search, an `$atomic`'s isolation — it refuses by name. It has no schema (no column's default, type or constraint is applied), it reads text of digits as the number it spells, it gives rows in the order they were written unless `orderBy` says otherwise, and there is no row-level security. What depends on those is tested against the app over HTTP, or against a Postgres of your own (below).
 
+### An access schema in memory: `fakeDatabase({ access })`
+
+Given the app's [access schema](https://palbase.studio/docs/access/backend) as text, the database in memory answers `Database.$access` as well. The relationships a test gives are kept beside the rows it seeded, and each question is answered by the schema itself — the evaluator the database's compiled SQL is held to — over the rows as they are when it is asked:
+
+```ts
+// tests/push.test.ts
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "bun:test";
+import { Database } from "palbase/backend";
+import { fakeDatabase, withServices } from "palbase/backend/test";
+
+const schema = readFileSync(new URL("../src/db/access.schema", import.meta.url), "utf8");
+
+/** What a handler asks before it lets a push through. */
+const mayPush = (productId: number) => Database.$access.can("code.write", { type: "product", id: productId });
+
+describe("pushing code", () => {
+  it("is a developer's of that product, and nobody else's", async () => {
+    const db = fakeDatabase({ access: schema, user: "una" });
+    db.seed("companies", [{ id: 1, name: "C" }]);
+    db.seed("products", [
+      { id: 10, company_id: 1, name: "A" },
+      { id: 11, company_id: 1, name: "B" },
+    ]);
+    await db.db.$asService().$access.grant({ type: "product", id: 11 }, "developer", "una");
+
+    expect(await withServices({ Database: db.raw }, () => mayPush(11))).toBe(true);
+    expect(await withServices({ Database: db.raw }, () => mayPush(10))).toBe(false);
+
+    db.signedInAs("tess");
+    expect(await withServices({ Database: db.raw }, () => mayPush(11))).toBe(false);
+  });
+});
+```
+
+- `user` is the caller — whom `can`, `objects` and `held` are about; `signedInAs(id)` changes it, and with nobody signed in (`signedInAs()`) the caller is a visitor: what the schema opens to the [`public`](https://palbase.studio/docs/access/open) is theirs, and nothing else. What names a subject or changes who holds what (`check`, `subjects`, `grant`, `revoke`, `history` …) is `$asService()`'s, as in a request, and is refused elsewhere the same way.
+- A row that is deleted takes its relationships, and a savepoint that fails puts back what it gave, as in the database. A relation read from a column is read from the seeded rows.
+- A relationship given [`until`](https://palbase.studio/docs/access/expiring) a moment ends by the test's clock (`Date.now()`): move it with your runner's fake timers and ask again. The database ends it by its own clock. What has ended is kept until it is swept, given again or taken, as in the database: `sweep()` answers the same count.
+- The fake knows no column types: a column is an integer when the rows' values are whole numbers, a numeric when a fraction is among them, a uuid when they are spelled as one, text otherwise — so a text key whose every value is spelled as a uuid is matched whatever its letters' case, where the database's text is not. An object's key is `id` unless the schema names another (`table tickets key code`).
+- A key changed in place carries the row's relationships in the database; in memory they go with the old key. Delete the row and write it again in a test that needs the move.
+- The surface is a request's. Code that runs with no request — a job, an event's handler — acts as the service in production; written as `Database.$asService().$access` it does the same there, and is what a test reaches. With no `by` and nobody signed in, a relationship's history names nobody (the database writes its login).
+- Nothing is planned and nothing is bounded here — the limits, row policies and what a migration does to the schema are the database's, tested against Postgres.
+
+Without `access`, the database in memory refuses an access question and says how to give it the schema.
+
 ## Over HTTP: `api`, as test users
 
 `api` calls the app under test where the run says it answers (`PALBASE_TEST_BASE_URL`), as the test users the run made for it (`PALBASE_TEST_IDENTITIES`, each with its access token). `testRun.stack` says whether an app answers: an HTTP test skips itself where none does, so `bun test` passes on a computer with no app started.

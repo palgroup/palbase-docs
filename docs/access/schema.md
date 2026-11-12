@@ -65,7 +65,7 @@ What cannot carry a type: a view, a foreign table, a partitioned table or one of
 
 ## `relation`
 
-A relation is something a subject **is** to an object. There are two kinds, told apart by `from`.
+A relation is something a subject **is** to an object. It is kept, read from a column of the object's row (`from`), or true of everyone on the rows a condition picks (`where`, with no `from`).
 
 ### Kept: given and taken
 
@@ -78,6 +78,16 @@ A relation is something a subject **is** to an object. There are two kinds, told
 A relationship of a kept relation is a fact Palbase stores — *una is designer of product 10* — given and taken through the API ([`grant` and `revoke`](https://palbase.studio/docs/access/backend#giving-and-taking)). After the colon is what can hold it: `user`, one or more types, or both, separated by `|`. Several relations that take the same subjects share a line.
 
 A relation that takes a **type** is not held by any user directly. It links two objects — *team blue is the squad of product 10* — and a permission follows it with an [arrow](#arrows-through-a-relation).
+
+Two more subjects stand for everyone of a kind, and a relation takes them only where it says so:
+
+```text
+  relation viewer: user | user:* | public
+```
+
+`user:*` is every signed-in user and `public` everyone, signed in or not — one relationship opens the object to all of them ([Open to Everyone](https://palbase.studio/docs/access/open)). A relation that does not name them is never given to everyone.
+
+A relationship is kept for good, or [until a moment](https://palbase.studio/docs/access/expiring): given with an end, it stops holding at that moment by itself.
 
 ### Read: from a column
 
@@ -103,6 +113,15 @@ The column holds a user's id (`: user from …` — text, a uuid or an integer) 
 A condition that is unknown — a comparison with a null — is not true, as in SQL: the relationship is not there.
 
 The same column can be read twice under different conditions. Above, a session's `product` is always its product, and its `team` is its product *only while the session is not private* — which is how "everyone who sees the product sees its open sessions, and a private one is its creator's and its members'" is said in one line.
+
+### Read: from the row, for everyone
+
+```text
+  relation listed: public where published = true
+  relation internal: user:* where state != 'draft'
+```
+
+With no `from`, no column names who: the relation holds for **everyone** — `public`, or every signed-in user with `user:*` — on each row the `where` picks. Publish the row and it is open; there is nothing to give or take. One relation a line, on a type that has a table; the `where` is written as above. See [Open to Everyone](https://palbase.studio/docs/access/open).
 
 ## `permission`
 
@@ -139,7 +158,7 @@ Two different operators in one expression need parentheses — `a + b & c` is re
 
 An arrow is how a role on something large reaches everything inside it without a relationship for each: one `owner` on a company is `code.write` on every product of it, today's and tomorrow's.
 
-Arrows chain through types, not through one type into itself. `session → product → company` is three levels and any number more is fine. A type that contains itself — a folder in a folder, to any depth — is not supported: a permission that reaches itself through its own type is refused when the schema is read.
+Arrows chain through types: `session → product → company` is three levels and any number more is fine. A type that contains itself — a folder in a folder, a team in teams — derives a permission from itself one level up, `view = viewer + parent->view`, with `depth N` saying how many levels there may be: [Nested Objects](https://palbase.studio/docs/access/nested). Two types derived from each other, round and back, are refused when the schema is read.
 
 ## `rows`
 
@@ -151,7 +170,7 @@ type product
   rows update, delete: code.write
 ```
 
-For a database that is **not** migrated by a `palbase/backend` app: makes the type's permission the table's row policy for the commands named (`select`, `insert`, `update`, `delete`), for the `authenticated` role, and turns row-level security on for the table. A signed-in user's `SELECT * FROM products` then returns the products they hold `view` on, whatever wrote the query. See [Access from SQL](https://palbase.studio/docs/access/sql#row-policies).
+For a database that is **not** migrated by a `palbase/backend` app: makes the type's permission the table's row policy for the commands named (`select`, `insert`, `update`, `delete`), for the `authenticated` role — and for `anon` too where [the public can hold](https://palbase.studio/docs/access/open) the permission — and turns row-level security on for the table. A signed-in user's `SELECT * FROM products` then returns the products they hold `view` on, whatever wrote the query. See [Access from SQL](https://palbase.studio/docs/access/sql#row-policies).
 
 In a `palbase/backend` app the tables' policies are written with the tables, and a schema with `rows` is refused: say [`p.can("view")`](https://palbase.studio/docs/access/backend#a-policy-names-a-permission) in the table's `policies` instead, where it can stand beside the table's other conditions.
 
@@ -159,10 +178,11 @@ In a `palbase/backend` app the tables' policies are written with the tables, and
 
 - **A relation holds** for a subject on an object when the relationship is kept (`product:10 designer user:una`), or the row's column says so.
 - **A permission holds** when its expression is true, each name in it asked of the same subject and object, each arrow of the objects the relation leads to.
-- **Nothing holds on an object that does not exist**, and nobody holds anything while nobody is signed in.
+- **Nothing holds on an object that does not exist.** While nobody is signed in, the asker is a visitor: they hold what the `public` holds, and nothing else.
+- **A relationship that has ended does not hold**, from the first statement that starts after its moment.
 - **Ids are compared as the key compares them**: a uuid in either case is the same uuid, `07` and `7` are the same integer, and text is compared exactly. A user's id in a kept relationship is text, compared exactly: give it as your sign-in writes it.
 
-"Who holds this on that object" is answered from the subjects the permission's own relations name there — each then asked — so the list is exact, and bounded by how many subjects are related to the object.
+"Who holds this on that object" is answered from the subjects the permission's own relations name there — each then asked — so the list is exact, and bounded by how many subjects are related to the object. What is everyone's names nobody: it is not in the list, and is asked as [how wide the name is open](https://palbase.studio/docs/access/open#how-wide-is-it-open).
 
 ## What is refused, and when
 
@@ -190,13 +210,15 @@ Against the database it is also held to the tables as they are: every table and 
 | What the database spends planning one name, measured when the schema is put in | 96 MB and 100 ms |
 | Terms the whole schema comes to, written out | 25,000 |
 | Permissions derived from one another, in a chain | 16 |
+| Levels of a [nested type](https://palbase.studio/docs/access/nested) (`depth`) | 32 — 16 when not said |
+| Objects of its type one object nested by relationships is in | 32 |
 | An id | 256 characters |
 | The schema's text | 256 KiB |
 
 Four of these are the ones a real schema can meet.
 
 - **Relations written out.** Permissions that name each other through several paths multiply. Say the shared part once, as a permission of its own, and name that.
-- **Lookups planned.** A permission read through another type's — `company->view` — is planned by the database with that permission's whole definition inside it, twice over through a relation read from a column and four times over through a kept one. Each level multiplies: a chain org → company → product → session → record, read from columns, is 133 lookups — about 19 MB of the database's memory and 7.5 ms to plan, on every statement it guards. Past 300, read fewer levels deep through other types' permissions, or through relations read from columns rather than kept ones.
+- **Lookups planned.** A kept relation is a lookup for each way it can be held — `viewer: user | user:* | public` is three — and a permission read through another type's — `company->view` — is planned by the database with that permission's whole definition inside it, twice over through a relation read from a column and four times over through a kept one. Each level multiplies: a chain org → company → product → session → record, read from columns, is 133 lookups — about 19 MB of the database's memory and 7.5 ms to plan, on every statement it guards. Past 300, read fewer levels deep through other types' permissions, or through relations read from columns rather than kept ones.
 - **Indexes on a type's table.** The database reads every index of a table each time a lookup reads it, and the cost grows faster than their number: the same chain plans in 5 ms on tables with their key alone, 10 ms with 150 indexes on each, 46 ms with 300 and 169 ms with 600. A table with more than 150 is refused as a type's table when the schema is put in. Up to that, and however many columns the tables have, a permission costs at most about two and a half times what it does on bare tables: the chain on tables of 1,500 columns with 150 indexes each plans in 12 ms and 24 MB.
 - **What planning takes.** What an index carries — a partial index's predicate, an index's expressions — and a table's statistics, and the indexes of `access.relationships`, are planned with every lookup that reads them. So the database itself is asked: each name's view is planned (not run) when the schema is put in, smallest first, and the schema is refused past 96 MB or 100 ms for one name, by name — a name the smaller ones show would be far past is refused without being planned. It is asked again each time the schema is put in, the same one too: by `access:schema:set`, and at every deploy of an app that carries its schema, so an index made since is found at the next.
   - The bound is per statement on a type's table: a name is planned once for each place the table's policies read it, and the places add up. An `UPDATE` under `rows select, update: view` reads `view` in three places — the rows it reads, its `USING` and its `WITH CHECK` — and is counted as three plans of it (Postgres plans it about twice: the count leaves room), held to the bound together, as is a policy that names several permissions; an upsert (`INSERT … ON CONFLICT DO UPDATE`) adds the `INSERT`'s check to the `UPDATE`'s.

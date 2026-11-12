@@ -233,7 +233,7 @@ These are the shapes a code assistant reaches for by default. Every one is wrong
 
 ## Give this to your agent
 
-For the full reference — every decorator, every module call, every schema builder — point your coding assistant at **`/llms.txt`**, the index of these docs, or **`/llms-backend.txt`**, the slice for writing a backend: getting started, the backend SDK, the server SDK and machines, in one file. Assistants fetch those when you name them; they do not go looking.
+For the full reference — every decorator, every module call, every schema builder — point your coding assistant at **`/llms.txt`**, the index of these docs (it names every page; what each page of a section covers is in that section's own index, `/llms/<section>.txt`, linked from it), or **`/llms-backend.txt`**, the slice for writing a backend: getting started, the backend SDK, the server SDK and machines, in one file. Assistants fetch those when you name them; they do not go looking.
 
 ## Related
 

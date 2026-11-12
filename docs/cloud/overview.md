@@ -51,6 +51,25 @@ const { data: month } = await cloud.billing.report({ path: { id: process.env.PAL
 for (const org of month.organizations) console.log(org.name, org.owed_micros / 1_000_000);
 ```
 
+### Your customers' projects in an organization not billed
+
+When Palbase agreed not to bill your organization (its Billing page says **Not billed**), keep each customer's project in it and bill them yourself: each opens Free, held to the free quotas and sizes, and no limit of 2 holds it. When a customer pays you, your server moves their project to Pay as you go with the organization's admin access token (`pbo_…`) — no payment account, no card: it may then open every size of machine and database, and its month is priced as anywhere and charged to no one. The organization's CSV (`cloud.billing.csv`) gives each project's month, past its free quota — what you bill that customer by. When they stop paying you, move it back to Free: its machines and databases of a paid size stop, and its data is kept.
+
+```ts
+// customers.ts — in your organization not billed
+import { PalbaseCloud } from "palbase/cloud";
+
+const cloud = new PalbaseCloud({ token: process.env.PALBASE_ORG_TOKEN! });
+const org = process.env.PALBASE_ORG_ID!;
+
+// A new customer's project: Free.
+const { data: made } = await cloud.projects.create({ path: { id: org }, body: { name: "Customer 1042" } });
+
+// They paid you: Pay as you go, no card. Stopped paying: back to Free.
+await cloud.billing.steer({ path: { id: org, project: made.project.id }, body: { plan: "pay_as_you_go" } });
+await cloud.billing.steer({ path: { id: org, project: made.project.id }, body: { plan: "free" } });
+```
+
 ## Quick example
 
 ```ts
