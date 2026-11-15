@@ -2,7 +2,7 @@
 
 # CLI reference
 
-Every command of `palbase` 0.58.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.63.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
 480 commands in 36 groups.
 
@@ -4159,7 +4159,7 @@ palbase purchases:paywalls:assets:delete <asset:id|id>
 A picture of a paywall as an app draws it — the SDK's own renderer, in a headless browser — to look at before it is saved
 
 ```sh
-palbase purchases:paywalls:preview <name|id> | --file <paywall.json> [--platform ios|android|web] [--appearance light|dark] [--locale <tag>] [--text-size default|largest] [--package <key>] [--state tab=<id>,switch=on|off,sheet=<id>] [--full] [--all] [--out <png>] [--html <file>]
+palbase purchases:paywalls:preview <name|id> | --file <paywall.json> [--platform ios|android|web|macos] [--appearance light|dark] [--locale <tag>] [--text-size default|largest] [--package <key>] [--state tab=<id>,switch=on|off,sheet=<id>] [--full] [--all] [--out <png>] [--html <file>]
 ```
 
 It draws the file being edited (--file), or a paywall's draft by its name. The picture is the platform's screen: its status bar and home indicator kept clear, as on a phone. --full draws the whole paywall instead: the part that scrolls in full, the header and the footer once.
@@ -4204,7 +4204,7 @@ It exits 0 when nothing is wrong, 1 when something is (and on a refusal: --json 
       --state <k=v,…>            tab=<id> (every tabs component on it), switch=on|off, sheet=<id> (open)
       --width <px>               the screen's width in CSS pixels (default: the platform's)
       --height <px>              the screen's height (default: the platform's)
-      --platform <platform>      ios, android or web alone (default: all three)
+      --platform <platform>      ios, android, web or macos alone (default: all four)
       --appearance <appearance>  light or dark alone (default: both)
       --text-size <size>         default or largest alone (default: both)
 ```
@@ -4305,14 +4305,14 @@ Of two people editing at once, the second is told — the rules moved past the r
 What a placement shows a viewer, and why: the experiment, the rule that decided — every rule, condition by condition — or the default
 
 ```sh
-palbase purchases:placements:preview <placement> [--platform ios|android|web] [--country TR] [--app-version 2.1.0] [--sdk palbase-swift@0.2.0] [--locale tr-TR] [--attr key=value …] [--user <id>] [--rules <file>] [--at <RFC3339>]
+palbase purchases:placements:preview <placement> [--platform ios|android|web|macos] [--country TR] [--app-version 2.1.0] [--sdk palbase-swift@0.2.0] [--locale tr-TR] [--attr key=value …] [--user <id>] [--rules <file>] [--at <RFC3339>]
 ```
 
 The viewer is what its app would send. With --user, the user's entitlements and the days since they were first seen are the project's; the user (else an installation) is who an experiment's variant is drawn for.
 --rules tries rules not yet saved (a rules:put file) instead of the saved ones; --at, a moment (a scheduled rule's start). Nothing is counted or changed.
 
 ```text
-      --platform <platform>    ios, android or web
+      --platform <platform>    ios, android, web or macos
       --country <code>         the store's country: ISO 3166-1, two or three letters
       --app-version <version>  the app's version
       --sdk <name@version>     the SDK the app draws with (palbase-swift@0.2.0)
@@ -4618,10 +4618,10 @@ palbase apps:list
 
 ### `palbase apps:create`
 
-Register an app of the project (an iOS app names its Apple team); then set it in each environment (apps:env:set)
+Register an app of the project (an iOS or Mac app names its Apple team); then set it in each environment (apps:env:set)
 
 ```sh
-palbase apps:create ios|android|web <name> [--slug <slug>] [--team-id <id>] [--app-id-prefix <prefix>]
+palbase apps:create ios|android|web|macos <name> [--slug <slug>] [--team-id <id>] [--app-id-prefix <prefix>]
 ```
 
 An app is one product on one platform: its widgets, notification service and other extensions are not apps of their own — Apple gives them bundles under the app's, and they share its sign-in.
@@ -4629,8 +4629,8 @@ The slug is the app's file in a checkout: `palbase/environments/<env>/<slug>.jso
 
 ```text
       --slug <slug>             its name in a checkout (default: from the name)
-      --team-id <id>            an iOS app's Apple team: 10 characters, Apple Developer › Membership
-      --app-id-prefix <prefix>  an iOS app's App ID prefix when it is not the team's (an app made before 2011, or moved from another team)
+      --team-id <id>            an iOS or Mac app's Apple team: 10 characters, Apple Developer › Membership
+      --app-id-prefix <prefix>  an iOS or Mac app's App ID prefix when it is not the team's (an app made before 2011, or moved from another team)
 ```
 
 ### `palbase apps:get`
@@ -4643,7 +4643,7 @@ palbase apps:get <app>
 
 ### `palbase apps:update`
 
-Rename an app, or change an iOS app's Apple team: every environment it is in is told
+Rename an app, or change an iOS or Mac app's Apple team: every environment it is in is told
 
 ```sh
 palbase apps:update <app> [--name <name>] [--team-id <id>] [--app-id-prefix <prefix>|""]
@@ -4651,7 +4651,7 @@ palbase apps:update <app> [--name <name>] [--team-id <id>] [--app-id-prefix <pre
 
 ```text
       --name <name>             what it is called
-      --team-id <id>            an iOS app's Apple team
+      --team-id <id>            an iOS or Mac app's Apple team
       --app-id-prefix <prefix>  its App ID prefix; "" for the team's
 ```
 
@@ -4673,19 +4673,20 @@ palbase apps:restore <app>
 
 ### `palbase apps:env:set`
 
-What an app is in the environment: its bundle (iOS), package and signing certificates (Android) or origins (web)
+What an app is in the environment: its bundle (iOS, Mac), package and signing certificates (Android) or origins (web)
 
 ```sh
 palbase apps:env:set <app> [--bundle <id> [--app-clip <id>] [--watch <id>]] [--package <id> --sha256 <label>=<fingerprint>…] [--origin <url>… --redirect <url>…]
 ```
 
 iOS: the app's bundle in this environment; its App Clip and watch app are the bundle followed by one more part. Its extensions are not set: they share the app's.
+Mac: the app's bundle in this environment, alone — a Mac app has no App Clip or watch app. Its extensions and helpers are not set: they share the app's.
 Android: its application ID and the SHA-256 of each certificate it is signed with — Play Console › App signing (Google's app signing key, not the upload key), ./gradlew signingReport for a debug key. Label each: debug, play_signing, upload…
 Web: the origins its pages are served from (https; http only on this computer) and the addresses a sign-in may return to.
 The platform publishes it to Apple and Google for the environment: a device sees a change in a day or so (Apple caches its file; Android 15 re-checks within a week).
 
 ```text
-      --bundle <id>                 an iOS app's bundle identifier here
+      --bundle <id>                 an iOS or Mac app's bundle identifier here
       --app-clip <id>               its App Clip's bundle (the bundle followed by one more part)
       --watch <id>                  its watch app's bundle (the bundle followed by one more part)
       --package <id>                an Android app's application ID here
@@ -4711,7 +4712,7 @@ palbase apps:sync [<app>…] [--check] [--types <env>] [--backend [<machine>=]<d
 ```
 
 The apps named join this checkout's (palbase/project.json); with none named, its apps are synced.
-`palbase/environments/<env>/`: each app's settings (`<app>.json`), each backend's contract (`contracts/<machine>.openapi.json`) and Palbe client made from it — TypeScript for a web app, Swift for an iOS app (in `palbase/<app>.palbase`), Kotlin for an Android app. A web app imports pb from `palbase/<app>.ts`: one environment's for the editor (--types), the build's mode's for the build (palbase() in vite.config), which type-checks the app against that environment.
+`palbase/environments/<env>/`: each app's settings (`<app>.json`), each backend's contract (`contracts/<machine>.openapi.json`) and Palbe client made from it — TypeScript for a web app, Swift for an iOS or Mac app (in `palbase/<app>.palbase`), Kotlin for an Android app. A web app imports pb from `palbase/<app>.ts`: one environment's for the editor (--types), the build's mode's for the build (palbase() in vite.config), which type-checks the app against that environment.
 --check writes nothing: it exits 1 naming what differs from the project now — for CI.
 --backend makes a backend's Palbe from its checkout on this computer (its palbase/backend app writes its contract and exits; nothing is connected to), to try an endpoint before any machine serves it.
 A backend is `pb.<name>` in the apps — pb.shopApi.rooms.create() for the machine shop-api — unless --as names it (--as shop-api=shop): the name is the checkout's, the same in every environment, and none of the client's own (auth, flags, storage, …). Machines of different environments may take one name — Production's backend and Development's backend-dev both pb.backend with --as backend-dev=backend — so the app's code builds against either; two machines of one environment may not.

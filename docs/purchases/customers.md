@@ -190,6 +190,7 @@ await palbase.purchases.updateSettings({
 | Setting | Default | What it says |
 |---|---|---|
 | `sandbox_access` | `everyone` | Whether test purchases — the App Store's sandbox (where TestFlight and App Review buy), Xcode's, Google Play's license testers', Stripe's test mode — open entitlements and credits: for `everyone`, only the customers on `sandbox_allowlist` (`allowlist`, 1,000 at most), or `nobody`. App Review buys in the sandbox: limit them only while no build of the app is in review against this environment. |
+| `web_tax` | `none` | How the web's sales are taxed: `none`, no tax worked out, or `managed`, through Stripe Managed Payments, Stripe the merchant of record ([Web › Tax](https://palbase.studio/docs/purchases/web#tax)). |
 | `cancel_on_delete` | `true` | Whether a deleted user's renewing web subscriptions stop renewing. |
 | `time_zone` | `UTC` | Where the quotas' calendar days and months begin: an IANA name such as `Europe/Istanbul`. |
 | `reporting_currency`, `store_commission`, `stripe_fee_bps`, `stripe_fee_fixed_micros`, `stripe_fee_fixed_currency`, `app_store_link_fee_bps`, `app_store_link_attribution_days` | `USD`, `standard`, 2.9% + 0.30 USD, 0%, 7 days | How the charts count money: see [Charts › Settings](https://palbase.studio/docs/purchases/charts#settings). |

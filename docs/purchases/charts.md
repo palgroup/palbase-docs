@@ -58,6 +58,8 @@ A **flow** counts what happened in a period; a **snapshot** is the state at its 
 
 **Money** is converted to the reporting currency at the European Central Bank's reference rate of the day it was paid; an amount in a currency the Bank does not publish is left out, and named. The ledger keeps what was paid as it was paid. The stores' commission and Stripe's fee are not in the ledger: proceeds are estimated with the [settings](#settings), and so are taxes a store did not state — the answer says what was estimated.
 
+**Platform.** A purchase's `platform` is where it was made: the App Store's is `ios`, Google Play's `android`, and a web purchase is the platform of the app that opened its checkout (`ios`, `android` or `macos`, a Mac app's) — `web` when a web page opened it, or no app said.
+
 **Paywalls and experiments.** The `paywall` and `experiment` dimensions credit each subscription once, when its first purchase is recorded: to the paywall — and the experiment's variant — its owner saw first within the 7 days before buying. One that followed none is `none`, its renewals included.
 
 A cohort chart follows at most 120 cohorts. A customer holding more than 20,000 transactions makes a chart refuse (`422 chart_too_large`).
@@ -78,7 +80,7 @@ palbase purchases:charts:settings --currency EUR --commission small_business -E 
 |---|---|---|---|
 | `--currency` | `reporting_currency` | `USD` | The currency the charts report money in: one the European Central Bank published a rate for in the last ten days. Changing it redraws every chart from its first day. |
 | `--commission` | `store_commission` | `standard` | What proceeds take off App Store and Google Play payments: `standard` (30%; 15% of a subscription's renewals after its first paid year in the App Store, and of every Google Play subscription) or `small_business` (15%: the App Store Small Business Program, Google Play's first million). |
-| `--stripe-percent`, `--stripe-fixed`, `--stripe-fixed-currency` | `stripe_fee_bps`, `stripe_fee_fixed_micros`, `stripe_fee_fixed_currency` | 2.9% + 0.30 USD | Stripe's fee of a web payment, its share and its fixed part. |
+| `--stripe-percent`, `--stripe-fixed`, `--stripe-fixed-currency` | `stripe_fee_bps`, `stripe_fee_fixed_micros`, `stripe_fee_fixed_currency` | 2.9% + 0.30 USD | Stripe's fee of a web payment, its share and its fixed part. With [Managed Payments](https://palbase.studio/docs/purchases/web#tax), add its 3.5%. |
 | `--app-store-link-percent`, `--app-store-link-days` | `app_store_link_fee_bps`, `app_store_link_attribution_days` | 0%, 7 days | What the App Store takes of a web purchase bought through a link out of an iOS app in its United States storefront, and for how many days after the link a purchase owes it. Nothing today; set it once Apple charges one. |
 
 Without flags, the command prints the settings. They are the purchases module's settings, also read and changed in Studio (**Purchases › Settings**) and with `updateSettings` ([Customers › Settings](https://palbase.studio/docs/purchases/customers#settings)).

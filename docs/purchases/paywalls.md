@@ -104,7 +104,7 @@ The least a paywall is — a title, a package that says its own price, the butto
         "spacing": 24,
         "distribution": "center",
         "children": [
-          { "type": "button", "action": { "type": "restore" }, "visible": { "platform": ["ios", "android"] }, "content": { "type": "text", "text": "Restore", "size": 13, "color": "muted" } },
+          { "type": "button", "action": { "type": "restore" }, "visible": { "platform": ["ios", "android", "macos"] }, "content": { "type": "text", "text": "Restore", "size": 13, "color": "muted" } },
           { "type": "button", "action": { "type": "terms" }, "content": { "type": "text", "text": "Terms", "size": 13, "color": "muted" } },
           { "type": "button", "action": { "type": "privacy" }, "content": { "type": "text", "text": "Privacy", "size": 13, "color": "muted" } }
         ]
@@ -213,7 +213,7 @@ A rule is `live`, `scheduled` (in effect from `starts_at`, until `ends_at`) or `
 | `field` | `op` | What it reads |
 |---|---|---|
 | `country` | `in`, `not_in` | The store's country the app sends, else the country of the request's address. ISO 3166-1 codes. |
-| `platform` | `in`, `not_in` | `ios`, `android`, `web`. |
+| `platform` | `in`, `not_in` | `ios`, `android`, `web`, `macos` (a Mac app, which buys on the `ios` channel). |
 | `app` | `in`, `not_in` | The registered app's id. |
 | `app_version` | `eq`, `neq`, `gt`, `gte`, `lt`, `lte` | The app's version, ordered as Semantic Versioning orders them. |
 | `sdk_version` | the same, with `sdk` | The version of the SDK named (`palbase-swift`): a viewer on another SDK does not meet it. |

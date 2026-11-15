@@ -80,6 +80,8 @@ palbase auth:settings:set signups_enabled=false
 | `confirm_email_required` | `false` | A new email account confirms its address before it signs in. With it on, a sign-up answers no session, and a sign-in before the confirmation is `403 email_not_confirmed`. |
 | `email_verification_method` | `code` | How an address is confirmed: a one-time `code` in the email, or a `link`. |
 
+With `confirm_email_required` off a new user is signed in before confirming their address, but nothing that signs in to the account is added until they confirm it — a second factor (authenticator app, text or email code), a passkey, recovery codes, a recovery contact, a trusted device, a first password or a linked provider is answered `403 email_unconfirmed` — so have your app ask for the confirmation before it offers MFA or a passkey.
+
 A password found in a known breach is refused at sign-up and on every change (`400 password_breached`). Users created with the secret key can skip that check (`skip_password_hibp`).
 
 ### Your app's name

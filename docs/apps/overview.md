@@ -2,7 +2,7 @@
 
 # Client Apps
 
-An app is one product on one platform that calls the project: an iOS app, an Android app or a web app. You register it once in the project, then say what it is in each environment: its bundle on iOS, its package and signing certificates on Android, its origins on the web. From that, each environment gives the app a publishable key of its own, publishes the files Apple and Google read before an app may use the environment's passkeys, and learns which sites may call it and where a sign-in may return to.
+An app is one product on one platform that calls the project: an iOS app, a Mac app, an Android app or a web app. You register it once in the project, then say what it is in each environment: its bundle on iOS and macOS, its package and signing certificates on Android, its origins on the web. From that, each environment gives the app a publishable key of its own, publishes the files Apple and Google read before an app may use the environment's passkeys, and learns which sites may call it and where a sign-in may return to.
 
 Apps are registered with the CLI, or with Studio's API as the CLI does. Studio lists each app's key, by its last characters, under **Settings › API keys**, but has no screen to register an app.
 
@@ -11,12 +11,14 @@ Apps are registered with the CLI, or with Studio's API as the CLI does. Studio l
 ```sh
 # Once per project.
 palbase apps:create ios "Shop" --team-id ABCDE12345
+palbase apps:create macos "Shop Mac" --team-id ABCDE12345
 palbase apps:create android "Shop Android" --slug shop-android
 palbase apps:create web "Shop Web"
 
 # In each environment the app runs against.
 palbase apps:env:set shop --bundle com.acme.shop -E main
 palbase apps:env:set shop --bundle com.acme.shop.staging -E staging
+palbase apps:env:set shop-mac --bundle com.acme.shop -E main
 palbase apps:env:set shop-android --package com.acme.shop --sha256 play_signing=AB:CD:EF:… --sha256 debug=12:34:56:… -E main
 palbase apps:env:set shop-web --origin https://shop.example.com --redirect https://shop.example.com/auth/callback -E main
 
@@ -29,15 +31,15 @@ The first `apps:env:set` in an environment prints the app's publishable key ther
 ## Registering an app
 
 ```sh
-palbase apps:create ios|android|web <name> [--slug <slug>] [--team-id <id>] [--app-id-prefix <prefix>]
+palbase apps:create ios|macos|android|web <name> [--slug <slug>] [--team-id <id>] [--app-id-prefix <prefix>]
 ```
 
 | | |
 |---|---|
 | Name | What it is called, 1 to 100 characters. `palbase apps:update <app> --name <name>` renames it. |
 | Slug | Its name in a checkout and on the command line: `palbase/environments/<env>/<slug>.json`. Lower-case letters, digits and dashes, starting with a letter, 2 to 40 characters; made from the name unless `--slug` gives it. One per project. |
-| Platform | `ios`, `android` or `web`, for good. The same product on another platform is another app. |
-| Apple team | An iOS app's: `--team-id`, the 10 characters under **Apple Developer › Membership**. Required. `--app-id-prefix` only when the app's App ID prefix is not the team's: an app made before 2011, or one moved from another team. |
+| Platform | `ios`, `macos`, `android` or `web`, for good. The same product on another platform is another app: its Mac app is a `macos` app of its own, even when it is built from the same Xcode project. |
+| Apple team | An iOS or macOS app's: `--team-id`, the 10 characters under **Apple Developer › Membership**. Required. `--app-id-prefix` only when the app's App ID prefix is not the team's: an app made before 2011, or one moved from another team. |
 
 An app's widgets, notification service and other extensions are not apps of their own. Apple gives them bundles under the app's, and they share its sign-in.
 
@@ -52,6 +54,7 @@ palbase apps:env:set <app> [--bundle <id> [--app-clip <id>] [--watch <id>]] [--p
 | Platform | Flags | What is checked |
 |---|---|---|
 | iOS | `--bundle`; `--app-clip`, `--watch` | A bundle identifier (`com.acme.shop`). An App Clip's and a watch app's bundle is the app's followed by one more part (`com.acme.shop.Clip`): Apple installs them under no other. |
+| macOS | `--bundle` | A bundle identifier. A Mac app has no App Clip or watch app: `--app-clip` and `--watch` are refused. It may have its iPhone app's bundle, as an app sold once for both (Apple's universal purchase) does. |
 | Android | `--package`; `--sha256 <label>=<fingerprint>`, once per certificate | The application ID, and the SHA-256 of every certificate the app is signed with, as Play Console and `keytool` print it (hex, with or without colons). A label is a short lower-case name: `play_signing`, `upload`, `debug`. At most 20 certificates. |
 | Web | `--origin`, `--redirect`, each given again for more (or comma-separated) | 1 to 20 origins and at most 20 redirects. |
 
@@ -61,7 +64,7 @@ A web origin is `https://` and a domain name a passkey can be used from: a regis
 
 Setting an app again replaces what it is in that environment; its key stays. A value that is not one of these is refused with the field and why (`400 invalid_app`). The environment also refuses:
 
-- a bundle, package or origin another app of the same platform has in the environment (`409 identity_taken`): Apple, Google and the browser could not tell the two apart;
+- a bundle, package or origin another app of the same platform has in the environment (`409 identity_taken`): Apple, Google and the browser could not tell the two apart. An iOS app and a macOS app are two platforms: they may share a bundle;
 - web origins across the environment's web apps on more than five registrable domains (`409 too_many_web_domains`): a browser takes related origins from five at most and skips the rest without a word;
 - a 51st app in the environment (`409 too_many_apps`).
 
@@ -85,22 +88,23 @@ Every environment serves three files at its address, `https://<ref>.palbase.stud
 
 | Path | What it holds | Who reads it |
 |---|---|---|
-| `GET /.well-known/apple-app-site-association` | `webcredentials.apps`: `<App ID prefix>.<bundle>` for each iOS app, its App Clip and its watch app | iOS, before the app may use the environment's passkeys |
+| `GET /.well-known/apple-app-site-association` | `webcredentials.apps`: `<App ID prefix>.<bundle>` for each iOS app, its App Clip and its watch app, and each macOS app; an App ID two apps share is listed once | iOS and macOS, before the app may use the environment's passkeys |
 | `GET /.well-known/assetlinks.json` | One statement per Android app with a certificate: `delegate_permission/common.get_login_creds` for its package and the SHA-256 of each certificate | Android's Credential Manager, before the app may use the environment's passkeys and saved passwords |
 | `GET /.well-known/webauthn` | `origins`: the web apps' `https` origins, sorted | A browser on one of those sites, before it uses a passkey of the environment |
 
 Each answers `200` with `application/json` and `Cache-Control: public, max-age=300`, and an empty list when the environment has no such app, so a device that is not associated says "not associated" rather than failing to fetch. Universal Links and App Links are not claimed: links on the environment's address are not an app's to open.
 
-The environment's own address answers them, and so does [its sign-in domain](https://palbase.studio/docs/auth/providers#your-own-sign-in-domain): the one its passkeys are saved at is the one a device asks. Apple's CDN caches its file: an iOS device sees a change in a day or so. Android 15 checks again within a week. The app's own half on iOS is the **Associated Domains** entitlement `webcredentials:<ref>.palbase.studio` — or `webcredentials:` the sign-in domain its passkeys are saved at —, which its settings name in `auth.associated_domains` ([iOS SDK](https://palbase.studio/docs/ios/overview#connect-the-app-to-the-project)).
+The environment's own address answers them, and so does [its sign-in domain](https://palbase.studio/docs/auth/providers#your-own-sign-in-domain): the one its passkeys are saved at is the one a device asks. Apple's CDN caches its file: an iOS device sees a change in a day or so. Android 15 checks again within a week. The app's own half on iOS and macOS is the **Associated Domains** entitlement `webcredentials:<ref>.palbase.studio` — or `webcredentials:` the sign-in domain its passkeys are saved at —, which its settings name in `auth.associated_domains` ([iOS SDK](https://palbase.studio/docs/ios/overview#connect-the-app-to-the-project)).
 
 ## What else an app decides
 
 | Platform | What the environment does with it |
 |---|---|
 | iOS | Accepts App Attest keys from the app and its watch app (an App Clip attests as its app). Matches an App Store purchase, and a purchase made in Xcode with its StoreKit file, to the registered bundle. The app's settings name the keychain group its sign-in is kept in: `<App ID prefix>.<bundle>.palbase`. |
+| macOS | Its passkeys, as an iOS app's, through the same file and its **Associated Domains** entitlement, and Sign in with Apple. Its push notifications go through APNs, as an iPhone's: a Mac registers its device as an Apple one (`ios`), and the environment sends to it with the Mac app's bundle as the topic, so the environment's APNs key is checked against it too. The app's settings name its keychain group, `<App ID prefix>.<bundle>.palbase`, as an iOS app's do. Not a Mac app's: App Attest, which Apple does not support on a Mac — a route marked `attest: true` refuses its calls while the mode is `enforce` ([Device attestation](https://palbase.studio/docs/backend/authentication#device-attestation)), and it never counts toward the last app App Attest keeps — nor [App Distribution](https://palbase.studio/docs/distribution/overview) or purchases from the App Store through Palbase, which are an iOS app's. |
 | Android | Accepts a passkey ceremony from the app as signed with one of its certificates, and a device's attested key from the app as signed with one of them ([Device attestation](https://palbase.studio/docs/backend/authentication#device-attestation)). Reads a Google Play purchase the app reports from Play under its package. |
 | Web | Accepts a passkey ceremony from its `https` origins. Starts every [machine](https://palbase.studio/docs/machines/overview) of the environment with its origins, and a `palbase/backend` app answers their browsers' cross-origin requests by itself ([Calling Your Backend](https://palbase.studio/docs/web/backend-calls)); a change rolls the machines out again with the new list. Adds its redirects to the addresses an auth email's link may return to ([Web Auth](https://palbase.studio/docs/web/auth#where-email-links-land)). |
-| Every platform | A web checkout's `success_url` and `cancel_url` return to a web app's origin, or to an iOS or Android app's own scheme: its bundle or its package. |
+| Every platform | A web checkout's `success_url` and `cancel_url` return to a web app's origin, or to an iOS, macOS or Android app's own scheme: its bundle or its package. |
 
 While App Attest is in `monitor` or `enforce` in an environment, its last iOS or Android app cannot leave it, by `apps:env:unset` or `apps:delete`: a gate with no app would refuse every client. Turn App Attest off there first (`palbase auth:settings:set app_attest_mode=off -E <env>`).
 
@@ -113,7 +117,7 @@ palbase apps:restore shop
 
 A deleted app is suspended in every environment for 30 days: its keys are refused and the environments stop publishing it, so every build of it stops reaching the project at once. `apps:delete` asks first; `-y` confirms without asking. `palbase apps:restore` brings it back as it was, with the same keys, until the 30 days are out. Then it is removed for good, its keys revoked. `apps:list` shows a deleted app with the day it is removed, and `apps:sync` refuses to write a checkout that builds it meanwhile.
 
-`palbase apps:update <app> --team-id <id>` moves an iOS app to another Apple team, and `--app-id-prefix ""` sets its prefix back to the team's; every environment it is in is told.
+`palbase apps:update <app> --team-id <id>` moves an iOS or macOS app to another Apple team, and `--app-id-prefix ""` sets its prefix back to the team's; every environment it is in is told.
 
 ## Who can do what
 
@@ -131,7 +135,7 @@ An admin access token registers a product's apps with no one signed in, as a Fir
 | `POST /v1/projects/{id}/apps` | Registers one: `{ "platform", "name", "slug"?, "team_id"?, "app_id_prefix"? }` |
 | `GET`, `PATCH`, `DELETE /v1/projects/{id}/apps/{app}` | Reads, changes (`name`, `team_id`, `app_id_prefix`) or deletes one |
 | `POST /v1/projects/{id}/apps/{app}/restore` | Restores a deleted one |
-| `PUT /v1/environments/{ref}/apps/{app}` | What it is in the environment: `{ "ios": { "bundle", "app_clip"?, "watch"? } }`, `{ "android": { "package", "fingerprints": [{ "label", "sha256" }] } }` or `{ "web": { "origins": [], "redirects"? } }`; the answer has its key and any `warnings` |
+| `PUT /v1/environments/{ref}/apps/{app}` | What it is in the environment: `{ "ios": { "bundle", "app_clip"?, "watch"? } }`, `{ "macos": { "bundle" } }`, `{ "android": { "package", "fingerprints": [{ "label", "sha256" }] } }` or `{ "web": { "origins": [], "redirects"? } }`; the answer has its key and any `warnings` |
 | `DELETE /v1/environments/{ref}/apps/{app}` | Takes it out of the environment |
 | `GET /v1/environments/{ref}/apps/{app}/config` | Its settings in the environment, as `apps:sdkconfig` prints them |
 

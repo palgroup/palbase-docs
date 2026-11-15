@@ -4,7 +4,7 @@
 
 Palbase's iOS SDK is Swift. Its core product, `Palbase`, holds the project's address and publishable key, the transport every call goes through, the signed-in user's session, the realtime socket and the person's consent, with auth in it. Every other module is a product of its own that the app links or leaves out: an app that sends no push carries none of push's code.
 
-The SDK is distributed compiled, as binary XCFrameworks, from [github.com/palgroup/palbase-swift](https://github.com/palgroup/palbase-swift). It needs **iOS 18** and **Xcode 16** or newer, and its API is Swift 6 concurrency throughout: `async` calls, `Sendable` types, and observable state for SwiftUI.
+The SDK is distributed compiled, as binary XCFrameworks, from [github.com/palgroup/palbase-swift](https://github.com/palgroup/palbase-swift). It runs on **iOS 18** and **macOS 15** or newer and builds with **Xcode 16** or newer, and its API is Swift 6 concurrency throughout: `async` calls, `Sendable` types, and observable state for SwiftUI.
 
 ## Quick example
 
@@ -36,7 +36,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.18.1")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.20.0")
 ```
 
 | Product | What it is |
@@ -130,7 +130,7 @@ Make one client for the app and keep it: every module hangs off it (`pb.auth`, `
 | `pb.currentSession()` | The session now, or `nil`. |
 | `pb.setPreferredLanguages(_:)` | The languages every request says (`Accept-Language`), when the app has a language setting of its own; `nil` for the device's. Auth's emails, flag and paywall rules and a backend's translations read them. |
 
-`PalbaseClient(_:sessionStorage:retry:)` takes two more settings. `sessionStorage: .memory` keeps the session in this process alone instead of the keychain. `retry:` is a `RetryPolicy` (below).
+`PalbaseClient(_:sessionStorage:retry:)` takes two more settings. `sessionStorage: .memory` keeps the session in this process alone instead of the keychain. `retry:` is a `RetryPolicy` (below). An app that keeps its user's session itself makes the client with `PalbaseClient(_:sessionKeptBy:retry:)` instead ([below](#a-session-the-app-keeps-itself)).
 
 ### What the app adds to the configuration
 
@@ -157,6 +157,59 @@ A configuration given in code, for a test or a tool, is `PalbaseConfiguration(ur
 The session is kept in the keychain, readable after the device's first unlock and never moved to another device, in the group the app shares with its extensions: a widget or a notification service extension reads the same signed-in user. The access token is renewed ahead of its end while the app is in the foreground, and a call refused for a dead token is renewed once and sent again, only for the user whose session sent it.
 
 A sign-in is sent with a proof made by a key that is created on the device and kept in its keychain. A session the project binds to that key (DPoP, RFC 9449) is sent with a fresh proof on every call that carries its token, to the project and to your backend alike, so a token copied off the device opens nothing on its own. Nothing in the app's code changes for it.
+
+## A Mac app
+
+The same package runs in a Mac app, on macOS 15 or newer: every product above has a Mac slice, and the client is made and used as on iOS. Only [Voice](https://palbase.studio/docs/ios/voice) and [Calls](https://palbase.studio/docs/ios/calls) are the iPhone's alone.
+
+A Mac app is an app of the project of its own, registered as one, and set up in Xcode as above:
+
+```sh
+palbase apps:create macos "Shop for Mac" --slug shop-mac --team-id ABCDE12345
+palbase apps:env:set shop-mac --bundle com.example.shop.mac -E main
+palbase apps:sync shop-mac
+```
+
+Four things are the Mac's own:
+
+- **The keychain.** A Mac has two. An app signed with an App ID (one a provisioning profile gives) keeps the SDK's items in the data protection keychain, the one iOS has: in the configuration's `keychain_group` when it has the **Keychain Sharing** capability, which its extensions need to share the session, and in its App ID's own group otherwise. An app signed without an App ID (Developer ID with no profile) has only the person's login keychain, whose names are every app's: the SDK keeps its items there under a service of the app's own, `io.palbase.sdk (<bundle id>)`, so no two apps read or overwrite each other's.
+- **Renewal.** A Mac app is in the foreground while it runs: the access token is renewed ahead of its end while the Mac is awake, and after it wakes, a token that lapsed in its sleep is renewed before the next call goes.
+- **Consent.** A choice that could not be sent is sent again when the Mac wakes, as it is when an iPhone's app returns to the foreground.
+- **Its platform.** A Mac app is `macos` wherever Palbase asks the app's platform (`PalbaseClient.platform`): a placement's and a flag's platform rules, a paywall's and a message's `visible.platform`, a web checkout's source — so the [charts](https://palbase.studio/docs/purchases/charts) count its web purchases on the Mac. It buys through the App Store as an iPhone app does, on the `ios` channel.
+
+### A session the app keeps itself
+
+Some apps already keep their user's session themselves: signed in by code of their own and shared with processes of their own under their own lock, a command-line helper or a core in another language. Such an app makes the client with `PalbaseClient(_:sessionKeptBy:)`, and the client reads the session from it instead of keeping one.
+
+Auth rotates refresh tokens, each good once, so a session has one keeper. The client asks the keeper for the session before its calls and asks it to renew one about to lapse, naming the refresh token it holds. It never renews a session with auth itself, never writes or deletes one, keeps nothing of it, and lets go of the session it kept itself before the app kept one:
+
+<!-- given: nonisolated func coreSession() throws -> PalbaseKeptSession?, func coreRenew(_ spent: String) async throws -> PalbaseKeptSession -->
+
+```swift
+import Palbase
+
+/// The session the app's core keeps, and renews under its own lock.
+struct CoreSession: PalbaseSessionKeeper {
+    func current() throws -> PalbaseKeptSession? { try coreSession() }
+
+    // The session whose refresh token is `spent`, renewed now, or the newer one another process renewed first.
+    // When auth refused it and the app let it go, throw PalbaseSessionEnded(reason:).
+    func renew(spent refreshToken: String) async throws -> PalbaseKeptSession { try await coreRenew(refreshToken) }
+}
+
+let client = PalbaseClient(.environment, sessionKeptBy: CoreSession())
+```
+
+`current()` is asked on the main thread and before calls, at most once a second: it answers from what the app keeps, at once, never waiting on the network or on the lock the app holds while it renews. `renew(spent:)` is asked about a minute before the session lapses, by the client's clock: the keeper renews when asked, whatever margin it keeps itself. It answers the session whose refresh token it was given, renewed, or the newer one when another of its processes renewed it first: auth takes each refresh token once. A session it hands back unrenewed is asked about again a while later, and nothing is told meanwhile; a renewal that answers another user's session is none. It throws `PalbaseSessionEnded` when auth refused the session and the app let it go; the client ends it as `sessionExpired`, for the reason it names, and does not take that session up again while the keeper still holds it. Anything else it throws (offline, an outage) leaves the session as it is, to be renewed later. The session is a bearer one, not bound to the client's device key.
+
+The client follows what the keeper holds: someone else signed in, or no one, is a `signedIn` or `signedOut` it tells the app, as a sign-in in another process is on iOS. When the app signs someone in or out itself, it tells the client, which follows at once:
+
+<!-- given: client: PalbaseClient -->
+```swift
+await client.auth.sessionChanged()
+```
+
+Auth's flows that start, renew, replace or end a session are the app's: every sign-in (a password, a magic link or a phone code, a passkey, Apple or Google), `setSession` and `deleteAccount` — and `auth.api`'s own calls that do the same — are refused with `session_kept_by_app` before anything is sent to auth. `signOut()` sends nothing and reads the app's session again. Revoking a session (`auth.sessions`) is a request like any other: the session it ends is the app's at its next renewal.
 
 ## Errors
 

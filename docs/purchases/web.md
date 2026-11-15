@@ -109,6 +109,16 @@ export async function redeem(link: string): Promise<string> {
 
 `redemptionLink` keeps the key it needs in the tab's `sessionStorage` from the checkout on; the redirect to Stripe and back keeps it. Each call makes a new link, ten at most within an hour of the payment; past it, the email's is the one. Your server can make one for a buyer whose email went astray, with the secret key (`createCheckoutRedemption`, any time).
 
+## Tax
+
+By default Checkout charges a plan's price as it is and works out no tax: collecting and filing VAT or sales tax is yours. Set the environment's `web_tax` to `managed` and it sells through [Stripe Managed Payments](https://docs.stripe.com/payments/managed-payments): Stripe is the merchant of record — it works out, collects, files and remits the tax of the buyer's country, sends them the invoice, and takes their refunds, disputes and fraud. Stripe charges 3.5% for it on top of its payment fees.
+
+1. **Turn it on at Stripe.** In the Stripe Dashboard, **Settings › Managed Payments**. Stripe reviews a live account before it sells this way; try it in a sandbox first.
+2. **Give every web product a tax code.** The catalog's `channels.web.tax_code`: one of [Stripe's tax codes](https://docs.stripe.com/tax/tax-codes) that Managed Payments takes — `txcd_10103000` is software as a service for personal use. Applying the catalog writes it on the product at Stripe.
+3. **Set it.** Studio's **Purchases › Settings › Tax on web sales**, or `PUT /purchases/settings` with the secret key and `{"web_tax": "managed"}`. While a product sold on the web has no tax code it is refused, `409 tax_code_missing`, naming them.
+
+From then on every Checkout session sells through Managed Payments. Stripe refuses one it cannot — Managed Payments not on for the account, a product without an eligible tax code — and the checkout answers `422 stripe_refused` with Stripe's reason. What a buyer paid in tax is in the ledger, a credit pack's as well as a subscription's, so the [charts](https://palbase.studio/docs/purchases/charts) take it off the revenue; add Managed Payments' 3.5% to Stripe's fee in the [charts' settings](https://palbase.studio/docs/purchases/charts#settings) for their proceeds.
+
 ## What the customer has
 
 `pb.purchases.me()` reads everything the signed-in customer has now — entitlements, subscriptions, one-time purchases, credits, quota use — whatever store they bought in. The first read makes the user a customer.
@@ -177,7 +187,7 @@ See [Customers › Guests](https://palbase.studio/docs/purchases/customers#guest
 
 ## From a native app
 
-**On iOS**, an app may link out to buy on the web beside In-App Purchase in the App Store's United States storefront (App Review Guideline 3.1.1(a)). `PalbasePurchases` checks the storefront and opens Checkout in the system browser for the signed-in customer; back in the app, what they have is read again:
+**On iOS and the Mac**, an app may link out to buy on the web beside In-App Purchase in the App Store's United States storefront (App Review Guideline 3.1.1(a)). `PalbasePurchases` checks the storefront and opens Checkout in the system browser for the signed-in customer; back in the app, what they have is read again:
 
 ```swift
 import PalbasePurchases
@@ -188,7 +198,7 @@ if await pb.purchases.canOpenWebCheckout() {
 }
 ```
 
-Elsewhere `openWebCheckout` throws `web_checkout_not_allowed` and asks nothing. Stripe sends the customer back to the app's own scheme, its bundle id. The checkout records where it was opened — iOS and the storefront — so the [charts](https://palbase.studio/docs/purchases/charts) can take off what the App Store may charge on such a purchase (nothing today).
+Elsewhere `openWebCheckout` throws `web_checkout_not_allowed` and asks nothing. Stripe sends the customer back to the app's own scheme, its bundle id. The checkout records where it was opened — the app's platform (`ios`, or `macos` in a Mac app) and the storefront — so the [charts](https://palbase.studio/docs/purchases/charts) count the purchase on that platform and can take off what the App Store may charge on one from an iOS app (nothing today).
 
 **A redemption link** opens the app with `<scheme>://palbase/redeem?token=…`: hand it to `pb.purchases.redeem(_:)` on iOS, `pb.purchases.redeem(link)` on Android, and the web purchase is the app user's.
 

@@ -89,7 +89,7 @@ What the app says about itself, with every read:
 
 | Header | Sent as | Read as |
 |---|---|---|
-| `X-Platform` | `ios` | `client.platform` |
+| `X-Platform` | `ios`; `macos` in a Mac app | `client.platform` |
 | `X-Palbase-Client-Version` | The app's `CFBundleShortVersionString` | `client.app_version` |
 | `X-OS-Version` | The system's version (`18.6.2`) | `client.os_version` |
 | `Accept-Language` | The device's languages, or what `pb.setPreferredLanguages(_:)` named | `client.locale`, its first language |

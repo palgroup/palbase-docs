@@ -330,6 +330,8 @@ func devices() async throws {
 
 `setSession(accessToken:refreshToken:expiresIn:)` starts the session from a token pair the app has from a flow it runs itself, step by step, through `pb.auth.api`.
 
+An app that keeps its user's session itself, and renews it under its own lock, makes the client with `PalbaseClient(_:sessionKeptBy:)` instead: the client reads the session from the app and asks the app to renew it, and auth's sign-in and sign-out flows are the app's ([A session the app keeps itself](https://palbase.studio/docs/ios/overview#a-session-the-app-keeps-itself)).
+
 ## `pb.auth.api`
 
 Every client operation of the auth contract, typed, through the session's transport. A few an app reaches for:

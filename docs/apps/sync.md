@@ -78,14 +78,14 @@ palbase/
 | Field | What it is |
 |---|---|
 | `environment.production` | `true` for the project's first environment, `main` |
-| `app` | The app, with what it is in this environment (`ios`, `android` or `web`) |
+| `app` | The app, with what it is in this environment (`ios`, `macos`, `android` or `web`) |
 | `url`, `publishable_key` | What the app's client is made with: the environment's address and the app's own key |
-| `keychain_group` | An iOS app's: `<App ID prefix>.<bundle>.palbase`, the keychain access group the app and its extensions keep the sign-in in |
+| `keychain_group` | An iOS or Mac app's: `<App ID prefix>.<bundle>.palbase`, the keychain access group the app and its extensions keep the sign-in in |
 | `auth` | The passkeys' relying party — where the environment's passkeys are saved: its own address, or [its sign-in domain](https://palbase.studio/docs/auth/providers#your-own-sign-in-domain) — and the iOS app's Associated Domains entry |
 | `backends` | The environment's machines: each one's address, and the digest of the contract its serving build answers (none while it is unread) |
 | `digest` | The SHA-256 of the document without this field: a build made with another digest is not current |
 
-An iOS app needs the **Keychain Sharing** capability with the group `$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER).palbase` in every target that uses Palbase: without it the SDK keeps no session, and sign-in fails with `keychain_unavailable`. The sync reminds you each run.
+An iOS app needs the **Keychain Sharing** capability with the group `$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER).palbase` in every target that uses Palbase: without it the SDK keeps no session, and sign-in fails with `keychain_unavailable`. A Mac app needs it (with a provisioning profile) only for its extensions to share its session: without it the SDK keeps the session in the app's own keychain ([A Mac app](https://palbase.studio/docs/ios/overview#a-mac-app)). The sync reminds you each run.
 
 `--format env` prints the address and key alone, for a build that does not read `palbase/` (another framework, a game engine):
 

@@ -210,7 +210,7 @@ A limit's `window` is `calendar_month` or `calendar_day` — from midnight in th
 | `family_shareable` | `ios` | Family Sharing for the purchase. |
 | `review` | `ios` | What App Review sees: a `note` and the `screenshot` of the product in the app. |
 | `store_ids` | `ios`, `android` | The store's own ids of the plans, by plan key: [products a store already sells](#products-a-store-already-sells). |
-| `tax_code` | `web` | Stripe's tax code for the product. |
+| `tax_code` | `web` | Stripe's tax code for the product, `txcd_` and eight digits: what Stripe taxes it as. Applying the catalog writes it on the product at Stripe; [Managed Payments](https://palbase.studio/docs/purchases/web#tax) needs one on every web product. Leaving it out later leaves Stripe's as it is. |
 
 ### Review screenshots
 
