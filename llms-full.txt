@@ -187,7 +187,7 @@ Start a Next.js app and give it the web SDK:
 ```json
 {
   "dependencies": {
-    "palbase": "^0.63.0",
+    "palbase": "^0.64.0",
     "next": "^16.3.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
@@ -315,7 +315,7 @@ notes-backend/
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.63.0"
+    "palbase": "^0.64.0"
   }
 }
 ```
@@ -1060,7 +1060,7 @@ An app with no database has no `src/db/`, and no `db` in its config.
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.63.0"
+    "palbase": "^0.64.0"
   }
 }
 ```
@@ -1781,9 +1781,9 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.63.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.64.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-480 commands in 36 groups.
+485 commands in 36 groups.
 
 ## Global flags
 
@@ -4068,7 +4068,7 @@ palbase ai:providers:remove <provider>
 
 ### `palbase ai:settings:get`
 
-What the environment allows its chats — whether the app's users talk to the agents, how often, how much history is kept — and its monthly AI budget
+What the environment allows its chats — whether the app's users talk to the agents, how often, how much history is kept, whether their work has its open secrets — and its monthly AI budget
 
 ```sh
 palbase ai:settings:get
@@ -4079,17 +4079,19 @@ palbase ai:settings:get
 Change what the environment allows its chats, and its monthly AI budget: a setting left out is left as it is
 
 ```sh
-palbase ai:settings:set [--clients on|off] [--messages-per-minute <n>] [--history-limit <bytes>|none] [--monthly-budget <usd>|none]
+palbase ai:settings:set [--clients on|off] [--messages-per-minute <n>] [--history-limit <bytes>|none] [--monthly-budget <usd>|none] [--open-secrets-for-app-users yes|no]
 ```
 
+--open-secrets-for-app-users yes lets the work an app's user starts (a member's message, goal or voice) have the environment's open secrets (ai:env:set --open): anyone who signs in to the app can then drive an agent to read them — asked of you wherever it is turned on (-y confirms it). Off (the default), only the work its developers and its server start has them. Said, yes or no, by an owner or an admin of the organization signed in as themselves, never with a key or a token (PALBASE_TOKEN): refused before anything is sent.
 --monthly-budget is the most the environment spends a month on Palbase's models (the platform's provider keys), at what it is billed: past it a call they would serve is refused (ai_budget_reached) until the month turns (UTC) or the budget is raised, and the organization's owners are emailed once. Its own provider keys are not counted: their provider bills them. palbase ai:spend says what is spent.
 Only an owner or an admin of the organization sets it, as themselves: a member's change of it is refused, and so is a key's or a token's — what spends the money does not raise its own limit.
 
 ```text
-      --clients <on|off>            the app's users talk to the agents of their chats with their own session
-      --messages-per-minute <n>     how many messages one user sends a minute (1–600)
-      --history-limit <bytes|none>  the chat history kept at most, in bytes; none: the plan's
-      --monthly-budget <usd|none>   the most spent a month on Palbase's models, in US dollars (0.01–1000000, cents at most); none: no budget
+      --clients <on|off>                     the app's users talk to the agents of their chats with their own session
+      --messages-per-minute <n>              how many messages one user sends a minute (1–600)
+      --history-limit <bytes|none>           the chat history kept at most, in bytes; none: the plan's
+      --monthly-budget <usd|none>            the most spent a month on Palbase's models, in US dollars (0.01–1000000, cents at most); none: no budget
+      --open-secrets-for-app-users <yes|no>  the work an app's user starts has the environment's open secrets
 ```
 
 ### `palbase ai:agents:list`
@@ -4451,19 +4453,29 @@ palbase ai:machines:delete <machine id>
 
 ### `palbase ai:env:set`
 
-Set a variable every session of the environment's agents has: its value piped in or typed unseen, never shown or put on the command line
+Set a variable every session of the environment's agents has, and say where a secret may go: its value piped in or typed unseen, never shown or put on the command line
 
 ```sh
-palbase ai:env:set <KEY> [--value-stdin] [--not-secret] < value.txt
+palbase ai:env:set <KEY> [--value-stdin] [--not-secret [--acknowledge-open]] [--host <host>]… [--inject header|query|body]… [--open --acknowledge-open] [--acknowledge-guessable] < value.txt
 ```
 
 Every command of every session its agents begin from now has it — on the platform's machines and on its own pools — beside an agent's own (its definition's env), masked in a transcript. The value is sealed where the sessions run: never answered, never logged.
 Without --value-stdin the value is asked for at the terminal, and not echoed as it is typed or pasted.
---not-secret says it is no secret in ai:env:list; its value is masked and never shown either way.
+--not-secret says it is no secret: it is given to the agent as it is, with no hosts, never open; its value is masked and never shown either way. A secret made none is said with --acknowledge-open, or your yes at the terminal once the warning is shown; a new variable needs neither.
+A secret is sealed (the default) or open. A sealed one says the hosts a request may carry it to (--host, 32 at most: an exact DNS name (api.stripe.com) or `*`. and one (`*.stripe.com`: one label more) — no IP address, port, single-label name or public suffix, and no wildcard over palbase.studio) and where in such a request it may be put (--inject: header, the default; query; body — never over plain http). Nothing of how a value is delivered changes until the proxy beside the machines swaps a sealed secret in only on a request to one of its hosts: one with no host yet is delivered as it is.
+A sealed value is 8 bytes or more on one line (secret_unusable): a short one that is no secret — a region, a scheme — is set with --not-secret. One the platform finds a person may have chosen (fewer than 16 characters, or one kind of character only: secret_guessable) is kept sealed with --acknowledge-guessable, or with your yes at the terminal once the platform has said so; -y does not say it.
+--host names all its hosts, those it had replaced — --host none takes them all away, and a sealed secret is made of an open one; ai:env:hosts:allow adds one.
+--open: the agent reads it as it is, with no hosts and no inject — so anyone who can drive the environment's agents can get its value. Said with --acknowledge-open, or with your yes at the terminal once the warning is shown; -y does not say it.
+--host, --inject or --open without --value-stdin changes what a variable set before says of itself and keeps its value (what is not given stays as it is): a person's change alone — an owner or an admin of the organization signed in as themselves (palbase login), never a key or a token (PALBASE_TOKEN), which say them with the value.
 
 ```text
-      --value-stdin  read the value from stdin (a pipe, a file)
-      --not-secret   list it as no secret (its value is never shown either way)
+      --value-stdin                 read the value from stdin (a pipe, a file)
+      --not-secret                  it is no secret (its value is never shown either way)
+      --host <host>                 a host a request may carry the secret to (repeat for several; none: no host)
+      --inject <header|query|body>  where in a request to one of its hosts it may be put (repeat for several)
+      --open                        the agent reads it as it is: no hosts, no inject
+      --acknowledge-open            say you read that anyone who can drive the agents can get an open secret's value (or a secret made none's)
+      --acknowledge-guessable       keep a value a person may have chosen sealed: say you read that an agent can confirm a guess at an allowed host
 ```
 
 ### `palbase ai:env:unset`
@@ -4476,11 +4488,72 @@ palbase ai:env:unset <KEY>
 
 ### `palbase ai:env:list`
 
-The variables every session of the environment's agents has: their names, whether each is a secret, when each was set — never a value
+The variables every session of the environment's agents has: their names, whether each is a secret — sealed, with the hosts it may go to and where it is put, or open — and when each was set: never a value
 
 ```sh
 palbase ai:env:list
 ```
+
+### `palbase ai:env:hosts:allow`
+
+Allow an ask — its host for its secret, a project's variable's or an agent's own — or let a variable's sealed secret go to one more host: only a host you know the secret belongs to
+
+```sh
+palbase ai:env:hosts:allow <request id> | <KEY> <host>
+```
+
+An agent can be led to send a secret anywhere: allow only a host you know the secret belongs to. palbase ai:env:hosts:requests lists the hosts the secrets were sent to that they are not allowed for, each by its request id.
+`<request id>` (shr_…) allows any ask: its host goes on the variable's hosts (one of the environment's), or on the environment's allowances (an agent's own secret: palbase ai:env:hosts:allowances), and the asks it now allows are marked allowed.
+`<KEY>` `<host>` lets one of the environment's variables go to a host no ask named. A host is an exact DNS name (api.stripe.com) or `*`. and one (`*.stripe.com`: one label more) — no IP address, port, single-label name or public suffix, and no wildcard over palbase.studio; a variable has 32 at most — ai:env:set `<KEY>` --host … names them all.
+A person's alone: an owner or an admin of the organization signed in as themselves (palbase login), never a key or a token (PALBASE_TOKEN) — refused before anything is sent.
+
+### `palbase ai:env:hosts:requests`
+
+The hosts the environment's sealed secrets were sent to that they are not allowed for — each secret and host once, how many times, newest first
+
+```sh
+palbase ai:env:hosts:requests [--status asked|allowed|dismissed]
+```
+
+The placeholder went as it is, and the organization's owners are emailed at most once a day for each (3 a day for one secret, 10 an environment a day). Nobody has checked who runs a host listed here: each is shown with the registrable domain it is under — api.stripe.com.evil.io is evil.io's —, which an Allow hands the secret to.
+Allow one only if you know the host is the secret's: palbase ai:env:hosts:allow `<request id>` — a project's variable's and an agent's own secret's alike (the agent's goes on the environment's allowances); or dismiss it: palbase ai:env:hosts:dismiss `<request id>`.
+An environment keeps 500 asked, 50 of them a secret and 100 an agent's own secrets: an ask past one forgets an asked one alone — the secret's own oldest, else the oldest of the secret that holds the most, the one asked last among equals —, never a dismissed or an allowed one (500 of each are kept).
+
+```text
+      --status <asked|allowed|dismissed>  the asks of that status (default asked)
+```
+
+### `palbase ai:env:hosts:dismiss`
+
+Dismiss an ask: its owners are never told of it again (it is still counted)
+
+```sh
+palbase ai:env:hosts:dismiss <request id>
+```
+
+One allowed is not undone here: its host is the secret's — ai:env:set `<KEY>` --host … names those a variable keeps (--host none: none); an agent's is taken away from the allowances (ai:env:hosts:allowances:remove).
+A person's alone: an owner or an admin of the organization signed in as themselves, never a key or a token (PALBASE_TOKEN).
+
+### `palbase ai:env:hosts:allowances`
+
+The hosts the environment's agents' own secrets are allowed beside their definitions': each an owner's Allow of an ask, newest first
+
+```sh
+palbase ai:env:hosts:allowances
+```
+
+An agent's own secret (its definition's env) goes to the hosts its definition names and to those allowed here (palbase ai:env:hosts:allow `<request id>`). Take one away: palbase ai:env:hosts:allowances:remove `<allowance id>`.
+An environment keeps 500. A new value keeps them; one goes with its key — a kept agent's once neither its draft nor its version published has it, a chat's own definition's with the last chat that has it, a backend's agent's after 30 days with no turn.
+
+### `palbase ai:env:hosts:allowances:remove`
+
+Take an allowance away: the agent's secret no longer goes to its host, and a request carrying it there is asked again
+
+```sh
+palbase ai:env:hosts:allowances:remove <allowance id>
+```
+
+A person's alone: an owner or an admin of the organization signed in as themselves, never a key or a token (PALBASE_TOKEN).
 
 ## `support`
 
@@ -14366,7 +14439,7 @@ What was said either way is the chat's: a `transcript` part of its stream for ea
 
 ## Workspaces
 
-A chat can work in GitHub repositories: its turns run with them checked out, and what its agent commits is pushed to the branch. The tokens are your backend's to give, at each clone and each push. Its turns run on Palbase's own Linux machines, or on a pool of your own machines the chat names as it is started (`pool`, see [AI on Your Own Machines](/docs/backend/ai-machines)), with the project's variables and the agent's own (`env`) and setup script (`setup`). Any machine of yours can hold the workspace too, synced both ways, and your backend can write it ([Workspace Sync](/docs/backend/ai-workspace-sync)).
+A chat can work in GitHub repositories: its turns run with them checked out, and what its agent commits is pushed to the branch. The tokens are your backend's to give, at each clone and each push. Its turns run on Palbase's own Linux machines, or on a pool of your own machines the chat names as it is started (`pool`, see [AI on Your Own Machines](/docs/backend/ai-machines)), with the project's variables and the agent's own (`env`) and setup script (`setup`): a secret among them says the hosts it may go to ([AI Variables & Secrets](/docs/backend/ai-env)). Any machine of yours can hold the workspace too, synced both ways, and your backend can write it ([Workspace Sync](/docs/backend/ai-workspace-sync)).
 
 ```ts
 // src/modules/builds/app.repo.ts
@@ -14438,6 +14511,8 @@ A workspace is one chat's, and a fork's, and a fork's agent is its chat's: two c
 ### The workspace's machine: Debian 12, Node 24, headless Chrome
 
 A workspace's turns run on one machine of Palbase's: a gVisor container on an Azure VM (AMD, amd64), Debian 12 with Node 24, Python 3, git, a C toolchain, ripgrep, poppler and tesseract, and a headless Chrome: `/usr/bin/chromium` (also `CHROME_PATH`) for Playwright's `executablePath` and for Puppeteer, and every library Playwright's own browser needs, so `npx playwright install chromium` installs the one your project's Playwright asks for, into the agent's home, with no root. Chrome starts with no sandbox of its own: the container's is the boundary. The agent's shell runs as an unprivileged user, so it installs no system package. A workspace has up to 8 GiB of memory (its `/tmp`, 1 GiB, counts in it), 2 cores — 4 on a machine added for the load — and 30 GiB of disk for its tree and what it installs, with the network a build needs (npm, pip, git).
+
+What the workspace's store holds is durable. Work a machine has not yet published — a publish that failed, files written after a turn ended — is offered to the workspace by its next turn on that machine: published where nobody else changed the file meanwhile, and kept aside as a conflict where somebody did, their version staying ([Events and conflicts](/docs/backend/ai-workspace-sync#events-and-conflicts)). It can be lost when that turn runs on another machine: when Palbase replaces the machine, or cannot wake it in time. What the workspace does not carry, such as a path `.gitignore` excludes, is never published and is on that machine alone.
 
 ### How long a turn waits for the machine
 
@@ -14565,8 +14640,9 @@ Each arrives as a `PalbaseError` with its `status` and `code`, its message said 
 
 - [Gateways](/docs/backend/gateways): the channel a chat reaches its members on
 - [Web Gateways](/docs/web/gateways): a chat's state in the browser
-- [Event Hooks](/docs/backend/hooks): `ai.response.started`, `ai.response.completed` and `ai.response.failed` (a background response's end, and every chat turn's start and end), `ai.goal.updated`, `ai.voice.started`, `ai.voice.closed`, `ai.voice.delegated`, `ai.workspace.published`, `ai.workspace.pushed`, `ai.workspace.conflict`
+- [Event Hooks](/docs/backend/hooks): `ai.response.started`, `ai.response.completed` and `ai.response.failed` (a background response's end, and every chat turn's start and end), `ai.goal.updated`, `ai.voice.started`, `ai.voice.closed`, `ai.voice.delegated`, `ai.workspace.published`, `ai.workspace.pushed`, `ai.workspace.conflict`, `ai.secret_host_requested`
 - [AI on Your Own Machines](/docs/backend/ai-machines): runner pools of your own Macs and Linux machines, environment variables and setup scripts
+- [AI Variables & Secrets](/docs/backend/ai-env): the variables and secrets its sessions have, the hosts a secret may go to, a sealed value's rules, the hosts it asked for and who allows them
 - [Workspace Sync](/docs/backend/ai-workspace-sync): a chat's workspace on a machine of yours, written by your backend, and what a tool sees of it
 - [Secrets](/docs/backend/secrets): an HTTPS tool's signing secret, a repository's token
 - [Row-Level Security](/docs/backend/row-level-security): what a tool finds as the chat's member
@@ -14698,36 +14774,299 @@ export async function scale(pool: string, rent: () => Promise<void>, giveBack: (
 
 ## Environment variables and secrets
 
-Every command of every session of the project's agents has the project's variables, on every pool: Palbase's Linux machines and your own Linux and Mac machines alike. They are masked wherever a transcript would show them.
+Every command of every session of the project's agents has the project's variables, on every pool: Palbase's Linux machines and your own Linux and Mac machines alike. They are masked wherever a transcript would show them. A secret also says where it may go: the hosts a request may carry it to, where in that request it is put, and whether it is sealed or open ([AI Variables & Secrets](/docs/backend/ai-env)).
 
 ```sh
 curl -X PUT "https://<ref>.palbase.studio/ai/env/NPM_TOKEN" \
   -H "apikey: $PALBASE_SECRET_KEY" -H "Content-Type: application/json" \
-  -d '{"value":"npm_…","secret":true}'
+  -d '{"value":"npm_…","secret":true,"hosts":["registry.npmjs.org"]}'
 ```
 
-A name is upper-case letters, digits and `_`, starting with a letter. `PALAI_…` is reserved. A value is up to 32 KiB, and a project sets up to 256 variables. A value is sealed where the sessions run and is never answered again, nor logged. `GET /ai/env` lists the names, whether each is a secret, and when each was set. `DELETE /ai/env/{key}` removes one. From your backend: `Palbase.ai.env.set("NPM_TOKEN", value)`, `Palbase.ai.env.list()`, `Palbase.ai.env.unset("NPM_TOKEN")`. With the CLI, give the value on standard input so it never sits on a command line: `palbase ai:env:set NPM_TOKEN --value-stdin < token.txt`, and `palbase ai:env:unset NPM_TOKEN`.
+A name is upper-case letters, digits and `_`, starting with a letter. `PALAI_…` is reserved. A value is up to 32 KiB, and a project sets up to 256 variables. A value is sealed where the sessions run and is never answered again, nor logged. `GET /ai/env` lists the names, whether each is a secret, its hosts, where it is put, whether it is open, and when each was set. `DELETE /ai/env/{key}` removes one. From your backend: `Palbase.ai.env.set("NPM_TOKEN", value)`, `Palbase.ai.env.list()`, `Palbase.ai.env.unset("NPM_TOKEN")`. With the CLI, give the value on standard input so it never sits on a command line: `palbase ai:env:set NPM_TOKEN --value-stdin < token.txt`, and `palbase ai:env:unset NPM_TOKEN`. A secret's hosts, its class and the rest, from your backend and the CLI: [From your backend and the CLI](/docs/backend/ai-env#from-your-backend-and-the-cli).
 
 On a machine of yours a value reaches that machine, and the session's commands read it there. Give a pool's machines only what their work needs.
 
-**An agent's own.** An agent's definition carries its own variables (`env`, name → value, 64 at most) and a **setup script** (`setup`), which each of its sessions runs once at its start, before the agent's first command, on every pool. Use it to install what the work needs (`brew bundle`, `npm ci`) on a machine you did not prepare.
+**An agent's own.** An agent's definition carries its own variables (`env`, 64 at most) and a **setup script** (`setup`), which each of its sessions runs once at its start, before the agent's first command, on every pool. Use it to install what the work needs (`brew bundle`, `npm ci`) on a machine you did not prepare.
 
 ```json
 {
   "instructions": "You build the iOS app and fix what fails.",
   "model": "claude-sonnet-5-5",
-  "env": { "SENTRY_AUTH_TOKEN": "sntrys_…", "CONFIGURATION": "Debug" },
+  "env": {
+    "SENTRY_AUTH_TOKEN": { "value": "sntrys_…", "hosts": ["sentry.io", "*.sentry.io"], "inject": ["header"] },
+    "CONFIGURATION": { "value": "Debug", "secret": false }
+  },
   "setup": "brew bundle --file=Brewfile && bundle install"
 }
 ```
 
-An agent's variables sit beside the project's: give them names of their own. Palbase keeps a definition's values sealed with your project's own key, never readable in its database, and opens them only for the sessions that run with them. A value is never answered again: an agent read back (`GET /ai/agents/{name}`) shows each name with an empty value. An agent written back with an empty value keeps the value it has, so a definition read, changed and put again loses nothing. A new name needs its value. Each definition's variables and script are written once, where its sessions run: an agent the project keeps as it is published or rolled back, an agent your backend defines at each turn (or a chat's own definition) at its first turn. Two definitions that differ, such as two chats' own or a version a chat stays on and the one published, never share them: each turn runs with its own definition's.
+Each variable of `env` is a value alone, or an object that says what it says of itself, as a project's variable does: `{ "value", "hosts", "inject", "open", "secret", "acknowledge_open", "acknowledge_guessable" }`.
+
+- **A value alone** is a sealed secret with no host yet. Its value follows a sealed value's rules: 8 bytes at least, with no line break, and one a person may have chosen only with `"acknowledge_guessable": true` ([A sealed value](/docs/backend/ai-env#a-sealed-value)). A short value that is no secret, such as `"Debug"`, is refused written alone (`400 secret_unusable`): write it with `"secret": false`.
+- **`"secret": false`** is a variable that is no secret: the agent reads it as it is, with no hosts and no class, and none of those rules apply. Making a secret the definition kept no secret takes `"acknowledge_open": true`, as making one open does: the agent reads it from then on. Making one the definition kept open or no secret sealed again takes its value in the same write (`400 value_required`): only a value given is judged.
+- **`hosts` and `inject`** are a sealed secret's ([Hosts](/docs/backend/ai-env#hosts), [Where a secret is put](/docs/backend/ai-env#where-a-secret-is-put)). **`"open": true`** makes it one the agent reads as it is, written with `"acknowledge_open": true` the first time ([Sealed or open](/docs/backend/ai-env#sealed-or-open)).
+
+A host one of these secrets is sent to and not allowed for is asked about as a project variable's is. Allow puts the host on the project's list of the agents' allowed hosts, beside the definition's `env.<KEY>.hosts`, without changing the definition; deleting the agent deletes them ([Agents' allowed hosts](/docs/backend/ai-env#agents-allowed-hosts)). The variables and setup script of one definition are prepared once for the sessions that use them, at their first turn in a workspace. A chat started with a definition of its own that has variables or a setup script gets its own, as each version of an agent does: one per chat, shared with the chat's forks, never with another chat whose definition holds the same values, and forgotten after a week unused. Each takes a few calls at that first turn, before the agent's first command; a backend that starts many chats with definitions of their own pays that once per chat. In a backend's `Palbase.ai.agent(name, define)`, the same entry is `{ value, hosts, inject, open, secret, acknowledgeOpen, acknowledgeGuessable }`:
+
+```ts
+// src/modules/builds/builder.agent.ts
+import { Palbase } from "palbase/backend";
+
+export const builder = Palbase.ai.agent("builder", () => ({
+  instructions: "You build the iOS app and fix what fails.",
+  env: {
+    SENTRY_AUTH_TOKEN: { value: process.env.SENTRY_AUTH_TOKEN!, hosts: ["sentry.io", "*.sentry.io"], inject: ["header"] },
+    CONFIGURATION: { value: "Debug", secret: false },
+  },
+  setup: "brew bundle --file=Brewfile && bundle install",
+}));
+```
+
+An agent's variables sit beside the project's: give them names of their own. Palbase keeps a definition's values sealed with your project's own key, never readable in its database, and opens them only for the sessions that run with them. A value is never answered again: an agent read back (`GET /ai/agents/{name}`) shows each name with an empty value. An agent written back with an empty value keeps the value it has, so a definition read, changed and put again loses nothing. What such a kept secret says of itself (its hosts, where it is put, its class, whether it is a secret) is changed without its value by a person alone: an owner or an admin signed in to Studio or the CLI. A key or a token is refused it (`403 person_required`) and gives the value with the change instead; rolling an agent back to a version that says otherwise is a person's too ([Who changes where a secret goes](/docs/backend/ai-env#who-changes-where-a-secret-goes)). A new name needs its value. Each definition's variables and script are written once, where its sessions run: an agent the project keeps as it is published or rolled back, an agent your backend defines at each turn (or a chat's own definition) at its first turn. Two definitions that differ, such as two chats' own or a version a chat stays on and the one published, never share them: each turn runs with its own definition's.
 
 ## Related
 
 - [AI](/docs/backend/ai): agents, chats and their workspaces
 - [Workspace Sync](/docs/backend/ai-workspace-sync): a chat's workspace on a machine of yours, both ways, and what a tool sees of it
+- [AI Variables & Secrets](/docs/backend/ai-env): a secret's hosts, sealed or open, its value's rules, the hosts it asked for and the agents' allowed hosts
 - [Secrets](/docs/backend/secrets): your backend's own secrets
+
+
+
+<!-- ===== backend/ai-env ===== -->
+
+# AI Variables & Secrets
+
+Every command of every session of your project's agents has the project's **variables**: on Palbase's Linux machines and on your own pools ([AI on Your Own Machines](/docs/backend/ai-machines)), beside the agent's own (its definition's `env`). A variable is a **secret** or not. A secret says where it may go: the **hosts** a request may carry it to, **where** in that request it may be put, and whether the agent reads it **open** or only ever sees it **sealed**. When an agent sends a sealed secret to a host it is not allowed for, the organization's owners are asked to allow that host or dismiss it.
+
+**What this changes today.** Palbase records what each secret says of itself and checks it as you write it. It does not act on it yet: until the proxy beside the machines ships, every session still gets each value as it does now, as an environment variable, whatever its hosts say, and no ask is recorded, so the list of hosts asked for stays empty. Say the hosts now, and nothing has to change when the proxy starts swapping sealed secrets in.
+
+With the API, a write that carries the value:
+
+```sh
+curl -X PUT "https://<ref>.palbase.studio/ai/env/STRIPE_KEY" \
+  -H "apikey: $PALBASE_SECRET_KEY" -H "Content-Type: application/json" \
+  -d '{"value":"<your Stripe secret key>","hosts":["api.stripe.com"],"inject":["header"]}'
+# → 200 { "key": "STRIPE_KEY", "secret": true, "hosts": ["api.stripe.com"], "inject": ["header"], "open": false, "updated_at": "…" }
+```
+
+Your backend and the CLI do the same ([From your backend and the CLI](#from-your-backend-and-the-cli)), and so does Studio ([In Studio](#in-studio)).
+
+A name is upper-case letters, digits and `_`, starting with a letter, at most 128. `PALAI_…` is Palbase's own. A value is 1 byte to 32 KiB, with no NUL, and a project sets up to 256 variables. A value is never answered again, nor logged, and a refusal never repeats it. `GET /ai/env` lists every variable with what it says of itself, never a value. `DELETE /ai/env/{key}` removes one: sessions begun from then no longer have it, and the hosts it asked for go with it.
+
+## A secret, or not
+
+A variable is a secret unless you say `"secret": false`, and a write of its value says it again: one that is not a secret is written with `"secret": false` each time. One that is not a secret is given to the agent as it is, with no hosts and no class: a region, a build configuration, a feature switch. Studio shows it as **Not a secret: the agent reads it**. Every value is masked wherever a transcript would show it, a secret's or not.
+
+A new variable written with `"secret": false` needs nothing more. A secret you keep that you make no secret does: the agent reads it from then on, so the write takes `"acknowledge_open": true`, as making a secret open does ([Sealed or open](#sealed-or-open)). Without it the write is refused with `400 open_not_acknowledged`.
+
+## Sealed or open
+
+A secret is **sealed** unless you say otherwise. A sealed secret is a placeholder in the session: the proxy puts the value in only on a request to one of its hosts, at the place it may be put. The agent never reads the value, so it cannot repeat it to anyone.
+
+An **open** secret is one the agent reads as it is. Use it only for a value the agent itself must read, such as a licence key a build tool on the machine reads. It has no hosts and no place to be put.
+
+> The agent reads an open secret's value as it is. Anyone who can drive this project's agents can get it: an app's user if you let them, or a prompt the agent reads (a web page, a file, an issue).
+
+Making a secret open takes `"acknowledge_open": true` beside `"open": true`, your word that you read this. Without it the write is refused with `400 open_not_acknowledged`, its message the warning above. Once a secret is open, a later write that leaves `open` out keeps it open and asks nothing again.
+
+```sh
+curl -X PUT "https://<ref>.palbase.studio/ai/env/LICENSE_KEY" \
+  -H "apikey: $PALBASE_SECRET_KEY" -H "Content-Type: application/json" \
+  -d '{"value":"…","open":true,"acknowledge_open":true}'
+```
+
+The work your developers and your server start (a chat your server starts, a turn it sends, a try in Studio) has the open secrets. The work an app's user starts (a member's message, goal or voice) has them only when the project lets it ([App users and open secrets](#app-users-and-open-secrets)).
+
+## A sealed value
+
+The proxy finds a sealed value again in what a host sends back, and hides it there. That sets two rules for a value kept sealed:
+
+- **8 bytes at least, with no line break.** A shorter value could not be found again reliably, and no request header can carry a line break. Either is refused with `400 secret_unusable`. Keep such a value open, or make it no secret.
+- **A value a person may have chosen needs your word.** A value of fewer than 16 characters, or of one kind of character only (digits only, lower-case letters only, upper-case letters only, or other characters only), is refused with `400 secret_guessable` unless the write says `"acknowledge_guessable": true`. The proxy hides a sealed value that an allowed host echoes back. An agent can use that to test a guess there: when its guess comes back hidden, the guess was right. Use a random key, keep the value sealed anyway with the acknowledgement, or make it an open secret.
+
+An open secret and a variable that is no secret are the agent's to read anyway: these rules are not asked of them. Only the value a write gives is judged, never one Palbase keeps: an open secret, or a variable that is no secret, is made sealed with its value given again in the same write, or it is refused with `400 value_required`. No answer says anything about a value you cannot read.
+
+```sh
+curl -X PUT "https://<ref>.palbase.studio/ai/env/ADMIN_PIN" \
+  -H "apikey: $PALBASE_SECRET_KEY" -H "Content-Type: application/json" \
+  -d '{"value":"…","hosts":["admin.example.com"],"acknowledge_guessable":true}'
+```
+
+## Hosts
+
+`hosts` names where a request may carry a sealed secret, 32 at most. Each is an exact DNS name or `*.` and a name:
+
+| You write | It matches | It does not match |
+|---|---|---|
+| `api.stripe.com` | `api.stripe.com` | `stripe.com`, `files.stripe.com` |
+| `*.stripe.com` | `api.stripe.com`, `files.stripe.com` (one label more) | `stripe.com`, `a.b.stripe.com` |
+
+A host is kept in lower-case ASCII: a name in another script is kept in its punycode form (`bücher.example` is kept as `xn--bcher-kva.example`). These are refused, with `400 invalid_request`:
+
+- **An IP address** (`10.0.0.1`, `::1`): a secret goes to a name a TLS certificate proves.
+- **A port, a scheme or a path** (`api.stripe.com:443`, `https://api.stripe.com`): a host is the name alone.
+- **A single label** (`localhost`, `intranet`): no public host has one.
+- **A public suffix, or a wildcard over one** (`com`, `co.uk`, `github.io`, `vercel.app`, `*.github.io`, `*.vercel.app`): anyone may register a name under it, an attacker too.
+- **A wildcard over `palbase.studio` or `palbase.app`** (`*.palbase.studio`, `*.app.palbase.studio`, `*.palbase.app`): every Palbase customer's addresses are under them, an attacker's own project too. Name your own exactly: your environment's address `<ref>.palbase.studio`, a machine's `<name>-<ref>.app.palbase.studio`, a site's `<name>.palbase.app`.
+
+`"hosts": []` takes them all away. Once the proxy ships, a sealed secret with no host goes to none: a request carries its placeholder, and its host is asked about ([Hosts asked for](#hosts-asked-for)). Until then it is delivered as it is, as every value is.
+
+What is a public suffix, and which domain a host is registered under, is decided by one copy of the [public suffix list](https://publicsuffix.org) that Palbase keeps, refreshed with each release of the CLI. The platform and the CLI read the same copy, so they always agree. A suffix added to the list after Palbase's copy is judged as an ordinary name until the next refresh.
+
+## Where a secret is put
+
+`inject` says where in a request to one of its hosts a sealed secret may be put: `header` (the default), `query`, `body`, one or more. A secret is never put in a request over plain `http`, whatever this says.
+
+## Who changes where a secret goes
+
+**With its value**, a write says where the secret goes as before: your server with the secret key, an environment's token (`PALBASE_TOKEN`), or a person. Whoever gives the value may say where it goes.
+
+**Without its value**, changing where a secret you keep goes is a person's change alone: an owner or an admin of the organization, signed in to Studio or to the CLI as themselves. A key or a token never makes it, your project's secret key included: a stolen server key that could allow a host would be one prompt injection away from the secret. These are refused to every key and token with `403 person_required` (an environment's token, on the calls closed to it, with `403 token_out_of_scope`):
+
+- **Changing what a secret says without its value**: its hosts, where it is put, its class, whether it is a secret.
+- **Allow** and **Dismiss** of a host asked for ([Hosts asked for](#hosts-asked-for)).
+- **Taking an allowance away** ([Agents' allowed hosts](#agents-allowed-hosts)).
+- **The setting** `open_secrets_for_app_users` ([App users and open secrets](#app-users-and-open-secrets)).
+
+A member of the organization reads all of it and changes none.
+
+A change without the value is `PUT /ai/env/{key}` with the fields that change, the value left out. A field you leave out keeps what the variable has. That works for a variable set before: one never set is `404 not_found`. Hosts or `inject` given to an open secret seal it, and `"open": false` seals it with the hosts it is given. A variable that stays no secret is refused hosts, `inject` and `open` (`409 not_a_secret`): say `"secret": true` with them to make it one.
+
+## Hosts asked for
+
+Once the proxy ships, an agent that sends a sealed secret to a host it is not allowed for sends the placeholder, not the value, and goes on without it. Palbase keeps each secret and host once, counted, as an **ask**. Until then none is recorded:
+
+```sh
+curl "https://<ref>.palbase.studio/ai/env/host-requests?status=asked" -H "apikey: $PALBASE_SECRET_KEY"
+# → { "requests": [ { "request_id": "shr_…", "key": "STRIPE_KEY", "agent": null, "origin": null,
+#      "host": "api.stripe.com.evil.io", "domain": "evil.io",
+#      "status": "asked", "asks": 3, "first_asked_at": "…", "last_asked_at": "…", "decided_at": null } ] }
+```
+
+`status` is `asked` (the default), `allowed` or `dismissed`, newest first. `agent` names the agent whose own secret it is (its definition's `env`); `null` is one of the project's variables. `origin` says whose that agent's definition is: `kept` (an agent the project keeps), `chat` (a chat's own definition) or `backend` (your backend's, at each turn). An ask, and an Allow of it, are that agent's alone: a chat's own definition under a kept agent's name is another agent's, and allowing its ask allows nothing for the kept agent.
+
+`domain` is the registrable domain the host is under: its public suffix and one label more, so `api.stripe.com.evil.io` is `evil.io`'s, not Stripe's (a name under `palbase.studio` or `palbase.app` is its own). Whoever holds that domain runs every name under it, so it is what an Allow hands the secret to, and Studio shows it first, the full host under it.
+
+A project keeps 500 asks still asked, 50 of them for one secret and 100 for one agent's own secrets together. An ask past one of these makes room by forgetting an asked one: the secret's own oldest, or else the oldest of the secret that holds the most, and of secrets that hold as many, the one asked last. An agent led to send one secret to host after host, or each of many secrets once, pushes out only its own asks, never an older one of another's, and never a dismissed or an allowed one. A project keeps 500 dismissed and 500 allowed asks; a decision past those forgets the oldest of its kind.
+
+**The owners are emailed.** The organization's owners get an email that names the project and the secret, with a link to the environment's **AI › Secrets** in Studio, where the host is shown. The email does not name the host: the agent chose it, and Palbase sends no text an agent chose under its own name. The email allows nothing itself. They are told at most once a day for each secret and host, at most 3 times a day for one secret, and a project's owners at most 10 times a day, however many asks come and go: a secret sent everywhere does not use up the day another secret's ask is told on. The same ask is the event `ai.secret_host_requested` your backend can take ([Event Hooks](/docs/backend/hooks), [Webhooks](/docs/server/webhooks)).
+
+**Allow** is `POST /ai/env/host-requests/{request_id}/allow`, for any ask. For one of the project's variables, the host joins its hosts (`POST /ai/env/{key}/hosts` with `{"host": …}` does the same for a host you name). For an agent's own secret, the host joins the project's list of the agents' allowed hosts. Either way the asks it now allows are marked allowed.
+
+Allow a host only when you know the secret is a key for it. An agent can be led by what it reads to send a secret anywhere, and Palbase has not checked who holds the host's domain: once it is allowed, anyone who can drive your agents can use the secret there. A variable that is open or no secret is `409 not_a_sealed_secret`. One with 32 hosts is `409 too_many_hosts`, and a project with 500 allowances `409 too_many_allowances`. An ask is allowed once: allowed again it is `409 already_allowed`, and a host taken away since is asked about again by its next request, which you allow from that new ask.
+
+**Dismiss** is `POST /ai/env/host-requests/{request_id}/dismiss`. It says you do not know why the agent sent the secret there: the ask is never told again, and is still counted. An allowed ask is not undone by a dismiss (`409 already_allowed`): take the host away from the variable's hosts (`PUT /ai/env/{key}`), or take the agent's allowance away, and the next request there is asked about again.
+
+Allow and Dismiss are a person's ([Who changes where a secret goes](#who-changes-where-a-secret-goes)): in Studio, or with the CLI signed in as yourself.
+
+## Agents' allowed hosts
+
+An agent's own secret may go to the hosts its definition names (`env.<KEY>.hosts`, [AI on Your Own Machines](/docs/backend/ai-machines#environment-variables-and-secrets)) and to those an owner allowed on its asks. Palbase keeps the second kind as the project's **allowances**, 500 at most, apart from the definition: a definition is the code's or the version published, and Allow does not change it.
+
+```sh
+curl "https://<ref>.palbase.studio/ai/env/allowances" -H "apikey: $PALBASE_SECRET_KEY"
+# → { "allowances": [ { "allowance_id": "sha_…", "origin": "kept", "agent": "support", "key": "GH_TOKEN",
+#      "host": "uploads.github.com", "domain": "github.com", "allowed_at": "…", "allowed_by": "usr_…" } ] }
+```
+
+`DELETE /ai/env/allowances/{allowance_id}` takes one away, a person's change: a request the agent sends there carries the placeholder again, and is asked about again.
+
+An allowance belongs to the agent's secret, not to its value: a new value keeps it, so rotating a key does not lose where it may go. It goes with its key. For an agent the project keeps, that is once neither its draft nor its version published has the key, and deleting the agent deletes them all. For a chat's own definition, it is when the last chat whose definition has the key is deleted; one allowance covers every chat whose own definition has that name and key, the name your server gave them. For your backend's agent, which is defined anew at each turn, it is after 30 days with no turn: a key its backend stops naming keeps its allowance until then, and it does nothing while no turn carries the key. A key added again starts with no allowed host, and its asks start over.
+
+## App users and open secrets
+
+`open_secrets_for_app_users` in the AI settings (`PUT /ai/settings`) says whether the work an app's user starts has the project's open secrets. Off (the default), only the work your developers and your server start has them. Turned on, anyone who signs in to your app can drive an agent to read them: keep a key the agent must not give away sealed, with its hosts.
+
+It is a person's setting: in Studio it is **Let app users' work use open secrets**, under an environment's **AI › Settings**. The CLI shows the warning and asks for your yes wherever it is turned on.
+
+## Once the proxy ships
+
+What the proxy does, as measured against it before it ships:
+
+- **The list of allowed hosts is the protection.** Hiding a value a host echoes back is a second line only. It cannot catch a value the host returns changed (reversed, encoded another way) or in pieces. Allow only the hosts a secret belongs to.
+- **What a host does with the value is beyond the proxy.** The proxy hides a value only in what the secret's own hosts send back through it. A host that shows the value somewhere else (a public page, another of its names) lets an agent read it there. And what a host gives for the value is no secret Palbase knows: a session token the agent gets by signing in with the key reaches it as it is, and works as the key does until it expires. Every proxy that puts secrets into requests has this limit. Give a key only the rights the agent's work needs.
+- **The machine sets it up itself.** Each machine sets the proxy's environment variables and its certificate authority for the session: you set none.
+- **A placeholder looks like the key.** It keeps a vendor's known prefix where there is one, so an SDK that checks the prefix works, and never contains a character of the secret.
+- **A sealed value's length is not hidden.** An agent can learn how long a value is, never what it is: from where an allowed host, or the proxy's own limits (`431`, `413`), start refusing a request that carries the placeholder many times. Most API keys' lengths are public anyway; a value inside a longer one shows its own (a password inside a `DATABASE_URL`).
+- **Some clients need a line of setup.** `stripe-python` brings its own certificate bundle, and its requests get no value until the code sets `stripe.ca_bundle_path = "/etc/ssl/certs/ca-certificates.crt"`. `stripe-node` uses its own HTTPS agent and goes around the proxy until it is given one that follows it, on Node 24: `new Stripe(key, { httpAgent: new https.Agent({ proxyEnv: process.env }) })`.
+- **WebSockets.** Node's built-in `WebSocket` and Python's `websockets` go through the proxy. The npm `ws` package ignores it and fails closed: it never reaches the host.
+- **The proxy reads the agent's HTTPS traffic to find placeholders.** A client that pins its own certificates fails once for a host, and the proxy then passes that host through untouched for a while: a placeholder sent to a host being passed through is not noticed, and no ask is made. A host one of the project's secrets may go to is never passed through unless you name it, so a pinned client fails there every time.
+- **ssh and `git://`** go through as they are: a secret is never put in them.
+- **Four ports, each held to its protocol.** A machine reaches the internet on four ports: 22 for ssh, 9418 for `git://`, 80 for HTTP and 443 for TLS. A connection must speak its port's protocol, and its client must speak first, within 30 seconds; anything else is closed.
+- **ssh over port 443 is not carried.** Settings written for networks that close port 22 — `ssh.github.com` on port 443, `altssh.gitlab.com:443`, `altssh.bitbucket.org:443` in `~/.ssh/config` — fail. The same repositories answer on port 22: remove the alternate host from `~/.ssh/config`. If a machine needs that host, an owner can name it as a host the machine's traffic goes to untouched.
+- **Limits.** A session may hold 256 connections and 256 requests at once. A request whose body carries a secret is held in memory while the secret is put in, up to 4 MiB a body and 32 MiB a machine at once. Past a limit the answer is `503` with `Retry-After`, and a client retries after the time it says. A body over 4 MiB is `413`, and secrets put into a request's headers and query that add more than 64 KiB are `431`.
+
+## In Studio
+
+An environment's **AI › Secrets** lists its variables, each as a sealed secret, an open one or no secret, with its hosts and where it is put, and never a value. An owner or an admin of the organization adds one, sets a new value (the field is written, never filled in), changes its hosts, where it is put and its class without retyping it, and removes one. Adding hosts offers those of common services (Stripe, GitHub, npm, OpenAI, Anthropic, Vercel, Slack) and the environment's own addresses: its project address and each of its machines'. Making a secret open, or a kept secret no secret, shows the warning above with a box to tick before it saves. A sealed value under 8 bytes is not saved, with the open class offered instead, and one that looks chosen by a person shows the warning of [A sealed value](#a-sealed-value) with a box to keep it sealed anyway.
+
+Below, **Hosts asked for** lists the asks by status, each by the domain its host is under with the full host beneath, and says whose secret it is: a project variable, an agent you keep, your backend's agent, or a chat's own definition. An owner or an admin allows an ask, after a confirmation that names the domain and says nobody has checked who holds it, or dismisses it, a project variable's and an agent's own alike. **Agents' allowed hosts** lists the allowances, each with who allowed it and when, and an owner or an admin takes one away. A member of the organization reads every list and changes nothing.
+
+## From your backend and the CLI
+
+Your backend writes a variable with its value, and reads the lists, with the project's secret key:
+
+```ts
+import { Palbase } from "palbase/backend";
+
+await Palbase.ai.env.set("STRIPE_KEY", process.env.STRIPE_SECRET_KEY!, { hosts: ["api.stripe.com"], inject: ["header"] });
+await Palbase.ai.env.set("LICENSE_KEY", process.env.LICENSE_KEY!, { open: true, acknowledgeOpen: true });
+await Palbase.ai.env.set("ADMIN_PIN", process.env.ADMIN_PIN!, { hosts: ["admin.example.com"], acknowledgeGuessable: true });
+await Palbase.ai.env.set("REGION", "eu-west-1", { secret: false });
+
+const variables = await Palbase.ai.env.list(); // each key, secret, hosts, inject, open and updatedAt: never a value
+const asked = await Palbase.ai.env.hostRequests.list({ status: "asked" }); // requestId, key, agent, origin, host, domain, asks, firstAskedAt, lastAskedAt
+const allowances = await Palbase.ai.env.allowances.list(); // allowanceId, origin, agent, key, host, domain, allowedAt, allowedBy
+```
+
+The SDK's `Palbase.ai.env.update(key, change)`, `Palbase.ai.env.hostRequests.allow(requestId)`, `Palbase.ai.env.hostRequests.dismiss(requestId)` and `Palbase.ai.env.allowances.remove(allowanceId)` make the person's calls. Made with the secret key, they are refused with `403 person_required`.
+
+With the CLI, the value goes on standard input so it never sits on a command line. Signed in as yourself, the CLI also makes a person's changes:
+
+```sh
+palbase ai:env:set STRIPE_KEY --value-stdin --host api.stripe.com --inject header < stripe-key.txt
+palbase ai:env:set LICENSE_KEY --value-stdin --open --acknowledge-open < license.txt
+palbase ai:env:set ADMIN_PIN --value-stdin --host admin.example.com --acknowledge-guessable < pin.txt
+palbase ai:env:set REGION --value-stdin --not-secret < region.txt
+palbase ai:env:list
+
+palbase ai:env:set STRIPE_KEY --host api.stripe.com --host '*.stripe.com'
+palbase ai:env:hosts:requests --status asked
+palbase ai:env:hosts:allow shr_…
+palbase ai:env:hosts:dismiss shr_…
+palbase ai:env:hosts:allowances
+palbase ai:env:hosts:allowances:remove sha_…
+palbase ai:settings:set --open-secrets-for-app-users yes
+```
+
+Without `--value-stdin`, `--host`, `--inject` and `--open` change what a variable says and keep its value. `--host` names all its hosts, replacing those it had, and `--host none` takes them all away. `--not-secret` is said with the value: a secret made no secret is `--value-stdin --not-secret --acknowledge-open`. At a terminal, making a secret open or no secret without `--acknowledge-open`, or keeping sealed a value a person may have chosen without `--acknowledge-guessable`, shows the warning and asks for your yes. `-y` does not give it.
+
+## Refusals
+
+| Status | `error` | When |
+|---|---|---|
+| 400 | `invalid_request` | A name, a value or a host that is not one (see [Hosts](#hosts)), more than 32 hosts, an `inject` other than `header`, `query`, `body`, or an open secret given hosts or `inject`. |
+| 400 | `open_not_acknowledged` | `open: true`, or a kept secret made no secret, without `acknowledge_open: true`. Its message is the warning. |
+| 400 | `secret_unusable` | A sealed value under 8 bytes, or with a line break or a NUL. |
+| 400 | `secret_guessable` | A sealed value a person may have chosen, without `acknowledge_guessable: true`. |
+| 400 | `value_required` | An open secret, or a variable that is no secret, made sealed without its value in the same write. |
+| 403 | `person_required` | A key or a token changed what a secret says without its value, allowed or dismissed an ask, took an allowance away, or named `open_secrets_for_app_users`. |
+| 403 | `token_out_of_scope` | An environment's token made one of those calls where it is closed to it. |
+| 404 | `not_found` | A change without a value to a variable never set, or an Allow, a dismiss or a removal of what is not there. |
+| 409 | `not_a_secret` | A variable that stays no secret given hosts, `inject` or `open`. |
+| 409 | `not_a_sealed_secret` | Allow of a variable that is open or no secret. |
+| 409 | `too_many_hosts` | Allow of a secret that has 32 hosts. |
+| 409 | `too_many_allowances` | Allow of an agent's ask when the project has 500 allowances. |
+| 409 | `already_allowed` | Allow or dismiss of an ask that was allowed. |
+| 409 | `too_many_variables` | A new variable past the project's 256. |
+
+## Related
+
+- [AI on Your Own Machines](/docs/backend/ai-machines): runner pools, and an agent's own variables and setup script
+- [AI](/docs/backend/ai): agents, chats and their workspaces
+- [Event Hooks](/docs/backend/hooks): `ai.secret_host_requested` in your backend
+- [Secrets](/docs/backend/secrets): your backend's own secrets, kept apart from these
 
 
 
@@ -16816,7 +17155,7 @@ The web SDK is `palbase/web`, a part of the npm package `palbase`: `npm install 
 ```json
 {
   "dependencies": {
-    "palbase": "^0.63.0"
+    "palbase": "^0.64.0"
   }
 }
 ```
@@ -20178,7 +20517,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.20.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.20.1")
 ```
 
 | Product | What it is |
@@ -20314,7 +20653,7 @@ palbase apps:sync shop-mac
 
 Four things are the Mac's own:
 
-- **The keychain.** A Mac has two. An app signed with an App ID (one a provisioning profile gives) keeps the SDK's items in the data protection keychain, the one iOS has: in the configuration's `keychain_group` when it has the **Keychain Sharing** capability, which its extensions need to share the session, and in its App ID's own group otherwise. An app signed without an App ID (Developer ID with no profile) has only the person's login keychain, whose names are every app's: the SDK keeps its items there under a service of the app's own, `io.palbase.sdk (<bundle id>)`, so no two apps read or overwrite each other's.
+- **The keychain.** A Mac has two. An app signed with an App ID (one a provisioning profile gives) keeps the SDK's items in the data protection keychain, the one iOS has: in the configuration's `keychain_group` when it has the **Keychain Sharing** capability, which its extensions need to share the session, and in its App ID's own group otherwise. An app signed without an App ID (Developer ID with no profile) has only the person's login keychain, whose names are every app's: the SDK keeps its items there under a service of the app's own, `io.palbase.sdk (<bundle id>)`, so no two apps read or overwrite each other's. An item there is its signature's as well: macOS lets the signature that made it read it, and asks the person for their keychain's password when any other does. So the release, signed with a Developer ID, keeps that name from version to version, and a build signed otherwise (one from Xcode, which carries the release's bundle id) keeps its own, `io.palbase.sdk (<bundle id>, development)`: both run on one Mac and neither asks.
 - **Renewal.** A Mac app is in the foreground while it runs: the access token is renewed ahead of its end while the Mac is awake, and after it wakes, a token that lapsed in its sleep is renewed before the next call goes.
 - **Consent.** A choice that could not be sent is sent again when the Mac wakes, as it is when an iPhone's app returns to the foreground.
 - **Its platform.** A Mac app is `macos` wherever Palbase asks the app's platform (`PalbaseClient.platform`): a placement's and a flag's platform rules, a paywall's and a message's `visible.platform`, a web checkout's source — so the [charts](/docs/purchases/charts) count its web purchases on the Mac. It buys through the App Store as an iPhone app does, on the `ios` channel.
@@ -21276,7 +21615,7 @@ The project holds its clients to limits the platform sets and the project may lo
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.20.0 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.20.1 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -21508,7 +21847,7 @@ When the person signs out, what the phone kept of their conversations is dropped
 The calls are a Swift package of their own, so an app that makes no calls takes none of their weight. Add `https://github.com/palgroup/palbase-swift-calls` with Swift Package Manager, at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.20.0")
+.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.20.1")
 ```
 
 Link `PalbaseCalls` to the app — and `PalbaseCallsBroadcast` to its Broadcast Upload Extension alone, when it shares the whole screen ([Sharing a screen](#sharing-a-screen)). `PalbaseCalls` brings Palbase's core and `PalbaseNotify` of the same version, and LiveKit's WebRTC and client SDK, which the media server's calls go through. **Do not add LiveKit's own Swift package beside them**: its client SDK is already inside `PalbaseCalls`. It needs iOS 18 and Xcode 16.3 or newer.
@@ -22550,7 +22889,7 @@ A chat of the project's agents can be talked to out loud ([AI › Voice](/docs/b
 `PalbaseVoice` is a package of its own, [github.com/palgroup/palbase-swift-voice](https://github.com/palgroup/palbase-swift-voice), because it brings WebRTC (LiveKit's build, [livekit/webrtc-xcframework](https://github.com/livekit/webrtc-xcframework)): an app that talks to no voice resolves none of it. Add it at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-voice", exact: "0.20.0")
+.package(url: "https://github.com/palgroup/palbase-swift-voice", exact: "0.20.1")
 ```
 
 Link `PalbaseVoice`; it brings the `Palbase` core of the same version. An app that also takes LiveKit's SDK resolves the one WebRTC package. The app's Info.plist says why it asks for the microphone, in `NSMicrophoneUsageDescription`.
@@ -25521,6 +25860,7 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `ai.workspace.published` | A chat's workspace published a tree (mid-turn, as a build writes its product, and once more as its machine lets it go): what changed against the tree it replaced. Read a file of it with `GET /ai/chats/{id}/workspace/files?path=&manifest=`. | `{ chat_id, manifest_id, previous_manifest_id?, changed: [{ path, change, size_bytes }], changed_count, changed_truncated, metadata }` |
 | `ai.workspace.pushed` | A chat's agent pushed its work to the chat's branch. | `{ chat_id, repo, repository, branch, head_sha, commits: [{ sha, subject, author_name, author_email }], commits_truncated, response_id, user_id, metadata }` |
 | `ai.workspace.conflict` | A writer's change of a chat's workspace lost: the path had changed since the writer saw it, and the first to reach the store won. The version that lost is kept 30 days in the workspace's history. | `{ chat_id, conflict: { id, path, lost, winner }, manifest_id, seq, writer, metadata }` |
+| `ai.secret_host_requested` | An agent sent a sealed secret to a host it is not allowed for: the host got a placeholder, not the value, and the owners are asked to allow or dismiss it ([Hosts asked for](/docs/backend/ai-env#hosts-asked-for)). At most once a day a secret and host, and 10 a project a day. | `{ project_id, request_id, key, agent, host, asked_at }` |
 
 The modules' contracts say which of their operations emit which event; each is noted on the operation (for example, `PUT /storage/buckets/{bucket}/objects/{path}` "Emits file.uploaded").
 

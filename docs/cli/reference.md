@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.63.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.64.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-480 commands in 36 groups.
+485 commands in 36 groups.
 
 ## Global flags
 
@@ -2289,7 +2289,7 @@ palbase ai:providers:remove <provider>
 
 ### `palbase ai:settings:get`
 
-What the environment allows its chats — whether the app's users talk to the agents, how often, how much history is kept — and its monthly AI budget
+What the environment allows its chats — whether the app's users talk to the agents, how often, how much history is kept, whether their work has its open secrets — and its monthly AI budget
 
 ```sh
 palbase ai:settings:get
@@ -2300,17 +2300,19 @@ palbase ai:settings:get
 Change what the environment allows its chats, and its monthly AI budget: a setting left out is left as it is
 
 ```sh
-palbase ai:settings:set [--clients on|off] [--messages-per-minute <n>] [--history-limit <bytes>|none] [--monthly-budget <usd>|none]
+palbase ai:settings:set [--clients on|off] [--messages-per-minute <n>] [--history-limit <bytes>|none] [--monthly-budget <usd>|none] [--open-secrets-for-app-users yes|no]
 ```
 
+--open-secrets-for-app-users yes lets the work an app's user starts (a member's message, goal or voice) have the environment's open secrets (ai:env:set --open): anyone who signs in to the app can then drive an agent to read them — asked of you wherever it is turned on (-y confirms it). Off (the default), only the work its developers and its server start has them. Said, yes or no, by an owner or an admin of the organization signed in as themselves, never with a key or a token (PALBASE_TOKEN): refused before anything is sent.
 --monthly-budget is the most the environment spends a month on Palbase's models (the platform's provider keys), at what it is billed: past it a call they would serve is refused (ai_budget_reached) until the month turns (UTC) or the budget is raised, and the organization's owners are emailed once. Its own provider keys are not counted: their provider bills them. palbase ai:spend says what is spent.
 Only an owner or an admin of the organization sets it, as themselves: a member's change of it is refused, and so is a key's or a token's — what spends the money does not raise its own limit.
 
 ```text
-      --clients <on|off>            the app's users talk to the agents of their chats with their own session
-      --messages-per-minute <n>     how many messages one user sends a minute (1–600)
-      --history-limit <bytes|none>  the chat history kept at most, in bytes; none: the plan's
-      --monthly-budget <usd|none>   the most spent a month on Palbase's models, in US dollars (0.01–1000000, cents at most); none: no budget
+      --clients <on|off>                     the app's users talk to the agents of their chats with their own session
+      --messages-per-minute <n>              how many messages one user sends a minute (1–600)
+      --history-limit <bytes|none>           the chat history kept at most, in bytes; none: the plan's
+      --monthly-budget <usd|none>            the most spent a month on Palbase's models, in US dollars (0.01–1000000, cents at most); none: no budget
+      --open-secrets-for-app-users <yes|no>  the work an app's user starts has the environment's open secrets
 ```
 
 ### `palbase ai:agents:list`
@@ -2672,19 +2674,29 @@ palbase ai:machines:delete <machine id>
 
 ### `palbase ai:env:set`
 
-Set a variable every session of the environment's agents has: its value piped in or typed unseen, never shown or put on the command line
+Set a variable every session of the environment's agents has, and say where a secret may go: its value piped in or typed unseen, never shown or put on the command line
 
 ```sh
-palbase ai:env:set <KEY> [--value-stdin] [--not-secret] < value.txt
+palbase ai:env:set <KEY> [--value-stdin] [--not-secret [--acknowledge-open]] [--host <host>]… [--inject header|query|body]… [--open --acknowledge-open] [--acknowledge-guessable] < value.txt
 ```
 
 Every command of every session its agents begin from now has it — on the platform's machines and on its own pools — beside an agent's own (its definition's env), masked in a transcript. The value is sealed where the sessions run: never answered, never logged.
 Without --value-stdin the value is asked for at the terminal, and not echoed as it is typed or pasted.
---not-secret says it is no secret in ai:env:list; its value is masked and never shown either way.
+--not-secret says it is no secret: it is given to the agent as it is, with no hosts, never open; its value is masked and never shown either way. A secret made none is said with --acknowledge-open, or your yes at the terminal once the warning is shown; a new variable needs neither.
+A secret is sealed (the default) or open. A sealed one says the hosts a request may carry it to (--host, 32 at most: an exact DNS name (api.stripe.com) or `*`. and one (`*.stripe.com`: one label more) — no IP address, port, single-label name or public suffix, and no wildcard over palbase.studio) and where in such a request it may be put (--inject: header, the default; query; body — never over plain http). Nothing of how a value is delivered changes until the proxy beside the machines swaps a sealed secret in only on a request to one of its hosts: one with no host yet is delivered as it is.
+A sealed value is 8 bytes or more on one line (secret_unusable): a short one that is no secret — a region, a scheme — is set with --not-secret. One the platform finds a person may have chosen (fewer than 16 characters, or one kind of character only: secret_guessable) is kept sealed with --acknowledge-guessable, or with your yes at the terminal once the platform has said so; -y does not say it.
+--host names all its hosts, those it had replaced — --host none takes them all away, and a sealed secret is made of an open one; ai:env:hosts:allow adds one.
+--open: the agent reads it as it is, with no hosts and no inject — so anyone who can drive the environment's agents can get its value. Said with --acknowledge-open, or with your yes at the terminal once the warning is shown; -y does not say it.
+--host, --inject or --open without --value-stdin changes what a variable set before says of itself and keeps its value (what is not given stays as it is): a person's change alone — an owner or an admin of the organization signed in as themselves (palbase login), never a key or a token (PALBASE_TOKEN), which say them with the value.
 
 ```text
-      --value-stdin  read the value from stdin (a pipe, a file)
-      --not-secret   list it as no secret (its value is never shown either way)
+      --value-stdin                 read the value from stdin (a pipe, a file)
+      --not-secret                  it is no secret (its value is never shown either way)
+      --host <host>                 a host a request may carry the secret to (repeat for several; none: no host)
+      --inject <header|query|body>  where in a request to one of its hosts it may be put (repeat for several)
+      --open                        the agent reads it as it is: no hosts, no inject
+      --acknowledge-open            say you read that anyone who can drive the agents can get an open secret's value (or a secret made none's)
+      --acknowledge-guessable       keep a value a person may have chosen sealed: say you read that an agent can confirm a guess at an allowed host
 ```
 
 ### `palbase ai:env:unset`
@@ -2697,11 +2709,72 @@ palbase ai:env:unset <KEY>
 
 ### `palbase ai:env:list`
 
-The variables every session of the environment's agents has: their names, whether each is a secret, when each was set — never a value
+The variables every session of the environment's agents has: their names, whether each is a secret — sealed, with the hosts it may go to and where it is put, or open — and when each was set: never a value
 
 ```sh
 palbase ai:env:list
 ```
+
+### `palbase ai:env:hosts:allow`
+
+Allow an ask — its host for its secret, a project's variable's or an agent's own — or let a variable's sealed secret go to one more host: only a host you know the secret belongs to
+
+```sh
+palbase ai:env:hosts:allow <request id> | <KEY> <host>
+```
+
+An agent can be led to send a secret anywhere: allow only a host you know the secret belongs to. palbase ai:env:hosts:requests lists the hosts the secrets were sent to that they are not allowed for, each by its request id.
+`<request id>` (shr_…) allows any ask: its host goes on the variable's hosts (one of the environment's), or on the environment's allowances (an agent's own secret: palbase ai:env:hosts:allowances), and the asks it now allows are marked allowed.
+`<KEY>` `<host>` lets one of the environment's variables go to a host no ask named. A host is an exact DNS name (api.stripe.com) or `*`. and one (`*.stripe.com`: one label more) — no IP address, port, single-label name or public suffix, and no wildcard over palbase.studio; a variable has 32 at most — ai:env:set `<KEY>` --host … names them all.
+A person's alone: an owner or an admin of the organization signed in as themselves (palbase login), never a key or a token (PALBASE_TOKEN) — refused before anything is sent.
+
+### `palbase ai:env:hosts:requests`
+
+The hosts the environment's sealed secrets were sent to that they are not allowed for — each secret and host once, how many times, newest first
+
+```sh
+palbase ai:env:hosts:requests [--status asked|allowed|dismissed]
+```
+
+The placeholder went as it is, and the organization's owners are emailed at most once a day for each (3 a day for one secret, 10 an environment a day). Nobody has checked who runs a host listed here: each is shown with the registrable domain it is under — api.stripe.com.evil.io is evil.io's —, which an Allow hands the secret to.
+Allow one only if you know the host is the secret's: palbase ai:env:hosts:allow `<request id>` — a project's variable's and an agent's own secret's alike (the agent's goes on the environment's allowances); or dismiss it: palbase ai:env:hosts:dismiss `<request id>`.
+An environment keeps 500 asked, 50 of them a secret and 100 an agent's own secrets: an ask past one forgets an asked one alone — the secret's own oldest, else the oldest of the secret that holds the most, the one asked last among equals —, never a dismissed or an allowed one (500 of each are kept).
+
+```text
+      --status <asked|allowed|dismissed>  the asks of that status (default asked)
+```
+
+### `palbase ai:env:hosts:dismiss`
+
+Dismiss an ask: its owners are never told of it again (it is still counted)
+
+```sh
+palbase ai:env:hosts:dismiss <request id>
+```
+
+One allowed is not undone here: its host is the secret's — ai:env:set `<KEY>` --host … names those a variable keeps (--host none: none); an agent's is taken away from the allowances (ai:env:hosts:allowances:remove).
+A person's alone: an owner or an admin of the organization signed in as themselves, never a key or a token (PALBASE_TOKEN).
+
+### `palbase ai:env:hosts:allowances`
+
+The hosts the environment's agents' own secrets are allowed beside their definitions': each an owner's Allow of an ask, newest first
+
+```sh
+palbase ai:env:hosts:allowances
+```
+
+An agent's own secret (its definition's env) goes to the hosts its definition names and to those allowed here (palbase ai:env:hosts:allow `<request id>`). Take one away: palbase ai:env:hosts:allowances:remove `<allowance id>`.
+An environment keeps 500. A new value keeps them; one goes with its key — a kept agent's once neither its draft nor its version published has it, a chat's own definition's with the last chat that has it, a backend's agent's after 30 days with no turn.
+
+### `palbase ai:env:hosts:allowances:remove`
+
+Take an allowance away: the agent's secret no longer goes to its host, and a request carrying it there is asked again
+
+```sh
+palbase ai:env:hosts:allowances:remove <allowance id>
+```
+
+A person's alone: an owner or an admin of the organization signed in as themselves, never a key or a token (PALBASE_TOKEN).
 
 ## `support`
 

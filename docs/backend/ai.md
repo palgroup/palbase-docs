@@ -397,7 +397,7 @@ What was said either way is the chat's: a `transcript` part of its stream for ea
 
 ## Workspaces
 
-A chat can work in GitHub repositories: its turns run with them checked out, and what its agent commits is pushed to the branch. The tokens are your backend's to give, at each clone and each push. Its turns run on Palbase's own Linux machines, or on a pool of your own machines the chat names as it is started (`pool`, see [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines)), with the project's variables and the agent's own (`env`) and setup script (`setup`). Any machine of yours can hold the workspace too, synced both ways, and your backend can write it ([Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync)).
+A chat can work in GitHub repositories: its turns run with them checked out, and what its agent commits is pushed to the branch. The tokens are your backend's to give, at each clone and each push. Its turns run on Palbase's own Linux machines, or on a pool of your own machines the chat names as it is started (`pool`, see [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines)), with the project's variables and the agent's own (`env`) and setup script (`setup`): a secret among them says the hosts it may go to ([AI Variables & Secrets](https://palbase.studio/docs/backend/ai-env)). Any machine of yours can hold the workspace too, synced both ways, and your backend can write it ([Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync)).
 
 ```ts
 // src/modules/builds/app.repo.ts
@@ -469,6 +469,8 @@ A workspace is one chat's, and a fork's, and a fork's agent is its chat's: two c
 ### The workspace's machine: Debian 12, Node 24, headless Chrome
 
 A workspace's turns run on one machine of Palbase's: a gVisor container on an Azure VM (AMD, amd64), Debian 12 with Node 24, Python 3, git, a C toolchain, ripgrep, poppler and tesseract, and a headless Chrome: `/usr/bin/chromium` (also `CHROME_PATH`) for Playwright's `executablePath` and for Puppeteer, and every library Playwright's own browser needs, so `npx playwright install chromium` installs the one your project's Playwright asks for, into the agent's home, with no root. Chrome starts with no sandbox of its own: the container's is the boundary. The agent's shell runs as an unprivileged user, so it installs no system package. A workspace has up to 8 GiB of memory (its `/tmp`, 1 GiB, counts in it), 2 cores — 4 on a machine added for the load — and 30 GiB of disk for its tree and what it installs, with the network a build needs (npm, pip, git).
+
+What the workspace's store holds is durable. Work a machine has not yet published — a publish that failed, files written after a turn ended — is offered to the workspace by its next turn on that machine: published where nobody else changed the file meanwhile, and kept aside as a conflict where somebody did, their version staying ([Events and conflicts](https://palbase.studio/docs/backend/ai-workspace-sync#events-and-conflicts)). It can be lost when that turn runs on another machine: when Palbase replaces the machine, or cannot wake it in time. What the workspace does not carry, such as a path `.gitignore` excludes, is never published and is on that machine alone.
 
 ### How long a turn waits for the machine
 
@@ -596,8 +598,9 @@ Each arrives as a `PalbaseError` with its `status` and `code`, its message said 
 
 - [Gateways](https://palbase.studio/docs/backend/gateways): the channel a chat reaches its members on
 - [Web Gateways](https://palbase.studio/docs/web/gateways): a chat's state in the browser
-- [Event Hooks](https://palbase.studio/docs/backend/hooks): `ai.response.started`, `ai.response.completed` and `ai.response.failed` (a background response's end, and every chat turn's start and end), `ai.goal.updated`, `ai.voice.started`, `ai.voice.closed`, `ai.voice.delegated`, `ai.workspace.published`, `ai.workspace.pushed`, `ai.workspace.conflict`
+- [Event Hooks](https://palbase.studio/docs/backend/hooks): `ai.response.started`, `ai.response.completed` and `ai.response.failed` (a background response's end, and every chat turn's start and end), `ai.goal.updated`, `ai.voice.started`, `ai.voice.closed`, `ai.voice.delegated`, `ai.workspace.published`, `ai.workspace.pushed`, `ai.workspace.conflict`, `ai.secret_host_requested`
 - [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines): runner pools of your own Macs and Linux machines, environment variables and setup scripts
+- [AI Variables & Secrets](https://palbase.studio/docs/backend/ai-env): the variables and secrets its sessions have, the hosts a secret may go to, a sealed value's rules, the hosts it asked for and who allows them
 - [Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync): a chat's workspace on a machine of yours, written by your backend, and what a tool sees of it
 - [Secrets](https://palbase.studio/docs/backend/secrets): an HTTPS tool's signing secret, a repository's token
 - [Row-Level Security](https://palbase.studio/docs/backend/row-level-security): what a tool finds as the chat's member

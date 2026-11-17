@@ -123,33 +123,59 @@ export async function scale(pool: string, rent: () => Promise<void>, giveBack: (
 
 ## Environment variables and secrets
 
-Every command of every session of the project's agents has the project's variables, on every pool: Palbase's Linux machines and your own Linux and Mac machines alike. They are masked wherever a transcript would show them.
+Every command of every session of the project's agents has the project's variables, on every pool: Palbase's Linux machines and your own Linux and Mac machines alike. They are masked wherever a transcript would show them. A secret also says where it may go: the hosts a request may carry it to, where in that request it is put, and whether it is sealed or open ([AI Variables & Secrets](https://palbase.studio/docs/backend/ai-env)).
 
 ```sh
 curl -X PUT "https://<ref>.palbase.studio/ai/env/NPM_TOKEN" \
   -H "apikey: $PALBASE_SECRET_KEY" -H "Content-Type: application/json" \
-  -d '{"value":"npm_…","secret":true}'
+  -d '{"value":"npm_…","secret":true,"hosts":["registry.npmjs.org"]}'
 ```
 
-A name is upper-case letters, digits and `_`, starting with a letter. `PALAI_…` is reserved. A value is up to 32 KiB, and a project sets up to 256 variables. A value is sealed where the sessions run and is never answered again, nor logged. `GET /ai/env` lists the names, whether each is a secret, and when each was set. `DELETE /ai/env/{key}` removes one. From your backend: `Palbase.ai.env.set("NPM_TOKEN", value)`, `Palbase.ai.env.list()`, `Palbase.ai.env.unset("NPM_TOKEN")`. With the CLI, give the value on standard input so it never sits on a command line: `palbase ai:env:set NPM_TOKEN --value-stdin < token.txt`, and `palbase ai:env:unset NPM_TOKEN`.
+A name is upper-case letters, digits and `_`, starting with a letter. `PALAI_…` is reserved. A value is up to 32 KiB, and a project sets up to 256 variables. A value is sealed where the sessions run and is never answered again, nor logged. `GET /ai/env` lists the names, whether each is a secret, its hosts, where it is put, whether it is open, and when each was set. `DELETE /ai/env/{key}` removes one. From your backend: `Palbase.ai.env.set("NPM_TOKEN", value)`, `Palbase.ai.env.list()`, `Palbase.ai.env.unset("NPM_TOKEN")`. With the CLI, give the value on standard input so it never sits on a command line: `palbase ai:env:set NPM_TOKEN --value-stdin < token.txt`, and `palbase ai:env:unset NPM_TOKEN`. A secret's hosts, its class and the rest, from your backend and the CLI: [From your backend and the CLI](https://palbase.studio/docs/backend/ai-env#from-your-backend-and-the-cli).
 
 On a machine of yours a value reaches that machine, and the session's commands read it there. Give a pool's machines only what their work needs.
 
-**An agent's own.** An agent's definition carries its own variables (`env`, name → value, 64 at most) and a **setup script** (`setup`), which each of its sessions runs once at its start, before the agent's first command, on every pool. Use it to install what the work needs (`brew bundle`, `npm ci`) on a machine you did not prepare.
+**An agent's own.** An agent's definition carries its own variables (`env`, 64 at most) and a **setup script** (`setup`), which each of its sessions runs once at its start, before the agent's first command, on every pool. Use it to install what the work needs (`brew bundle`, `npm ci`) on a machine you did not prepare.
 
 ```json
 {
   "instructions": "You build the iOS app and fix what fails.",
   "model": "claude-sonnet-5-5",
-  "env": { "SENTRY_AUTH_TOKEN": "sntrys_…", "CONFIGURATION": "Debug" },
+  "env": {
+    "SENTRY_AUTH_TOKEN": { "value": "sntrys_…", "hosts": ["sentry.io", "*.sentry.io"], "inject": ["header"] },
+    "CONFIGURATION": { "value": "Debug", "secret": false }
+  },
   "setup": "brew bundle --file=Brewfile && bundle install"
 }
 ```
 
-An agent's variables sit beside the project's: give them names of their own. Palbase keeps a definition's values sealed with your project's own key, never readable in its database, and opens them only for the sessions that run with them. A value is never answered again: an agent read back (`GET /ai/agents/{name}`) shows each name with an empty value. An agent written back with an empty value keeps the value it has, so a definition read, changed and put again loses nothing. A new name needs its value. Each definition's variables and script are written once, where its sessions run: an agent the project keeps as it is published or rolled back, an agent your backend defines at each turn (or a chat's own definition) at its first turn. Two definitions that differ, such as two chats' own or a version a chat stays on and the one published, never share them: each turn runs with its own definition's.
+Each variable of `env` is a value alone, or an object that says what it says of itself, as a project's variable does: `{ "value", "hosts", "inject", "open", "secret", "acknowledge_open", "acknowledge_guessable" }`.
+
+- **A value alone** is a sealed secret with no host yet. Its value follows a sealed value's rules: 8 bytes at least, with no line break, and one a person may have chosen only with `"acknowledge_guessable": true` ([A sealed value](https://palbase.studio/docs/backend/ai-env#a-sealed-value)). A short value that is no secret, such as `"Debug"`, is refused written alone (`400 secret_unusable`): write it with `"secret": false`.
+- **`"secret": false`** is a variable that is no secret: the agent reads it as it is, with no hosts and no class, and none of those rules apply. Making a secret the definition kept no secret takes `"acknowledge_open": true`, as making one open does: the agent reads it from then on. Making one the definition kept open or no secret sealed again takes its value in the same write (`400 value_required`): only a value given is judged.
+- **`hosts` and `inject`** are a sealed secret's ([Hosts](https://palbase.studio/docs/backend/ai-env#hosts), [Where a secret is put](https://palbase.studio/docs/backend/ai-env#where-a-secret-is-put)). **`"open": true`** makes it one the agent reads as it is, written with `"acknowledge_open": true` the first time ([Sealed or open](https://palbase.studio/docs/backend/ai-env#sealed-or-open)).
+
+A host one of these secrets is sent to and not allowed for is asked about as a project variable's is. Allow puts the host on the project's list of the agents' allowed hosts, beside the definition's `env.<KEY>.hosts`, without changing the definition; deleting the agent deletes them ([Agents' allowed hosts](https://palbase.studio/docs/backend/ai-env#agents-allowed-hosts)). The variables and setup script of one definition are prepared once for the sessions that use them, at their first turn in a workspace. A chat started with a definition of its own that has variables or a setup script gets its own, as each version of an agent does: one per chat, shared with the chat's forks, never with another chat whose definition holds the same values, and forgotten after a week unused. Each takes a few calls at that first turn, before the agent's first command; a backend that starts many chats with definitions of their own pays that once per chat. In a backend's `Palbase.ai.agent(name, define)`, the same entry is `{ value, hosts, inject, open, secret, acknowledgeOpen, acknowledgeGuessable }`:
+
+```ts
+// src/modules/builds/builder.agent.ts
+import { Palbase } from "palbase/backend";
+
+export const builder = Palbase.ai.agent("builder", () => ({
+  instructions: "You build the iOS app and fix what fails.",
+  env: {
+    SENTRY_AUTH_TOKEN: { value: process.env.SENTRY_AUTH_TOKEN!, hosts: ["sentry.io", "*.sentry.io"], inject: ["header"] },
+    CONFIGURATION: { value: "Debug", secret: false },
+  },
+  setup: "brew bundle --file=Brewfile && bundle install",
+}));
+```
+
+An agent's variables sit beside the project's: give them names of their own. Palbase keeps a definition's values sealed with your project's own key, never readable in its database, and opens them only for the sessions that run with them. A value is never answered again: an agent read back (`GET /ai/agents/{name}`) shows each name with an empty value. An agent written back with an empty value keeps the value it has, so a definition read, changed and put again loses nothing. What such a kept secret says of itself (its hosts, where it is put, its class, whether it is a secret) is changed without its value by a person alone: an owner or an admin signed in to Studio or the CLI. A key or a token is refused it (`403 person_required`) and gives the value with the change instead; rolling an agent back to a version that says otherwise is a person's too ([Who changes where a secret goes](https://palbase.studio/docs/backend/ai-env#who-changes-where-a-secret-goes)). A new name needs its value. Each definition's variables and script are written once, where its sessions run: an agent the project keeps as it is published or rolled back, an agent your backend defines at each turn (or a chat's own definition) at its first turn. Two definitions that differ, such as two chats' own or a version a chat stays on and the one published, never share them: each turn runs with its own definition's.
 
 ## Related
 
 - [AI](https://palbase.studio/docs/backend/ai): agents, chats and their workspaces
 - [Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync): a chat's workspace on a machine of yours, both ways, and what a tool sees of it
+- [AI Variables & Secrets](https://palbase.studio/docs/backend/ai-env): a secret's hosts, sealed or open, its value's rules, the hosts it asked for and the agents' allowed hosts
 - [Secrets](https://palbase.studio/docs/backend/secrets): your backend's own secrets

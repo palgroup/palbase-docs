@@ -144,7 +144,7 @@ An app with no database has no `src/db/`, and no `db` in its config.
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.63.0"
+    "palbase": "^0.64.0"
   }
 }
 ```
