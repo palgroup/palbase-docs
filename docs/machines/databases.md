@@ -81,6 +81,8 @@ Every database has two logins:
 | **Owner** | Owns the database and its tables | Migrations, `psql`, a tool that changes the schema (Prisma, …) |
 | **App** | What a machine given the database connects as | Your app's queries. It cannot bypass row-level security; it may `SET ROLE anon`, `authenticated` or `service_role`. |
 
+Role names that begin with `palbase_` are the platform's own: `palbase_permits` and `palbase_agent_access` are in every database, and Palbase makes and drops roles of that prefix itself. Do not create, alter or drop one. A `palbase_permits` or `palbase_agent_access` you made first is not used: Palbase drops it and makes its own, and while it owns something or something depends on it, the database's work permits are refused with that reason until you drop what it owns. Any other role of yours with that prefix is left as it is, unused, and never a login that wakes a sleeping database.
+
 and two ways in:
 
 | Port | Through | Use it for |

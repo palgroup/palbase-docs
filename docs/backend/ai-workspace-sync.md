@@ -22,10 +22,10 @@ From your backend it is `Palbase.ai.chats.workspace.tokens.create(chatId, { acce
 
 A token a member mints (when the project lets its app's users talk to its agents) lives an hour at most. It is that member's alone: they list and revoke their own, and the secret key lists and revokes every token. It stops working when the member is taken out of the chat, or when the project turns `clients` off.
 
-On the machine, with the same `palai` binary that runs a pool's agent (`curl -fsSL https://palgroup.github.io/palai/install.sh | sh` installs it, see [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines#enrolling-a-machine)), give the token in the environment:
+On the machine, with the same `palbase-agent` binary that runs a pool's agent (`curl -fsSL https://get.palbase.studio/agent/install.sh | sh` installs it, see [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines#enrolling-a-machine)), give the token in the environment:
 
 ```sh
-PALAI_WORKSPACE_TOKEN="$WORKSPACE_TOKEN" palai workspace sync --url "$SYNC_URL" ./shop-app
+PALBASE_WORKSPACE_TOKEN="$WORKSPACE_TOKEN" palbase-agent workspace sync --url "$SYNC_URL" ./shop-app
 ```
 
 Or pipe it in with `--token-file -` (a file the token is in works too: `--token-file <path>`). There is no `--token` flag: a secret on the command line is readable by every process on the machine.
@@ -38,21 +38,21 @@ On a machine that runs a sync, set `git config --global safe.bareRepository expl
 
 Two flags serve a script that runs beside the sync, in the same folder:
 
-- `palai workspace sync --wait <tree>` returns once the folder holds that tree (a `manifest_id`, or its `seq`) or a newer one.
-- `palai workspace sync --flush` sends everything on disk now and prints the tree that holds it.
+- `palbase-agent workspace sync --wait <tree>` returns once the folder holds that tree (a `manifest_id`, or its `seq`) or a newer one.
+- `palbase-agent workspace sync --flush` sends everything on disk now and prints the tree that holds it.
 
 `GET /ai/chats/{id}/workspace/tokens` lists the workspace's tokens (never a token itself). `DELETE /ai/chats/{id}/workspace/tokens/{token}` revokes one at once: the machine's sync stops, and an event stream open with it ends. An expired or revoked token is refused with `401 invalid_token`, and so is a token of another project. Each of the platform's servers that answer your project's address holds up to 4 event streams of one token open at once, 16 of one workspace and 64 of your project's tokens together, and refuses one more with `429 too_many_streams`. The bounds are each server's, not your project's whole, and are counted apart from your project's response streams.
 
-**What is carried.** A workspace carries what git tracks: a path the repository's `.gitignore` excludes stays on the machine that made it. A `.palaisync` file beside it, written the same way, is read first and overrides it. `!` carries what `.gitignore` excludes, and a plain pattern keeps out what it does not:
+**What is carried.** A workspace carries what git tracks: a path the repository's `.gitignore` excludes stays on the machine that made it. A `.palbasesync` file beside it, written the same way, is read first and overrides it. `!` carries what `.gitignore` excludes, and a plain pattern keeps out what it does not:
 
 ```text
-# .palaisync
+# .palbasesync
 !App/Generated/
 !*.generated.swift
 DerivedData/
 ```
 
-A path you name by itself is carried even when `.gitignore` excludes its directory: with `gen/` in `.gitignore`, `!gen/out.txt` carries `gen/out.txt` and nothing else in `gen/`, and `!gen/keep/` carries that directory whole. A pattern with a wildcard keeps git's limit: `!gen/*.json` brings nothing back from inside `gen/`, because a walk does not enter an excluded directory to match it. Name the file's path, or the directory (`!gen/`). As it starts, `palai workspace sync` prints the `!` rules in force, and says which of them reach into an excluded directory and bring nothing back.
+A path you name by itself is carried even when `.gitignore` excludes its directory: with `gen/` in `.gitignore`, `!gen/out.txt` carries `gen/out.txt` and nothing else in `gen/`, and `!gen/keep/` carries that directory whole. A pattern with a wildcard keeps git's limit: `!gen/*.json` brings nothing back from inside `gen/`, because a walk does not enter an excluded directory to match it. Name the file's path, or the directory (`!gen/`). As it starts, `palbase-agent workspace sync` prints the `!` rules in force, and says which of them reach into an excluded directory and bring nothing back.
 
 Some files are never carried to or from a machine of yours, and no rule brings them back:
 
@@ -60,7 +60,7 @@ Some files are never carried to or from a machine of yours, and no rule brings t
 - secrets and signing material: `.env`, `.env.*`, `*.pem`, `*.key`, `*.p8` (App Store Connect keys), `*.p12`, `*.pfx`, `*.mobileprovision`, `*.jks`, `*.keystore`, `*.keychain`, `*.keychain-db`, `*.ppk`, `id_rsa*`, `id_ed25519*`, `id_ecdsa*`, `id_dsa*`, `service-account*.json`, `credentials.json`, `auth.json`, `*.tfstate`, `*.tfvars`, the folders `.ssh/`, `.aws/`, `.azure/`, `.gnupg/`, `.config/gcloud/`, and credential files such as `.netrc`, `.npmrc`, `.pypirc`, `.pgpass`, `.yarnrc.yml`, `.git-credentials`, `.docker/config.json`, `.kube/config`, `.cargo/credentials`, `.gem/credentials`, `.bundle/config`
 - configuration that runs commands: `.husky/`, `.envrc`, `.vscode/tasks.json`, `lefthook*.yml` (and its other forms), `.pre-commit-config.yaml`
 
-The rules a machine starts from are the ones it attaches with: the directory's own when it already holds files (`--force`), read before the workspace's tree is laid over them, and the workspace's when the directory is empty. A `.palaisync` or `.gitignore` that another writer changes narrows what is carried at once. A change that would carry more is held — while the sync runs and after every restart — and the sync prints which files it holds and the command that lets them go, `palai workspace sync --accept-rules <fingerprint> <dir>`. The fingerprint names the rule files and the held files as that notice printed them: if either changed before you run it, nothing is accepted, and the command prints what is held now with the fingerprint that accepts it. So no one else's rule makes your machine send a file it was keeping. A rule file you edit on that machine is accepted once the workspace takes it, unless another writer had changed it since you accepted it: then what their change carries stays held with your edit. A rule file the store sends under another spelling of its name (`.GITIGNORE` on a Mac) is refused.
+The rules a machine starts from are the ones it attaches with: the directory's own when it already holds files (`--force`), read before the workspace's tree is laid over them, and the workspace's when the directory is empty. A `.palbasesync` or `.gitignore` that another writer changes narrows what is carried at once. A change that would carry more is held — while the sync runs and after every restart — and the sync prints which files it holds and the command that lets them go, `palbase-agent workspace sync --accept-rules <fingerprint> <dir>`. The fingerprint names the rule files and the held files as that notice printed them: if either changed before you run it, nothing is accepted, and the command prints what is held now with the fingerprint that accepts it. So no one else's rule makes your machine send a file it was keeping. A rule file you edit on that machine is accepted once the workspace takes it, unless another writer had changed it since you accepted it: then what their change carries stays held with your edit. A rule file the store sends under another spelling of its name (`.GITIGNORE` on a Mac) is refused.
 
 A machine reads its tree's rule files up to 8 MiB in all; each rule file past that is read as `*`, so its directory stays on that machine, and the sync says so. A directory the machine cannot read is left as it is and is not carried.
 
@@ -117,7 +117,7 @@ Before the call, the agent's machine sends everything it has written, and the ca
 }
 ```
 
-The tool works on that tree. It can read files of it with `GET /ai/chats/{chat_id}/workspace/files?path=&manifest=<manifest_id>`, or bring a synced folder to it with `palai workspace sync --wait 57`. A tool that writes the workspace answers the tree its writes are in. That is the `PUT`'s answer, or what `palai workspace sync --flush` printed:
+The tool works on that tree. It can read files of it with `GET /ai/chats/{chat_id}/workspace/files?path=&manifest=<manifest_id>`, or bring a synced folder to it with `palbase-agent workspace sync --wait 57`. A tool that writes the workspace answers the tree its writes are in. That is the `PUT`'s answer, or what `palbase-agent workspace sync --flush` printed:
 
 ```json
 {

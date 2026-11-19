@@ -2,7 +2,7 @@
 
 # AI on Your Own Machines
 
-A chat that works in a [workspace](https://palbase.studio/docs/backend/ai#workspaces) runs its agent's commands on a machine. By default that is one of Palbase's own Linux machines, and nothing is set up. When the work needs a machine of yours (a Mac that builds an iOS app, a Linux box with a GPU or a toolchain of its own), make a **runner pool**, enrol your machines into it with the `palai` agent, and start the chat on that pool. You run the machines and decide how many there are. Palbase tells you what they hold.
+A chat that works in a [workspace](https://palbase.studio/docs/backend/ai#workspaces) runs its agent's commands on a machine. By default that is one of Palbase's own Linux machines, and nothing is set up. When the work needs a machine of yours (a Mac that builds an iOS app, a Linux box with a GPU or a toolchain of its own), make a **runner pool**, enrol your machines into it with `palbase-agent`, and start the chat on that pool. You run the machines and decide how many there are. Palbase tells you what they hold.
 
 Pools, keys and machines are managed through the API (with the secret key), from your backend (`Palbase.ai.pools`, `Palbase.ai.machines`) or with the CLI (`palbase ai:pools:create`, `palbase ai:pools:state`, `palbase ai:machines:cordon` and the rest below). Studio has no page for them.
 
@@ -38,25 +38,25 @@ A pool is named in the API by its id or its name. `GET /ai/pools` lists the proj
 
 ## Enrolling a machine
 
-Each machine enrols with a single-use key. `POST /ai/pools/{pool}/keys { label? }` mints one and says it once, with where the machine enrols: `enroll_url`, and `enroll` (its `url`, and a `server_name` and `ca_certificate` when the door's certificate needs them). Install the `palai` agent on the machine (the same binary on macOS and Linux, arm64 and amd64; it goes into `~/.local/bin` and needs no root):
+Each machine enrols with a single-use key. `POST /ai/pools/{pool}/keys { label? }` mints one and says it once, with where the machine enrols: `enroll_url`, and `enroll` (its `url`, and a `server_name` and `ca_certificate` when the door's certificate needs them). Install `palbase-agent` on the machine (the same binary on macOS and Linux, arm64 and amd64; it goes into `~/.local/bin` and needs no root):
 
 ```sh
-curl -fsSL https://palgroup.github.io/palai/install.sh | sh
+curl -fsSL https://get.palbase.studio/agent/install.sh | sh
 ```
 
 Save the key to a file on the machine, then enrol it:
 
 ```sh
-palai enroll --url "$ENROLL_URL" --key-file pool.key --capacity 3
+palbase-agent enroll --url "$ENROLL_URL" --key-file pool.key --capacity 3
 ```
 
-`palai enroll` installs the service that runs the agent (launchd on macOS, a systemd user unit on Linux), starts it and returns. On a machine with no service manager, such as a container, the machine is enrolled all the same and the command says its service was not installed: run `palai` there in the foreground, as the container's command.
+`palbase-agent enroll` installs the service that runs the agent (launchd on macOS, a systemd user unit on Linux), starts it and returns. On a machine with no service manager, such as a container, the machine is enrolled all the same and the command says its service was not installed: run `palbase-agent` there in the foreground, as the container's command.
 
 When `enroll` has a `server_name`, add `--server-name <server_name>`. When it has a `ca_certificate`, save it to a file and add `--ca-file <file>`.
 
 `--capacity` is how many sessions the machine runs at once: 1 or more, 1 when not given. Each session is one chat's workspace, so size it by what one build takes (on a 64 GB Mac, 3 to 6). The key is used up as the machine enrols. A key used a second time is refused, and so is a machine whose type is not the pool's. `GET /ai/pools/{pool}/keys` lists a pool's keys (never the key itself; `last_used_at` is when a machine last enrolled with one), and `POST /ai/pool-keys/{key}/revoke` revokes one nobody used. Your project's key never goes to the machine.
 
-A session's files are kept on the machine under the agent's own state directory (`~/.local/state/palai/workspaces` on Linux, `~/Library/Application Support/Palai/workspaces` on macOS).
+A session's files are kept on the machine under the agent's own state directory (`~/.local/state/palbase-agent/workspaces` on Linux, `~/Library/Application Support/Palbase Agent/workspaces` on macOS).
 
 On macOS the sessions of one machine are **not isolated from each other**: one session's commands can reach another's files. On Linux each session runs in a sandbox of its own. Put a machine into a pool only for work that may share it.
 
@@ -131,7 +131,7 @@ curl -X PUT "https://<ref>.palbase.studio/ai/env/NPM_TOKEN" \
   -d '{"value":"npm_…","secret":true,"hosts":["registry.npmjs.org"]}'
 ```
 
-A name is upper-case letters, digits and `_`, starting with a letter. `PALAI_…` is reserved. A value is up to 32 KiB, and a project sets up to 256 variables. A value is sealed where the sessions run and is never answered again, nor logged. `GET /ai/env` lists the names, whether each is a secret, its hosts, where it is put, whether it is open, and when each was set. `DELETE /ai/env/{key}` removes one. From your backend: `Palbase.ai.env.set("NPM_TOKEN", value)`, `Palbase.ai.env.list()`, `Palbase.ai.env.unset("NPM_TOKEN")`. With the CLI, give the value on standard input so it never sits on a command line: `palbase ai:env:set NPM_TOKEN --value-stdin < token.txt`, and `palbase ai:env:unset NPM_TOKEN`. A secret's hosts, its class and the rest, from your backend and the CLI: [From your backend and the CLI](https://palbase.studio/docs/backend/ai-env#from-your-backend-and-the-cli).
+A name is upper-case letters, digits and `_`, starting with a letter. `PALBASE_AI_…` is reserved. A value is up to 32 KiB, and a project sets up to 256 variables. A value is sealed where the sessions run and is never answered again, nor logged. `GET /ai/env` lists the names, whether each is a secret, its hosts, where it is put, whether it is open, and when each was set. `DELETE /ai/env/{key}` removes one. From your backend: `Palbase.ai.env.set("NPM_TOKEN", value)`, `Palbase.ai.env.list()`, `Palbase.ai.env.unset("NPM_TOKEN")`. With the CLI, give the value on standard input so it never sits on a command line: `palbase ai:env:set NPM_TOKEN --value-stdin < token.txt`, and `palbase ai:env:unset NPM_TOKEN`. A secret's hosts, its class and the rest, from your backend and the CLI: [From your backend and the CLI](https://palbase.studio/docs/backend/ai-env#from-your-backend-and-the-cli).
 
 On a machine of yours a value reaches that machine, and the session's commands read it there. Give a pool's machines only what their work needs.
 

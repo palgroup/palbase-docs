@@ -17,7 +17,7 @@ curl -X PUT "https://<ref>.palbase.studio/ai/env/STRIPE_KEY" \
 
 Your backend and the CLI do the same ([From your backend and the CLI](#from-your-backend-and-the-cli)), and so does Studio ([In Studio](#in-studio)).
 
-A name is upper-case letters, digits and `_`, starting with a letter, at most 128. `PALAI_…` is Palbase's own. A value is 1 byte to 32 KiB, with no NUL, and a project sets up to 256 variables. A value is never answered again, nor logged, and a refusal never repeats it. `GET /ai/env` lists every variable with what it says of itself, never a value. `DELETE /ai/env/{key}` removes one: sessions begun from then no longer have it, and the hosts it asked for go with it.
+A name is upper-case letters, digits and `_`, starting with a letter, at most 128. `PALBASE_AI_…` is Palbase's own. A value is 1 byte to 32 KiB, with no NUL, and a project sets up to 256 variables. A value is never answered again, nor logged, and a refusal never repeats it. `GET /ai/env` lists every variable with what it says of itself, never a value. `DELETE /ai/env/{key}` removes one: sessions begun from then no longer have it, and the hosts it asked for go with it.
 
 ## A secret, or not
 

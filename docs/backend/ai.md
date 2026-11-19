@@ -113,15 +113,15 @@ A chat that works in a workspace gives its agent the workspace's own tools as we
 
 | Tool | Does |
 |---|---|
-| `palai.workspace.file`, `str_replace_based_edit_tool` | Read, write and edit a file. |
-| `palai.workspace.glob`, `palai.workspace.grep` | Find files by name, and lines by pattern. |
-| `palai.workspace.shell`, `palai.workspace.background_status`, `palai.workspace.background_kill` | Run a command — it reaches the internet over HTTP, HTTPS, SSH and git (a package install, a clone, Palbase's own docs), never a private address or a mail server — keep one running in the background, read it and stop it. |
-| `palai.workspace.view_image` | Look at a picture in the workspace: a page of a PDF it rendered (`pdftoppm`), a chart it drew, a photo sent as a file. The workspace also has `pdftotext`, `tesseract` (Turkish and English), `openpyxl`, `xlrd`, `python-docx`, `catdoc` and `antiword` for reading files. |
-| `palai.workspace.fetch_archive` | Download an archive from a URL and unpack it into the workspace. |
-| `palai.workspace.commit`, `palai.publish.push` | Commit, as the member the turn is for, and push to the chat's branch. |
-| `palai.artifact.publish`, `palai.artifact.open`, `palai.artifact.read`, `palai.artifact.list` | Publish a file as the turn's output, and read the ones published. |
-| `palai.agent.spawn`, `palai.agent.status`, `palai.agent.send`, `palai.agent.stop` | Hand work to a subagent, follow it, message it and stop it. |
-| `palai.advisor.ask` | Ask the agent's [advisor](#the-advisor), when it has one. |
+| `palbase.workspace.file`, `str_replace_based_edit_tool` | Read, write and edit a file. |
+| `palbase.workspace.glob`, `palbase.workspace.grep` | Find files by name, and lines by pattern. |
+| `palbase.workspace.shell`, `palbase.workspace.background_status`, `palbase.workspace.background_kill` | Run a command — it reaches the internet over HTTP, HTTPS, SSH and git (a package install, a clone, Palbase's own docs), never a private address or a mail server — keep one running in the background, read it and stop it. |
+| `palbase.workspace.view_image` | Look at a picture in the workspace: a page of a PDF it rendered (`pdftoppm`), a chart it drew, a photo sent as a file. The workspace also has `pdftotext`, `tesseract` (Turkish and English), `openpyxl`, `xlrd`, `python-docx`, `catdoc` and `antiword` for reading files. |
+| `palbase.workspace.fetch_archive` | Download an archive from a URL and unpack it into the workspace. |
+| `palbase.workspace.commit`, `palbase.publish.push` | Commit, as the member the turn is for, and push to the chat's branch. |
+| `palbase.artifact.publish`, `palbase.artifact.open`, `palbase.artifact.read`, `palbase.artifact.list` | Publish a file as the turn's output, and read the ones published. |
+| `palbase.agent.spawn`, `palbase.agent.status`, `palbase.agent.send`, `palbase.agent.stop` | Hand work to a subagent, follow it, message it and stop it. |
+| `palbase.advisor.ask` | Ask the agent's [advisor](#the-advisor), when it has one. |
 
 The table a backend tool reads:
 
@@ -266,9 +266,9 @@ export const coder = Palbase.ai.agent("coder", () => ({
 }));
 ```
 
-- **After every step** the advisor reads what the agent did since its last look, in the background: the agent does not wait for it. It looks for what is wrong — what the agent wrote, what it made, a screen a tool showed it — and opens what the record only names before it judges. When it has something the agent must know, the agent reads it at its next step, as a message that begins `[palai:advisor]` — the advisor's word, not the person's. When it finds nothing wrong it says nothing.
+- **After every step** the advisor reads what the agent did since its last look, in the background: the agent does not wait for it. It looks for what is wrong — what the agent wrote, what it made, a screen a tool showed it — and opens what the record only names before it judges. When it has something the agent must know, the agent reads it at its next step, as a message that begins `[palbase:advisor]` — the advisor's word, not the person's. When it finds nothing wrong it says nothing.
 - **A turn's answer waits for it.** When the agent answers, the advisor reads the answer first. If it objects, the agent is told and goes on in the same turn; a turn's answer is held twice at most. The advisor never stops the turn: the agent has the last word.
-- **The agent can ask it**, with the `palai.advisor.ask` tool. A decision none of the agent's instructions, the advisor's rules or the work so far settle — a business rule, a price, a name — the advisor does not make up: it tells the agent to ask the person.
+- **The agent can ask it**, with the `palbase.advisor.ask` tool. A decision none of the agent's instructions, the advisor's rules or the work so far settle — a business rule, a price, a name — the advisor does not make up: it tells the agent to ask the person.
 - **It only reads.** It reads the agent's workspace (files, search, the working tree's diff), the pictures the agent's tools answered — a screenshot, by the id its record names — and the image files of the workspace, and the tools of the MCP servers named in its `tools` that say they only read (`readOnlyHint`). No picture is sent to it unasked: it opens the ones it wants to see, four a reading at most. A server's other tools are left out; a tool named in `only` that does not say so refuses the turn (`400 advisor_tool_not_read_only`). Nothing it reads waits for a person.
 - **It reads the agent's reasoning** when the model's provider gives it — Anthropic's and OpenAI's models do — even when the agent's `thinking` is `hidden`: then it is asked for the advisor alone and shown in no stream.
 - **Its calls are the turn's**: in the turn's cost (`chats.turnCost(…).advisor` says how much of it was the advisor's) and its budget. A turn past its budget is not read further.
