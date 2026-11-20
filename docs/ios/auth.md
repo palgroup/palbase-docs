@@ -208,18 +208,19 @@ func apple() async {
 }
 ```
 
-`signInWithApple(variant:)` shows Apple's own sheet; `signInWithGoogle(variant:)` opens Google's page in the system's browser sheet and exchanges its code on the device, with no client secret in the app. Each starts the session, or answers `.mfaRequired`. The provider must be on for the project, with a **native client** for this app in Studio's **Auth › Providers**:
+`signInWithApple(variant:returnURI:)` shows Apple's own sheet on iOS and Mac App Store apps, or opens Apple's web sign-in in `ASWebAuthenticationSession` on macOS when the resolved Apple client uses **Browser OAuth** (for Developer ID Mac apps, which Apple does not grant the **Sign in with Apple** entitlement to); `signInWithGoogle(variant:)` opens Google's page in the system's browser sheet and exchanges its code on the device, with no client secret in the app. Each starts the same DPoP-bound first-party session, or answers `.mfaRequired`. The provider must be on for the project, with a client for this app in Studio's **Auth › Providers**:
 
 | Field | Value |
 |---|---|
 | Application key | The app's slug (`shop`), as `palbase apps:create` registered it. |
-| Platform | `ios` |
+| Platform | `ios` or `macos` |
 | Variant | `release`, or a label of the build's own: the `variant:` the app passes (default `"release"`). |
-| Flow | Native OAuth |
-| Apple | **Bundle ID**: the app's bundle. The app also needs the **Sign in with Apple** capability. |
+| Flow | **Native OAuth** (iOS, Mac App Store, Google on macOS) or **Browser OAuth** (Sign in with Apple on Developer ID macOS apps). |
+| Apple (native) | **Bundle ID**: the app's bundle. The app also needs the **Sign in with Apple** capability (`pb.auth.supportsNativeAppleSignIn` reports whether the running build has it). |
+| Apple (macOS browser) | **Services ID**, key, and a custom-scheme **Return URI** registered in the app's `CFBundleURLTypes` (e.g. `com.example.shop.mac:/apple-callback`). Pass `returnURI:` to `signInWithApple(variant:returnURI:)` if more than one callback URL is listed. |
 | Google | **Bundle ID**, the Google Cloud **iOS Client ID**, and the **Native redirect URI**: a URI whose scheme is that client's iOS URL scheme (`com.googleusercontent.apps.1234-abcd:/oauth2redirect`). |
 
-The SDK signs in with the native client alone. With no native client for the app, platform and variant, or one set up for another bundle than the running app's, the call throws `auth_client_not_configured` or `auth_client_mismatch` before any sheet opens. A sheet the user dismisses throws `oauth_cancelled`; `wasCancelled(_:)` is true for it, for a dismissed passkey sheet and for a cancelled task.
+With no matching client for the app, platform and variant, or one set up for another bundle than the running app's, the call throws `auth_client_not_configured` or `auth_client_mismatch` before any sheet opens. A Developer ID Mac build without the Sign in with Apple entitlement throws `apple_native_unavailable` if only a native Apple client is configured. A sheet or browser page the user dismisses throws `oauth_cancelled`; `wasCancelled(_:)` is true for it, for a dismissed passkey sheet and for a cancelled task.
 
 Once the provider has answered, the SDK keeps the answer in the keychain until auth has taken it, and sends it again while the answer is "not now". A sign-in interrupted before then is never finished into a later one: the next sign-in with that provider cancels it.
 

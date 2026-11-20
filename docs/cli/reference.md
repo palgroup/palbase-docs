@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.64.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.65.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-485 commands in 36 groups.
+497 commands in 37 groups.
 
 ## Global flags
 
@@ -2220,6 +2220,163 @@ palbase webhooks:deliveries:redeliver <id>
 ```
 
 As Stripe's Resend: the receiver takes an event more than once by its Palbase-Event-Id. An admin's; it is written to the organization's audit log.
+
+## `workspaces`
+
+### `palbase workspaces:list`
+
+The environment's synchronized workspaces: name, id, storage, seq, files, size
+
+```sh
+palbase workspaces:list
+```
+
+### `palbase workspaces:get`
+
+One workspace: storage configuration, head revision, file count and byte size
+
+```sh
+palbase workspaces:get <id-or-name>
+```
+
+### `palbase workspaces:create`
+
+Create a workspace on Palbase managed R2, or on your own S3 bucket with --byos
+
+```sh
+palbase workspaces:create [name] [--byos --endpoint <url> --bucket <name> --access-key-id <key>]
+```
+
+Without --byos, the workspace stores blobs in Palbase managed Cloudflare R2.
+With --byos, pipe the S3 secret access key on stdin (never passed as a flag): printf "%s" "$SECRET" | palbase workspaces:create app-ios --byos --endpoint https://… --bucket my-bucket --access-key-id AKIA…
+
+```text
+      --byos                          back this workspace with your own S3-compatible bucket (secret read from stdin)
+      --endpoint <https-url>          S3-compatible HTTPS endpoint (e.g. https://<account>.r2.cloudflarestorage.com)
+      --bucket <bucket>               S3 bucket name
+      --region <region>               S3 region (default: auto)
+      --prefix <prefix>               optional object key prefix inside the bucket
+      --access-key-id <key-id>        S3 access key ID (secret access key is read from stdin)
+      --presign-endpoint <https-url>  optional public HTTPS endpoint used for presigned transfer URLs
+      --virtual-host                  use virtual-hosted-style bucket URLs instead of path-style
+```
+
+### `palbase workspaces:delete`
+
+Delete a workspace (refused if attached unless --force is passed)
+
+```sh
+palbase workspaces:delete <id-or-name> [--force]
+```
+
+```text
+      --force  delete even when attached resources still reference this workspace
+```
+
+### `palbase workspaces:storage:set`
+
+Rotate BYOS S3 credentials or update BYOS endpoint settings on a BYOS workspace
+
+```sh
+palbase workspaces:storage:set <id-or-name> --endpoint <url> --bucket <name> --access-key-id <key>
+```
+
+Pipe the new S3 secret access key on stdin. The bucket is probed before saving.
+
+```text
+      --endpoint <https-url>          S3-compatible HTTPS endpoint (e.g. https://<account>.r2.cloudflarestorage.com)
+      --bucket <bucket>               S3 bucket name
+      --region <region>               S3 region (default: auto)
+      --prefix <prefix>               optional object key prefix inside the bucket
+      --access-key-id <key-id>        S3 access key ID (secret access key is read from stdin)
+      --presign-endpoint <https-url>  optional public HTTPS endpoint used for presigned transfer URLs
+      --virtual-host                  use virtual-hosted-style bucket URLs instead of path-style
+```
+
+### `palbase workspaces:byos:test`
+
+Test a BYOS S3 bucket connection (SSRF check + live write/head/delete/presign probe)
+
+```sh
+palbase workspaces:byos:test --endpoint <url> --bucket <name> --access-key-id <key>
+```
+
+Pipe the S3 secret access key on stdin; nothing is persisted.
+
+```text
+      --endpoint <https-url>          S3-compatible HTTPS endpoint (e.g. https://<account>.r2.cloudflarestorage.com)
+      --bucket <bucket>               S3 bucket name
+      --region <region>               S3 region (default: auto)
+      --prefix <prefix>               optional object key prefix inside the bucket
+      --access-key-id <key-id>        S3 access key ID (secret access key is read from stdin)
+      --presign-endpoint <https-url>  optional public HTTPS endpoint used for presigned transfer URLs
+      --virtual-host                  use virtual-hosted-style bucket URLs instead of path-style
+```
+
+### `palbase workspaces:tokens:list`
+
+A workspace's sync tokens and workspace-scoped S3 keys
+
+```sh
+palbase workspaces:tokens:list <id-or-name> [--kind sync|s3]
+```
+
+```text
+      --kind <sync|s3>  filter by token kind
+```
+
+### `palbase workspaces:tokens:create`
+
+Mint a workspace sync token (pwt_…) or workspace-scoped S3 key pair (shown once)
+
+```sh
+palbase workspaces:tokens:create <id-or-name> [--kind sync|s3] [--access rw|ro] [--label <text>] [--ttl <seconds>]
+```
+
+```text
+      --kind <sync|s3>  sync (default) or s3
+      --access <rw|ro>  rw (default) or ro
+      --label <text>    optional human label (e.g. mac-builder)
+      --ttl <seconds>   time-to-live in seconds
+```
+
+### `palbase workspaces:tokens:revoke`
+
+Revoke a workspace sync token or workspace-scoped S3 key immediately
+
+```sh
+palbase workspaces:tokens:revoke <id-or-name> <token-id>
+```
+
+### `palbase workspaces:s3-keys:list`
+
+List project-wide S3 access keys spanning all workspaces in the environment
+
+```sh
+palbase workspaces:s3-keys:list
+```
+
+### `palbase workspaces:s3-keys:create`
+
+Mint a project-wide S3 access key pair spanning every workspace in the environment (shown once)
+
+```sh
+palbase workspaces:s3-keys:create [--access rw|ro] [--label <text>] [--ttl <seconds>]
+```
+
+```text
+      --access <rw|ro>  rw (default) or ro
+      --label <text>    optional human label (e.g. ci-rclone)
+      --ttl <seconds>   optional time-to-live in seconds
+```
+
+### `palbase workspaces:s3-keys:revoke`
+
+Revoke a project-wide workspace S3 key immediately
+
+```sh
+palbase workspaces:s3-keys:revoke <key-id>
+```
 
 ## `ai`
 

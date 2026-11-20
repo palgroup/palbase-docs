@@ -36,7 +36,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.20.1")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.21.0")
 ```
 
 | Product | What it is |
@@ -130,7 +130,7 @@ Make one client for the app and keep it: every module hangs off it (`pb.auth`, `
 | `pb.currentSession()` | The session now, or `nil`. |
 | `pb.setPreferredLanguages(_:)` | The languages every request says (`Accept-Language`), when the app has a language setting of its own; `nil` for the device's. Auth's emails, flag and paywall rules and a backend's translations read them. |
 
-`PalbaseClient(_:sessionStorage:retry:)` takes two more settings. `sessionStorage: .memory` keeps the session in this process alone instead of the keychain. `retry:` is a `RetryPolicy` (below). An app that keeps its user's session itself makes the client with `PalbaseClient(_:sessionKeptBy:retry:)` instead ([below](#a-session-the-app-keeps-itself)).
+`PalbaseClient(_:sessionStorage:retry:)` takes two more settings. `sessionStorage:` defaults to `.keychain` (the project's single default slot); `.keychain(account:)` keeps an account's session in its own keychain slot for multi-account apps ([below](#multiple-accounts-in-one-project)), and `.memory` keeps the session in this process alone. `retry:` is a `RetryPolicy` (below). An app that keeps its user's session itself makes the client with `PalbaseClient(_:sessionKeptBy:retry:)` instead ([below](#a-session-the-app-keeps-itself)).
 
 ### What the app adds to the configuration
 
@@ -157,6 +157,28 @@ A configuration given in code, for a test or a tool, is `PalbaseConfiguration(ur
 The session is kept in the keychain, readable after the device's first unlock and never moved to another device, in the group the app shares with its extensions: a widget or a notification service extension reads the same signed-in user. The access token is renewed ahead of its end while the app is in the foreground, and a call refused for a dead token is renewed once and sent again, only for the user whose session sent it.
 
 A sign-in is sent with a proof made by a key that is created on the device and kept in its keychain. A session the project binds to that key (DPoP, RFC 9449) is sent with a fresh proof on every call that carries its token, to the project and to your backend alike, so a token copied off the device opens nothing on its own. Nothing in the app's code changes for it.
+
+### Multiple accounts in one project
+
+An app that keeps several accounts signed in at once in the same project uses `PalbaseAccounts` (or `PalbaseClient(_:sessionStorage: .keychain(account:))` directly). Each account gets its own keychain slot, its own `PalbaseClient` (and generated `pb.<name>` backend client), and isolated console logs, while sharing the device's DPoP key and installation across accounts and Mac Developer ID updates. `PalbaseAccounts` persists the account list and the last selected active account in the keychain, restoring them on the next launch:
+
+```swift
+import Palbase
+
+let accounts = PalbaseAccounts(.environment)
+
+// Each account has its own PalbaseClient, session, and generated backend client.
+let work = accounts.client(for: "work")
+_ = try await work.auth.signIn(email: "ada@work.example", password: "correct-horse-battery-staple")
+try accounts.select("work")
+
+// On the next launch, accounts.activeClient() restores "work" from the keychain.
+if let active = accounts.activeClient() {
+    _ = await active.currentSession()
+}
+```
+
+An app migrating sessions it previously kept in its own store hands them over offline with `accounts.adoptSession(account:accessToken:refreshToken:expiresAt:select:)` (or `pb.auth.adoptSession(accessToken:refreshToken:expiresAt:)`). Adoption reads `sub` and `exp` from the access token without a network call, never overwrites credentials the SDK has already rotated, and throws `keychain_unavailable` if the keychain is locked so the app keeps its legacy copy until persistence succeeds. To move a single-account default `"session"` item into an account slot, call `accounts.adoptDefaultKeychainSession(account:select:)`: it deletes the legacy item only after the new account slot is written.
 
 ## A Mac app
 

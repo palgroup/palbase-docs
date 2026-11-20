@@ -4,7 +4,7 @@
 
 Every command of every session of your project's agents has the project's **variables**: on Palbase's Linux machines and on your own pools ([AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines)), beside the agent's own (its definition's `env`). A variable is a **secret** or not. A secret says where it may go: the **hosts** a request may carry it to, **where** in that request it may be put, and whether the agent reads it **open** or only ever sees it **sealed**. When an agent sends a sealed secret to a host it is not allowed for, the organization's owners are asked to allow that host or dismiss it.
 
-**What this changes today.** Palbase records what each secret says of itself and checks it as you write it. It does not act on it yet: until the proxy beside the machines ships, every session still gets each value as it does now, as an environment variable, whatever its hosts say, and no ask is recorded, so the list of hosts asked for stays empty. Say the hosts now, and nothing has to change when the proxy starts swapping sealed secrets in.
+**How a session gets them.** A variable that is no secret, and an open secret, is in each command's environment as it is. A sealed secret is a placeholder there: the proxy beside the machine puts the value in only on a request to one of the secret's hosts, at a place it may be put, and a request to any other host carries the placeholder, and that host is asked about ([Hosts asked for](#hosts-asked-for)). A machine with no proxy beside it (a Mac, or a Linux machine of yours whose agent does not run the proxy: an older agent, or one without bubblewrap) gets no sealed secret: the command runs without it, and the agent is told which key was not set and why.
 
 With the API, a write that carries the value:
 
@@ -41,6 +41,21 @@ curl -X PUT "https://<ref>.palbase.studio/ai/env/LICENSE_KEY" \
   -d '{"value":"…","open":true,"acknowledge_open":true}'
 ```
 
+**What the agent can still see of an open secret.** A secret marked open is masked in a command's output where it appears as it is: the machine masks every open value it has set in the session in what a command prints, in a file read back or searched, and in a background task's log. A file read back with a value masked in it is changed with a shell command: the agent's file editor refuses an edit made from what it was shown, and says so. A command can transform a value (encode it, reverse it, split it), and masking cannot follow it there. Three more limits: a value first set after a background task started is not masked in that task's own log as it is written (reading the log back masks it); after the agent restarts on a machine nothing is masked until the next command carries the values again; and the session's changes (its diff) are shown as they are, so an open value the agent wrote into a file is in them as written. A sealed secret never reaches the command: the session has its placeholder, and the proxy puts the value in only on a request to one of its hosts ([AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines) says what each machine does).
+
+**A database your agent uses.** When a database your agent uses is asleep, the first command of a run that needs it can wait up to 20 seconds while it wakes. If it is not awake by then, that command runs without DATABASE_URL and its output says so on the first line; the next command gets it. The database address your agent gets reads and writes data as your app does; it cannot change the schema. A work's database login is the platform's and lives as long as the work: grant your agents' reach to the roles your app uses, not to that login; a privilege granted to it keeps a dead role in your database until you revoke it.
+
+**A variable that names a database.** A variable can name one of your project's databases instead of holding a value. Each work then gets a login of its own in that database: made at its first command, the same while the work runs, and taken away when it ends. The agent reads its address, so the variable is an open secret, written with `"acknowledge_open": true`:
+
+```sh
+curl -X PUT "https://<ref>.palbase.studio/ai/env/DATABASE_URL" \
+  -H "apikey: $PALBASE_SECRET_KEY" -H "Content-Type: application/json" \
+  -d '{"database":"main","acknowledge_open":true}'
+# → 200 { "key": "DATABASE_URL", "secret": true, "hosts": [], "inject": ["header"], "open": true, "database": "main", "updated_at": "…" }
+```
+
+`database` is the name of one of this project's databases. Any other name is refused with `404 database_not_found`, and nothing is written. Nothing else goes with it: a value, `secret`, `hosts`, `inject` or `open` beside `database` is `400 invalid_request`. Palbase keeps no value for this variable. The login's password is never shown or logged, and it reaches the machine sealed, as every open secret does. A work that is stopped (a turn stopped, a chat deleted, a key revoked) loses its login at once. A work that ends on its own loses it within 5 minutes. To change the variable, name another database or write a value over it; a value makes it a sealed secret again. If the database is deleted, each command runs without the variable and is told why. A database made again under the same name is another database: name it again.
+
 The work your developers and your server start (a chat your server starts, a turn it sends, a try in Studio) has the open secrets. The work an app's user starts (a member's message, goal or voice) has them only when the project lets it ([App users and open secrets](#app-users-and-open-secrets)).
 
 ## A sealed value
@@ -75,7 +90,7 @@ A host is kept in lower-case ASCII: a name in another script is kept in its puny
 - **A public suffix, or a wildcard over one** (`com`, `co.uk`, `github.io`, `vercel.app`, `*.github.io`, `*.vercel.app`): anyone may register a name under it, an attacker too.
 - **A wildcard over `palbase.studio` or `palbase.app`** (`*.palbase.studio`, `*.app.palbase.studio`, `*.palbase.app`): every Palbase customer's addresses are under them, an attacker's own project too. Name your own exactly: your environment's address `<ref>.palbase.studio`, a machine's `<name>-<ref>.app.palbase.studio`, a site's `<name>.palbase.app`.
 
-`"hosts": []` takes them all away. Once the proxy ships, a sealed secret with no host goes to none: a request carries its placeholder, and its host is asked about ([Hosts asked for](#hosts-asked-for)). Until then it is delivered as it is, as every value is.
+`"hosts": []` takes them all away: a sealed secret with no host goes to none. A request carries its placeholder, and its host is asked about ([Hosts asked for](#hosts-asked-for)).
 
 What is a public suffix, and which domain a host is registered under, is decided by one copy of the [public suffix list](https://publicsuffix.org) that Palbase keeps, refreshed with each release of the CLI. The platform and the CLI read the same copy, so they always agree. A suffix added to the list after Palbase's copy is judged as an ordinary name until the next refresh.
 
@@ -100,7 +115,7 @@ A change without the value is `PUT /ai/env/{key}` with the fields that change, t
 
 ## Hosts asked for
 
-Once the proxy ships, an agent that sends a sealed secret to a host it is not allowed for sends the placeholder, not the value, and goes on without it. Palbase keeps each secret and host once, counted, as an **ask**. Until then none is recorded:
+An agent that sends a sealed secret to a host it is not allowed for sends the placeholder, not the value, and goes on without it: the command's answer tells it the secret was not sent to that host and that its owners were asked. Palbase keeps each secret and host once, counted, as an **ask**:
 
 ```sh
 curl "https://<ref>.palbase.studio/ai/env/host-requests?status=asked" -H "apikey: $PALBASE_SECRET_KEY"
@@ -145,21 +160,21 @@ An allowance belongs to the agent's secret, not to its value: a new value keeps 
 
 It is a person's setting: in Studio it is **Let app users' work use open secrets**, under an environment's **AI › Settings**. The CLI shows the warning and asks for your yes wherever it is turned on.
 
-## Once the proxy ships
+## The proxy
 
-What the proxy does, as measured against it before it ships:
+What the proxy beside each machine does, as measured against it:
 
 - **The list of allowed hosts is the protection.** Hiding a value a host echoes back is a second line only. It cannot catch a value the host returns changed (reversed, encoded another way) or in pieces. Allow only the hosts a secret belongs to.
 - **What a host does with the value is beyond the proxy.** The proxy hides a value only in what the secret's own hosts send back through it. A host that shows the value somewhere else (a public page, another of its names) lets an agent read it there. And what a host gives for the value is no secret Palbase knows: a session token the agent gets by signing in with the key reaches it as it is, and works as the key does until it expires. Every proxy that puts secrets into requests has this limit. Give a key only the rights the agent's work needs.
 - **The machine sets it up itself.** Each machine sets the proxy's environment variables and its certificate authority for the session: you set none.
-- **A placeholder looks like the key.** It keeps a vendor's known prefix where there is one, so an SDK that checks the prefix works, and never contains a character of the secret.
+- **A placeholder looks like the key.** It keeps a vendor's known prefix where there is one, so an SDK that checks the prefix works; the rest is random and holds no part of the secret.
 - **A sealed value's length is not hidden.** An agent can learn how long a value is, never what it is: from where an allowed host, or the proxy's own limits (`431`, `413`), start refusing a request that carries the placeholder many times. Most API keys' lengths are public anyway; a value inside a longer one shows its own (a password inside a `DATABASE_URL`).
 - **Some clients need a line of setup.** `stripe-python` brings its own certificate bundle, and its requests get no value until the code sets `stripe.ca_bundle_path = "/etc/ssl/certs/ca-certificates.crt"`. `stripe-node` uses its own HTTPS agent and goes around the proxy until it is given one that follows it, on Node 24: `new Stripe(key, { httpAgent: new https.Agent({ proxyEnv: process.env }) })`.
 - **WebSockets.** Node's built-in `WebSocket` and Python's `websockets` go through the proxy. The npm `ws` package ignores it and fails closed: it never reaches the host.
-- **The proxy reads the agent's HTTPS traffic to find placeholders.** A client that pins its own certificates fails once for a host, and the proxy then passes that host through untouched for a while: a placeholder sent to a host being passed through is not noticed, and no ask is made. A host one of the project's secrets may go to is never passed through unless you name it, so a pinned client fails there every time.
+- **The proxy reads the agent's HTTPS traffic to find placeholders.** A connection to a host none of the machine's secrets may go to is read the same way, so a placeholder sent there is seen and its owner is asked. A client that pins its own certificates fails once for such a host, and the proxy then passes that host through untouched for an hour: a placeholder sent to it meanwhile is not noticed, and no ask is made. A host one of the machine's secrets may go to is never passed through, so a pinned client fails there every time.
 - **ssh and `git://`** go through as they are: a secret is never put in them.
 - **Four ports, each held to its protocol.** A machine reaches the internet on four ports: 22 for ssh, 9418 for `git://`, 80 for HTTP and 443 for TLS. A connection must speak its port's protocol, and its client must speak first, within 30 seconds; anything else is closed.
-- **ssh over port 443 is not carried.** Settings written for networks that close port 22 — `ssh.github.com` on port 443, `altssh.gitlab.com:443`, `altssh.bitbucket.org:443` in `~/.ssh/config` — fail. The same repositories answer on port 22: remove the alternate host from `~/.ssh/config`. If a machine needs that host, an owner can name it as a host the machine's traffic goes to untouched.
+- **ssh over port 443 is not carried.** Settings written for networks that close port 22 — `ssh.github.com` on port 443, `altssh.gitlab.com:443`, `altssh.bitbucket.org:443` in `~/.ssh/config` — fail. The same repositories answer on port 22: remove the alternate host from `~/.ssh/config`.
 - **Limits.** A session may hold 256 connections and 256 requests at once. A request whose body carries a secret is held in memory while the secret is put in, up to 4 MiB a body and 32 MiB a machine at once. Past a limit the answer is `503` with `Retry-After`, and a client retries after the time it says. A body over 4 MiB is `413`, and secrets put into a request's headers and query that add more than 64 KiB are `431`.
 
 ## In Studio

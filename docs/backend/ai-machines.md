@@ -60,6 +60,24 @@ A session's files are kept on the machine under the agent's own state directory 
 
 On macOS the sessions of one machine are **not isolated from each other**: one session's commands can reach another's files. On Linux each session runs in a sandbox of its own. Put a machine into a pool only for work that may share it.
 
+### The network and secrets on your Linux machines
+
+On a Linux machine of yours, a session's commands have no network of their own. The agent runs a proxy for each workspace, and that workspace's commands reach the internet through it alone: public hosts only, never your local network or the machine's own ports. A sealed secret stays in that proxy. The commands see a placeholder, and the proxy puts the value into a request to one of the secret's hosts. An open secret is in the command's environment, as on a Mac ([Sealed or open](https://palbase.studio/docs/backend/ai-env#sealed-or-open)). A placeholder sent to a host its secret does not allow is sent as it is, and the host is asked about ([Hosts asked for](https://palbase.studio/docs/backend/ai-env#hosts-asked-for)).
+
+The machine gives each command the proxy (`HTTPS_PROXY` and its kin) and its certificates (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS` and the rest, under `/run/palbase`). A client that brings its own certificate bundle takes `$SSL_CERT_FILE` (`/run/palbase/bundle.pem`) here, where [The proxy](https://palbase.studio/docs/backend/ai-env#the-proxy) names `/etc/ssl/certs/…`. HTTP and HTTPS reach their hosts through the proxy; ssh and `git://` reach nothing unless a command sends them through it itself (an ssh `ProxyCommand` to `127.0.0.1:3128`).
+
+The proxy needs Linux 5.14 or newer and `bubblewrap`. On an older kernel, or when `palbase-agent` runs inside a container, a session has no proxy: its commands reach no network, and only open secrets reach them. The agent's log says so when it starts.
+
+What a session's commands write is masked with the open values its turn's commands were given: a command's output, a background task's log, and a file read or searched through the agent. Three things are not masked:
+
+- A value first given after a background task started is not masked as that task writes its log. It is masked when the log is read.
+- After the agent restarts, a value is masked again once a command carries it.
+- A workspace's changes (its diff, and a pull request made from it) show files as they are. A value written into a tracked file goes with them.
+
+A background task's output that can no longer be masked stops reaching its log, and the task's status says so. The next line the task writes may end it, as when a terminal closes.
+
+On Linux, `palbase-agent` runs as a systemd user unit: stopping, restarting or updating the agent ends the background tasks its sessions started. On a Mac they keep running, and their output keeps being masked after the agent restarts: what masks a task's output lives as long as the task, and as long as anything the task started (even outside its process group) keeps writing to that output.
+
 ## Starting a chat on a pool
 
 Name the pool when the chat is started:
@@ -123,7 +141,7 @@ export async function scale(pool: string, rent: () => Promise<void>, giveBack: (
 
 ## Environment variables and secrets
 
-Every command of every session of the project's agents has the project's variables, on every pool: Palbase's Linux machines and your own Linux and Mac machines alike. They are masked wherever a transcript would show them. A secret also says where it may go: the hosts a request may carry it to, where in that request it is put, and whether it is sealed or open ([AI Variables & Secrets](https://palbase.studio/docs/backend/ai-env)).
+Every command of every session of the project's agents has the project's variables, on every pool: Palbase's Linux machines and your own Linux and Mac machines. They are masked wherever a transcript would show them. A secret also says where it may go: the hosts a request may carry it to, where in that request it is put, and whether it is sealed or open ([AI Variables & Secrets](https://palbase.studio/docs/backend/ai-env)). A sealed secret is a placeholder in a command's environment, and the proxy beside the machine puts its value in only on a request to one of its hosts: Palbase's Linux machines have that proxy, and so do your own Linux machines whose agent runs it; a Mac has none, and neither has a Linux machine whose agent does not run it (an older agent, or one without bubblewrap), so a command there gets the variables that are no secret and the open secrets, and no sealed secret (the agent is told which key was not set, and why).
 
 ```sh
 curl -X PUT "https://<ref>.palbase.studio/ai/env/NPM_TOKEN" \

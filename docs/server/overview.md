@@ -54,6 +54,7 @@ It answers a `PalbaseServer`:
 |---|---|---|
 | `auth` | users, sessions, test users, auth settings (`/admin/…`) | auth |
 | `storage` | buckets, objects, signed URLs | storage |
+| `workspaces` | synchronized network-disk workspaces, BYOS S3, tokens, S3 keys and advisory locks ([Workspaces](https://palbase.studio/docs/backend/workspaces)) | workspaces |
 | `notify` | email, push, SMS, WhatsApp, templates, topics | notify |
 | `secrets` | the project's secrets, by environment | secrets |
 | `flags` | definitions, users' values, publishing | flags |

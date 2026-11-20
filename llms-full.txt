@@ -76,6 +76,7 @@ Push it to its branch, and the machine builds it and rolls it out beside the ver
 |---|---|---|---|
 | **auth** | Users, sessions, passwords, passkeys, second factors, magic links, phone codes, social sign-in, test users | [Web Auth](/docs/web/auth) | [Authentication](/docs/backend/authentication), [Test Users](/docs/backend/test-users) |
 | **storage** | Buckets and files, public reads, signed URLs, image renditions | [Uploads](/docs/web/uploads) — through a URL a server signed | [Storage](/docs/backend/storage), [Direct Uploads](/docs/backend/direct-uploads) |
+| **workspaces** | Synchronized network-disk workspaces with `palbase-agent` file sync, `s3.palbase.studio` S3 gateway, BYOS S3 and advisory locks | — | [Workspaces](/docs/backend/workspaces) |
 | **realtime** | Channels over one socket: broadcasts, shared state, presence; a backend's gateways | [Web Realtime](/docs/web/realtime), [Web Gateways](/docs/web/gateways) | [Realtime](/docs/backend/realtime), [Gateways](/docs/backend/gateways), [Channels](/docs/backend/channels) |
 | **flags** | Feature flags and remote config, per-user values | [Web Flags](/docs/web/flags) | [Flags](/docs/backend/flags) |
 | **notify** | Email, push, SMS and WhatsApp; templates, topics, preferences | a user's devices, preferences and topics | [Notifications](/docs/backend/notifications) |
@@ -187,7 +188,7 @@ Start a Next.js app and give it the web SDK:
 ```json
 {
   "dependencies": {
-    "palbase": "^0.64.0",
+    "palbase": "^0.65.0",
     "next": "^16.3.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
@@ -315,7 +316,7 @@ notes-backend/
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.64.0"
+    "palbase": "^0.65.0"
   }
 }
 ```
@@ -1060,7 +1061,7 @@ An app with no database has no `src/db/`, and no `db` in its config.
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.64.0"
+    "palbase": "^0.65.0"
   }
 }
 ```
@@ -1783,9 +1784,9 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.64.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.65.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-485 commands in 36 groups.
+497 commands in 37 groups.
 
 ## Global flags
 
@@ -4001,6 +4002,163 @@ palbase webhooks:deliveries:redeliver <id>
 ```
 
 As Stripe's Resend: the receiver takes an event more than once by its Palbase-Event-Id. An admin's; it is written to the organization's audit log.
+
+## `workspaces`
+
+### `palbase workspaces:list`
+
+The environment's synchronized workspaces: name, id, storage, seq, files, size
+
+```sh
+palbase workspaces:list
+```
+
+### `palbase workspaces:get`
+
+One workspace: storage configuration, head revision, file count and byte size
+
+```sh
+palbase workspaces:get <id-or-name>
+```
+
+### `palbase workspaces:create`
+
+Create a workspace on Palbase managed R2, or on your own S3 bucket with --byos
+
+```sh
+palbase workspaces:create [name] [--byos --endpoint <url> --bucket <name> --access-key-id <key>]
+```
+
+Without --byos, the workspace stores blobs in Palbase managed Cloudflare R2.
+With --byos, pipe the S3 secret access key on stdin (never passed as a flag): printf "%s" "$SECRET" | palbase workspaces:create app-ios --byos --endpoint https://… --bucket my-bucket --access-key-id AKIA…
+
+```text
+      --byos                          back this workspace with your own S3-compatible bucket (secret read from stdin)
+      --endpoint <https-url>          S3-compatible HTTPS endpoint (e.g. https://<account>.r2.cloudflarestorage.com)
+      --bucket <bucket>               S3 bucket name
+      --region <region>               S3 region (default: auto)
+      --prefix <prefix>               optional object key prefix inside the bucket
+      --access-key-id <key-id>        S3 access key ID (secret access key is read from stdin)
+      --presign-endpoint <https-url>  optional public HTTPS endpoint used for presigned transfer URLs
+      --virtual-host                  use virtual-hosted-style bucket URLs instead of path-style
+```
+
+### `palbase workspaces:delete`
+
+Delete a workspace (refused if attached unless --force is passed)
+
+```sh
+palbase workspaces:delete <id-or-name> [--force]
+```
+
+```text
+      --force  delete even when attached resources still reference this workspace
+```
+
+### `palbase workspaces:storage:set`
+
+Rotate BYOS S3 credentials or update BYOS endpoint settings on a BYOS workspace
+
+```sh
+palbase workspaces:storage:set <id-or-name> --endpoint <url> --bucket <name> --access-key-id <key>
+```
+
+Pipe the new S3 secret access key on stdin. The bucket is probed before saving.
+
+```text
+      --endpoint <https-url>          S3-compatible HTTPS endpoint (e.g. https://<account>.r2.cloudflarestorage.com)
+      --bucket <bucket>               S3 bucket name
+      --region <region>               S3 region (default: auto)
+      --prefix <prefix>               optional object key prefix inside the bucket
+      --access-key-id <key-id>        S3 access key ID (secret access key is read from stdin)
+      --presign-endpoint <https-url>  optional public HTTPS endpoint used for presigned transfer URLs
+      --virtual-host                  use virtual-hosted-style bucket URLs instead of path-style
+```
+
+### `palbase workspaces:byos:test`
+
+Test a BYOS S3 bucket connection (SSRF check + live write/head/delete/presign probe)
+
+```sh
+palbase workspaces:byos:test --endpoint <url> --bucket <name> --access-key-id <key>
+```
+
+Pipe the S3 secret access key on stdin; nothing is persisted.
+
+```text
+      --endpoint <https-url>          S3-compatible HTTPS endpoint (e.g. https://<account>.r2.cloudflarestorage.com)
+      --bucket <bucket>               S3 bucket name
+      --region <region>               S3 region (default: auto)
+      --prefix <prefix>               optional object key prefix inside the bucket
+      --access-key-id <key-id>        S3 access key ID (secret access key is read from stdin)
+      --presign-endpoint <https-url>  optional public HTTPS endpoint used for presigned transfer URLs
+      --virtual-host                  use virtual-hosted-style bucket URLs instead of path-style
+```
+
+### `palbase workspaces:tokens:list`
+
+A workspace's sync tokens and workspace-scoped S3 keys
+
+```sh
+palbase workspaces:tokens:list <id-or-name> [--kind sync|s3]
+```
+
+```text
+      --kind <sync|s3>  filter by token kind
+```
+
+### `palbase workspaces:tokens:create`
+
+Mint a workspace sync token (pwt_…) or workspace-scoped S3 key pair (shown once)
+
+```sh
+palbase workspaces:tokens:create <id-or-name> [--kind sync|s3] [--access rw|ro] [--label <text>] [--ttl <seconds>]
+```
+
+```text
+      --kind <sync|s3>  sync (default) or s3
+      --access <rw|ro>  rw (default) or ro
+      --label <text>    optional human label (e.g. mac-builder)
+      --ttl <seconds>   time-to-live in seconds
+```
+
+### `palbase workspaces:tokens:revoke`
+
+Revoke a workspace sync token or workspace-scoped S3 key immediately
+
+```sh
+palbase workspaces:tokens:revoke <id-or-name> <token-id>
+```
+
+### `palbase workspaces:s3-keys:list`
+
+List project-wide S3 access keys spanning all workspaces in the environment
+
+```sh
+palbase workspaces:s3-keys:list
+```
+
+### `palbase workspaces:s3-keys:create`
+
+Mint a project-wide S3 access key pair spanning every workspace in the environment (shown once)
+
+```sh
+palbase workspaces:s3-keys:create [--access rw|ro] [--label <text>] [--ttl <seconds>]
+```
+
+```text
+      --access <rw|ro>  rw (default) or ro
+      --label <text>    optional human label (e.g. ci-rclone)
+      --ttl <seconds>   optional time-to-live in seconds
+```
+
+### `palbase workspaces:s3-keys:revoke`
+
+Revoke a project-wide workspace S3 key immediately
+
+```sh
+palbase workspaces:s3-keys:revoke <key-id>
+```
 
 ## `ai`
 
@@ -12499,6 +12657,241 @@ When the bytes are already on your server — a generated report, a file fetched
 
 
 
+<!-- ===== backend/workspaces ===== -->
+
+# Workspaces
+
+A **workspace** is a synchronized network disk for your project: a versioned file tree with low-latency multi-way file sync (`palbase-agent workspace sync`), a full S3-compatible gateway (`https://s3.palbase.studio`), optimistic concurrency with zero-loss conflict records, advisory locks, and optional Bring Your Own S3 (BYOS) storage.
+
+Use **Storage** ([Storage](/docs/backend/storage)) for user uploads, public media buckets, and image renditions. Use **Workspaces** when Linux cloud agents, macOS build VMs, CI runners, or S3 clients share a live working directory and need changes on one machine to reach every other attached machine immediately.
+
+## Quick example
+
+Create a workspace from a `palbase/backend` controller, seed `.palbasesync`, mint a scoped sync token for a machine, and coordinate exclusive steps with an advisory lock:
+
+```ts
+// src/modules/builds/builds.controller.ts
+import { Body, Controller, Palbase, Post, z } from "palbase/backend";
+
+const StartBuildInput = z.object({
+  name: z.string().min(3).max(63),
+  machineId: z.string().min(1),
+});
+
+type StartBuildInput = z.infer<typeof StartBuildInput>;
+
+@Controller("/builds")
+export class BuildsController {
+  @Post("/workspaces")
+  async prepare(@Body(StartBuildInput) body: StartBuildInput) {
+    const ws = await Palbase.workspaces.createWorkspace({
+      body: { name: body.name },
+    });
+
+    await Palbase.workspaces.putWorkspaceFile({
+      path: { id: ws.data.id },
+      query: { path: ".palbasesync" },
+      body: "DerivedData/\nnode_modules/\nbuild/\n",
+      contentType: "text/plain; charset=utf-8",
+    });
+
+    const syncToken = await Palbase.workspaces.createWorkspaceToken({
+      path: { id: ws.data.id },
+      body: { kind: "sync", access: "rw", label: body.machineId, ttl_seconds: 3600 },
+    });
+
+    const lock = await Palbase.workspaces.acquireWorkspaceLock({
+      path: { id: ws.data.id },
+      body: { scope: "xcode-build", owner_id: body.machineId, ttl_seconds: 600 },
+    });
+
+    return {
+      workspaceId: ws.data.id,
+      name: ws.data.name,
+      syncToken: syncToken.data.token,
+      syncUrl: syncToken.data.sync_url,
+      lockToken: lock.data.token,
+    };
+  }
+}
+```
+
+## Live multi-way sync
+
+Run `palbase-agent workspace sync` on every machine that shares the workspace (Linux cloud sandboxes, macOS Tart VMs, or developer laptops). Each agent watches the local directory natively — `inotify` on Linux and `FSEvents` on macOS — and listens for remote commits over Server-Sent Events (`GET /workspaces/sync/events`).
+
+```bash
+PALBASE_WORKSPACE_URL="https://<ref>.palbase.studio/workspaces/sync" \
+PALBASE_WORKSPACE_TOKEN="$PALBASE_WORKSPACE_TOKEN" \
+palbase-agent workspace sync ./workspace
+```
+
+Key sync capabilities:
+
+- **Inline fast path:** Files up to 128 KiB travel inline in `POST /workspaces/sync/publish` and `GET /workspaces/sync/changes`, avoiding extra object-store round-trips for source edits.
+- **Chunked large files:** Files larger than 64 MiB are split into content-addressed chunks and transferred directly to object storage through presigned grants (`POST /workspaces/sync/blobs/upload-grants` and `POST /workspaces/sync/blobs/download-grants`).
+- **`.palbasesync` ignore rules:** Every new workspace is seeded with a `.palbasesync` template using gitignore-style patterns. Edit it from Studio, the API, or any synced machine.
+- **Barrier synchronization:** Use `--flush` on a writer machine to wait until all local edits are published, and `--wait <seq>` on a build host (for example before running `xcodebuild`) to ensure the local tree has caught up to that exact sequence number.
+- **Execution guard:** Pass `--deny-exec` on untrusted build receivers to strip execute bits from synced files.
+
+## S3 Gateway (`s3.palbase.studio`)
+
+Every workspace is exposed as an S3 bucket at `https://s3.palbase.studio/<workspace-name>/<key>` with AWS Signature Version 4 (header and presigned URLs), `aws-chunked` streaming checksums (SHA-256 / CRC32), multipart uploads, and `ListObjectsV2`.
+
+Any write made through the S3 gateway commits a new workspace sequence number and notifies all attached `palbase-agent` machines immediately.
+
+Two scopes of S3 keys are available:
+
+| Key scope | Prefix | Access | Endpoints |
+|---|---|---|---|
+| **Workspace S3 key** | `pbwk_…` | Scoped to a single workspace | `POST /workspaces/{id}/tokens` (`kind: "s3"`) |
+| **Project S3 key** | `pbpk_…` | Lists and accesses every workspace in the project | `POST /workspaces/s3-keys` |
+
+```bash
+AWS_ACCESS_KEY_ID=pbpk_... \
+AWS_SECRET_ACCESS_KEY=... \
+aws s3 sync ./artifacts s3://ios-build/artifacts/ \
+  --endpoint-url https://s3.palbase.studio
+```
+
+```ini
+# rclone.conf
+[palbase-workspaces]
+type = s3
+provider = Other
+access_key_id = pbpk_...
+secret_access_key = ...
+endpoint = https://s3.palbase.studio
+force_path_style = true
+```
+
+## Bring Your Own S3 (BYOS)
+
+By default, workspaces store content-addressed blobs in platform-managed Cloudflare R2 (`storage_kind: "managed"`). You can also bind a workspace to your own S3-compatible bucket — Cloudflare R2, AWS S3, or MinIO — with `storage.kind: "byos"`.
+
+- **SSRF protection:** BYOS endpoints are validated against private, loopback, link-local, and cloud metadata IP ranges before any request is made, and HTTP redirects are disabled.
+- **Live connectivity probe:** Call `POST /workspaces/byos/test` to verify Put, Head, Delete, and Presign operations without persisting credentials.
+- **Sealed credentials & rotation:** Access keys are envelope-encrypted at rest and never returned in full (only `access_key_preview`). Rotate keys seamlessly with `PUT /workspaces/{id}/storage` without interrupting sync.
+- **Billing exclusion:** BYOS blobs are stored strictly in your own bucket and excluded from Palbase storage metering and managed quota ceilings.
+
+```ts
+// scripts/byos-workspace.ts
+import { createServer } from "palbase/server";
+
+const pb = createServer({
+  url: process.env.PALBASE_URL!,
+  secretKey: process.env.PALBASE_SECRET_KEY!,
+});
+
+const byosStorage = {
+  kind: "byos" as const,
+  endpoint: "https://account-id.r2.cloudflarestorage.com",
+  region: "auto",
+  bucket: "acme-workspaces",
+  prefix: "prod/",
+  access_key_id: process.env.BYOS_ACCESS_KEY_ID!,
+  secret_access_key: process.env.BYOS_SECRET_ACCESS_KEY!,
+  force_path_style: true,
+};
+
+const probe = await pb.workspaces.testWorkspaceByos({ body: byosStorage });
+if (!probe.data.ok) throw new Error("BYOS bucket probe failed");
+
+const ws = await pb.workspaces.createWorkspace({
+  body: { name: "acme-ios-disk", storage: byosStorage },
+});
+
+// Later, rotate credentials in place without recreating the workspace:
+await pb.workspaces.updateWorkspaceStorage({
+  path: { id: ws.data.id },
+  body: {
+    ...byosStorage,
+    access_key_id: process.env.BYOS_NEXT_ACCESS_KEY_ID!,
+    secret_access_key: process.env.BYOS_NEXT_SECRET_ACCESS_KEY!,
+  },
+});
+```
+
+Switching an existing workspace between `managed` and `byos`, or changing the `bucket` or `prefix` of a non-empty BYOS workspace, is refused with `409` to protect existing manifests.
+
+## Concurrency, conflicts, locks & safe deletion
+
+- **Optimistic concurrency (CAS):** Every commit increments a monotonic `seq` number per workspace. When two writers race on the same path from the same base revision, the first writer wins and the losing content is preserved as a conflict record — zero bytes are lost.
+- **Advisory locks:** Coordinate exclusive phases (such as an Xcode build or codegen pass) with `POST /workspaces/{id}/locks` (TTL-based), `GET /workspaces/{id}/locks`, and `DELETE /workspaces/{id}/locks`.
+- **Safe deletion:** `DELETE /workspaces/{id}` returns `409 workspace_attached` naming active attachments if a machine or module is still bound to the workspace. Pass `force: true` (`DELETE /workspaces/{id}?force=true`) to force deletion.
+
+## Webhook events
+
+Workspaces emit three platform events you can handle with `@On` ([Event Hooks](/docs/backend/hooks)) or receive via webhooks ([Webhooks](/docs/server/webhooks)):
+
+| Event | Payload fields | When it fires |
+|---|---|---|
+| `workspace.published` | `workspace_id`, `seq`, `manifest_id`, `writer`, `changed_count` | A sync publish, HTTP file write, or S3 write committed a new `seq`. |
+| `workspace.conflict` | `workspace_id`, `conflict_id`, `seq`, `path`, `winner_digest`, `loser_digest`, `loser_writer` | Two concurrent writers raced on the same path and the losing content was preserved. |
+| `workspace.deleted` | `workspace_id`, `name` | A workspace was deleted from the project. |
+
+```ts
+// src/modules/builds/workspace-events.ts
+import { Injectable, Log, On, type WebhookEvent } from "palbase/backend";
+
+type WorkspaceConflictData = {
+  workspace_id: string;
+  conflict_id: string;
+  seq: number;
+  path: string;
+  winner_digest: string;
+  loser_digest: string;
+  loser_writer: string;
+};
+
+@Injectable()
+export class WorkspaceEvents {
+  @On("workspace.conflict")
+  onConflict(event: WebhookEvent<WorkspaceConflictData>): void {
+    Log.warn("workspace edit conflict preserved", {
+      workspaceId: event.data.workspace_id,
+      path: event.data.path,
+      seq: event.data.seq,
+      loserWriter: event.data.loser_writer,
+    });
+  }
+}
+```
+
+## CLI commands
+
+Manage workspaces, BYOS storage, sync tokens, and S3 keys directly from the `palbase` CLI (see the full [CLI Reference](/docs/cli/reference)):
+
+```bash
+palbase workspaces:list
+palbase workspaces:create ios-disk
+palbase workspaces:byos:test --endpoint https://acct.r2.cloudflarestorage.com --bucket acme-ws --access-key-id "$AK"
+palbase workspaces:tokens:create ws_01J... --kind sync --access rw --label mac-vm
+palbase workspaces:s3-keys:create --access rw --label ci-runner
+palbase workspaces:delete ws_01J... --force
+```
+
+## HTTP endpoints
+
+| Method & path | Purpose |
+|---|---|
+| `GET /workspaces` / `POST /workspaces` | List or create a workspace (managed R2 or BYOS). |
+| `GET /workspaces/{id}` / `DELETE /workspaces/{id}` | Inspect or delete a workspace (`?force=true` overrides `409`). |
+| `POST /workspaces/byos/test` | SSRF-checked live probe of a BYOS S3 bucket. |
+| `PUT /workspaces/{id}/storage` | Rotate BYOS credentials or update connection settings. |
+| `GET /workspaces/{id}/files` | List tracked files, or read one file (`?path=…`). |
+| `PUT /workspaces/{id}/files` / `DELETE /workspaces/{id}/files` | Write or delete one file (`?path=…`) and notify synced machines. |
+| `GET /workspaces/{id}/tokens` / `POST /workspaces/{id}/tokens` | List or mint workspace sync tokens and workspace S3 keys. |
+| `DELETE /workspaces/{id}/tokens/{token_id}` | Revoke a workspace sync token or S3 key. |
+| `GET /workspaces/s3-keys` / `POST /workspaces/s3-keys` | List or mint project-wide S3 keys. |
+| `DELETE /workspaces/s3-keys/{token_id}` | Revoke a project-wide S3 key. |
+| `GET /workspaces/{id}/locks` / `POST /workspaces/{id}/locks` / `DELETE /workspaces/{id}/locks` | List, acquire/renew, or release TTL advisory locks. |
+| `GET /workspaces/sync/head` / `GET /workspaces/sync/changes` / `POST /workspaces/sync/publish` | Sync engine protocol endpoints (Bearer sync token). |
+| `POST /workspaces/sync/blobs/upload-grants` / `POST /workspaces/sync/blobs/download-grants` | Direct presigned object-store blob transfer grants. |
+| `GET /workspaces/sync/events` | Real-time SSE notification stream for connected sync agents. |
+
+
+
 <!-- ===== backend/secrets ===== -->
 
 # Secrets
@@ -14513,7 +14906,7 @@ A workspace is one chat's, and a fork's, and a fork's agent is its chat's: two c
 
 ### The workspace's machine: Debian 12, Node 24, headless Chrome
 
-A workspace's turns run on one machine of Palbase's: a gVisor container on an Azure VM (AMD, amd64), Debian 12 with Node 24, Python 3, git, a C toolchain, ripgrep, poppler and tesseract, and a headless Chrome: `/usr/bin/chromium` (also `CHROME_PATH`) for Playwright's `executablePath` and for Puppeteer, and every library Playwright's own browser needs, so `npx playwright install chromium` installs the one your project's Playwright asks for, into the agent's home, with no root. Chrome starts with no sandbox of its own: the container's is the boundary. The agent's shell runs as an unprivileged user, so it installs no system package. A workspace has up to 8 GiB of memory (its `/tmp`, 1 GiB, counts in it), 2 cores — 4 on a machine added for the load — and 30 GiB of disk for its tree and what it installs, with the network a build needs (npm, pip, git).
+A workspace's turns run on one machine of Palbase's: a gVisor container on an Azure VM (AMD, amd64), Debian 12 with Node 24, Python 3, git, a C toolchain, ripgrep, poppler and tesseract, and a headless Chrome: `/usr/bin/chromium` (also `CHROME_PATH`) for Playwright's `executablePath` and for Puppeteer, and every library Playwright's own browser needs, so `npx playwright install chromium` installs the one your project's Playwright asks for, into the agent's home, with no root. To load a page, the agent launches the machine's own Chrome: `CHROME_PATH` as Playwright's `executablePath`, or Playwright's `channel: 'chromium'`. Playwright's default headless browser (its headless shell) does not trust the certificate authority the machine's way out uses, so on this machine it fails every HTTPS page with a certificate error. Chrome starts with no sandbox of its own: the container's is the boundary. The agent's shell runs as an unprivileged user, so it installs no system package. A workspace has up to 8 GiB of memory (its `/tmp`, 1 GiB, counts in it), 2 cores — 4 on a machine added for the load — and 30 GiB of disk for its tree and what it installs, with the network a build needs (npm, pip, git).
 
 What the workspace's store holds is durable. Work a machine has not yet published — a publish that failed, files written after a turn ended — is offered to the workspace by its next turn on that machine: published where nobody else changed the file meanwhile, and kept aside as a conflict where somebody did, their version staying ([Events and conflicts](/docs/backend/ai-workspace-sync#events-and-conflicts)). It can be lost when that turn runs on another machine: when Palbase replaces the machine, or cannot wake it in time. What the workspace does not carry, such as a path `.gitignore` excludes, is never published and is on that machine alone.
 
@@ -14714,6 +15107,24 @@ A session's files are kept on the machine under the agent's own state directory 
 
 On macOS the sessions of one machine are **not isolated from each other**: one session's commands can reach another's files. On Linux each session runs in a sandbox of its own. Put a machine into a pool only for work that may share it.
 
+### The network and secrets on your Linux machines
+
+On a Linux machine of yours, a session's commands have no network of their own. The agent runs a proxy for each workspace, and that workspace's commands reach the internet through it alone: public hosts only, never your local network or the machine's own ports. A sealed secret stays in that proxy. The commands see a placeholder, and the proxy puts the value into a request to one of the secret's hosts. An open secret is in the command's environment, as on a Mac ([Sealed or open](/docs/backend/ai-env#sealed-or-open)). A placeholder sent to a host its secret does not allow is sent as it is, and the host is asked about ([Hosts asked for](/docs/backend/ai-env#hosts-asked-for)).
+
+The machine gives each command the proxy (`HTTPS_PROXY` and its kin) and its certificates (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS` and the rest, under `/run/palbase`). A client that brings its own certificate bundle takes `$SSL_CERT_FILE` (`/run/palbase/bundle.pem`) here, where [The proxy](/docs/backend/ai-env#the-proxy) names `/etc/ssl/certs/…`. HTTP and HTTPS reach their hosts through the proxy; ssh and `git://` reach nothing unless a command sends them through it itself (an ssh `ProxyCommand` to `127.0.0.1:3128`).
+
+The proxy needs Linux 5.14 or newer and `bubblewrap`. On an older kernel, or when `palbase-agent` runs inside a container, a session has no proxy: its commands reach no network, and only open secrets reach them. The agent's log says so when it starts.
+
+What a session's commands write is masked with the open values its turn's commands were given: a command's output, a background task's log, and a file read or searched through the agent. Three things are not masked:
+
+- A value first given after a background task started is not masked as that task writes its log. It is masked when the log is read.
+- After the agent restarts, a value is masked again once a command carries it.
+- A workspace's changes (its diff, and a pull request made from it) show files as they are. A value written into a tracked file goes with them.
+
+A background task's output that can no longer be masked stops reaching its log, and the task's status says so. The next line the task writes may end it, as when a terminal closes.
+
+On Linux, `palbase-agent` runs as a systemd user unit: stopping, restarting or updating the agent ends the background tasks its sessions started. On a Mac they keep running, and their output keeps being masked after the agent restarts: what masks a task's output lives as long as the task, and as long as anything the task started (even outside its process group) keeps writing to that output.
+
 ## Starting a chat on a pool
 
 Name the pool when the chat is started:
@@ -14777,7 +15188,7 @@ export async function scale(pool: string, rent: () => Promise<void>, giveBack: (
 
 ## Environment variables and secrets
 
-Every command of every session of the project's agents has the project's variables, on every pool: Palbase's Linux machines and your own Linux and Mac machines alike. They are masked wherever a transcript would show them. A secret also says where it may go: the hosts a request may carry it to, where in that request it is put, and whether it is sealed or open ([AI Variables & Secrets](/docs/backend/ai-env)).
+Every command of every session of the project's agents has the project's variables, on every pool: Palbase's Linux machines and your own Linux and Mac machines. They are masked wherever a transcript would show them. A secret also says where it may go: the hosts a request may carry it to, where in that request it is put, and whether it is sealed or open ([AI Variables & Secrets](/docs/backend/ai-env)). A sealed secret is a placeholder in a command's environment, and the proxy beside the machine puts its value in only on a request to one of its hosts: Palbase's Linux machines have that proxy, and so do your own Linux machines whose agent runs it; a Mac has none, and neither has a Linux machine whose agent does not run it (an older agent, or one without bubblewrap), so a command there gets the variables that are no secret and the open secrets, and no sealed secret (the agent is told which key was not set, and why).
 
 ```sh
 curl -X PUT "https://<ref>.palbase.studio/ai/env/NPM_TOKEN" \
@@ -14842,7 +15253,7 @@ An agent's variables sit beside the project's: give them names of their own. Pal
 
 Every command of every session of your project's agents has the project's **variables**: on Palbase's Linux machines and on your own pools ([AI on Your Own Machines](/docs/backend/ai-machines)), beside the agent's own (its definition's `env`). A variable is a **secret** or not. A secret says where it may go: the **hosts** a request may carry it to, **where** in that request it may be put, and whether the agent reads it **open** or only ever sees it **sealed**. When an agent sends a sealed secret to a host it is not allowed for, the organization's owners are asked to allow that host or dismiss it.
 
-**What this changes today.** Palbase records what each secret says of itself and checks it as you write it. It does not act on it yet: until the proxy beside the machines ships, every session still gets each value as it does now, as an environment variable, whatever its hosts say, and no ask is recorded, so the list of hosts asked for stays empty. Say the hosts now, and nothing has to change when the proxy starts swapping sealed secrets in.
+**How a session gets them.** A variable that is no secret, and an open secret, is in each command's environment as it is. A sealed secret is a placeholder there: the proxy beside the machine puts the value in only on a request to one of the secret's hosts, at a place it may be put, and a request to any other host carries the placeholder, and that host is asked about ([Hosts asked for](#hosts-asked-for)). A machine with no proxy beside it (a Mac, or a Linux machine of yours whose agent does not run the proxy: an older agent, or one without bubblewrap) gets no sealed secret: the command runs without it, and the agent is told which key was not set and why.
 
 With the API, a write that carries the value:
 
@@ -14879,6 +15290,21 @@ curl -X PUT "https://<ref>.palbase.studio/ai/env/LICENSE_KEY" \
   -d '{"value":"…","open":true,"acknowledge_open":true}'
 ```
 
+**What the agent can still see of an open secret.** A secret marked open is masked in a command's output where it appears as it is: the machine masks every open value it has set in the session in what a command prints, in a file read back or searched, and in a background task's log. A file read back with a value masked in it is changed with a shell command: the agent's file editor refuses an edit made from what it was shown, and says so. A command can transform a value (encode it, reverse it, split it), and masking cannot follow it there. Three more limits: a value first set after a background task started is not masked in that task's own log as it is written (reading the log back masks it); after the agent restarts on a machine nothing is masked until the next command carries the values again; and the session's changes (its diff) are shown as they are, so an open value the agent wrote into a file is in them as written. A sealed secret never reaches the command: the session has its placeholder, and the proxy puts the value in only on a request to one of its hosts ([AI on Your Own Machines](/docs/backend/ai-machines) says what each machine does).
+
+**A database your agent uses.** When a database your agent uses is asleep, the first command of a run that needs it can wait up to 20 seconds while it wakes. If it is not awake by then, that command runs without DATABASE_URL and its output says so on the first line; the next command gets it. The database address your agent gets reads and writes data as your app does; it cannot change the schema. A work's database login is the platform's and lives as long as the work: grant your agents' reach to the roles your app uses, not to that login; a privilege granted to it keeps a dead role in your database until you revoke it.
+
+**A variable that names a database.** A variable can name one of your project's databases instead of holding a value. Each work then gets a login of its own in that database: made at its first command, the same while the work runs, and taken away when it ends. The agent reads its address, so the variable is an open secret, written with `"acknowledge_open": true`:
+
+```sh
+curl -X PUT "https://<ref>.palbase.studio/ai/env/DATABASE_URL" \
+  -H "apikey: $PALBASE_SECRET_KEY" -H "Content-Type: application/json" \
+  -d '{"database":"main","acknowledge_open":true}'
+# → 200 { "key": "DATABASE_URL", "secret": true, "hosts": [], "inject": ["header"], "open": true, "database": "main", "updated_at": "…" }
+```
+
+`database` is the name of one of this project's databases. Any other name is refused with `404 database_not_found`, and nothing is written. Nothing else goes with it: a value, `secret`, `hosts`, `inject` or `open` beside `database` is `400 invalid_request`. Palbase keeps no value for this variable. The login's password is never shown or logged, and it reaches the machine sealed, as every open secret does. A work that is stopped (a turn stopped, a chat deleted, a key revoked) loses its login at once. A work that ends on its own loses it within 5 minutes. To change the variable, name another database or write a value over it; a value makes it a sealed secret again. If the database is deleted, each command runs without the variable and is told why. A database made again under the same name is another database: name it again.
+
 The work your developers and your server start (a chat your server starts, a turn it sends, a try in Studio) has the open secrets. The work an app's user starts (a member's message, goal or voice) has them only when the project lets it ([App users and open secrets](#app-users-and-open-secrets)).
 
 ## A sealed value
@@ -14913,7 +15339,7 @@ A host is kept in lower-case ASCII: a name in another script is kept in its puny
 - **A public suffix, or a wildcard over one** (`com`, `co.uk`, `github.io`, `vercel.app`, `*.github.io`, `*.vercel.app`): anyone may register a name under it, an attacker too.
 - **A wildcard over `palbase.studio` or `palbase.app`** (`*.palbase.studio`, `*.app.palbase.studio`, `*.palbase.app`): every Palbase customer's addresses are under them, an attacker's own project too. Name your own exactly: your environment's address `<ref>.palbase.studio`, a machine's `<name>-<ref>.app.palbase.studio`, a site's `<name>.palbase.app`.
 
-`"hosts": []` takes them all away. Once the proxy ships, a sealed secret with no host goes to none: a request carries its placeholder, and its host is asked about ([Hosts asked for](#hosts-asked-for)). Until then it is delivered as it is, as every value is.
+`"hosts": []` takes them all away: a sealed secret with no host goes to none. A request carries its placeholder, and its host is asked about ([Hosts asked for](#hosts-asked-for)).
 
 What is a public suffix, and which domain a host is registered under, is decided by one copy of the [public suffix list](https://publicsuffix.org) that Palbase keeps, refreshed with each release of the CLI. The platform and the CLI read the same copy, so they always agree. A suffix added to the list after Palbase's copy is judged as an ordinary name until the next refresh.
 
@@ -14938,7 +15364,7 @@ A change without the value is `PUT /ai/env/{key}` with the fields that change, t
 
 ## Hosts asked for
 
-Once the proxy ships, an agent that sends a sealed secret to a host it is not allowed for sends the placeholder, not the value, and goes on without it. Palbase keeps each secret and host once, counted, as an **ask**. Until then none is recorded:
+An agent that sends a sealed secret to a host it is not allowed for sends the placeholder, not the value, and goes on without it: the command's answer tells it the secret was not sent to that host and that its owners were asked. Palbase keeps each secret and host once, counted, as an **ask**:
 
 ```sh
 curl "https://<ref>.palbase.studio/ai/env/host-requests?status=asked" -H "apikey: $PALBASE_SECRET_KEY"
@@ -14983,21 +15409,21 @@ An allowance belongs to the agent's secret, not to its value: a new value keeps 
 
 It is a person's setting: in Studio it is **Let app users' work use open secrets**, under an environment's **AI › Settings**. The CLI shows the warning and asks for your yes wherever it is turned on.
 
-## Once the proxy ships
+## The proxy
 
-What the proxy does, as measured against it before it ships:
+What the proxy beside each machine does, as measured against it:
 
 - **The list of allowed hosts is the protection.** Hiding a value a host echoes back is a second line only. It cannot catch a value the host returns changed (reversed, encoded another way) or in pieces. Allow only the hosts a secret belongs to.
 - **What a host does with the value is beyond the proxy.** The proxy hides a value only in what the secret's own hosts send back through it. A host that shows the value somewhere else (a public page, another of its names) lets an agent read it there. And what a host gives for the value is no secret Palbase knows: a session token the agent gets by signing in with the key reaches it as it is, and works as the key does until it expires. Every proxy that puts secrets into requests has this limit. Give a key only the rights the agent's work needs.
 - **The machine sets it up itself.** Each machine sets the proxy's environment variables and its certificate authority for the session: you set none.
-- **A placeholder looks like the key.** It keeps a vendor's known prefix where there is one, so an SDK that checks the prefix works, and never contains a character of the secret.
+- **A placeholder looks like the key.** It keeps a vendor's known prefix where there is one, so an SDK that checks the prefix works; the rest is random and holds no part of the secret.
 - **A sealed value's length is not hidden.** An agent can learn how long a value is, never what it is: from where an allowed host, or the proxy's own limits (`431`, `413`), start refusing a request that carries the placeholder many times. Most API keys' lengths are public anyway; a value inside a longer one shows its own (a password inside a `DATABASE_URL`).
 - **Some clients need a line of setup.** `stripe-python` brings its own certificate bundle, and its requests get no value until the code sets `stripe.ca_bundle_path = "/etc/ssl/certs/ca-certificates.crt"`. `stripe-node` uses its own HTTPS agent and goes around the proxy until it is given one that follows it, on Node 24: `new Stripe(key, { httpAgent: new https.Agent({ proxyEnv: process.env }) })`.
 - **WebSockets.** Node's built-in `WebSocket` and Python's `websockets` go through the proxy. The npm `ws` package ignores it and fails closed: it never reaches the host.
-- **The proxy reads the agent's HTTPS traffic to find placeholders.** A client that pins its own certificates fails once for a host, and the proxy then passes that host through untouched for a while: a placeholder sent to a host being passed through is not noticed, and no ask is made. A host one of the project's secrets may go to is never passed through unless you name it, so a pinned client fails there every time.
+- **The proxy reads the agent's HTTPS traffic to find placeholders.** A connection to a host none of the machine's secrets may go to is read the same way, so a placeholder sent there is seen and its owner is asked. A client that pins its own certificates fails once for such a host, and the proxy then passes that host through untouched for an hour: a placeholder sent to it meanwhile is not noticed, and no ask is made. A host one of the machine's secrets may go to is never passed through, so a pinned client fails there every time.
 - **ssh and `git://`** go through as they are: a secret is never put in them.
 - **Four ports, each held to its protocol.** A machine reaches the internet on four ports: 22 for ssh, 9418 for `git://`, 80 for HTTP and 443 for TLS. A connection must speak its port's protocol, and its client must speak first, within 30 seconds; anything else is closed.
-- **ssh over port 443 is not carried.** Settings written for networks that close port 22 — `ssh.github.com` on port 443, `altssh.gitlab.com:443`, `altssh.bitbucket.org:443` in `~/.ssh/config` — fail. The same repositories answer on port 22: remove the alternate host from `~/.ssh/config`. If a machine needs that host, an owner can name it as a host the machine's traffic goes to untouched.
+- **ssh over port 443 is not carried.** Settings written for networks that close port 22 — `ssh.github.com` on port 443, `altssh.gitlab.com:443`, `altssh.bitbucket.org:443` in `~/.ssh/config` — fail. The same repositories answer on port 22: remove the alternate host from `~/.ssh/config`.
 - **Limits.** A session may hold 256 connections and 256 requests at once. A request whose body carries a secret is held in memory while the secret is put in, up to 4 MiB a body and 32 MiB a machine at once. Past a limit the answer is `503` with `Retry-After`, and a client retries after the time it says. A body over 4 MiB is `413`, and secrets put into a request's headers and query that add more than 64 KiB are `431`.
 
 ## In Studio
@@ -17158,7 +17584,7 @@ The web SDK is `palbase/web`, a part of the npm package `palbase`: `npm install 
 ```json
 {
   "dependencies": {
-    "palbase": "^0.64.0"
+    "palbase": "^0.65.0"
   }
 }
 ```
@@ -20520,7 +20946,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.20.1")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.21.0")
 ```
 
 | Product | What it is |
@@ -20614,7 +21040,7 @@ Make one client for the app and keep it: every module hangs off it (`pb.auth`, `
 | `pb.currentSession()` | The session now, or `nil`. |
 | `pb.setPreferredLanguages(_:)` | The languages every request says (`Accept-Language`), when the app has a language setting of its own; `nil` for the device's. Auth's emails, flag and paywall rules and a backend's translations read them. |
 
-`PalbaseClient(_:sessionStorage:retry:)` takes two more settings. `sessionStorage: .memory` keeps the session in this process alone instead of the keychain. `retry:` is a `RetryPolicy` (below). An app that keeps its user's session itself makes the client with `PalbaseClient(_:sessionKeptBy:retry:)` instead ([below](#a-session-the-app-keeps-itself)).
+`PalbaseClient(_:sessionStorage:retry:)` takes two more settings. `sessionStorage:` defaults to `.keychain` (the project's single default slot); `.keychain(account:)` keeps an account's session in its own keychain slot for multi-account apps ([below](#multiple-accounts-in-one-project)), and `.memory` keeps the session in this process alone. `retry:` is a `RetryPolicy` (below). An app that keeps its user's session itself makes the client with `PalbaseClient(_:sessionKeptBy:retry:)` instead ([below](#a-session-the-app-keeps-itself)).
 
 ### What the app adds to the configuration
 
@@ -20641,6 +21067,28 @@ A configuration given in code, for a test or a tool, is `PalbaseConfiguration(ur
 The session is kept in the keychain, readable after the device's first unlock and never moved to another device, in the group the app shares with its extensions: a widget or a notification service extension reads the same signed-in user. The access token is renewed ahead of its end while the app is in the foreground, and a call refused for a dead token is renewed once and sent again, only for the user whose session sent it.
 
 A sign-in is sent with a proof made by a key that is created on the device and kept in its keychain. A session the project binds to that key (DPoP, RFC 9449) is sent with a fresh proof on every call that carries its token, to the project and to your backend alike, so a token copied off the device opens nothing on its own. Nothing in the app's code changes for it.
+
+### Multiple accounts in one project
+
+An app that keeps several accounts signed in at once in the same project uses `PalbaseAccounts` (or `PalbaseClient(_:sessionStorage: .keychain(account:))` directly). Each account gets its own keychain slot, its own `PalbaseClient` (and generated `pb.<name>` backend client), and isolated console logs, while sharing the device's DPoP key and installation across accounts and Mac Developer ID updates. `PalbaseAccounts` persists the account list and the last selected active account in the keychain, restoring them on the next launch:
+
+```swift
+import Palbase
+
+let accounts = PalbaseAccounts(.environment)
+
+// Each account has its own PalbaseClient, session, and generated backend client.
+let work = accounts.client(for: "work")
+_ = try await work.auth.signIn(email: "ada@work.example", password: "correct-horse-battery-staple")
+try accounts.select("work")
+
+// On the next launch, accounts.activeClient() restores "work" from the keychain.
+if let active = accounts.activeClient() {
+    _ = await active.currentSession()
+}
+```
+
+An app migrating sessions it previously kept in its own store hands them over offline with `accounts.adoptSession(account:accessToken:refreshToken:expiresAt:select:)` (or `pb.auth.adoptSession(accessToken:refreshToken:expiresAt:)`). Adoption reads `sub` and `exp` from the access token without a network call, never overwrites credentials the SDK has already rotated, and throws `keychain_unavailable` if the keychain is locked so the app keeps its legacy copy until persistence succeeds. To move a single-account default `"session"` item into an account slot, call `accounts.adoptDefaultKeychainSession(account:select:)`: it deletes the legacy item only after the new account slot is written.
 
 ## A Mac app
 
@@ -20961,18 +21409,19 @@ func apple() async {
 }
 ```
 
-`signInWithApple(variant:)` shows Apple's own sheet; `signInWithGoogle(variant:)` opens Google's page in the system's browser sheet and exchanges its code on the device, with no client secret in the app. Each starts the session, or answers `.mfaRequired`. The provider must be on for the project, with a **native client** for this app in Studio's **Auth › Providers**:
+`signInWithApple(variant:returnURI:)` shows Apple's own sheet on iOS and Mac App Store apps, or opens Apple's web sign-in in `ASWebAuthenticationSession` on macOS when the resolved Apple client uses **Browser OAuth** (for Developer ID Mac apps, which Apple does not grant the **Sign in with Apple** entitlement to); `signInWithGoogle(variant:)` opens Google's page in the system's browser sheet and exchanges its code on the device, with no client secret in the app. Each starts the same DPoP-bound first-party session, or answers `.mfaRequired`. The provider must be on for the project, with a client for this app in Studio's **Auth › Providers**:
 
 | Field | Value |
 |---|---|
 | Application key | The app's slug (`shop`), as `palbase apps:create` registered it. |
-| Platform | `ios` |
+| Platform | `ios` or `macos` |
 | Variant | `release`, or a label of the build's own: the `variant:` the app passes (default `"release"`). |
-| Flow | Native OAuth |
-| Apple | **Bundle ID**: the app's bundle. The app also needs the **Sign in with Apple** capability. |
+| Flow | **Native OAuth** (iOS, Mac App Store, Google on macOS) or **Browser OAuth** (Sign in with Apple on Developer ID macOS apps). |
+| Apple (native) | **Bundle ID**: the app's bundle. The app also needs the **Sign in with Apple** capability (`pb.auth.supportsNativeAppleSignIn` reports whether the running build has it). |
+| Apple (macOS browser) | **Services ID**, key, and a custom-scheme **Return URI** registered in the app's `CFBundleURLTypes` (e.g. `com.example.shop.mac:/apple-callback`). Pass `returnURI:` to `signInWithApple(variant:returnURI:)` if more than one callback URL is listed. |
 | Google | **Bundle ID**, the Google Cloud **iOS Client ID**, and the **Native redirect URI**: a URI whose scheme is that client's iOS URL scheme (`com.googleusercontent.apps.1234-abcd:/oauth2redirect`). |
 
-The SDK signs in with the native client alone. With no native client for the app, platform and variant, or one set up for another bundle than the running app's, the call throws `auth_client_not_configured` or `auth_client_mismatch` before any sheet opens. A sheet the user dismisses throws `oauth_cancelled`; `wasCancelled(_:)` is true for it, for a dismissed passkey sheet and for a cancelled task.
+With no matching client for the app, platform and variant, or one set up for another bundle than the running app's, the call throws `auth_client_not_configured` or `auth_client_mismatch` before any sheet opens. A Developer ID Mac build without the Sign in with Apple entitlement throws `apple_native_unavailable` if only a native Apple client is configured. A sheet or browser page the user dismisses throws `oauth_cancelled`; `wasCancelled(_:)` is true for it, for a dismissed passkey sheet and for a cancelled task.
 
 Once the provider has answered, the SDK keeps the answer in the keychain until auth has taken it, and sends it again while the answer is "not now". A sign-in interrupted before then is never finished into a later one: the next sign-in with that provider cancels it.
 
@@ -21618,7 +22067,7 @@ The project holds its clients to limits the platform sets and the project may lo
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.20.1 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.21.0 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -21850,7 +22299,7 @@ When the person signs out, what the phone kept of their conversations is dropped
 The calls are a Swift package of their own, so an app that makes no calls takes none of their weight. Add `https://github.com/palgroup/palbase-swift-calls` with Swift Package Manager, at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.20.1")
+.package(url: "https://github.com/palgroup/palbase-swift-calls", exact: "0.21.0")
 ```
 
 Link `PalbaseCalls` to the app — and `PalbaseCallsBroadcast` to its Broadcast Upload Extension alone, when it shares the whole screen ([Sharing a screen](#sharing-a-screen)). `PalbaseCalls` brings Palbase's core and `PalbaseNotify` of the same version, and LiveKit's WebRTC and client SDK, which the media server's calls go through. **Do not add LiveKit's own Swift package beside them**: its client SDK is already inside `PalbaseCalls`. It needs iOS 18 and Xcode 16.3 or newer.
@@ -22892,7 +23341,7 @@ A chat of the project's agents can be talked to out loud ([AI › Voice](/docs/b
 `PalbaseVoice` is a package of its own, [github.com/palgroup/palbase-swift-voice](https://github.com/palgroup/palbase-swift-voice), because it brings WebRTC (LiveKit's build, [livekit/webrtc-xcframework](https://github.com/livekit/webrtc-xcframework)): an app that talks to no voice resolves none of it. Add it at the same version as `palbase-swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-voice", exact: "0.20.1")
+.package(url: "https://github.com/palgroup/palbase-swift-voice", exact: "0.21.0")
 ```
 
 Link `PalbaseVoice`; it brings the `Palbase` core of the same version. An app that also takes LiveKit's SDK resolves the one WebRTC package. The app's Info.plist says why it asks for the microphone, in `NSMicrophoneUsageDescription`.
@@ -25605,6 +26054,7 @@ It answers a `PalbaseServer`:
 |---|---|---|
 | `auth` | users, sessions, test users, auth settings (`/admin/…`) | auth |
 | `storage` | buckets, objects, signed URLs | storage |
+| `workspaces` | synchronized network-disk workspaces, BYOS S3, tokens, S3 keys and advisory locks ([Workspaces](/docs/backend/workspaces)) | workspaces |
 | `notify` | email, push, SMS, WhatsApp, templates, topics | notify |
 | `secrets` | the project's secrets, by environment | secrets |
 | `flags` | definitions, users' values, publishing | flags |
@@ -25864,6 +26314,7 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `ai.workspace.pushed` | A chat's agent pushed its work to the chat's branch. | `{ chat_id, repo, repository, branch, head_sha, commits: [{ sha, subject, author_name, author_email }], commits_truncated, response_id, user_id, metadata }` |
 | `ai.workspace.conflict` | A writer's change of a chat's workspace lost: the path had changed since the writer saw it, and the first to reach the store won. The version that lost is kept 30 days in the workspace's history. | `{ chat_id, conflict: { id, path, lost, winner }, manifest_id, seq, writer, metadata }` |
 | `ai.secret_host_requested` | An agent sent a sealed secret to a host it is not allowed for: the host got a placeholder, not the value, and the owners are asked to allow or dismiss it ([Hosts asked for](/docs/backend/ai-env#hosts-asked-for)). At most once a day a secret and host, and 10 a project a day. | `{ project_id, request_id, key, agent, host, asked_at }` |
+| `workspace.published` / `workspace.conflict` / `workspace.deleted` | A standalone workspace committed a new sequence number, recorded a concurrent-write conflict, or was deleted ([Workspaces](/docs/backend/workspaces#webhook-events)). | `{ workspace_id, seq, manifest_id, writer, changed_count }` / `{ workspace_id, conflict_id, path, seq, writer }` / `{ workspace_id }` |
 
 The modules' contracts say which of their operations emit which event; each is noted on the operation (for example, `PUT /storage/buckets/{bucket}/objects/{path}` "Emits file.uploaded").
 

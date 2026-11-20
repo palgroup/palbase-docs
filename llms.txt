@@ -51,6 +51,7 @@ Every page is named below. What each one covers is in its section's index — th
 - [Schema changes](https://palbase.studio/docs/backend/migrations)
 - [Storage](https://palbase.studio/docs/backend/storage)
 - [Direct Uploads](https://palbase.studio/docs/backend/direct-uploads)
+- [Workspaces](https://palbase.studio/docs/backend/workspaces)
 - [Secrets](https://palbase.studio/docs/backend/secrets)
 - [Flags](https://palbase.studio/docs/backend/flags)
 - [Notifications](https://palbase.studio/docs/backend/notifications)
