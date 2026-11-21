@@ -6,13 +6,13 @@ A chat of the project's agents can be talked to out loud ([AI › Voice](https:/
 
 ## Install
 
-`PalbaseVoice` is a package of its own, [github.com/palgroup/palbase-swift-voice](https://github.com/palgroup/palbase-swift-voice), because it brings WebRTC (LiveKit's build, [livekit/webrtc-xcframework](https://github.com/livekit/webrtc-xcframework)): an app that talks to no voice resolves none of it. Add it at the same version as `palbase-swift`:
+`PalbaseVoice` ships directly in `https://github.com/palgroup/palbase-swift` for **iOS 18+** and **macOS 15+** with zero external dependencies:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift-voice", exact: "0.21.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.22.2")
 ```
 
-Link `PalbaseVoice`; it brings the `Palbase` core of the same version. An app that also takes LiveKit's SDK resolves the one WebRTC package. The app's Info.plist says why it asks for the microphone, in `NSMicrophoneUsageDescription`.
+Link `PalbaseVoice`; it brings `Palbase` with it. The app's Info.plist says why it asks for the microphone, in `NSMicrophoneUsageDescription`.
 
 ## Quick example
 

@@ -103,8 +103,8 @@ An agent is given tools from five sources:
 |---|---|---|
 | Your backend | `Palbase.ai.tool({ name, description, input, run })` | On your machine, when the agent calls it. |
 | The app | `Palbase.ai.clientTool({ name, description, input })` | In the app the chat is open in. The turn waits for the answer, which reaches the chat through your gateway. |
-| An HTTPS tool | `Palbase.ai.endpoints.put(name, { kind: "https", url, … })`, then `{ source: "https", name }` | At that address: a signed `POST`. It is told nothing of the chat's workspace unless the endpoint is put with `"workspace": true`, for a tool of your own ([Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync#tools-see-the-workspace-as-the-agent-left-it)). |
-| An MCP server | `Palbase.ai.endpoints.put(name, { kind: "mcp", url })`, then `{ source: "mcp", name, only? }` | At that address, over streamable HTTP. It is told nothing of a chat or its workspace unless the endpoint is put with `"workspace": true`, for a server of your own ([Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync#tools-see-the-workspace-as-the-agent-left-it)). |
+| An HTTPS tool | `Palbase.ai.endpoints.put(name, { kind: "https", url, … })`, then `{ source: "https", name }` | At that address: a signed `POST`. It is told nothing of the chat's workspace unless the endpoint is put with `"workspace": true`, for a tool of your own ([Workspaces](https://palbase.studio/docs/backend/workspaces)). |
+| An MCP server | `Palbase.ai.endpoints.put(name, { kind: "mcp", url })`, then `{ source: "mcp", name, only? }` | At that address, over streamable HTTP. It is told nothing of a chat or its workspace unless the endpoint is put with `"workspace": true`, for a server of your own ([Workspaces](https://palbase.studio/docs/backend/workspaces)). |
 | The platform | `{ source: "platform", name }`: `web.search`, `web.fetch`, `workspace.fetch_archive` | On the platform. `web.search` searches the web, `web.fetch` reads a page of it, `workspace.fetch_archive` downloads an archive from a URL and unpacks it into the chat's workspace (a workspace chat has it already). They belong to the agent; its subagents use the agent's. |
 
 A tool answers within 110 seconds; past that the agent is told it did not answer. A tool whose work takes longer (a review that takes minutes) answers `{ deferred: true, expires_in_seconds? }` at once, and the call waits. Your server gives the answer later with `chats.answer(chatId, callId, output)` (`POST /ai/chats/{id}/tool-outputs/{callId}` with the secret key), within the time the tool named: a minute to a day, an hour by default. A call nobody answers by then is told to the agent as unanswered. A tool that wrote the chat's workspace names the tree its writes left with the answer, `{ workspaceTree }` (`workspace_tree`), as an answer given at once does, so the agent's next command sees what it wrote. No member answers such a call. The tool is told the call's `callId` and the chat in its context.
@@ -184,7 +184,7 @@ A tool is made once, at a module's top level: the framework serves every tool it
 - **When it fails.** A `ToolError`'s message is what the agent and the chat's members are told. Anything else thrown is told as "The tool failed", and the error is in the app's log.
 - **`approval: true`.** Every call waits for a person's yes: the member whose message began the turn, or the server.
 
-An HTTPS tool is any server's route. The platform calls it with `POST {tool, call_id, input, context}`, signed with the endpoint's secret in `Palbase-Signature`, and it answers `{ output, is_error }`. An endpoint put with `"workspace": true`, a tool of your own, is told the chat's workspace: in a chat that works in one, `context.workspace` names the tree the agent last wrote, and a tool that writes the workspace answers `workspace_tree` so the agent's next command sees it. Any other is told the turn's `chat_id` and nothing of the workspace ([Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync#tools-see-the-workspace-as-the-agent-left-it)). `endpoints.put` answers that secret once (`signing_secret`), and putting the endpoint again makes a new one. Keep it in the project's [secrets](https://palbase.studio/docs/backend/secrets):
+An HTTPS tool is any server's route. The platform calls it with `POST {tool, call_id, input, context}`, signed with the endpoint's secret in `Palbase-Signature`, and it answers `{ output, is_error }`. An endpoint put with `"workspace": true`, a tool of your own, is told the chat's workspace: in a chat that works in one, `context.workspace` names the tree the agent last wrote, and a tool that writes the workspace answers `workspace_tree` so the agent's next command sees it. Any other is told the turn's `chat_id` and nothing of the workspace ([Workspaces](https://palbase.studio/docs/backend/workspaces)). `endpoints.put` answers that secret once (`signing_secret`), and putting the endpoint again makes a new one. Keep it in the project's [secrets](https://palbase.studio/docs/backend/secrets):
 
 ```ts
 // src/modules/rates/rates.controller.ts
@@ -346,7 +346,7 @@ export class SupportController {
 | `chats.parts(id, { turns, limit, before, cursor })` | The chat's past as its stream told it, a page at a time from its newest end back, for a client's `loadOlder` through your backend: `limit` of its events, or back to where `turns` more of its turns open (the page says how many opened, `turns`). See [A chat in an app](#a-chat-in-an-app). |
 | `chats.stop(id)` | Stops the turn the agent is on. What it wrote stays, and the agent remembers it: the next turn sees the stopped one's text, cut where it stopped, and a note that the person stopped it on purpose — so the agent answers what comes next instead of redoing the stopped work, and "continue" picks it up where it was cut, not from the start. A message sent while it worked that it had not read yet (`"next"`) is not lost with it: it starts the next turn, with any other such message, and the chat tells it delivered into that turn. Answers the stopped turn's id, or `null` when none ran. |
 | `chats.approve(id, approvalId, { reason, as })`, `chats.deny(…)` | A call that waits for a person's yes, made or not. Denied, the agent is told the reason and goes on. |
-| `chats.answer(id, callId, output, { isError, as, workspaceTree })` | A client tool's answer, or a deferred tool's: `true` when it is the one taken, `false` when another came first. `workspaceTree` is the tree a tool's writes left (`chats.workspace.write`'s answer). |
+| `chats.answer(id, callId, output, { isError, as, workspaceTree })` | A client tool's answer, or a deferred tool's: `true` when it is the one taken, `false` when another came first. `workspaceTree` is the tree a tool's writes left in the standalone workspace. |
 | `chats.sendToSubagent(id, runId, text, { as })` | A message for a subagent at work, at its next step. |
 | `chats.turnCost(id, responseId)` | What a turn cost so far, its subagents counted: tokens, `costNanoUsd` (and `usd`), and `final` once nothing more of it is settled. `runs` breaks it down run by run: the turn's own and each subagent's, by name, model and state. `advisor` says what the agent's [advisor](#the-advisor) spent of it. A turn still at work is read as it spends. |
 | `chats.events(id)` | The chat as a source a gateway pipes into its channel. See [A chat in an app](#a-chat-in-an-app). |
@@ -398,47 +398,36 @@ What was said either way is the chat's: a `transcript` part of its stream for ea
 
 ## Workspaces
 
-A chat can work in GitHub repositories: its turns run with them checked out, and what its agent commits is pushed to the branch. The tokens are your backend's to give, at each clone and each push. Its turns run on Palbase's own Linux machines, or on a pool of your own machines the chat names as it is started (`pool`, see [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines)), with the project's variables and the agent's own (`env`) and setup script (`setup`): a secret among them says the hosts it may go to ([AI Variables & Secrets](https://palbase.studio/docs/backend/ai-env)). Any machine of yours can hold the workspace too, synced both ways, and your backend can write it ([Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync)).
+A chat attaches to an encrypted standalone workspace ([Workspaces](https://palbase.studio/docs/backend/workspaces)) via `workspace_id`. Every workspace blob stored in object storage (R2 or BYOS) is encrypted end-to-end with chunked AES-256-GCM (`PBWS1`) under a per-workspace data encryption key derived from your project key, and mounted on runner disks only inside an encrypted container or disk. Keys live in RAM only and are zeroed on park or eviction.
 
-```ts
-// src/modules/builds/app.repo.ts
-import { Palbase } from "palbase/backend";
+```bash
+# Configure a strict always-on runtime environment with Palbase DB egress
+curl -X PUT "https://<ref>.palbase.studio/ai/environments/ios-always-on" \
+  -H "Authorization: Bearer $PALBASE_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mode": "always_on",
+    "isolation": "strict",
+    "runtime": { "vm_profile": "macos-xcode" },
+    "network": { "egress": "restricted", "allow_palbase_db": true }
+  }'
 
-// A token for one clone or one push, asked of this machine each time and kept nowhere: here a
-// fine-grained token for this repository's contents, from the machine's secrets.
-export const shopApp = Palbase.ai.repo({
-  name: "shop-app",
-  repository: "acme/shop-app",
-  defaultBranch: "main",
-  token: () => {
-    const token = process.env.SHOP_APP_GITHUB_TOKEN;
-    if (!token) throw new Error("SHOP_APP_GITHUB_TOKEN is not set");
-    return token;
-  },
-});
+# Bind a chat to an encrypted standalone workspace (ws_...)
+curl -X POST "https://<ref>.palbase.studio/ai/chats" \
+  -H "Authorization: Bearer $PALBASE_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent": "builder",
+    "workspace_id": "ws_0123456789abcdef01234567"
+  }'
 ```
 
 ```ts
 // src/modules/builds/builds.service.ts
 import { Injectable, Palbase } from "palbase/backend";
-import { shopApp } from "./app.repo";
 
 @Injectable()
 export class BuildChats {
-  async onStart(): Promise<void> {
-    await Palbase.ai.repos.put(shopApp);
-  }
-
-  /** A chat that works on a branch of the app; each push waits for its owner's yes. */
-  async start(userId: string, branch: string): Promise<string> {
-    const chat = await Palbase.ai.chats.create({
-      definition: { instructions: "You work on the shop's app. Make small commits.", model: "claude-sonnet-5-5" },
-      members: [{ userId, owner: true }],
-      workspace: { repos: [{ repo: shopApp, branch }], autoPush: false },
-    });
-    return chat.id;
-  }
-
   /** What a turn published: a build's product, a screenshot, a report. */
   async firstArtifact(chatId: string, responseId: string): Promise<Response | null> {
     const [first] = await Palbase.ai.chats.artifacts(chatId, responseId);
@@ -447,35 +436,21 @@ export class BuildChats {
 }
 ```
 
-With `autoPush: false` a push waits for a member's approval, as an `approval: true` tool does. With `autoPush: true` the agent pushes without one, and what the chat's members write then reaches the repository. A project puts 10,000 repositories, and a chat works in 8 of them at most. `repos.list()` and `repos.delete(name)` read and remove them.
+### Runtime environments
 
-**A repository for a chat at work.** `chats.workspace.addRepo(chatId, { repo, branch? })` (`POST /ai/chats/{id}/workspace/repos`) puts one more of the project's repositories in an open chat's workspace, beside its others. A repository born while the work goes on is put first with `repos.put`. The engine clones it into the workspace before the chat's next turn, and every chat working in the workspace (a fork, too) has it. Your server alone does this.
+Configure named execution environments with `POST /ai/environments` or `PUT /ai/environments/{name}`:
 
-**Whose commits, and what they carry.** Each commit the agent makes is written as the member its turn is for: their name in the chat and their address, as an author and as a committer. This holds for the platform's commit tool and for a plain `git commit` the agent runs in the shell. Each turn writes its member into the repositories' own git config and installs a `commit-msg` hook that adds the chat's trailers. A hook, or a hooks path, the repository already has is left alone. Give the address with the member (`members: [{ userId, name, email }]`, or `PUT /ai/chats/{id}/members/{userId} { email }`). A member's own session gives it again, verified, whenever they write. It is never served to the chat's other members. A member with no address commits under one of the platform's that names them and reaches no one. A turn that is no member's (your server's own) commits as the platform. `workspace: { trailers: [{ key, value }] }` are git trailers every commit of the chat carries at the end of its message: a task (`PalCore-Task: #12`), a link back to the conversation, a co-author (`Co-authored-by: …`). Up to 16, each one line. The agent's work is pushed only to the chat's branch. On a protected or default branch (`main`, `master`, the repository's default) it goes to a branch of its own, `agent/<workspace>/<run>`.
+- **`mode: "ephemeral"` (default):** auto-parks after idle timeout (15 minutes on Palbase's Linux machines) and evicts parked disks after 12 hours, while workspace blobs remain durable in the workspaces store.
+- **`mode: "always_on"`:** forces `idle_timeout_seconds = 0` and bypasses idle parking and parked-disk eviction so long-running or low-latency environments stay warm.
+- **`isolation: "strict" | "relaxed"`:** enforces minimum attested sandbox isolation on enrolled runners.
+- **`network.allow_palbase_db: true`:** permits encrypted PostgreSQL connections (`SSLRequest` + TLS or PostgreSQL 17 direct TLS with verified SNI) from the sandbox to your project's Palbase databases (`*.db.<domain>:5432,6543`); cleartext PostgreSQL startups and SNI mismatches are refused.
+- **Pre-bake builds:** trigger immutable environment builds via `POST /ai/environments/{name}/builds` and inspect status with `GET /ai/environments/{name}/builds/{build_id}`.
 
-**What the workspace did, as events.** The workspace's machine publishes its tree whenever the files are quiet for a moment, so mid-turn, as a build writes its product. It publishes once more as it lets the workspace go. Each tree is `ai.workspace.published`, with the files it changed against the tree it replaced (`changed: [{ path, change: added|modified|removed, size_bytes }]`, 1000 at most). Read one of its files, as that tree left it, at `GET /ai/chats/{id}/workspace/files?path=<path>&manifest=<manifest_id>` (without `manifest`, from the tree the workspace is at now). Files are served up to 64 MiB (`413 file_too_large` past it), with their digest in `Content-Digest`; publish a larger one as the turn's artifact. A project reads 4 files at once (`429 too_many_reads`, with `Retry-After`), and a file is written for no longer than its bytes take at 256 KiB/s plus a minute. A tree's changes are named 1000 at a time in the event (`changed_truncated` past that). A push is `ai.workspace.pushed`, with the commits it brought (`commits: [{ sha, subject, author_name, author_email }]`, 100 at most), the repository by your name for it, the branch and the member. The chat's members see the push in the stream with each commit's author by name, never by address. Each event is told once, from the turn's start until 20 minutes after its end, whoever is watching the chat.
-
-### What a workspace holds: 1 to 8 repositories, none empty
-
-1 to 8 of the project's repositories, each at a branch that is already on GitHub: a chat named with no repository is refused, and an empty repository — one with no commit yet — or a branch not pushed yet cannot be cloned, so the chat's first turn fails. Give a new repository its first commit (a README is enough) before a chat works in it.
-
-### Two chats never share a workspace; a fork's turns take it one at a time
-
-Every chat `chats.create` starts has a workspace of its own, cloned for it. Two chats that name the same repository and branch work in two clones: neither sees the other's files, uncommitted or not, and each clone is the branch as it was when its workspace was first laid out. A push onto a branch the other chat moved meanwhile is refused (`remote_diverged`), never forced. A fork (`POST /ai/chats/{id}/fork`) works in its chat's workspace: one machine, one tree. Their turns take the workspace one at a time — a turn of the fork waits while one of the chat's runs, then works on the tree that turn left — so nothing is merged. A chat is not forked while a turn of it runs (`409 turn_running`).
-
-### Different agents in one workspace
-
-A workspace is one chat's, and a fork's, and a fork's agent is its chat's: two chats of two named agents never share files. To work in one tree with different instructions or tools, fork the chat and define the agent in your backend (`Palbase.ai.agent(name, define)`, [Agents](#agents)): it is defined anew at every turn from the turn's `chatId` and the message's `metadata`, so one agent answers each chat, or each message, as a different one. Their turns still take the tree one at a time, and a fork carries its chat's history up to the message it was forked before.
+**Workspace lifecycle and events.** File reads/writes, sync tokens, S3 access, and webhook events (`workspace.published`, `workspace.conflict`, `workspace.deleted`) are all served through the unified [Workspaces](https://palbase.studio/docs/backend/workspaces) module. When a chat hands off across targets (for example, between a cloud Linux machine and a local macOS runner), Palbase waits for the workspace head sequence and issues an HPKE-sealed per-machine grant so the new target syncs directly over encrypted `PBWS1` blobs without exposing plaintext to storage.
 
 ### The workspace's machine: Debian 12, Node 24, headless Chrome
 
-A workspace's turns run on one machine of Palbase's: a gVisor container on an Azure VM (AMD, amd64), Debian 12 with Node 24, Python 3, git, a C toolchain, ripgrep, poppler and tesseract, and a headless Chrome: `/usr/bin/chromium` (also `CHROME_PATH`) for Playwright's `executablePath` and for Puppeteer, and every library Playwright's own browser needs, so `npx playwright install chromium` installs the one your project's Playwright asks for, into the agent's home, with no root. To load a page, the agent launches the machine's own Chrome: `CHROME_PATH` as Playwright's `executablePath`, or Playwright's `channel: 'chromium'`. Playwright's default headless browser (its headless shell) does not trust the certificate authority the machine's way out uses, so on this machine it fails every HTTPS page with a certificate error. Chrome starts with no sandbox of its own: the container's is the boundary. The agent's shell runs as an unprivileged user, so it installs no system package. A workspace has up to 8 GiB of memory (its `/tmp`, 1 GiB, counts in it), 2 cores — 4 on a machine added for the load — and 30 GiB of disk for its tree and what it installs, with the network a build needs (npm, pip, git).
-
-What the workspace's store holds is durable. Work a machine has not yet published — a publish that failed, files written after a turn ended — is offered to the workspace by its next turn on that machine: published where nobody else changed the file meanwhile, and kept aside as a conflict where somebody did, their version staying ([Events and conflicts](https://palbase.studio/docs/backend/ai-workspace-sync#events-and-conflicts)). It can be lost when that turn runs on another machine: when Palbase replaces the machine, or cannot wake it in time. What the workspace does not carry, such as a path `.gitignore` excludes, is never published and is on that machine alone.
-
-### How long a turn waits for the machine
-
-A new workspace is given a machine already started, in milliseconds, and then clones its repositories: the first turn waits for the clone. An idle workspace's machine is parked after 15 minutes — stopped, its disk kept — and its next turn starts it again in seconds, its files, `node_modules` and builds where they were (measured: the turn answered in 5.8 s, the machine up in 0.2 s). A workspace parked for 12 hours is deleted, and its next turn clones again. When every machine is busy, one more is started: a few minutes, 15 at most.
+On Palbase's own Linux machines, a workspace's turns run inside an isolated container backed by an encrypted volume on Debian 12 with Node 24, Python 3, git, a C toolchain, ripgrep, poppler, tesseract, and headless Chrome (`/usr/bin/chromium` / `CHROME_PATH`). On customer Macs, turns run inside isolated Apple `Virtualization.framework` VMs (`macos-xcode` for native `xcodebuild` / SwiftPM or `linux-vm` for Linux VMs) — see [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines).
 
 ### What the workspace's machine costs
 
@@ -586,7 +561,7 @@ In the app, the member joins `SupportGateway` with the chat's id, and the handle
 | 409 | `history_full` | The project keeps as much chat history as it may. Delete chats to write again. |
 | 409 | `attachment_changed` | A file changed while it was attached. Send the message again. |
 | 409 | `too_many_members` | A chat holds 64 members. |
-| 409 | `too_many_endpoints`, `too_many_repos` | A project holds 32 of each. |
+| 409 | `too_many_endpoints` | A project holds 32 endpoints. |
 | 413 | `attachment_too_large` | A message's picture is over 5 MiB, or its file over 50 MB. |
 | 413, 415, 422 | `unreadable_attachment` | A chat that works in no workspace was sent a file its agent would be given nothing of: one that is not a PDF, a picture, a Word, Excel or PowerPoint file or text (415), a picture past the 4 a message shows (413), or a file whose text cannot be read (422). |
 | 415 | `unsupported_image` | A message's picture is not a png, jpeg, webp or gif by its bytes. |
@@ -599,9 +574,9 @@ Each arrives as a `PalbaseError` with its `status` and `code`, its message said 
 
 - [Gateways](https://palbase.studio/docs/backend/gateways): the channel a chat reaches its members on
 - [Web Gateways](https://palbase.studio/docs/web/gateways): a chat's state in the browser
-- [Event Hooks](https://palbase.studio/docs/backend/hooks): `ai.response.started`, `ai.response.completed` and `ai.response.failed` (a background response's end, and every chat turn's start and end), `ai.goal.updated`, `ai.voice.started`, `ai.voice.closed`, `ai.voice.delegated`, `ai.workspace.published`, `ai.workspace.pushed`, `ai.workspace.conflict`, `ai.secret_host_requested`
-- [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines): runner pools of your own Macs and Linux machines, environment variables and setup scripts
+- [Event Hooks](https://palbase.studio/docs/backend/hooks): `ai.response.started`, `ai.response.completed` and `ai.response.failed` (a background response's end, and every chat turn's start and end), `ai.goal.updated`, `ai.voice.started`, `ai.voice.closed`, `ai.voice.delegated`, `ai.secret_host_requested`, plus `workspace.published`, `workspace.conflict`, `workspace.deleted`
+- [Workspaces](https://palbase.studio/docs/backend/workspaces): standalone encrypted workspaces (`PBWS1`), sync, S3 gateway and webhook events
+- [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines): runner pools of your own Macs (Apple Virtualization.framework) and Linux machines, key rotation, environment variables and setup scripts
 - [AI Variables & Secrets](https://palbase.studio/docs/backend/ai-env): the variables and secrets its sessions have, the hosts a secret may go to, a sealed value's rules, the hosts it asked for and who allows them
-- [Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync): a chat's workspace on a machine of yours, written by your backend, and what a tool sees of it
-- [Secrets](https://palbase.studio/docs/backend/secrets): an HTTPS tool's signing secret, a repository's token
+- [Secrets](https://palbase.studio/docs/backend/secrets): an HTTPS tool's signing secret
 - [Row-Level Security](https://palbase.studio/docs/backend/row-level-security): what a tool finds as the chat's member

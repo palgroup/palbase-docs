@@ -269,7 +269,7 @@ What `state` holds:
 
 | Field | What it is |
 |---|---|
-| `items` | The conversation in order, each one of four types: `{ type: "message", message }`, `{ type: "response", response }`, `{ type: "goal", goal }` (a word of the chat's goal: set, changed, a turn of it begun, judged or checked, its status, cleared) and `{ type: "voice", voice }` (the chat's voice began or ended). A subagent's answer is a part of its parent's. |
+| `items` | The conversation in order, each one of six types: `{ type: "message", message }`, `{ type: "response", response }`, `{ type: "goal", goal }` (a word of the chat's goal: set, changed, a turn of it begun, judged or checked, its status, cleared), `{ type: "voice", voice }` (the chat's voice began or ended), `{ type: "handoff", handoff }` (the session moved to a new execution target and generation) and `{ type: "compaction", compaction }` (earlier history compacted into a summary). A subagent's answer is a part of its parent's. |
 | `messages` | Each member's (or the server's) message: `clientId`, `text`, `author` (`null`: the server), `authorName`, `status` (`pending` until the agent has it, then `delivered`, or `failed` with its `error`), `kind` (`text`, or `voice` for a line said in the chat's voice), `attachments` (its pictures and files), `metadata`, `createdAt`, and `mine`. |
 | `responses` | Each answer, the subagents' too: `id`, `status` (`running`, `waiting`, `completed`, `failed`, `canceled`, `timed_out`, `budget_exceeded`), `end` and `error` once it ended, `text` so far, `parts`, `thinking` (the model's reasoning step by step, when the agent shows it), `goal` (the goal's turn it is, or `null`), `startedBy`, and `mine`. |
 | `turn` | The last turn's state, and what it waits for: `approval`, `tool_output`, `subagents` or `message`. |
@@ -277,10 +277,11 @@ What `state` holds:
 | `goal` | The chat's goal once one was set: `objective`, `status` (`active`, `paused`, `blocked`, `budget_limited`, `achieved`, or `cleared`), its stop code and reason, and its `events`. `null` without one. |
 | `voice` | The chat's voice, the last that began in it, live or ended: `status` (`started`, `closed`), `mine`, `seconds` and `closeReason` once it closed. `null` without one. |
 | `forkedFrom` | A fork's: `{ chatId, beforeMessage }`, the chat it was forked from. `null` for a chat of its own. |
+| `execution` | Live execution state folded from stream parts: `target`, `generation`, `workspaceSeq`, `machineId`, `machineStatus` (`online`, `offline`, `waking`), `failoverAt`, `lastHandoff`, `compactions`, and `offloads`. |
 
 An answer's `parts` are its pieces in order, each one of four types: `{ type: "text", text }`; `{ type: "tool", tool }`, a tool call; `{ type: "agent", agent }`, a subagent handed work (or refused it, `status: "denied"` with its `reason`); and `{ type: "thinking", thinking }`, a step's reasoning (`text`, or `unavailable: true` with the provider's `reason` when the agent shows its reasoning and the provider gave none). A render that leaves a type out leaves that piece of the conversation out.
 
-`mine` is the signed-in user's: a message they wrote, an answer to a turn they began. A tool call (a `tool` part, or one of `waiting`) has `call_id`, `name`, `status`, `input`, `output` and, while it waits for a yes, `approval_id`. Its `output` is the answer's last 16 KiB: `omittedBytes` says how much came before it, and `pb.chatToolCall(chatId, callId)` reads the whole answer.
+`mine` is the signed-in user's: a message they wrote, an answer to a turn they began. A tool call (a `tool` part, or one of `waiting`) has `call_id`, `name`, `status`, `input`, `output` and, while it waits for a yes, `approval_id`. Its `output` is the answer's last 16 KiB: `omittedBytes` says how much came before it, and `pb.chatToolCall(chatId, callId)` reads the whole answer. To keep a sidebar of chats live without polling, subscribe with `pb.watchSessions(listener, { userId?, all? })`, which listens for `session.summary.v1` broadcasts on `ai:sessions:<userId>` (or `ai:sessions` with `{ all: true }`) and returns the unsubscribe.
 
 What the member does in the chat goes through the gateway's own messages, and the backend does it as them: `say`, `decide` (an approval's yes or no), `answer` (a client tool's output) and `stop`, in the backend of [AI](https://palbase.studio/docs/backend/ai#a-chat-in-an-app). A refusal is its reason: `not_your_turn`, `too_many_messages`, `history_full`.
 
@@ -364,6 +365,10 @@ function keyOf(item: ChatItem, i: number): string {
       return `g:${item.goal.seq}:${i}`;
     case "voice":
       return `v:${item.voice.voice_id}:${item.voice.status}`;
+    case "handoff":
+      return `h:${item.handoff.seq}:${item.handoff.generation}`;
+    case "compaction":
+      return `c:${item.compaction.seq}:${i}`;
   }
 }
 
@@ -386,6 +391,10 @@ function Item({ item }: { item: ChatItem }) {
       return <small className="goal">Goal: {item.goal.kind}{item.goal.goal ? `, ${item.goal.goal.status}` : ""}</small>;
     case "voice":
       return <small>{item.voice.status === "started" ? "A voice call began" : `The voice call ended after ${item.voice.seconds ?? 0} s`}</small>;
+    case "handoff":
+      return <small>Session handed off (generation {item.handoff.generation}: {item.handoff.reason})</small>;
+    case "compaction":
+      return <small>Earlier context compacted ({item.compaction.messages_compacted ?? 0} messages)</small>;
   }
 }
 

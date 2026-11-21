@@ -36,7 +36,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.21.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.22.2")
 ```
 
 | Product | What it is |
@@ -54,8 +54,10 @@ In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/pa
 | `PalbaseNotifyUI` | In-app messages shown over the app, and the person's inbox, drawn natively. |
 | `PalbaseDebug` | The [in-app debug console](https://palbase.studio/docs/ios/debug-console)'s screens. |
 | `Palbe` | What the [backend clients](https://palbase.studio/docs/ios/backend-calls) `palbase apps:sync` generates compile against. Link it when the project has a backend. |
+| `PalbaseVoice` | A chat's live [voice](https://palbase.studio/docs/ios/voice) over WebRTC (`PBVoice`), on iOS and macOS. |
+| `PalbaseCalls` | Voice and video [calls](https://palbase.studio/docs/ios/calls), group huddles (`pb.calls.place(_:)`), screen sharing and `CallVideoView`, on iOS and macOS. |
 
-A chat's live voice is a package of its own, [palbase-swift-voice](https://github.com/palgroup/palbase-swift-voice), because it brings WebRTC: see [Voice](https://palbase.studio/docs/ios/voice). So are voice and video calls, [palbase-swift-calls](https://github.com/palgroup/palbase-swift-calls) (`PalbaseCalls`, and `PalbaseCallsBroadcast` for the broadcast extension that shares the whole screen): see [Calls](https://palbase.studio/docs/ios/calls).
+Every product above — including `PalbaseCalls` and `PalbaseVoice` — ships directly in `palbase-swift` with zero external SwiftPM dependencies. For an iOS **Broadcast Upload Extension** (whole-screen sharing in the background), add [palbase-swift-calls](https://github.com/palgroup/palbase-swift-calls) and link `PalbaseCallsBroadcast` to the extension target alone: see [Calls](https://palbase.studio/docs/ios/calls).
 
 ## Connect the app to the project
 

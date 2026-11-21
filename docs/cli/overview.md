@@ -43,7 +43,7 @@ palbase open auth                            # the environment's Auth section in
 
 `palbase projects:list` and `palbase envs:list` list what you can reach. A new key's value is printed once; `palbase keys:list` lists the environment's keys without their values, and `palbase keys:revoke <key-id>` refuses whatever holds one from its next request.
 
-Two environments of a project drift apart as settings change in one and not the other. `palbase config:diff --from staging --to main` shows how their module settings differ — auth, storage, flags, notifications, realtime, analytics — and `palbase config:copy --from staging --to main` makes the second equal to the first; secrets are not copied, only named. `palbase types:pull` writes the environment's secret, flag, bucket and role names into `palbase/palbase-env.d.ts`, so `Secrets.get`, `Flags` and `Storage.buckets` accept those names and no others.
+Two environments of a project drift apart as settings change in one and not the other. `palbase config:diff --from staging --to main` shows how their module settings differ — auth, storage, flags, notifications, realtime, analytics — and `palbase config:copy --from staging --to main` makes the second equal to the first; secrets are not copied, only named. `palbase types:pull` writes the environment's secret (production and development), flag and bucket names into `palbase/palbase-env.d.ts`, so `Secrets.get`, `Flags` and `Storage.buckets` accept those names and no others.
 
 ## Running a backend on your computer
 
@@ -79,7 +79,7 @@ palbase env:tokens:create --minutes 120 --name coding-agent
 palbase env:tokens:create --scope machines:read,machines:logs   # only read machines and their logs
 ```
 
-Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:read`, `machines:logs`, `apps:sync`, `auth:test-users` or `support`. `palbase env:tokens:list` lists the live ones and `palbase env:tokens:revoke <id>` ends one at its next request. The docs an agent reads are at `/llms.txt`, with every page in one file at `/llms-full.txt`.
+Give the agent the value as `PALBASE_TOKEN`. `--scope` narrows it to `machines:read`, `machines:logs`, `machines:previews`, `machines:deploy`, `sites:deploy`, `secrets:read-names`, `apps:sync`, `auth:test-users` or `support` (`machines:deploy` and `sites:deploy` are non-production environments only). `palbase env:tokens:list` lists the live ones and `palbase env:tokens:revoke <id>` ends one at its next request. The docs an agent reads are at `/llms.txt`, with every page in one file at `/llms-full.txt`.
 
 ## Searching the docs
 

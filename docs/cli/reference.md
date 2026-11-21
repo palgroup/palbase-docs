@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.65.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.66.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-497 commands in 37 groups.
+499 commands in 37 groups.
 
 ## Global flags
 
@@ -238,13 +238,13 @@ palbase env:tokens:revoke <id|self>
 
 ### `palbase types:pull`
 
-Write the environment's secret, flag, bucket and role names into palbase/palbase-env.d.ts as types: Secrets.get, Flags and Storage.buckets take them and no other
+Write the environment's secret, flag and bucket names into palbase/palbase-env.d.ts as types: Secrets.get, Flags and Storage.buckets take them and no other
 
 ```sh
 palbase types:pull [--file <path>]
 ```
 
-The names of the production secrets — what the machines start with, and so what Secrets.get reads there; development's are a developer's — leaving out what the platform sets itself (PALBASE_SECRET_KEY …), every flag, each bucket with its renditions (`Storage.buckets.<name>.getPublicUrl(path`, { variant })) and every role — never a value.
+The names of the environment's secrets (both production and development sets), leaving out platform- and process-owned variables (`PALBASE_*`, `NODE_*`, `PG*` …), every flag, and each bucket with its renditions (`Storage.buckets.<name>.getPublicUrl(path`, { variant })) — never a value.
 Only the block between the palbase:stack markers is written; the rest of the file stays as it is. Run it again when a name is added or taken away.
 
 ```text
@@ -2586,16 +2586,17 @@ palbase ai:tools
 
 ### `palbase ai:chats:list`
 
-The environment's chats, newest first — every one, or a member's
+The environment's chats, newest first — every one, a member's, or only active ones
 
 ```sh
-palbase ai:chats:list [--member <user id>] [--limit <n>] [--cursor <cursor>]
+palbase ai:chats:list [--member <user id>] [--status active|all] [--limit <n>] [--cursor <cursor>]
 ```
 
 ```text
-      --member <user id>  only the chats this user is in
-      --limit <n>         at most this many (1–100, default 100)
-      --cursor <cursor>   the next page, as the last one said it
+      --member <user id>     only the chats this user is in
+      --status <active|all>  active returns only chats with a running or waiting turn
+      --limit <n>            at most this many (1–100, default 100)
+      --cursor <cursor>      the next page, as the last one said it
 ```
 
 ### `palbase ai:chats:show`
@@ -2613,22 +2614,50 @@ palbase ai:chats:show <chat id> [--limit <n>] [--cost]
 
 ### `palbase ai:chats:create`
 
-Start a chat with one of the environment's agents — on one of its runner pools, working in its repositories
+Start a chat with one of the environment's agents — optionally on a runner pool and bound to a standalone workspace
 
 ```sh
-palbase ai:chats:create --agent <name> [--pool <pool>] [--repo <name>[@<branch>]]… [--title <title>] [--auto-push]
+palbase ai:chats:create --agent <name> [--pool <pool>] [--workspace <ws_id>] [--title <title>]
 ```
 
 --agent is one of the environment's agents by name — its backend's, or one it keeps, whose published version each turn takes; name@N stays on version N.
---pool is one of its runner pools (ai:pools:list), by its id or its name: the chat's sessions run on the environment's own machines enrolled there. Left out, on the platform's own Linux machines. A chat on a pool works in a workspace.
---repo puts one of its repositories (ai:repos:list) in the chat's workspace, at a branch with @ (its default unless said); --auto-push lets the agent push its commits without a person's yes.
+--pool is one of its runner pools (ai:pools:list), by its id or its name: the chat's sessions run on the environment's own machines enrolled there. Left out, on the platform's own Linux machines.
+--workspace binds an encrypted standalone workspace (palbase workspaces:list, ws_…) to the chat.
 
 ```text
-      --agent <name>          the chat's agent, by name (name@N for a version)
-      --pool <pool>           the runner pool its workspace runs on, by id or name
-      --repo <name[@branch]>  a repository its workspace works in (repeat for several)
-      --title <title>         the chat's title
-      --auto-push             the agent pushes its commits without a person's yes
+      --agent <name>       the chat's agent, by name (name@N for a version)
+      --pool <pool>        the runner pool its session runs on, by id or name
+      --workspace <ws_id>  standalone workspace id (ws_…) bound to the chat
+      --title <title>      the chat's title
+```
+
+### `palbase ai:chats:execution`
+
+Show a chat's current execution target, target generation, machine online status, harnesses, and auto-failover state
+
+```sh
+palbase ai:chats:execution <chat id>
+```
+
+### `palbase ai:chats:handoff`
+
+Teleport a chat session to another compute target and/or local ACP CLI harness
+
+```sh
+palbase ai:chats:handoff <chat id> --to <cloud|serverless|pool:<pool>|machine:<id>> [--harness claude-code|codex|gemini-cli] [--when idle|after_turn|now] [--grace <seconds>] [--model <model>] [--effort <effort>]
+```
+
+Moves the chat session atomically (advancing target_generation so stale writes from the prior target are rejected with 409 superseded).
+Leave --harness out to run on the Palbase single engine; pass --harness claude-code, codex, or gemini-cli to execute through a locally installed ACP CLI on an enrolled machine.
+
+```text
+      --to <target>                 cloud, serverless, pool:<pool>, or machine:<machine_id>
+      --harness <name>              ACP CLI harness: claude-code, codex, or gemini-cli
+      --when <idle|after_turn|now>  when to cut over (default idle)
+      --grace <seconds>             grace window (1–60s) when --when now parks a running turn
+      --model <model>               optional default model override on the new target
+      --effort <effort>             optional default reasoning effort override
+      --idempotency-key <key>       idempotency key so retries never double-teleport
 ```
 
 ### `palbase ai:chats:remove`
@@ -2637,64 +2666,6 @@ Delete a chat: a turn still running is stopped, and its history no longer counts
 
 ```sh
 palbase ai:chats:remove <chat id>
-```
-
-### `palbase ai:chats:workspace:write`
-
-Write one file of a chat's workspace — from a file here, or piped in: synced to every machine that holds it, the session's before the agent's next command
-
-```sh
-palbase ai:chats:workspace:write <chat id> <path> [--file <local file>] [< file]
-```
-
-path is relative to the workspace's root (app/src/config.json). The write is published over whatever the workspace holds — deliberate, no conflict is made of it — and told as ai.workspace.published.
---file sends the file's bytes as they are (64 MiB at most); without it, the bytes piped in, as they are — a binary file too (64 MiB at most: no more is read).
-
-```text
-      --file <local file>  the file whose bytes are written (default: what is piped in)
-```
-
-### `palbase ai:chats:workspace:rm`
-
-Remove one file of a chat's workspace: synced to every machine that holds it
-
-```sh
-palbase ai:chats:workspace:rm <chat id> <path>
-```
-
-### `palbase ai:chats:workspace:token`
-
-Mint a token a machine of yours syncs a chat's workspace with (palai workspace sync): said once, here
-
-```sh
-palbase ai:chats:workspace:token <chat id> --access read|write [--ttl <seconds>] [--label <label>]
-```
-
-write: the workspace is synced both ways, live; read: it is followed. The token lives --ttl seconds (an hour unless said, 7 days at most) — no longer than PALBASE_TOKEN when it is minted with one.
-The token and its address are said once. On the machine: `PALAI_WORKSPACE_TOKEN=<token>` palai workspace sync --url `<sync_url>` `<dir>` — or the token on standard input, --token-file - — never on the command line: palai has no --token, a secret there is readable by every process on the machine.
-A member's token (the project letting its app's users in) lives an hour at most, and stops working when they leave the chat or the project turns clients off.
---label is what it is for — the machine's name: a conflict names its writer by it.
-
-```text
-      --access <read|write>  write: synced both ways; read: followed
-      --ttl <seconds>        how long it lives (1–604800, default 3600)
-      --label <label>        what it is for — the machine's name
-```
-
-### `palbase ai:chats:workspace:tokens`
-
-The tokens of a chat's workspace — access, label, when each expires — none of them said again
-
-```sh
-palbase ai:chats:workspace:tokens <chat id>
-```
-
-### `palbase ai:chats:workspace:revoke`
-
-Revoke a token of a chat's workspace at once: every sync with it is refused from then
-
-```sh
-palbase ai:chats:workspace:revoke <chat id> <token id>
 ```
 
 ### `palbase ai:endpoints:list`
@@ -2713,25 +2684,69 @@ Forget an HTTPS tool or an MCP server: an agent that names it is given it no mor
 palbase ai:endpoints:remove <name>
 ```
 
-### `palbase ai:repos:list`
+### `palbase ai:environments:list`
 
-The repositories a chat's workspace works in, by name, and the machine that gives their tokens
+List the project's runtime environments (ephemeral or always_on)
 
 ```sh
-palbase ai:repos:list [--limit <n>] [--cursor <cursor>]
+palbase ai:environments:list
+```
+
+### `palbase ai:environments:get`
+
+Inspect one runtime environment by name
+
+```sh
+palbase ai:environments:get <name>
+```
+
+### `palbase ai:environments:put`
+
+Create or update a runtime environment (ephemeral or always_on)
+
+```sh
+palbase ai:environments:put <name> [--mode ephemeral|always_on] [--isolation strict|relaxed] [--image <image>] [--vm-profile macos-xcode|linux-vm] [--cpu <n>] [--memory-mb <n>] [--disk-mb <n>] [--idle-timeout <seconds>] [--min-warm <n>] [--max-instances <n>] [--egress default|restricted|none] [--allow-palbase-db] [--allow-host <host>]… [--setup <cmd>]…
 ```
 
 ```text
-      --limit <n>        at most this many (1–1000, default 100)
-      --cursor <cursor>  the next page, as the last one said it
+      --mode <ephemeral|always_on>         lifecycle mode (always_on never auto-parks)
+      --isolation <strict|relaxed>         minimum sandbox isolation posture
+      --image <image>                      base OCI container image
+      --vm-profile <macos-xcode|linux-vm>  Virtualization.framework VM profile
+      --cpu <n>                            vCPU count
+      --memory-mb <mb>                     memory limit in MiB
+      --disk-mb <mb>                       encrypted workspace disk budget in MiB
+      --idle-timeout <seconds>             idle timeout before parking (0 for always_on)
+      --min-warm <n>                       minimum pre-warmed instances
+      --max-instances <n>                  maximum concurrent instances
+      --egress <default|restricted|none>   outbound network egress policy
+      --allow-palbase-db                   allow TLS/SSLRequest connectivity to project Palbase Postgres DBs
+      --allow-host <host>                  allowlisted hostname when egress is restricted
+      --setup <cmd>                        setup command executed when baking/initializing
 ```
 
-### `palbase ai:repos:remove`
+### `palbase ai:environments:delete`
 
-Forget a repository: a chat's workspace checks it out no more
+Delete a runtime environment and its build records
 
 ```sh
-palbase ai:repos:remove <name>
+palbase ai:environments:delete <name>
+```
+
+### `palbase ai:environments:build`
+
+Queue an immutable pre-bake build for a runtime environment
+
+```sh
+palbase ai:environments:build <name>
+```
+
+### `palbase ai:environments:build:get`
+
+Read the status of a runtime environment build
+
+```sh
+palbase ai:environments:build:get <name> <build_id>
 ```
 
 ### `palbase ai:pools:create`
@@ -2742,7 +2757,7 @@ Make a runner pool of the environment's: machines of your own, of one type, that
 palbase ai:pools:create <name> --os linux|macos --arch amd64|arm64
 ```
 
-A pool is of one type: its machines' operating system and architecture. Machines enrol into it with palai and a single-use key (ai:pools:keys:create); a chat runs on it when it names it (ai:chats:create --pool).
+A pool is of one type: its machines' operating system and architecture. Machines enrol into it with palbase-agent and a single-use key (ai:pools:keys:create); a chat runs on it when it names it (ai:chats:create --pool).
 The environment scales it itself: ai:pools:state says what its machines hold and how many sessions wait.
 
 ```text
@@ -2782,7 +2797,7 @@ Mint a single-use key a machine enrols into a runner pool with: said once, here
 palbase ai:pools:keys:create <pool> [--label <label>]
 ```
 
-Save the key to a file on the machine and enrol it: palai enroll --url `<enroll_url>` --key-file `<file>` --capacity `<n>` (with --server-name and --ca-file when the answer names a server name and a CA) — the key never goes on a command line, where any process on the machine could read it; n is how many sessions the machine runs at once (1 or more, default 1). The machine serves the environment's sessions once whoever minted the key is gone.
+Save the key to a file on the machine and enrol it: palbase-agent enroll --url `<enroll_url>` --key-file `<file>` --capacity `<n>` (with --server-name and --ca-file when the answer names a server name and a CA) — the key never goes on a command line, where any process on the machine could read it; n is how many sessions the machine runs at once (1 or more, default 1). The machine serves the environment's sessions once whoever minted the key is gone.
 It is minted by a person signed in, never with an environment's token (PALBASE_TOKEN).
 
 ```text
@@ -2823,10 +2838,22 @@ palbase ai:machines:resume <machine id>
 
 ### `palbase ai:machines:delete`
 
-Delete a cordoned machine that holds no session from its runner pool: its palai agent is refused from then
+Delete a cordoned machine that holds no session from its runner pool: its palbase-agent is refused from then
 
 ```sh
 palbase ai:machines:delete <machine id>
+```
+
+### `palbase ai:machines:harnesses`
+
+List locally installed ACP CLI harnesses (claude-code, codex, gemini-cli) reported by palbase-agent on a machine
+
+```sh
+palbase ai:machines:harnesses <machine id> [--pool <pool>]
+```
+
+```text
+      --pool <pool>  the machine's runner pool (optional; searches all pools when omitted)
 ```
 
 ### `palbase ai:env:set`
@@ -4938,19 +4965,21 @@ palbase apps:env:unset <app>
 Write each environment's settings and backend clients (Palbe) of this checkout's apps under palbase/ — nothing else is touched
 
 ```sh
-palbase apps:sync [<app>…] [--check] [--types <env>] [--backend [<machine>=]<dir>] [--as <machine>=<name>]…
+palbase apps:sync [<app>…] [--check] [--types <env>] [--remove <app>]… [--backend [<machine>=]<dir> [--entry <file>]] [--as <machine>=<name>]…
 ```
 
-The apps named join this checkout's (palbase/project.json); with none named, its apps are synced.
-`palbase/environments/<env>/`: each app's settings (`<app>.json`), each backend's contract (`contracts/<machine>.openapi.json`) and Palbe client made from it — TypeScript for a web app, Swift for an iOS or Mac app (in `palbase/<app>.palbase`), Kotlin for an Android app. A web app imports pb from `palbase/<app>.ts`: one environment's for the editor (--types), the build's mode's for the build (palbase() in vite.config), which type-checks the app against that environment.
---check writes nothing: it exits 1 naming what differs from the project now — for CI.
---backend makes a backend's Palbe from its checkout on this computer (its palbase/backend app writes its contract and exits; nothing is connected to), to try an endpoint before any machine serves it.
+The apps named join this checkout's (palbase/project.json); with none named, its apps are synced. --remove unlinks an app from palbase/project.json and removes its generated files.
+`palbase/environments/<env>/`: each app's settings (`<app>.json`), each backend's contract (`contracts/<machine>.openapi.json`) and Palbe client made from it — TypeScript for a web app, Swift for an iOS or Mac app (in `palbase/<app>.palbase`), Kotlin for an Android app. A web app imports pb from `palbase/<app>.ts` (or createBrowser / createServer from `palbase/<app>.ssr.ts` for Next.js / SSR): one environment's for the editor (--types), the build's mode's for the build (palbase() in vite.config), which type-checks the app against that environment.
+--check writes nothing: it exits 1 naming what differs from the project now — for CI. With an environment token (pbe_…), only that environment's files are synced or checked; other environments stay untouched.
+--backend makes a backend's Palbe from its checkout on this computer (its palbase/backend app writes its contract and exits; nothing is connected to), to try an endpoint before any machine serves it. It applies to one environment (-E, or the active/types non-production environment) and never overwrites production unless -E main is passed.
 A backend is `pb.<name>` in the apps — pb.shopApi.rooms.create() for the machine shop-api — unless --as names it (--as shop-api=shop): the name is the checkout's, the same in every environment, and none of the client's own (auth, flags, storage, …). Machines of different environments may take one name — Production's backend and Development's backend-dev both pb.backend with --as backend-dev=backend — so the app's code builds against either; two machines of one environment may not.
 
 ```text
       --check                    write nothing; exit 1 when the checkout is not what the project gives now
       --types <env>              the environment the editor's types are of (remembered in palbase/project.json)
-      --backend <[machine=]dir>  a backend's checkout here: its Palbe made from the contract it writes, not from its machine's
+      --remove <app>             unlink an app (slug or id) from palbase/project.json and remove its generated files
+      --backend <[machine=]dir>  a backend's checkout here: its Palbe made from the contract it writes for one environment (-E or non-production), never overwriting production unasked
+      --entry <file>             with --backend, the backend's entry file (default src/main.ts)
       --as <machine=name>        a backend's name in the apps (pb.<name>): its machine's camelCased unless named; the same in every environment, and another environment's machine may take it too (remembered in palbase/project.json)
 ```
 
@@ -6392,7 +6421,7 @@ An app that is not one of the environment's machines: start, release the app, th
 
 ### `palbase db:pull`
 
-Write the schema files (`db/*.ts`) of what a database holds: to take a database over
+Write the schema files (`src/db/*.ts` or `db/*.ts`) of what a database holds: to take a database over
 
 ```sh
 palbase db:pull [--url <postgres-url> | --db <name>] [--dir <dir>]
@@ -6404,12 +6433,12 @@ Its first release then takes the database over: the tables stay as they are, not
       --url <postgres-url>  a database of your own (a local Postgres 18): the schema goes in it at once
       --db <name>           a database of the project, acted on where it is bound (default: the only one of the environment chosen here or -E's, else, when neither says, the project's)
       --entry <file>        the app's entry, what it is started with (default src/main.ts)
-      --dir <dir>           where db/ is written (default: here)
+      --dir <dir>           where db/ is written (default: src when src/ exists, else here)
 ```
 
 ### `palbase db:seed`
 
-Run db/seed.ts against a database that is not production
+Run src/db/seed.ts (or db/seed.ts) against a database that is not production
 
 ```sh
 palbase db:seed [--url <postgres-url> | --db <name>] [--file <path>]
@@ -6419,7 +6448,7 @@ palbase db:seed [--url <postgres-url> | --db <name>] [--file <path>]
       --url <postgres-url>  a database of your own (a local Postgres 18): the schema goes in it at once
       --db <name>           a database of the project, acted on where it is bound (default: the only one of the environment chosen here or -E's, else, when neither says, the project's)
       --entry <file>        the app's entry, what it is started with (default src/main.ts)
-      --file <path>         the seed script (default db/seed.ts)
+      --file <path>         the seed script (default src/db/seed.ts when present, else db/seed.ts)
 ```
 
 ### `palbase db:types`

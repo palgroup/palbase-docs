@@ -62,7 +62,6 @@ Every page is named below. What each one covers is in its section's index — th
 - [AI](https://palbase.studio/docs/backend/ai)
 - [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines)
 - [AI Variables & Secrets](https://palbase.studio/docs/backend/ai-env)
-- [Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync)
 - [Webhooks](https://palbase.studio/docs/backend/webhooks)
 - [Event Hooks](https://palbase.studio/docs/backend/hooks)
 - [Cron](https://palbase.studio/docs/backend/cron)

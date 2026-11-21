@@ -62,7 +62,7 @@ Outside its environment it does nothing. Another environment of the project answ
 **A full token of the admin role, or one minted with the secret key, is, in what it can reach, an admin of its environment.** It deploys machines, and the code it deploys runs with a secret key of the environment (`PALBASE_SECRET_KEY`, which the platform gives every machine) and reads the environment's secrets. What that code takes, it keeps after the token has ended. So:
 
 - give a full token only to an agent you would trust as an admin of that environment;
-- for narrow work, mint a token with [`scopes`](#narrowing-it): no scope deploys anything;
+- for narrow work, mint a token with [`scopes`](#narrowing-it): read, log, sync, test-user, secret-name and support scopes deploy nothing; the deploy scopes (`machines:deploy`, `sites:deploy`) are limited to non-production environments and deploy existing machines or sites without creating, editing or deleting resources;
 - the closed list below closes the routes that make or show a credential in their own answer, not what deployed code can do.
 
 ### What no environment token can do
@@ -112,9 +112,14 @@ An app's roles are the token's in any environment but a production one: in a dev
 | `machines:read` | The environment's machines, their builds, crons and queues (not a task's payload), contracts, metrics and pull requests' previews |
 | `machines:logs` | A machine's logs and its builds' logs |
 | `machines:previews` | A machine's pull request preview opened again (`palbase machines:previews:open`): what a push to the pull request would build anyway — never a commit the token's holder chooses |
+| `machines:deploy` | **Non-production environments only.** Deploying and rolling back existing machines (starting or canceling builds, reading build logs, rolling back) and reading existing databases' connection info and schema metadata (`GET /databases/{name}/credentials`, `GET /databases/{name}/schema`; never passwords or SQL). Never creates, updates or deletes machines or databases, or runs `exec`, hooks, tasks, domains or GitHub routes |
+| `sites:deploy` | **Non-production environments only.** Deploying and rolling back existing sites (creating releases, uploading content-addressed files by 64-character hex digest, finishing releases, starting or canceling builds, rolling back, listing previews). Never creates, updates or deletes sites, moves them, or touches hooks, preview passes, links, authorizations or domains |
+| `secrets:read-names` | Listing secret key names in the development or production secret set (`GET /secrets/{environment}` for `development` and `production` only) — never values, individual secrets, writes, audit logs, fields or transit. Allowed in any environment |
 | `apps:sync` | What `palbase apps:sync` reads: the project's apps as they are in this environment, their client settings, the machines' contracts |
 | `auth:test-users` | The environment's test users: made with their sign-ins, listed, deleted, their kept mail and texts read (`palbase auth:test-users:messages`), a sign-up address made (`palbase auth:test-users:address`). Not other users |
 | `support` | A question to Palbase's support line (`palbase support:ask`, `POST /ai/support-questions`): an agent asks Palbase what it cannot find out, not the person it works for |
+
+`machines:deploy` and `sites:deploy` are refused on production environments (`main`) both when minting a token (`400 invalid_request`) and at the edge (`403 token_out_of_scope`), and a token capped to the `member` role can only make their `GET` reads (`POST` and `PUT` writes answer `403`). `secrets:read-names` works in any environment and at the `member` role.
 
 ### Auth settings: no scope reaches them
 

@@ -191,9 +191,24 @@ export const builder = Palbase.ai.agent("builder", () => ({
 
 An agent's variables sit beside the project's: give them names of their own. Palbase keeps a definition's values sealed with your project's own key, never readable in its database, and opens them only for the sessions that run with them. A value is never answered again: an agent read back (`GET /ai/agents/{name}`) shows each name with an empty value. An agent written back with an empty value keeps the value it has, so a definition read, changed and put again loses nothing. What such a kept secret says of itself (its hosts, where it is put, its class, whether it is a secret) is changed without its value by a person alone: an owner or an admin signed in to Studio or the CLI. A key or a token is refused it (`403 person_required`) and gives the value with the change instead; rolling an agent back to a version that says otherwise is a person's too ([Who changes where a secret goes](https://palbase.studio/docs/backend/ai-env#who-changes-where-a-secret-goes)). A new name needs its value. Each definition's variables and script are written once, where its sessions run: an agent the project keeps as it is published or rolled back, an agent your backend defines at each turn (or a chat's own definition) at its first turn. Two definitions that differ, such as two chats' own or a version a chat stays on and the one published, never share them: each turn runs with its own definition's.
 
+## Apple Virtualization & Key Rotation
+
+On Apple Silicon macOS hosts, `palbase-agent` runs isolated VMs via Apple's `Virtualization.framework` (`macos-xcode` for native `xcodebuild` / SwiftPM, capped at 2 concurrent VMs per Mac host, and `linux-vm` for Linux VMs) with APFS copy-on-write cloning, host-encrypted block images, and vsock egress proxying:
+
+```bash
+palbase-agent vm init --profile macos-xcode
+palbase-agent vm status
+```
+
+Each enrolled runner attests its sandbox isolation posture on heartbeat, and rotates its mTLS client certificate in place without changing its `runner_id`:
+
+```bash
+palbase-agent rotate-key
+```
+
 ## Related
 
-- [AI](https://palbase.studio/docs/backend/ai): agents, chats and their workspaces
-- [Workspace Sync](https://palbase.studio/docs/backend/ai-workspace-sync): a chat's workspace on a machine of yours, both ways, and what a tool sees of it
+- [AI](https://palbase.studio/docs/backend/ai): agents, chats, runtime environments and encrypted workspaces
+- [Workspaces](https://palbase.studio/docs/backend/workspaces): standalone encrypted workspaces (`PBWS1`), sync and S3 access
 - [AI Variables & Secrets](https://palbase.studio/docs/backend/ai-env): a secret's hosts, sealed or open, its value's rules, the hosts it asked for and the agents' allowed hosts
 - [Secrets](https://palbase.studio/docs/backend/secrets): your backend's own secrets

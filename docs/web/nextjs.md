@@ -242,6 +242,10 @@ Everything in [Auth](https://palbase.studio/docs/web/auth) and [Realtime](https:
 
 A `NEXT_PUBLIC_` value is built into the bundle, so the address and the key are fixed at build time: build once per environment.
 
+## Using `palbase apps:sync`
+
+When your Next.js app is registered in Studio (`palbase apps:create web ...`) and synced with [`palbase apps:sync`](https://palbase.studio/docs/apps/sync), the CLI generates a cookie-backed SSR module beside each environment's settings (`palbase/<app>.ssr.ts` and `palbase/environments/<env>/<app>.ssr.ts`). It exports `settings`, `createBrowser()`, `createServer({ cookies })`, and `keepSession`, already wired with the environment's `url`, `publishableKey`, `appId`, and typed `pb.<backend>` clients — with no manual `NEXT_PUBLIC_*` environment variables required.
+
 ## Related
 
 - [Overview](https://palbase.studio/docs/web/overview) — the client, and what the project's address answers a browser
