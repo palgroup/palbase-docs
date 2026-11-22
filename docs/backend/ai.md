@@ -444,7 +444,6 @@ Configure named execution environments with `POST /ai/environments` or `PUT /ai/
 - **`mode: "always_on"`:** forces `idle_timeout_seconds = 0` and bypasses idle parking and parked-disk eviction so long-running or low-latency environments stay warm.
 - **`isolation: "strict" | "relaxed"`:** enforces minimum attested sandbox isolation on enrolled runners.
 - **`network.allow_palbase_db: true`:** permits encrypted PostgreSQL connections (`SSLRequest` + TLS or PostgreSQL 17 direct TLS with verified SNI) from the sandbox to your project's Palbase databases (`*.db.<domain>:5432,6543`); cleartext PostgreSQL startups and SNI mismatches are refused.
-- **Pre-bake builds:** trigger immutable environment builds via `POST /ai/environments/{name}/builds` and inspect status with `GET /ai/environments/{name}/builds/{build_id}`.
 
 **Workspace lifecycle and events.** File reads/writes, sync tokens, S3 access, and webhook events (`workspace.published`, `workspace.conflict`, `workspace.deleted`) are all served through the unified [Workspaces](https://palbase.studio/docs/backend/workspaces) module. When a chat hands off across targets (for example, between a cloud Linux machine and a local macOS runner), Palbase waits for the workspace head sequence and issues an HPKE-sealed per-machine grant so the new target syncs directly over encrypted `PBWS1` blobs without exposing plaintext to storage.
 

@@ -2,9 +2,9 @@
 
 # Android SDK
 
-The Android SDK is `studio.palbase:palbase` and one artifact per module, in Kotlin, with coroutines. `palbase` holds the project's address and publishable key, the transport every call goes through, the signed-in user's session, the realtime socket, consent and auth. Each module (flags, analytics, realtime, notify, storage, purchases) is an artifact of its own that hangs off the same client, as `pb.flags`, `pb.notify` and so on. A backend of yours is a typed client that `palbase apps:sync` writes into the app, and it calls through the same client too.
+The Android SDK is `studio.palbase:palbase` and one artifact per module, in Kotlin, with coroutines. `palbase` holds the project's address and publishable key, the transport every call goes through, the signed-in user's session, the realtime socket, consent and auth. Each module (flags, analytics, realtime, notify, storage, iap, payments) is an artifact of its own that hangs off the same client, as `pb.flags`, `pb.notify` and so on. A backend of yours is a typed client that `palbase apps:sync` writes into the app, and it calls through the same client too.
 
-The version on this page is **0.18.0**.
+The version on this page is **0.20.1**.
 
 ## Requirements
 
@@ -49,7 +49,7 @@ android {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.18.0"))
+    implementation(platform("studio.palbase:palbase-bom:0.20.1"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-flags")     // and the other modules the app uses
     implementation("studio.palbase:palbase-palbe")     // when the app calls a backend of yours
@@ -65,7 +65,9 @@ dependencies {
 | `palbase-notify` | This device's push token for the user, their preferences and topics, the inbox, in-app messages | `pb.notify` ([Notifications](https://palbase.studio/docs/android/notifications)) |
 | `palbase-notify-ui` | The inbox and in-app messages, drawn in Compose | `InboxView`, `PalbaseInAppMessages` ([Notifications](https://palbase.studio/docs/android/notifications#the-inbox)) |
 | `palbase-storage` | Files through URLs your backend signed, and public buckets | `pb.storage` ([Storage](https://palbase.studio/docs/android/storage)) |
-| `palbase-purchases` | What the customer has, in any store, and buying on Google Play (Play Billing 9) | `pb.purchases` ([Purchases](https://palbase.studio/docs/android/purchases)) |
+| `palbase-iap` | What the customer has, in any store, and buying on Google Play (Play Billing 9) | `pb.iap` ([In-App Purchases](https://palbase.studio/docs/android/iap)) |
+| `palbase-payments` | Direct payments (Stripe, iyzico, Masterpass, saved cards, subscriptions, wallets & QR) | `pb.payments` ([Payments](https://palbase.studio/docs/payments/android-sdk)) |
+| `palbase-payments-ui` | Optional drop-in PCI-DSS SAQ-A Compose checkout (`PaymentSheet`, `WalletTopUpSheet`, `SavedCardsView`, `SpendQRView`) | `rememberPaymentSheet`, `PaymentSheet` ([Payments](https://palbase.studio/docs/payments/android-sdk)) |
 | `palbase-palbe` | Your backends' generated clients, their gateways and chats | `pb.<name>` ([Calling Your Backend](https://palbase.studio/docs/android/backend-calls), [Gateways](https://palbase.studio/docs/android/gateways)) |
 | `palbase-debug` | The debug console's screens, in Compose | `PalbaseConsole(pb.debug)` ([Debug Console](https://palbase.studio/docs/android/debug-console)) |
 | `palbase-voice` | A chat's live voice over WebRTC | `PBVoice.connect(…)` ([Voice](https://palbase.studio/docs/android/voice)) |
@@ -73,9 +75,9 @@ dependencies {
 | `palbase-runtime` | The types every generated client calls into; `palbase` brings it | — |
 | `palbase-bom` | One version for all of them | `platform(…)` |
 
-WebRTC comes only with `palbase-voice` and `palbase-calls`, Play Billing only with `palbase-purchases` and Compose only with `palbase-debug` and the `-ui` modules, so an app that takes none of them carries none of them.
+WebRTC comes only with `palbase-voice` and `palbase-calls`, Play Billing only with `palbase-iap` and Compose only with `palbase-debug` and the `-ui` modules, so an app that takes none of them carries none of them.
 
-Each module is an extension of the client (a property, and for analytics a function), imported from the module's package: `import studio.palbase.flags.flags`, `studio.palbase.notify.notify`, `studio.palbase.storage.storage`, `studio.palbase.realtime.realtime`, `studio.palbase.purchases.purchases`, `studio.palbase.analytics.analytics`.
+Each module is an extension of the client (a property, and for analytics a function), imported from the module's package: `import studio.palbase.flags.flags`, `studio.palbase.notify.notify`, `studio.palbase.storage.storage`, `studio.palbase.realtime.realtime`, `studio.palbase.iap.iap`, `import studio.palbase.payments.payments`, `studio.palbase.analytics.analytics`.
 
 ## Registering the app
 
@@ -229,7 +231,7 @@ Every request says the user's languages in `Accept-Language`, the device's in th
 pb.setPreferredLanguages(listOf("tr", "en"))   // null goes back to the device's
 ```
 
-Requests also carry `X-Palbase-SDK: android/0.18.0` (`PalbaseClient.VERSION`).
+Requests also carry `X-Palbase-SDK: android/0.20.1` (`PalbaseClient.VERSION`).
 
 ### Observable state
 
@@ -288,7 +290,8 @@ Your backend's refusals are a typed error of their own: [Calling Your Backend](h
 - [Analytics](https://palbase.studio/docs/android/analytics): events, screens, timings and diagnostics behind consent
 - [Notifications](https://palbase.studio/docs/android/notifications): FCM push for the signed-in user, preferences and topics
 - [Storage](https://palbase.studio/docs/android/storage): files through signed URLs, and public buckets
-- [Purchases](https://palbase.studio/docs/android/purchases): what the customer has, and buying on Google Play
+- [In-App Purchases](https://palbase.studio/docs/android/iap): what the customer has, and buying on Google Play
+- [Payments](https://palbase.studio/docs/payments/android-sdk): direct Stripe, iyzico, Masterpass checkout, saved cards, wallets & QR
 - [Voice](https://palbase.studio/docs/android/voice): a chat's live voice over WebRTC
 - [Debug Console](https://palbase.studio/docs/android/debug-console): the in-app console, opened for one user
 

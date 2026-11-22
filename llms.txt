@@ -1,17 +1,17 @@
 # Palbase
 
 > Palbase — the backend for apps. Every project has auth, storage, realtime,
-> flags, notifications, secrets, analytics, AI and purchases, called from web
-> apps with the publishable key (`palbase/web`), from iOS (Swift) and Android
-> (Kotlin) with the native SDKs, and from servers with the secret key
-> (`palbase/server`). Your own backend runs on a machine built from a GitHub
-> branch on every push, beside a Postgres database of its own. Backends are
-> `palbase/backend`: `@Controller` classes whose methods are routes,
-> `@Injectable` services that arrive by constructor, a `@Module` that lists what
-> exists, `PalbaseFactory.create(AppModule)` in `src/main.ts`, and the schema
-> declared with Palgres in `src/db/public.ts`. A push to the branch is the
-> deploy; the CLI (`npx palbase`) does the rest — client apps, the purchase
-> catalog, environments, tokens.
+> flags, notifications, secrets, analytics, AI, payments and in-app purchases,
+> called from web apps with the publishable key (`palbase/web`), from iOS
+> (Swift) and Android (Kotlin) with the native SDKs, and from servers with the
+> secret key (`palbase/server`). Your own backend runs on a machine built from
+> a GitHub branch on every push, beside a Postgres database of its own.
+> Backends are `palbase/backend`: `@Controller` classes whose methods are
+> routes, `@Injectable` services that arrive by constructor, a `@Module` that
+> lists what exists, `PalbaseFactory.create(AppModule)` in `src/main.ts`, and
+> the schema declared with Palgres in `src/db/public.ts`. A push to the branch
+> is the deploy; the CLI (`npx palbase`) does the rest — client apps, payment
+> channels, the IAP catalog, environments, tokens.
 
 Every page is named below. What each one covers is in its section's index — the first link of each section — one fetch further.
 
@@ -104,7 +104,7 @@ Every page is named below. What each one covers is in its section's index — th
 - [Consent](https://palbase.studio/docs/ios/consent)
 - [Notifications](https://palbase.studio/docs/ios/notifications)
 - [Storage](https://palbase.studio/docs/ios/storage)
-- [Purchases](https://palbase.studio/docs/ios/purchases)
+- [In-App Purchases](https://palbase.studio/docs/ios/iap)
 - [Voice](https://palbase.studio/docs/ios/voice)
 - [Debug Console](https://palbase.studio/docs/ios/debug-console)
 
@@ -122,7 +122,7 @@ Every page is named below. What each one covers is in its section's index — th
 - [Analytics](https://palbase.studio/docs/android/analytics)
 - [Notifications](https://palbase.studio/docs/android/notifications)
 - [Storage](https://palbase.studio/docs/android/storage)
-- [Purchases](https://palbase.studio/docs/android/purchases)
+- [In-App Purchases](https://palbase.studio/docs/android/iap)
 - [Voice](https://palbase.studio/docs/android/voice)
 - [Debug Console](https://palbase.studio/docs/android/debug-console)
 
@@ -161,21 +161,38 @@ Every page is named below. What each one covers is in its section's index — th
 - [Moving an Existing System](https://palbase.studio/docs/access/moving-in)
 - [When Your Data Is Elsewhere](https://palbase.studio/docs/access/elsewhere)
 
-## Purchases
+## Payments
 
-- [Purchases: what each page covers](https://palbase.studio/llms/purchases.txt)
-- [Overview](https://palbase.studio/docs/purchases/overview)
-- [Catalog](https://palbase.studio/docs/purchases/catalog)
-- [App Store](https://palbase.studio/docs/purchases/app-store)
-- [Test Apple Purchases](https://palbase.studio/docs/purchases/testing-apple)
-- [Google Play](https://palbase.studio/docs/purchases/google-play)
-- [Connect Stripe](https://palbase.studio/docs/purchases/connect-stripe)
-- [Web](https://palbase.studio/docs/purchases/web)
-- [Paywalls](https://palbase.studio/docs/purchases/paywalls)
-- [Offers & Coupons](https://palbase.studio/docs/purchases/offers)
-- [Entitlements, Credits & Limits](https://palbase.studio/docs/purchases/entitlements)
-- [Customers](https://palbase.studio/docs/purchases/customers)
-- [Charts](https://palbase.studio/docs/purchases/charts)
+- [Payments: what each page covers](https://palbase.studio/llms/payments.txt)
+- [Overview](https://palbase.studio/docs/payments/overview)
+- [Channels & Routing](https://palbase.studio/docs/payments/channels)
+- [Stripe](https://palbase.studio/docs/payments/stripe)
+- [iyzico](https://palbase.studio/docs/payments/iyzico)
+- [Masterpass](https://palbase.studio/docs/payments/masterpass)
+- [Checkout & PaymentSheet](https://palbase.studio/docs/payments/checkout)
+- [Wallets & QR Spend Tokens](https://palbase.studio/docs/payments/wallet-qr)
+- [Subscriptions](https://palbase.studio/docs/payments/subscriptions)
+- [Refunds & Disputes](https://palbase.studio/docs/payments/refunds-disputes)
+- [Ledger, Drift & Audit Export](https://palbase.studio/docs/payments/audit)
+- [Web SDK](https://palbase.studio/docs/payments/web-sdk)
+- [iOS SDK](https://palbase.studio/docs/payments/ios-sdk)
+- [Android SDK](https://palbase.studio/docs/payments/android-sdk)
+- [Server & Backend SDK](https://palbase.studio/docs/payments/server-sdk)
+
+## In-App Purchases
+
+- [In-App Purchases: what each page covers](https://palbase.studio/llms/iap.txt)
+- [Overview](https://palbase.studio/docs/iap/overview)
+- [Catalog](https://palbase.studio/docs/iap/catalog)
+- [App Store](https://palbase.studio/docs/iap/app-store)
+- [Test Apple Purchases](https://palbase.studio/docs/iap/testing-apple)
+- [Google Play](https://palbase.studio/docs/iap/google-play)
+- [Web](https://palbase.studio/docs/iap/web)
+- [Paywalls](https://palbase.studio/docs/iap/paywalls)
+- [Offers & Coupons](https://palbase.studio/docs/iap/offers)
+- [Entitlements, Credits & Limits](https://palbase.studio/docs/iap/entitlements)
+- [Customers](https://palbase.studio/docs/iap/customers)
+- [Charts](https://palbase.studio/docs/iap/charts)
 
 ## Messaging
 

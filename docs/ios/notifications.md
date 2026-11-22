@@ -133,7 +133,7 @@ struct InboxScreen: View {
 }
 ```
 
-`InboxView(_:locale:onOpen:onCustom:onOffer:onUnread:empty:)` takes the language to write it in (the person's chosen one unless given), what a tap on a message's link does (the system opens it unless given), a designed card's own buttons, its offer button (the purchases module takes the offer unless given, once the app uses `pb.purchases`), the unread count as it changes, and what an empty inbox says.
+`InboxView(_:locale:onOpen:onCustom:onOffer:onUnread:empty:)` takes the language to write it in (the person's chosen one unless given), what a tap on a message's link does (the system opens it unless given), a designed card's own buttons, its offer button (the IAP module takes the offer unless given, once the app uses `pb.iap`), the unread count as it changes, and what an empty inbox says.
 
 An app that draws its own uses `pb.notify.inbox`:
 

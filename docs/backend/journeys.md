@@ -39,7 +39,7 @@ A definition has who enters (`entry`), the steps by id with the first one (`star
 
 | Who enters (`entry`, one of) | |
 |---|---|
-| `event: { name, where }` | A person who does the event — an app's own (`sign_up`), or a module's: `purchases.purchase.completed`, `purchases.coupon.redeemed`, `audience.entered` — with the properties `where` names, each equal. |
+| `event: { name, where }` | A person who does the event — an app's own (`sign_up`), or a module's: `iap.purchase.completed`, `iap.coupon.redeemed`, `audience.entered` — with the properties `where` names, each equal. |
 | `audience: "<id>"` | A person who comes to be in an analytics audience. |
 | `inactive: { event, for }` | A person who has not done the event for a while (1 hour to 90 days): the moment it passes since their last one. `$session_start` is someone who has not opened the app. |
 | `members_of: "<id>"` | An audience's members, once, as the journey is published. |
@@ -143,7 +143,7 @@ A journey is kept as a file and handled with the CLI: saved as a draft, publishe
 
 ```bash
 palbase journeys:validate winback.json             # every problem, at its path, with what to do about it
-palbase journeys:simulate winback.json --event purchases.purchase.completed@P1D   # walk a made-up person through it; nothing is sent
+palbase journeys:simulate winback.json --event iap.purchase.completed@P1D   # walk a made-up person through it; nothing is sent
 palbase journeys:push winback.json --publish       # save it as a draft (key: the file's name) and publish it
 palbase journeys                                   # the environment's journeys: key, name, status, way in
 palbase journeys:stats winback                     # who entered, how their runs ended, the goal's conversions

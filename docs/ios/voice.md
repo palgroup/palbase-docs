@@ -9,7 +9,7 @@ A chat of the project's agents can be talked to out loud ([AI › Voice](https:/
 `PalbaseVoice` ships directly in `https://github.com/palgroup/palbase-swift` for **iOS 18+** and **macOS 15+** with zero external dependencies:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.22.2")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.24.0")
 ```
 
 Link `PalbaseVoice`; it brings `Palbase` with it. The app's Info.plist says why it asks for the microphone, in `NSMicrophoneUsageDescription`.
@@ -29,8 +29,8 @@ export class VoiceController {
   // The app's WebRTC offer in; the voice's id and the provider's answer out.
   @Post("/{chatId}")
   async start(@Param("chatId") chatId: string, @Body(Offer) body: z.infer<typeof Offer>, @User() user: UserT): Promise<{ id: string; sdp: string }> {
-    const voice = await Palbase.ai.chats.voice.start(chatId, { sdp: body.sdp, as: user.id });
-    return { id: voice.id, sdp: voice.sdp };
+    const voice = await Palbase.ai.chats.voice.start(chatId, { transport: { type: "webrtc", sdp: body.sdp }, as: user.id });
+    return { id: voice.id, sdp: voice.transport.sdp ?? "" };
   }
 
   @Post("/{chatId}/{voiceId}/close")

@@ -102,7 +102,7 @@ pb.notify.inApp.start({
   onDeepLink: (link) => { window.history.pushState(null, "", new URL(link).pathname); },
   // A button that shows a placement's paywall: drawn here, bought through Stripe Checkout.
   onShowPaywall: async (placement) => {
-    const paywall = await pb.purchases.paywall(placement);
+    const paywall = await pb.iap.paywall(placement);
     paywall?.render(document.querySelector<HTMLElement>("#paywall")!, {
       successUrl: "https://app.example.com/thanks",
       cancelUrl: window.location.href,

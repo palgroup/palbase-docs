@@ -58,14 +58,14 @@ A subscription sold on all three channels, and a pack of credits sold in the App
 ## The catalog as a file
 
 ```sh
-palbase purchases:catalog:get --out catalog.json -E staging
+palbase iap:catalog:get --out catalog.json -E staging
 ```
 
 It writes the newest revision and prints its number. Edit the file, then check it and save it on the revision it was edited from:
 
 ```sh
-palbase purchases:catalog:validate --file catalog.json -E staging
-palbase purchases:catalog:put --file catalog.json --revision 3 -E staging
+palbase iap:catalog:validate --file catalog.json -E staging
+palbase iap:catalog:put --file catalog.json --revision 3 -E staging
 ```
 
 `validate` lists every problem with its path in the file (`products[0].channels.ios.locales.en.name`) and the store whose rule it breaks; it saves nothing. `put` checks the same way and saves nothing when a problem is left (`422 invalid_catalog`, every problem listed); a **warning** — something a store goes without — does not stop it. Of two people editing at once, the second is told the catalog moved past the revision they edited (`412 catalog_changed`) and nothing is saved over the first: read it again, make the edit on it, save that. The first save is on revision `0`.
@@ -73,9 +73,9 @@ palbase purchases:catalog:put --file catalog.json --revision 3 -E staging
 Each environment's catalog is its own. To give `production` what `staging` has, get it from one and put it on the other's revision:
 
 ```sh
-palbase purchases:catalog:get --out catalog.json -E staging
-palbase purchases:catalog:get -E production   # prints production's revision
-palbase purchases:catalog:put --file catalog.json --revision 7 -E production
+palbase iap:catalog:get --out catalog.json -E staging
+palbase iap:catalog:get -E production   # prints production's revision
+palbase iap:catalog:put --file catalog.json --revision 7 -E production
 ```
 
 ## Revisions, and putting one back
@@ -83,43 +83,42 @@ palbase purchases:catalog:put --file catalog.json --revision 7 -E production
 Every revision is kept. **Purchases › Catalog › Revisions** lists them, the newest first — who saved each, when, what it defines, and when a confirmed plan of it was written to the stores — and opens any of them. **Put this revision back** saves an older revision's catalog as the next revision, the way an edit is saved: on the revision on screen (`If-Match`; `412 catalog_changed` when someone saved since), checked against the catalog's rules today (an older revision may break one added since: `422 invalid_catalog`, every problem listed), and keeping what customers bought. Nothing is written to a store until a plan of the new revision is made and confirmed, as for any edit.
 
 ```sh
-palbase purchases:catalog:revisions -E production
-palbase purchases:catalog:revision 4 --out catalog-4.json -E production
-palbase purchases:catalog:restore 4 -E production   # saved as the next revision
-palbase purchases:catalog:plan -E production        # then the stores
+palbase iap:catalog:revisions -E production
+palbase iap:catalog:revision 4 --out catalog-4.json -E production
+palbase iap:catalog:restore 4 -E production   # saved as the next revision
+palbase iap:catalog:plan -E production        # then the stores
 ```
 
-From a server: `GET /purchases/catalog/revisions` (`next_cursor`, sent back as `cursor`, is the next page), `GET /purchases/catalog/revisions/{revision}` and `POST /purchases/catalog/revisions/{revision}/restore` with `If-Match`.
+From a server: `GET /iap/catalog/revisions` (`next_cursor`, sent back as `cursor`, is the next page), `GET /iap/catalog/revisions/{revision}` and `POST /iap/catalog/revisions/{revision}/restore` with `If-Match`.
 
-A saved revision emits `purchases.catalog.changed`; one put back says which it came from (`restored_from`). See [`purchases:catalog:get`](https://palbase.studio/docs/cli/reference#palbase-purchasescatalogget), [`purchases:catalog:put`](https://palbase.studio/docs/cli/reference#palbase-purchasescatalogput) and [`purchases:catalog:validate`](https://palbase.studio/docs/cli/reference#palbase-purchasescatalogvalidate).
+A saved revision emits `iap.catalog.changed`; one put back says which it came from (`restored_from`). See [`iap:catalog:get`](https://palbase.studio/docs/cli/reference#palbase-iapcatalogget), [`iap:catalog:put`](https://palbase.studio/docs/cli/reference#palbase-iapcatalogput) and [`iap:catalog:validate`](https://palbase.studio/docs/cli/reference#palbase-iapcatalogvalidate).
 
 ## Bringing the stores to the catalog
 
 A plan is what writing the newest revision to each store takes, worked out before anything is written:
 
 ```sh
-palbase purchases:catalog:plan -E staging
+palbase iap:catalog:plan -E staging
 ```
 
 It prints each store's part, step by step, and the plan's **hash**. Read it, then write it by naming that hash:
 
 ```sh
-palbase purchases:catalog:confirm <plan id> --hash <hash> -E staging
+palbase iap:catalog:confirm <plan id> --hash <hash> -E staging
 ```
 
-The CLI shows what will be written and asks first, in every environment (`-y` confirms without asking); `palbase purchases:catalog:decline <plan id>` drops a plan unwritten. In Studio, **Purchases › Stores › Apply the catalog** plans it, shows each store's part, and writes it when you confirm.
+The CLI shows what will be written and asks first, in every environment (`-y` confirms without asking); `palbase iap:catalog:decline <plan id>` drops a plan unwritten. In Studio, **In-App Purchases › Stores › Apply the catalog** plans it, shows each store's part, and writes it when you confirm.
 
 | Store | What its part writes | What to know |
 |---|---|---|
-| Stripe | A product for each web product, a price for each plan, on the environment's [Stripe account](https://palbase.studio/docs/purchases/connect-stripe) — written as you confirm. | A Stripe price never changes: a new amount is a new price, which takes over the plan's lookup key, while customers on the old one keep paying it. |
-| The App Store | A subscription group for each group, a subscription or an in-app purchase for each plan, with its text, price and introductory offer — written to App Store Connect with the environment's [App Store Connect API key](https://palbase.studio/docs/purchases/app-store#connect-the-app-store). | The price is the App Store's price point nearest to it in the currency's storefront; Apple prices the other storefronts. A product id, once made, is never free again. |
-| Google Play | A subscription for each subscription product, with a base plan for each plan, and a one-time product for each other product — written for the app [Google Play purchases](https://palbase.studio/docs/purchases/google-play) are connected for. | Google converts the price to every region. A product id, once made, stays Google's. |
+| The App Store | A subscription group for each group, a subscription or an in-app purchase for each plan, with its text, price and introductory offer — written to App Store Connect with the environment's [App Store Connect API key](https://palbase.studio/docs/iap/app-store#connect-the-app-store). | The price is the App Store's price point nearest to it in the currency's storefront; Apple prices the other storefronts. A product id, once made, is never free again. |
+| Google Play | A subscription for each subscription product, with a base plan for each plan, and a one-time product for each other product — written for the app [Google Play purchases](https://palbase.studio/docs/iap/google-play) are connected for. | Google converts the price to every region. A product id, once made, stays Google's. |
 
-The plan's hash is its Stripe part's; with no Stripe account connected, its App Store part's; with neither, its Google Play part's. A plan is written only as it was shown: once the catalog is saved again, an older plan goes **stale** and is refused, and you plan again.
+Web plans need no store sync: when a customer starts a web checkout, `iap` delegates the price directly to your connected [Payments channels](https://palbase.studio/docs/payments/channels) on the fly. The plan's hash is its App Store part's (or Google Play's when no App Store steps are planned). A plan is written only as it was shown: once the catalog is saved again, an older plan goes **stale** and is refused, and you plan again.
 
 A plan writes only what changed since a store last took the catalog: a product it already has gets an update step with its new text, price or review details, and a product that did not change has no step. The App Store gives a subscription its new price from the day after tomorrow (UTC) on, in every storefront — App Store Connect schedules a price change a day or two ahead — and its subscribers keep the price they pay; an in-app purchase gets its new price at once; Google Play gives a base plan its new price for new subscribers. A language a store has that the catalog does not is left there. When a store did not answer a confirmed plan written — it stopped part way, or has not answered yet — what it holds of that plan's products is not known: the next plan writes each of them again, all of it, whatever changed.
 
-The Stripe part is written as you confirm: the plan is **applied**, with what the account holds now, or **failed**, with what Stripe said — a new plan picks up where it stopped. The App Store and Google Play parts are written after the answer: the plan in Studio, and `palbase purchases:catalog:plan <plan id>`, show what App Store Connect and Google Play hold once they have answered — each product's state, its price, and a subscription's new price with the day it starts — and `palbase purchases:doctor` says when App Store Connect took its part. From the confirmation on, a purchase of what the plan sells maps to the catalog's product and plan. Each store's answer emits `purchases.catalog.applied`.
+The App Store and Google Play parts are written after you confirm: the plan in Studio, and `palbase iap:catalog:plan <plan id>`, show what App Store Connect and Google Play hold once they have answered — each product's state, its price, and a subscription's new price with the day it starts — and `palbase iap:doctor` says when App Store Connect took its part. From the confirmation on, a purchase of what the plan sells maps to the catalog's product and plan. Each store's answer emits `iap.catalog.applied`.
 
 | Status | Means |
 |---|---|
@@ -151,7 +150,7 @@ A product you made in App Store Connect or the Play Console, by hand or with ano
 }
 ```
 
-In Studio, a product's **iOS** and **Android** tabs hold these ids under **Sold at App Store Connect already** and **Sold at the Play Console already**. On Google Play a subscription's plans are base plans of one product: map every plan of it, to the same product. Once the plan is confirmed, the purchases made before the catalog knew the product open what the catalog gives, and their buyers hear `purchases.entitlement.changed`. A store id stays once a plan linked it: a catalog that leaves it out is refused (`store_id_kept`), because the next plan would make a second product at the store.
+In Studio, a product's **iOS** and **Android** tabs hold these ids under **Sold at App Store Connect already** and **Sold at the Play Console already**. On Google Play a subscription's plans are base plans of one product: map every plan of it, to the same product. Once the plan is confirmed, the purchases made before the catalog knew the product open what the catalog gives, and their buyers hear `iap.entitlement.changed`. A store id stays once a plan linked it: a catalog that leaves it out is refused (`store_id_kept`), because the next plan would make a second product at the store.
 
 ### What a customer bought stays
 
@@ -167,14 +166,14 @@ Unknown fields are refused: the catalog is read strictly.
 |---|---|
 | `base_locale` | The language every product names itself in (`en`, `pt-BR`); the others are translations. Stripe keeps one name: this one's. |
 | `entitlements` | What a customer has or not: each a `key` and a `name`. |
-| `credits` | The kinds of credit the project counts: each a `key`, a `name`, and `low_at`, the balance under which your backend hears `purchases.credits.low`. |
+| `credits` | The kinds of credit the project counts: each a `key`, a `name`, and `low_at`, the balance under which your backend hears `iap.credits.low`. |
 | `limits` | The metered quotas: each a `key`, a `name`, a `window` and `free`, what a customer gets with nothing that gives more. `overflow` (`{ "currency": "tokens", "per_unit": 2 }`) spends credits past the limit instead of refusing. |
 | `products` | The products (below). |
-| `offers` | Discounts, trials and grants for a while: see [Offers & Coupons](https://palbase.studio/docs/purchases/offers). |
+| `offers` | Discounts, trials and grants for a while: see [Offers & Coupons](https://palbase.studio/docs/iap/offers). |
 
 A key is lowercase letters, digits and `_`, starting with a letter, 40 at most.
 
-A limit's `window` is `calendar_month` or `calendar_day` — from midnight in the project's time zone ([settings](https://palbase.studio/docs/purchases/customers#settings)) — or `billing_period`: the period of the subscription that gives it, a calendar month without one.
+A limit's `window` is `calendar_month` or `calendar_day` — from midnight in the project's time zone ([settings](https://palbase.studio/docs/iap/customers#settings)) — or `billing_period`: the period of the subscription that gives it, a calendar month without one.
 
 ### A product
 
@@ -210,7 +209,7 @@ A limit's `window` is `calendar_month` or `calendar_day` — from midnight in th
 | `family_shareable` | `ios` | Family Sharing for the purchase. |
 | `review` | `ios` | What App Review sees: a `note` and the `screenshot` of the product in the app. |
 | `store_ids` | `ios`, `android` | The store's own ids of the plans, by plan key: [products a store already sells](#products-a-store-already-sells). |
-| `tax_code` | `web` | Stripe's tax code for the product, `txcd_` and eight digits: what Stripe taxes it as. Applying the catalog writes it on the product at Stripe; [Managed Payments](https://palbase.studio/docs/purchases/web#tax) needs one on every web product. Leaving it out later leaves Stripe's as it is. |
+| `tax_code` | `web` | Stripe's tax code for the product, `txcd_` and eight digits: what Stripe taxes it as. Applying the catalog writes it on the product at Stripe; [Managed Payments](https://palbase.studio/docs/iap/web#tax) needs one on every web product. Leaving it out later leaves Stripe's as it is. |
 
 ### Review screenshots
 
@@ -240,7 +239,7 @@ When the shared text is too long for one store, give that channel its own (`"ios
 
 ## Related
 
-- [Purchases](https://palbase.studio/docs/purchases/overview): how the catalog, the stores and the customers fit together
-- [Offers & Coupons](https://palbase.studio/docs/purchases/offers): the catalog's `offers`, and the codes that open them
-- [Entitlements, Credits & Limits](https://palbase.studio/docs/purchases/entitlements): what the catalog's entitlements, credits and limits do for a customer
-- [App Store](https://palbase.studio/docs/purchases/app-store) · [Google Play](https://palbase.studio/docs/purchases/google-play) · [Connect Stripe](https://palbase.studio/docs/purchases/connect-stripe)
+- [Purchases](https://palbase.studio/docs/iap/overview): how the catalog, the stores and the customers fit together
+- [Offers & Coupons](https://palbase.studio/docs/iap/offers): the catalog's `offers`, and the codes that open them
+- [Entitlements, Credits & Limits](https://palbase.studio/docs/iap/entitlements): what the catalog's entitlements, credits and limits do for a customer
+- [App Store](https://palbase.studio/docs/iap/app-store) · [Google Play](https://palbase.studio/docs/iap/google-play) · [Connect Stripe](https://palbase.studio/docs/payments/stripe)

@@ -267,7 +267,9 @@ import Palbase
 
 func magicLink(token: String?) async throws {
     if let token {
-        try await pb.auth.magicLink.verify(token: token) // the token the email's link carried
+        if case .mfaRequired = try await pb.auth.magicLink.verify(token: token) { // the token the email's link carried
+            print("a second factor is needed")
+        }
     } else {
         try await pb.auth.magicLink.send(email: "ada@example.com")
     }

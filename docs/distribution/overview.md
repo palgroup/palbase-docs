@@ -176,5 +176,5 @@ The module's API is the environment's, at its address under `/stores`, with the 
 - [App Store](https://palbase.studio/docs/distribution/app-store): the App Store page, the version, App Review and the release
 - [Google Play](https://palbase.studio/docs/distribution/google-play): the Play connection, the upload key, internal testing
 - [App Health](https://palbase.studio/docs/distribution/health): the App Store Connect webhook, testers' crashes, the stores' crash data and their events
-- [Test Apple Purchases](https://palbase.studio/docs/purchases/testing-apple): sandbox testers and purchases in TestFlight
+- [Test Apple Purchases](https://palbase.studio/docs/iap/testing-apple): sandbox testers and purchases in TestFlight
 - [CLI reference: `stores`](https://palbase.studio/docs/cli/reference#stores)

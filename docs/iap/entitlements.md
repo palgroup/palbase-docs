@@ -22,7 +22,7 @@ type Retried = z.infer<typeof Retried>;
 export class SummariesController {
   @Get("/archive")
   async archive(@User() user: UserT): Promise<{ pro: true }> {
-    const { data } = await Palbase.purchases.getCustomer({ path: { customer_id: user.id } });
+    const { data } = await Palbase.iap.getCustomer({ path: { customer_id: user.id } });
     if (!isEntitled(data, "pro")) throw new Forbidden("Pro is needed", "entitlement_required");
     return { pro: true };
   }
@@ -48,7 +48,7 @@ A customer without 10 tokens available is refused before the job runs: the purch
 
 ## What a customer has
 
-`CustomerInfo` is what `GET /purchases/me` answers the customer's app and `GET /purchases/customers/{customer_id}` answers your server — the same document:
+`CustomerInfo` is what `GET /iap/me` answers the customer's app and `GET /iap/customers/{customer_id}` answers your server — the same document:
 
 | Field | What it is |
 |---|---|
@@ -83,15 +83,15 @@ A subscription's `state` is `trial`, `active` or `grace` while it gives access, 
 
 ## Checking an entitlement
 
-**On your server**, read the customer and ask `isEntitled(info, key)` from `palbase/server`: the entitlement is active and, unless it is for life, ends after now. It reads the `CustomerInfo` alone, so one kept a while still ends when its entitlement does. In a `palbase/backend` app the module is `Palbase.purchases`; from any server, `createServer({ url, secretKey }).purchases`. Reading a customer writes nothing: a user who has bought nothing reads as a customer with nothing — and with every limit's free tier.
+**On your server**, read the customer and ask `isEntitled(info, key)` from `palbase/server`: the entitlement is active and, unless it is for life, ends after now. It reads the `CustomerInfo` alone, so one kept a while still ends when its entitlement does. In a `palbase/backend` app the module is `Palbase.iap`; from any server, `createServer({ url, secretKey }).purchases`. Reading a customer writes nothing: a user who has bought nothing reads as a customer with nothing — and with every limit's free tier.
 
 **In the app**, what the customer has is kept current on its own:
 
 | Platform | |
 |---|---|
-| Web | `pb.purchases.onCustomerInfo((info) => …)`; `info.entitlements["pro"]?.active`. |
-| iOS | `pb.purchases.isEntitled("pro")`; in SwiftUI, `pb.purchases.state.isEntitled("pro")` draws the view again when it changes. |
-| Android | `pb.purchases.isEntitled("pro")`; `pb.purchases.customerInfoUpdates`, a `Flow`. |
+| Web | `pb.iap.onCustomerInfo((info) => …)`; `info.entitlements["pro"]?.active`. |
+| iOS | `pb.iap.isEntitled("pro")`; in SwiftUI, `pb.iap.state.isEntitled("pro")` draws the view again when it changes. |
+| Android | `pb.iap.isEntitled("pro")`; `pb.iap.customerInfoUpdates`, a `Flow`. |
 
 The app's answer decides what the app shows. What a purchase opens on your server — content, an API, a download — is checked on the server: the app's word is the app's.
 
@@ -122,7 +122,7 @@ import { Injectable, Palbase } from "palbase/backend";
 export class ExportsService {
   /** Takes 5 tokens for the export: the same exportId again is the same spend, never a second. */
   async charge(userId: string, exportId: string): Promise<number> {
-    const { data } = await Palbase.purchases.spend({
+    const { data } = await Palbase.iap.spend({
       path: { customer_id: userId },
       headers: { "Idempotency-Key": `export-${exportId}` },
       body: { credits: "tokens", amount: 5, metadata: { export: exportId } },
@@ -152,7 +152,7 @@ import { Injectable, Palbase } from "palbase/backend";
 @Injectable()
 export class SupportService {
   async apologize(userId: string, ticket: string): Promise<void> {
-    await Palbase.purchases.grantCredits({
+    await Palbase.iap.grantCredits({
       path: { customer_id: userId },
       headers: { "Idempotency-Key": `ticket-${ticket}` },
       body: { credits: "tokens", amount: 50, source: "support", reason: `Ticket ${ticket}: export failed twice`, expires_at: "2027-01-01T00:00:00Z" },
@@ -163,7 +163,7 @@ export class SupportService {
 
 A grant pays what the customer owes first. `source` is `promotion` or `support`, and `reason` is the record. `forgiveCredits` takes a debt off — all of it, or `amount` of it — when support lets a refunded spend go. Studio's **Purchases › Customers** gives credits too.
 
-A balance that falls under its credit's `low_at` emits `purchases.credits.low`, once until it is back above; one that comes to nothing, `purchases.credits.depleted`.
+A balance that falls under its credit's `low_at` emits `iap.credits.low`, once until it is back above; one that comes to nothing, `iap.credits.depleted`.
 
 ## Limits
 
@@ -183,7 +183,7 @@ A limit is spent as credits are — `spend`, `holdSpend`, `withReservation` — 
 import { Palbase } from "palbase/backend";
 
 export async function countRequest(userId: string, requestId: string): Promise<void> {
-  await Palbase.purchases.spend({
+  await Palbase.iap.spend({
     path: { customer_id: userId },
     headers: { "Idempotency-Key": requestId },
     body: { limit: "ai_requests", amount: 1 },
@@ -208,7 +208,7 @@ The refusal says what would give the customer more, for the app to offer: `upgra
 
 `setCustomerLimit` gives one customer their own `max` — more for a customer support looks after, less for one who abuses it — until `expires_at` or `clearCustomerLimit`; `grantLimit` gives more units in the window it is in now. Each says why (`reason`).
 
-A window used to 80% emits `purchases.quota.threshold`, and used to the end `purchases.quota.exhausted`, each once a window.
+A window used to 80% emits `iap.quota.threshold`, and used to the end `iap.quota.exhausted`, each once a window.
 
 ## Events
 
@@ -219,8 +219,8 @@ Each change of what a customer has emits an event to the project's webhooks and 
 import { Log, On, type PlatformEvent } from "palbase/backend";
 
 export class PurchaseEvents {
-  @On("purchases.subscription.changed")
-  changed(event: PlatformEvent<"purchases.subscription.changed">): void {
+  @On("iap.subscription.changed")
+  changed(event: PlatformEvent<"iap.subscription.changed">): void {
     const { customer_id, product, change, store, expires_at } = event.data;
     if (change === "billing_issue") Log.warn("renewal not charged", { customer_id, product, store, expires_at });
   }
@@ -229,28 +229,28 @@ export class PurchaseEvents {
 
 | Type | Sent when | `data` |
 |---|---|---|
-| `purchases.customer.changed` | Anything a customer has changed, and their revision rose. | `{ customer_id, revision }` |
-| `purchases.entitlement.changed` | An entitlement turned on or off. | `{ customer_id, entitlement, active, expires_at, store, product, is_sandbox }` |
-| `purchases.purchase.completed` | A purchase new to the ledger: a subscription's start or a one-time product, in any store. | `{ customer_id, chain_id, product, plan, store, is_sandbox }` |
-| `purchases.subscription.changed` | A subscription `started`, `renewed`, was `canceled` or `uncanceled`, had a `billing_issue` or `recovered`, `expired`, or moved to another product (`product_changed`). | `{ customer_id, chain_id, change, product, plan, store, state, expires_at, will_renew, is_sandbox }` |
-| `purchases.refund.changed` | A store took a payment back — a `refund`, a `chargeback`, Family Sharing ended (`family`) — or reversed that; its credits are taken back, or given back. | `{ customer_id, chain_id, transaction_id, kind, share_milli, reversed }` |
-| `purchases.ownership.transferred` | A purchase moved to another customer: a restore, or another customer's new purchase on a store account they share (`via`). | `{ chain_id, from_customer_id, to_customer_id, product, store, via }` |
-| `purchases.credits.low`, `purchases.credits.depleted` | A balance fell under its low mark, or to nothing. | `{ customer_id, currency, balance, available, debt, low_at }` |
-| `purchases.quota.threshold`, `purchases.quota.exhausted` | A window was used to 80%, or to the end. | `{ customer_id, limit, used, max, percent, resets_at, window_id }` |
-| `purchases.offer.redeemed` | A customer took an offer. | `{ customer_id, offer, kind, store, product, plan, chain_id, coupon, entitlement }` |
-| `purchases.coupon.redeemed` | A customer redeemed a coupon. | `{ customer_id, coupon, offer, store, one_time }` |
-| `purchases.customer.merged` | A guest's purchases went to the account it signed in to. | `{ from, into }` |
-| `purchases.customer.erased` | A deleted user's purchases record was erased. | `{ customer_id }` |
-| `purchases.catalog.changed` | A revision of the catalog was saved. | `{ revision }` |
-| `purchases.catalog.applied` | A store's part of a plan was written, or failed. | `{ plan_id, revision, store, status }` |
-| `purchases.paywall.published` | A paywall's draft was published. | `{ paywall_id, name, version, schema }` |
-| `purchases.store.changed` | A store's connection was made, verified, checked or removed — never its key. | `{ store, change, … }` |
+| `iap.customer.changed` | Anything a customer has changed, and their revision rose. | `{ customer_id, revision }` |
+| `iap.entitlement.changed` | An entitlement turned on or off. | `{ customer_id, entitlement, active, expires_at, store, product, is_sandbox }` |
+| `iap.purchase.completed` | A purchase new to the ledger: a subscription's start or a one-time product, in any store. | `{ customer_id, chain_id, product, plan, store, is_sandbox }` |
+| `iap.subscription.changed` | A subscription `started`, `renewed`, was `canceled` or `uncanceled`, had a `billing_issue` or `recovered`, `expired`, or moved to another product (`product_changed`). | `{ customer_id, chain_id, change, product, plan, store, state, expires_at, will_renew, is_sandbox }` |
+| `iap.refund.changed` | A store took a payment back — a `refund`, a `chargeback`, Family Sharing ended (`family`) — or reversed that; its credits are taken back, or given back. | `{ customer_id, chain_id, transaction_id, kind, share_milli, reversed }` |
+| `iap.ownership.transferred` | A purchase moved to another customer: a restore, or another customer's new purchase on a store account they share (`via`). | `{ chain_id, from_customer_id, to_customer_id, product, store, via }` |
+| `iap.credits.low`, `iap.credits.depleted` | A balance fell under its low mark, or to nothing. | `{ customer_id, currency, balance, available, debt, low_at }` |
+| `iap.quota.threshold`, `iap.quota.exhausted` | A window was used to 80%, or to the end. | `{ customer_id, limit, used, max, percent, resets_at, window_id }` |
+| `iap.offer.redeemed` | A customer took an offer. | `{ customer_id, offer, kind, store, product, plan, chain_id, coupon, entitlement }` |
+| `iap.coupon.redeemed` | A customer redeemed a coupon. | `{ customer_id, coupon, offer, store, one_time }` |
+| `iap.customer.merged` | A guest's purchases went to the account it signed in to. | `{ from, into }` |
+| `iap.customer.erased` | A deleted user's purchases record was erased. | `{ customer_id }` |
+| `iap.catalog.changed` | A revision of the catalog was saved. | `{ revision }` |
+| `iap.catalog.applied` | A store's part of a plan was written, or failed. | `{ plan_id, revision, store, status }` |
+| `iap.paywall.published` | A paywall's draft was published. | `{ paywall_id, name, version, schema }` |
+| `iap.store.changed` | A store's connection was made, verified, checked or removed — never its key. | `{ store, change, … }` |
 
 The customer's own apps hear of their changes on their realtime channel and read what they have again; the SDKs do it for you.
 
 ## Related
 
-- [Customers](https://palbase.studio/docs/purchases/customers): one customer's page, grants, guests and settings
-- [Catalog](https://palbase.studio/docs/purchases/catalog): the entitlements, credits and limits a product gives
+- [Customers](https://palbase.studio/docs/iap/customers): one customer's page, grants, guests and settings
+- [Catalog](https://palbase.studio/docs/iap/catalog): the entitlements, credits and limits a product gives
 - [Server SDK](https://palbase.studio/docs/server/overview): `createServer`, refusals as `PalbaseError`, retries
 - [Event Hooks](https://palbase.studio/docs/backend/hooks): `@On` in a `palbase/backend` app

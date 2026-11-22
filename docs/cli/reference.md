@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.66.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.69.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-499 commands in 37 groups.
+514 commands in 38 groups.
 
 ## Global flags
 
@@ -217,11 +217,11 @@ palbase env:tokens:create [--scope <scope>[,<scope>]] [--minutes <n>] [--name <n
 ```
 
 It does in this environment what your role does — as your own CLI would — but never makes or shows a standing credential (a key, a token), changes people or roles, or deletes a project or an environment; nothing beyond this environment.
---scope narrows it to: machines:read, machines:logs, machines:previews, apps:sync, auth:test-users, support — machines:read reads the machines, their builds, crons, queues and pull requests' previews; machines:logs their logs; machines:previews opens a pull request's preview again (machines:previews:open: what a push to it would build anyway); apps:sync what palbase apps:sync reads; auth:test-users makes and deletes test users; support asks Palbase's support line (palbase support:ask).
+--scope narrows it to: machines:read, machines:logs, machines:previews, machines:deploy, sites:deploy, secrets:read-names, apps:sync, auth:test-users, support — machines:read reads the machines, their builds, crons, queues and pull requests' previews; machines:logs their logs; machines:previews opens a pull request's preview again (machines:previews:open: what a push to it would build anyway); machines:deploy deploys and rolls back existing machines and reads database connection info/schema in non-production environments; sites:deploy deploys and rolls back existing sites and reads builds/previews in non-production environments; secrets:read-names lists secret key names without values; apps:sync what palbase apps:sync reads; auth:test-users makes and deletes test users; support asks Palbase's support line (palbase support:ask).
 Give it to the program as PALBASE_TOKEN: the CLI acts in this environment alone with it. It ends after --minutes (default 60, at most 240), and with what minted it.
 
 ```text
-      --scope <scope>  narrow it to: machines:read, machines:logs, machines:previews, apps:sync, auth:test-users, support (comma-separated, or given again); none: your role
+      --scope <scope>  narrow it to: machines:read, machines:logs, machines:previews, machines:deploy, sites:deploy, secrets:read-names, apps:sync, auth:test-users, support (comma-separated, or given again); none: your role
       --minutes <n>    how long it lives (default 60, at most 240)
       --name <name>    what it is for, as the environment lists it
 ```
@@ -2576,6 +2576,42 @@ Forget an agent the environment keeps, its versions with it: its chats stay, and
 palbase ai:agents:remove <name>
 ```
 
+### `palbase ai:templates:list`
+
+List the project’s guardrailed client AI templates
+
+```sh
+palbase ai:templates:list
+```
+
+### `palbase ai:templates:publish`
+
+Publish a guardrailed client AI template version so mobile/web apps can call it
+
+```sh
+palbase ai:templates:publish <name> [--version <n>]
+```
+
+```text
+      --version <n>  specific version number to publish (defaults to latest draft)
+```
+
+### `palbase ai:templates:rollback`
+
+Roll a guardrailed client AI template back to a prior version
+
+```sh
+palbase ai:templates:rollback <name> <version>
+```
+
+### `palbase ai:templates:remove`
+
+Delete a guardrailed client AI template and all of its versions
+
+```sh
+palbase ai:templates:remove <name>
+```
+
 ### `palbase ai:tools`
 
 The tools an agent may be given: the backend's (its build's contract), the environment's endpoints, and the platform's
@@ -3072,7 +3108,7 @@ palbase stores:apple:keys:make
 ```
 
 With no flag, every key the environment lacks; a key it has is kept. The Apple ID is an Admin or the Account Holder of the team.
-APNs: one key for production and one for the sandbox, scoped to the environment's iOS apps; notify takes them. In-App Purchase: for one iOS app (--bundle with more than one); purchases connects it.
+APNs: one key for production and one for the sandbox, scoped to the environment's iOS apps; notify takes them. In-App Purchase: for one iOS app (--bundle with more than one); iap connects it.
 
 ```text
       --asc             the App Store Connect API key
@@ -3627,7 +3663,7 @@ palbase stores:review-screenshot <app id> <file.png|file.jpg>
 ```
 
 A PNG or JPEG of 10 MB at most, at an App Store screenshot size — iPhone 6.9" 1320x2868, 1290x2796 or 1260x2736; iPhone 6.5" 1242x2688 or 1284x2778; iPad 13" 2064x2752 or 2048x2732 (or turned): App Review takes an in-app purchase's screenshot at no other.
-Name it in the catalog, channels.ios.review.screenshot = `"sha256:<hex>"`; the next plan (palbase purchases:catalog:plan) gives it to App Store Connect, and Apple then has what it needs of the product to review it.
+Name it in the catalog, channels.ios.review.screenshot = `"sha256:<hex>"`; the next plan (palbase iap:catalog:plan) gives it to App Store Connect, and Apple then has what it needs of the product to review it.
 
 ### `palbase stores:listing:plan`
 
@@ -3799,14 +3835,192 @@ Decline a planned action: it never runs
 palbase stores:actions:decline <action id>
 ```
 
-## `purchases`
+## `payments`
 
-### `palbase purchases:catalog:get`
+### `palbase payments:channels`
+
+List the environment's connected payment channels (Stripe, iyzico, Masterpass status and health)
+
+```sh
+palbase payments:channels
+```
+
+### `palbase payments:channels:check`
+
+Probe a connected payment channel against its provider API to verify credentials and permissions
+
+```sh
+palbase payments:channels:check <channel key>
+```
+
+### `palbase payments:channels:default`
+
+Set an active payment channel as the default fallback when no routing rule matches
+
+```sh
+palbase payments:channels:default <channel key>
+```
+
+### `palbase payments:channels:disconnect`
+
+Disable a payment channel and remove its managed provider webhook endpoint
+
+```sh
+palbase payments:channels:disconnect <channel key>
+```
+
+### `palbase payments:stripe:install`
+
+Mint a one-time link to install Palbase's Stripe App with one click (no API key pasted)
+
+```sh
+palbase payments:stripe:install [--channel <key>] [--live]
+```
+
+Opens the one-click Stripe App installation flow; works once for 30 minutes.
+Use --live to install in Stripe live mode (test mode otherwise).
+
+```text
+      --channel <key>  target channel key (default: stripe)
+      --live           install the Stripe App in live mode (test mode otherwise)
+```
+
+### `palbase payments:stripe:grant`
+
+Mint a one-time browser URL to connect a Stripe restricted key directly to the environment
+
+```sh
+palbase payments:stripe:grant [--channel <key>]
+```
+
+The restricted key goes straight from your browser to the environment, never through this computer or an AI agent.
+Works once, for 30 minutes.
+
+```text
+      --channel <key>  target channel key (default: stripe)
+```
+
+### `palbase payments:iyzico:connect`
+
+Connect an iyzico payment channel (browser grant by default, or --stdin JSON for CI)
+
+```sh
+palbase payments:iyzico:connect [--channel <key>] [--stdin [--live] [--default]]
+```
+
+Without --stdin, mints a one-time browser URL where a human pastes iyzico credentials directly into the environment.
+With --stdin, reads JSON { "api_key", "secret_key", "masterpass"? } from stdin so secrets never appear in command-line arguments.
+
+```text
+      --channel <key>  channel key (default: iyzico_tr)
+      --stdin          read { api_key, secret_key, masterpass? } JSON from stdin instead of minting a browser link
+      --live           with --stdin: mark credentials as live production mode (sandbox otherwise)
+      --default        with --stdin: set this channel as the project default
+```
+
+### `palbase payments:routing`
+
+List deterministic payment channel routing rules ordered by priority
+
+```sh
+palbase payments:routing
+```
+
+### `palbase payments:routing:put`
+
+Replace all deterministic channel routing rules from a JSON file or stdin
+
+```sh
+palbase payments:routing:put --file <rules.json>
+```
+
+Accepts either `{ "rules": [...] }` or a bare JSON array of routing rule objects.
+
+```text
+      --file <rules.json>  JSON rules file ('-' or omitted: stdin)
+```
+
+### `palbase payments:wallets`
+
+List configured closed-loop wallet definitions for the environment
+
+```sh
+palbase payments:wallets
+```
+
+### `palbase payments:wallets:put`
+
+Create or update a closed-loop wallet definition (currency, top-up bounds, expiry)
+
+```sh
+palbase payments:wallets:put --key <key> --name <name> --currency <ISO> [--kind fiat|points] [--min <minor>] [--max <minor>] [--expires-days <n>] [--inactive]
+```
+
+```text
+      --key <key>           stable lowercase wallet key (e.g. try, usd, store_credit)
+      --name <name>         human-readable wallet display name
+      --currency <ISO>      3-letter ISO 4217 currency code (e.g. TRY, USD)
+      --kind <fiat|points>  wallet kind (default: fiat)
+      --min <minor>         minimum top-up in minor units (default: 100)
+      --max <minor>         maximum top-up in minor units (default: 5000000)
+      --expires-days <n>    optional default lot expiry in days
+      --inactive            create or mark the wallet inactive
+```
+
+### `palbase payments:audit:drift`
+
+Verify zero-drift double-entry accounting integrity across all ledger entries and wallets
+
+```sh
+palbase payments:audit:drift
+```
+
+Exits 0 when every double-entry transaction balances and every wallet matches its ledger entries; exits 1 on any discrepancy.
+
+### `palbase payments:audit:export`
+
+Export immutable double-entry ledger entries as CSV (default) or JSON
+
+```sh
+palbase payments:audit:export [--customer <id>] [--wallet <key>] [--kind <kind>] [--from <iso>] [--to <iso>] [--out <file>]
+```
+
+```text
+      --customer <id>  filter by customer UID
+      --wallet <key>   filter by wallet key
+      --kind <kind>    filter by ledger transaction kind
+      --from <iso>     inclusive RFC 3339 start timestamp
+      --to <iso>       exclusive RFC 3339 end timestamp
+      --out <file>     write CSV export to this file path
+```
+
+### `palbase payments:sandbox:verify`
+
+Run live env-driven sandbox verification against iyzico Sandbox and/or Stripe Test Mode
+
+```sh
+palbase payments:sandbox:verify [--use-connected] [--channel <key>] [--currency <ISO>] [--bin <digits>]
+```
+
+Reads PALBASE_IYZICO_SANDBOX_API_KEY + PALBASE_IYZICO_SANDBOX_SECRET_KEY and/or PALBASE_STRIPE_TEST_KEY from the environment (always livemode: false).
+Pass --use-connected to verify already-connected test/sandbox channels without connecting new credentials.
+Skips gracefully with setup instructions when no sandbox credentials are present.
+
+```text
+      --use-connected   verify already-connected test/sandbox channels on the environment
+      --channel <key>   optional channel key filter when using --use-connected
+      --currency <ISO>  currency for capabilities/installment probe (default: TRY for iyzico, USD for stripe)
+      --bin <digits>    test card BIN prefix for installment lookup (default: 554960)
+```
+
+## `iap`
+
+### `palbase iap:catalog:get`
 
 The environment's catalog: its newest revision, the products it sells and what they give
 
 ```sh
-palbase purchases:catalog:get [--out <catalog.json>]
+palbase iap:catalog:get [--out <catalog.json>]
 ```
 
 --out writes the catalog to a file to edit; catalog:put saves the edit with the revision it was edited from, which is printed.
@@ -3815,89 +4029,89 @@ palbase purchases:catalog:get [--out <catalog.json>]
       --out <catalog.json>  write the catalog (the JSON catalog:put takes) to this file
 ```
 
-### `palbase purchases:catalog:put`
+### `palbase iap:catalog:put`
 
 Save a new revision of the whole catalog, on the revision it was edited from; nothing is written to a store
 
 ```sh
-palbase purchases:catalog:put --file <catalog.json> --revision <n>
+palbase iap:catalog:put --file <catalog.json> --revision <n>
 ```
 
 The module checks it first: a catalog that breaks a rule is refused with every problem, and nothing is saved.
 Of two people editing at once, the second is told — the catalog moved past the revision they edited — never overwritten.
-The stores are brought to it by a plan: palbase purchases:catalog:plan.
+The stores are brought to it by a plan: palbase iap:catalog:plan.
 
 ```text
       --file <catalog.json>  the catalog, as catalog:get --out wrote it ('-' or none: stdin)
       --revision <n>         the revision it was edited from (0 for the first), as catalog:get printed it
 ```
 
-### `palbase purchases:catalog:validate`
+### `palbase iap:catalog:validate`
 
 Check a catalog without saving it: every problem, with its path and the store whose rule it breaks
 
 ```sh
-palbase purchases:catalog:validate --file <catalog.json>
+palbase iap:catalog:validate --file <catalog.json>
 ```
 
 ```text
       --file <catalog.json>  the catalog ('-' or none: stdin)
 ```
 
-### `palbase purchases:catalog:plan`
+### `palbase iap:catalog:plan`
 
 Plan bringing the stores to the catalog's newest revision, store by store, before anything is written
 
 ```sh
-palbase purchases:catalog:plan [<plan id>]
+palbase iap:catalog:plan [<plan id>]
 ```
 
-A plan is confirmed with its Stripe part's hash (purchases:catalog:confirm) — with no Stripe account connected, its App Store part's; the App Store and Google Play parts are written by the stores module once their accounts are connected.
+A plan is confirmed with its hash (iap:catalog:confirm); the App Store and Google Play parts are written by the stores module once their accounts are connected.
 With a plan's id it makes none: it shows that plan, and once confirmed what each store answered — the state of every product written, and a price that changes on a later day.
 
-### `palbase purchases:catalog:confirm`
+### `palbase iap:catalog:confirm`
 
-Write a plan — its Stripe part now, its App Store part through the stores module: it names the hash of the plan that was shown, and is asked about first
+Write a plan to App Store Connect and Google Play through the stores module: it names the hash of the plan that was shown, and is asked about first
 
 ```sh
-palbase purchases:catalog:confirm <plan id> --hash <hash>
+palbase iap:catalog:confirm <plan id> --hash <hash>
 ```
 
-What it writes is shown, then asked about — in every environment: a price written to Stripe is never changed or removed there, a product made in App Store Connect never goes away. -y confirms without asking.
+What it writes is shown, then asked about — in every environment: a product made in App Store Connect or Google Play never goes away. -y confirms without asking.
 
 ```text
-      --hash <hash>  the hash the plan printed (its Stripe part's; with no Stripe account, its App Store part's)
+      --hash <hash>  the hash the plan printed
 ```
 
-### `palbase purchases:catalog:decline`
+### `palbase iap:catalog:decline`
 
 Decline a plan: its Stripe part is never written
 
 ```sh
-palbase purchases:catalog:decline <plan id>
+palbase iap:catalog:decline <plan id>
 ```
 
-### `palbase purchases:catalog:revisions`
+### `palbase iap:catalog:revisions`
 
 Every revision the catalog was saved as, the newest first: who saved it, when, and when a plan of it was written to the stores
 
 ```sh
-palbase purchases:catalog:revisions [--limit <n>] [--cursor <next>]
+palbase iap:catalog:revisions [--limit <n>] [--cursor <next>]
 ```
 
-purchases:catalog:revision `<n>` reads one; purchases:catalog:restore `<n>` puts it back as the next revision.
+iap:catalog:revision `<n>` reads one; iap:catalog:restore `<n>` puts it back as the next revision.
 
 ```text
       --limit <n>      revisions a page (default 50, at most 200)
       --cursor <next>  the next page, as the last one printed it
 ```
 
-### `palbase purchases:catalog:revision`
+### `palbase iap:catalog:revision`
 
 The catalog as it was saved at a revision
 
 ```sh
-palbase purchases:catalog:revision <revision> [--out <catalog.json>]
+palbase iap:catalog:revision <revision> [--out <catalog.json>]
 ```
 
 --out writes that revision's catalog to a file, as catalog:get --out writes the newest.
@@ -3906,44 +4120,44 @@ palbase purchases:catalog:revision <revision> [--out <catalog.json>]
       --out <catalog.json>  write the revision's catalog to this file
 ```
 
-### `palbase purchases:catalog:restore`
+### `palbase iap:catalog:restore`
 
 Put an older revision of the catalog back, as its next revision; nothing is written to a store
 
 ```sh
-palbase purchases:catalog:restore <revision>
+palbase iap:catalog:restore <revision>
 ```
 
 It is saved as an edit is: checked against today's rules, what customers bought kept in it — a revision that breaks one is refused with every problem.
-The stores are brought to it by a plan, confirmed: palbase purchases:catalog:plan.
+The stores are brought to it by a plan, confirmed: palbase iap:catalog:plan.
 
-### `palbase purchases:customers`
+### `palbase iap:customers`
 
 Find customers by what a person writing in has: their id, an id their store gave a purchase, or the email they bought with on the web
 
 ```sh
-palbase purchases:customers <query>
+palbase iap:customers <query>
 ```
 
 The query is a customer's id; Apple's original transaction id or any transaction id; a Google order id (GPA.…, a renewal's ..N or not); Stripe's subscription, payment intent, invoice or customer id; or an email address.
 An email finds a buyer who had no account at checkout, matched whole (case aside): the address is never kept, an HMAC of it is.
 
-### `palbase purchases:customer:get`
+### `palbase iap:customer:get`
 
 What a customer has, whatever store they bought in: entitlements, subscriptions, purchases, credits and limits
 
 ```sh
-palbase purchases:customer:get <customer id>
+palbase iap:customer:get <customer id>
 ```
 
 The customer is the user's id; a guest merged into an account answers as the account.
 
-### `palbase purchases:customer:history`
+### `palbase iap:customer:history`
 
 What happened to a customer, the newest first: payments, refunds, cancellations, grants, credits, moves — with who did each, and why
 
 ```sh
-palbase purchases:customer:history <customer id> [--limit <n>] [--cursor <next>]
+palbase iap:customer:history <customer id> [--limit <n>] [--cursor <next>]
 ```
 
 Credits spent are the credits' own entries; here are the credits given, taken back, expired and forgiven.
@@ -3953,25 +4167,25 @@ Credits spent are the credits' own entries; here are the credits given, taken ba
       --cursor <next>  the next page, as the last one printed it
 ```
 
-### `palbase purchases:customer:grants`
+### `palbase iap:customer:grants`
 
 The entitlements given a customer — active, ended and revoked — with each grant's id, reason and who gave it
 
 ```sh
-palbase purchases:customer:grants <customer id>
+palbase iap:customer:grants <customer id>
 ```
 
-End one: palbase purchases:customer:revoke `<customer id>` `<grant id>`.
+End one: palbase iap:customer:revoke `<customer id>` `<grant id>`.
 
-### `palbase purchases:customer:grant`
+### `palbase iap:customer:grant`
 
 Give a customer one of the catalog's entitlements, for a while or for life, saying why — a promotion, a support case, a tester
 
 ```sh
-palbase purchases:customer:grant <customer id> <entitlement> --reason <why> [--for 30d | --until <date>]
+palbase iap:customer:grant <customer id> <entitlement> --reason <why> [--for 30d | --until <date>]
 ```
 
-The reason is the record. Without --for or --until the grant is for life. It prints the grant's id: purchases:customer:revoke ends it.
+The reason is the record. Without --for or --until the grant is for life. It prints the grant's id: iap:customer:revoke ends it.
 A customer not seen before is made; nothing is charged, in any store.
 
 ```text
@@ -3980,25 +4194,25 @@ A customer not seen before is made; nothing is charged, in any store.
       --until <date>  when it ends (2026-12-31, or a time)
 ```
 
-### `palbase purchases:customer:revoke`
+### `palbase iap:customer:revoke`
 
 End a granted entitlement now; what the customer bought is not touched
 
 ```sh
-palbase purchases:customer:revoke <customer id> <grant id>
+palbase iap:customer:revoke <customer id> <grant id>
 ```
 
-The grant's id is the one purchases:customer:grant printed. The entitlement stays on while a purchase still gives it.
+The grant's id is the one iap:customer:grant printed. The entitlement stays on while a purchase still gives it.
 
-### `palbase purchases:customer:extend`
+### `palbase iap:customer:extend`
 
 Move a customer's subscription renewal days later, for free: the App Store's extension, Google Play's deferral, Stripe's next charge moved
 
 ```sh
-palbase purchases:customer:extend <customer id> <subscription id> --days <1-90> --reason customer_satisfaction|service_issue|other [--note <why>]
+palbase iap:customer:extend <customer id> <subscription id> --days <1-90> --reason customer_satisfaction|service_issue|other [--note <why>]
 ```
 
-The subscription's id is the one purchases:customer:get prints. The App Store extends a paid, active subscription, at most 90 days and twice a year.
+The subscription's id is the one iap:customer:get prints. The App Store extends a paid, active subscription, at most 90 days and twice a year.
 The store is asked again after: the new expiry is printed, and the customer's history keeps it with who did it.
 
 ```text
@@ -4007,12 +4221,12 @@ The store is asked again after: the new expiry is printed, and the customer's hi
       --note <why>    what support writes of it (500 characters at most): the record
 ```
 
-### `palbase purchases:customer:refund`
+### `palbase iap:customer:refund`
 
 Refund a customer's subscription — its latest payment, or what is left of its period — and end it now: Google Play and Stripe
 
 ```sh
-palbase purchases:customer:refund <customer id> <subscription id> --mode full|prorated [--note <why>]
+palbase iap:customer:refund <customer id> <subscription id> --mode full|prorated [--note <why>]
 ```
 
 The customer's access ends as it answers. The App Store decides its own refunds: the customer asks Apple, which asks the app what they used — Palbase answers it when they consented in the app.
@@ -4022,12 +4236,12 @@ The customer's access ends as it answers. The App Store decides its own refunds:
       --note <why>   what support writes of it (500 characters at most): the record
 ```
 
-### `palbase purchases:customer:cancel`
+### `palbase iap:customer:cancel`
 
 Turn a customer's subscription renewal off: it ends at its period's end, the customer keeping what they paid for — Google Play and Stripe
 
 ```sh
-palbase purchases:customer:cancel <customer id> <subscription id> [--note <why>]
+palbase iap:customer:cancel <customer id> <subscription id> [--note <why>]
 ```
 
 An App Store subscription's renewal is the customer's to turn off (Settings › Apple ID › Subscriptions).
@@ -4036,12 +4250,12 @@ An App Store subscription's renewal is the customer's to turn off (Settings › 
       --note <why>  what support writes of it (500 characters at most): the record
 ```
 
-### `palbase purchases:customer:credits`
+### `palbase iap:customer:credits`
 
 A customer's credit entries, the newest first: given, spent, taken back, expired, forgiven — with who did each, and why
 
 ```sh
-palbase purchases:customer:credits <customer id> [--credits <key>] [--limit <n>] [--cursor <next>]
+palbase iap:customer:credits <customer id> [--credits <key>] [--limit <n>] [--cursor <next>]
 ```
 
 ```text
@@ -4050,12 +4264,12 @@ palbase purchases:customer:credits <customer id> [--credits <key>] [--limit <n>]
       --cursor <next>  the next page, as the last one printed it
 ```
 
-### `palbase purchases:customer:credits:give`
+### `palbase iap:customer:credits:give`
 
 Give a customer credits, saying why — a support case, a promotion — for a while or until spent
 
 ```sh
-palbase purchases:customer:credits:give <customer id> <credits> <amount> --reason <why> [--source support|promotion] [--for 30d | --until <date>]
+palbase iap:customer:credits:give <customer id> <credits> <amount> --reason <why> [--source support|promotion] [--for 30d | --until <date>]
 ```
 
 What they owe is paid first from what is given. Nothing is charged, in any store.
@@ -4067,12 +4281,12 @@ What they owe is paid first from what is given. Nothing is charged, in any store
       --until <date>   when they expire (2026-12-31, or a time)
 ```
 
-### `palbase purchases:customer:credits:forgive`
+### `palbase iap:customer:credits:forgive`
 
 Forgive what a customer owes of a credit — all of it, or an amount — saying why
 
 ```sh
-palbase purchases:customer:credits:forgive <customer id> <credits> --reason <why> [--amount <n>]
+palbase iap:customer:credits:forgive <customer id> <credits> --reason <why> [--amount <n>]
 ```
 
 ```text
@@ -4080,12 +4294,12 @@ palbase purchases:customer:credits:forgive <customer id> <credits> --reason <why
       --amount <n>    how much of it (default: all they owe)
 ```
 
-### `palbase purchases:customer:limit:set`
+### `palbase iap:customer:limit:set`
 
 Set a customer's own maximum of a limit — above or below the catalog's — saying why, for a while or until cleared
 
 ```sh
-palbase purchases:customer:limit:set <customer id> <limit> <max> --reason <why> [--for 30d | --until <date>]
+palbase iap:customer:limit:set <customer id> <limit> <max> --reason <why> [--for 30d | --until <date>]
 ```
 
 ```text
@@ -4094,20 +4308,20 @@ palbase purchases:customer:limit:set <customer id> <limit> <max> --reason <why> 
       --until <date>  when it ends (2026-12-31, or a time)
 ```
 
-### `palbase purchases:customer:limit:clear`
+### `palbase iap:customer:limit:clear`
 
 Clear a customer's own maximum of a limit: the catalog's counts again
 
 ```sh
-palbase purchases:customer:limit:clear <customer id> <limit>
+palbase iap:customer:limit:clear <customer id> <limit>
 ```
 
-### `palbase purchases:customer:limit:give`
+### `palbase iap:customer:limit:give`
 
 Give a customer more of a limit for its current period, saying why — a gift on top of their maximum
 
 ```sh
-palbase purchases:customer:limit:give <customer id> <limit> <amount> --reason <why> [--source support|promotion]
+palbase iap:customer:limit:give <customer id> <limit> <amount> --reason <why> [--source support|promotion]
 ```
 
 ```text
@@ -4115,46 +4329,12 @@ palbase purchases:customer:limit:give <customer id> <limit> <amount> --reason <w
       --source <kind>  support (the default) or promotion
 ```
 
-### `palbase purchases:stripe`
-
-The environment's Stripe account: whether one is connected, what Stripe last said of its key
-
-```sh
-palbase purchases:stripe
-```
-
-### `palbase purchases:stripe:grant`
-
-A link that connects a Stripe restricted key: the key goes from the browser straight to the environment, never through Studio or this computer
-
-```sh
-palbase purchases:stripe:grant
-```
-
-The link works once, for 30 minutes; a project holds 10 open at most.
-
-### `palbase purchases:stripe:install`
-
-A link that connects the environment's Stripe account with one click: Palbase's Stripe App, installed at Stripe — no key pasted
-
-```sh
-palbase purchases:stripe:install
-```
-
-The link opens Palbase's install page, naming the project; from there Stripe: pick the account, accept what the App may do, and Stripe sends you back to Palbase, which connects it.
-It works once, for 30 minutes; --live installs the App in live mode (Stripe test mode otherwise).
-A restricted key connects an account too: palbase purchases:stripe:grant.
-
-```text
-      --live  install the App in live mode (test mode otherwise)
-```
-
-### `palbase purchases:storekit`
+### `palbase iap:storekit`
 
 An Xcode StoreKit configuration of the environment's iOS products, under palbase/: a build Xcode runs buys them with no App Store
 
 ```sh
-palbase purchases:storekit [--app <app>] [--out <palbase/….storekit>] [--storefront <code>]
+palbase iap:storekit [--app <app>] [--out <palbase/….storekit>] [--storefront <code>]
 ```
 
 Each plan is the App Store product its store id names, with its text in every language the catalog has and its price; a subscription is in its group, at its tier's level, with its introductory offer and the catalog's offers on it as promotional offers (a grant has no store).
@@ -4167,20 +4347,20 @@ Made again, the file is made whole from the catalog — the same catalog, the sa
       --storefront <code>         the App Store storefront prices are in, by its three letters (USA, DEU, TUR, GBR, JPN …)
 ```
 
-### `palbase purchases:apple`
+### `palbase iap:apple`
 
 The environment's App Store connection: the In-App Purchase key, where the App Store reports, whether Xcode's purchases are taken
 
 ```sh
-palbase purchases:apple
+palbase iap:apple
 ```
 
-### `palbase purchases:apple:connect`
+### `palbase iap:apple:connect`
 
 Connect an In-App Purchase key for an iOS app: it goes from this computer straight to the environment, never through Studio
 
 ```sh
-palbase purchases:apple:connect --key-file <SubscriptionKey_KEYID.p8> [--key-id <KEYID>] [--issuer-id <issuer id>] [--app <app>] | --print-link
+palbase iap:apple:connect --key-file <SubscriptionKey_KEYID.p8> [--key-id <KEYID>] [--issuer-id <issuer id>] [--app <app>] | --print-link
 ```
 
 App Store Connect → Users and Access → Integrations → In-App Purchase makes the key (`SubscriptionKey_<KEYID>.p8`) and shows the Issuer ID — the team's, the same as its App Store Connect API keys': left out, the one stores:apple connected is taken.
@@ -4195,23 +4375,23 @@ Studio is asked for a one-time grant alone; the key is posted with it to the env
       --print-link                           only print a link that takes the key in a browser (valid 30 minutes, once)
 ```
 
-### `palbase purchases:apple:disconnect`
+### `palbase iap:apple:disconnect`
 
 Forget the environment's In-App Purchase key: the App Store's purchases and notifications are refused from then on (what was bought stays)
 
 ```sh
-palbase purchases:apple:disconnect
+palbase iap:apple:disconnect
 ```
 
-### `palbase purchases:apple:xcode-certificate`
+### `palbase iap:apple:xcode-certificate`
 
 Take the purchases Xcode's StoreKit Testing signs with this certificate, as test purchases — never on production; --remove stops
 
 ```sh
-palbase purchases:apple:xcode-certificate <certificate.cer> | --remove
+palbase iap:apple:xcode-certificate <certificate.cer> | --remove
 ```
 
-Xcode saves the certificate: select the .storekit file (palbase purchases:storekit makes it), then Editor › Save Public Certificate.
+Xcode saves the certificate: select the .storekit file (palbase iap:storekit makes it), then Editor › Save Public Certificate.
 From then on what the app reports signed with it — Xcode's own purchases, on a developer's Mac — is a test purchase of the environment, with or without an In-App Purchase key; nothing of it is asked of Apple. Set again, it replaces the one before.
 The production environment takes only what the App Store signed: it is refused there.
 
@@ -4219,43 +4399,43 @@ The production environment takes only what the App Store signed: it is refused t
       --remove  stop taking Xcode's purchases (those taken stay)
 ```
 
-### `palbase purchases:google`
+### `palbase iap:google`
 
 The environment's Google Play purchases: the app they are made in, the topic its Play Console names, whether Play's test notification arrived
 
 ```sh
-palbase purchases:google
+palbase iap:google
 ```
 
-### `palbase purchases:google:connect`
+### `palbase iap:google:connect`
 
 Sell on Google Play in one of the project's Android apps: Palbase makes the app's notifications topic and has it pushed to this environment
 
 ```sh
-palbase purchases:google:connect [--app <app>]
+palbase iap:google:connect [--app <app>]
 ```
 
 The project's Play connection (palbase stores:google:connect) is the account Palbase reads and acknowledges the app's purchases as: its Play Console invites it with View financial data and Manage orders and subscriptions.
-Then, in Play Console: Monetize with Play › Monetization setup › Real-time developer notifications, the topic this prints, Save, and Send test notification — palbase purchases:google says when it arrived.
+Then, in Play Console: Monetize with Play › Monetization setup › Real-time developer notifications, the topic this prints, Save, and Send test notification — palbase iap:google says when it arrived.
 
 ```text
       --app <app>  the Android app (default: the one this checkout syncs, or the project's only one)
 ```
 
-### `palbase purchases:google:disconnect`
+### `palbase iap:google:disconnect`
 
 Stop taking the environment's Google Play purchases: Play's notifications stop reaching it, and the app's reports are refused (what was bought stays)
 
 ```sh
-palbase purchases:google:disconnect
+palbase iap:google:disconnect
 ```
 
-### `palbase purchases:doctor`
+### `palbase iap:doctor`
 
-Whether the environment sells in the App Store now, check by check — the App Store Connect side and the purchases side — with the fix of each that fails
+Whether the environment sells in the App Store now, check by check — the App Store Connect side and the iap side — with the fix of each that fails
 
 ```sh
-palbase purchases:doctor [--app <app>]
+palbase iap:doctor [--app <app>]
 ```
 
 Apple is asked now: the keys, the agreements, the app's App Store Connect record, where the App Store reports, the sandbox testers, each product's state, the catalog's last confirmation; and whether Xcode's purchases are taken.
@@ -4265,40 +4445,40 @@ It exits 1 while a check that is not informational fails: run it again until eve
       --app <app>  the iOS app (default: the environment's one linked app)
 ```
 
-### `palbase purchases:paywalls`
+### `palbase iap:paywalls`
 
 The environment's paywalls: each one's draft revision, the version published, and the placements that show it
 
 ```sh
-palbase purchases:paywalls
+palbase iap:paywalls
 ```
 
-A paywall is a JSON definition: purchases:paywalls:get writes one to a file, purchases:paywalls:put saves the edit as its draft, purchases:paywalls:publish makes the draft what the apps draw.
+A paywall is a JSON definition: iap:paywalls:get writes one to a file, iap:paywalls:put saves the edit as its draft, iap:paywalls:publish makes the draft what the apps draw.
 An app sees a paywall once it is published and a placement shows it.
-How a definition is written — every component and field, and three to start from: palbase purchases:paywalls:guide
+How a definition is written — every component and field, and three to start from: palbase iap:paywalls:guide
 
-### `palbase purchases:paywalls:get`
+### `palbase iap:paywalls:get`
 
 Write a paywall's draft — or a version published — to a file to edit, with the revision it is at
 
 ```sh
-palbase purchases:paywalls:get <name|id> [--out <palbase/paywalls/name.json>] [--version <n>]
+palbase iap:paywalls:get <name|id> [--out <palbase/paywalls/name.json>] [--version <n>]
 ```
 
-The file is the definition alone, as purchases:paywalls:put takes it, under palbase/paywalls/. Its first line names its JSON Schema, written beside it (palbase/paywalls/paywall.schema.json), so an editor checks the file as it is edited.
-The revision printed is the one an edit is saved on: purchases:paywalls:put --revision.
+The file is the definition alone, as iap:paywalls:put takes it, under palbase/paywalls/. Its first line names its JSON Schema, written beside it (palbase/paywalls/paywall.schema.json), so an editor checks the file as it is edited.
+The revision printed is the one an edit is saved on: iap:paywalls:put --revision.
 
 ```text
       --out <file>   where under palbase/ (default: palbase/paywalls/<name>.json)
       --version <n>  a published version instead of the draft
 ```
 
-### `palbase purchases:paywalls:validate`
+### `palbase iap:paywalls:validate`
 
 Check a paywall definition as publishing it would, without saving it: every problem, by its path
 
 ```sh
-palbase purchases:paywalls:validate --file <paywall.json>
+palbase iap:paywalls:validate --file <paywall.json>
 ```
 
 Every rule of the schema is checked, and every package against the environment's catalog as it is. A warning (what App Review expects of a paywall, say) does not stop a save or a publish.
@@ -4308,31 +4488,31 @@ It exits 1 while a problem that is not a warning is left; --json prints { valid,
       --file <paywall.json>  the definition ('-' or none: stdin)
 ```
 
-### `palbase purchases:paywalls:put`
+### `palbase iap:paywalls:put`
 
 Save a definition as a paywall's draft, on the revision it was edited from — or make the paywall, at revision 0; --publish publishes it too
 
 ```sh
-palbase purchases:paywalls:put <name|id> --file <paywall.json> --revision <n> [--publish]
+palbase iap:paywalls:put <name|id> --file <paywall.json> --revision <n> [--publish]
 ```
 
 The module checks it first: a definition that breaks a rule is refused with every problem, and nothing is saved.
 Of two people editing at once, the second is told — the draft moved past the revision they edited — never overwritten.
-What the apps draw changes only when the draft is published (--publish, or purchases:paywalls:publish). A new paywall takes the name its definition gives.
-How a definition is written: palbase purchases:paywalls:guide
+What the apps draw changes only when the draft is published (--publish, or iap:paywalls:publish). A new paywall takes the name its definition gives.
+How a definition is written: palbase iap:paywalls:guide
 
 ```text
-      --file <paywall.json>  the definition, as purchases:paywalls:get wrote it ('-' or none: stdin)
-      --revision <n>         the draft revision it was edited from, as purchases:paywalls:get printed it (0 makes a new paywall)
+      --file <paywall.json>  the definition, as iap:paywalls:get wrote it ('-' or none: stdin)
+      --revision <n>         the draft revision it was edited from, as iap:paywalls:get printed it (0 makes a new paywall)
       --publish              publish the saved draft as the next version
 ```
 
-### `palbase purchases:paywalls:publish`
+### `palbase iap:paywalls:publish`
 
 Publish a paywall's draft as its next version: what the apps asking for a placement that shows it draw from then on
 
 ```sh
-palbase purchases:paywalls:publish <name|id> [--revision <n>]
+palbase iap:paywalls:publish <name|id> [--revision <n>]
 ```
 
 It is checked as the apps will get it: every package must be sold by the catalog, every asset still what was registered.
@@ -4343,57 +4523,57 @@ A draft the same as the newest version publishes nothing new.
       --revision <n>  the draft revision looked at (default: the draft as it is now)
 ```
 
-### `palbase purchases:paywalls:delete`
+### `palbase iap:paywalls:delete`
 
 Delete a paywall and its versions; one a placement or a running experiment shows is not deleted
 
 ```sh
-palbase purchases:paywalls:delete <name|id>
+palbase iap:paywalls:delete <name|id>
 ```
 
-### `palbase purchases:paywalls:schema`
+### `palbase iap:paywalls:schema`
 
 The JSON Schema of a paywall definition: every component, its fields and their bounds, for an editor or an agent to check a file against
 
 ```sh
-palbase purchases:paywalls:schema [--out <palbase/paywalls/paywall.schema.json>]
+palbase iap:paywalls:schema [--out <palbase/paywalls/paywall.schema.json>]
 ```
 
-It is the module's contract, as the CLI was built with it: a file that passes may still be refused for what only the module knows (the catalog's packages, the project's assets) — purchases:paywalls:validate asks it.
-purchases:paywalls:get writes it too, and names it on the first line of each file ("$schema").
+It is the module's contract, as the CLI was built with it: a file that passes may still be refused for what only the module knows (the catalog's packages, the project's assets) — iap:paywalls:validate asks it.
+iap:paywalls:get writes it too, and names it on the first line of each file ("$schema").
 
 ```text
       --out <file>  where under palbase/ (default: palbase/paywalls/paywall.schema.json); --json prints it instead
 ```
 
-### `palbase purchases:paywalls:guide`
+### `palbase iap:paywalls:guide`
 
 How a paywall definition is written by hand — for an agent or a person: the flow, every component and field in the contract's words, three definitions to start from
 
 ```sh
-palbase purchases:paywalls:guide [--out <palbase/paywalls/GUIDE.txt>]
+palbase iap:paywalls:guide [--out <palbase/paywalls/GUIDE.txt>]
 ```
 
-It is made from the definition's JSON Schema the CLI carries (purchases:paywalls:schema), so it says what this version of the CLI checks.
+It is made from the definition's JSON Schema the CLI carries (iap:paywalls:schema), so it says what this version of the CLI checks.
 
 ```text
       --out <file>  write it to a file under palbase/ instead of printing it
 ```
 
-### `palbase purchases:paywalls:assets`
+### `palbase iap:paywalls:assets`
 
 The project's paywall assets: the images, videos, fonts and HTML blocks a definition names `asset:<id>`
 
 ```sh
-palbase purchases:paywalls:assets
+palbase iap:paywalls:assets
 ```
 
-### `palbase purchases:paywalls:assets:upload`
+### `palbase iap:paywalls:assets:upload`
 
 Upload a file to the project's storage and register it for paywalls: it answers the `asset:<id>` a definition names
 
 ```sh
-palbase purchases:paywalls:assets:upload <file> [--kind image|video|font|html]
+palbase iap:paywalls:assets:upload <file> [--kind image|video|font|html]
 ```
 
 The file goes to the project's public bucket paywall-assets (made when there is none; a private one is left as it is, and refuses). The module then reads it there, says what it is by its bytes, and keeps their SHA-256: an app draws what it downloads only when it is that.
@@ -4403,26 +4583,26 @@ An image is PNG, JPEG or WebP, at most 2 MiB; a video MP4 or MOV, 50 MiB; a font
       --kind <kind>  what the file is meant to be: one whose bytes are another kind is refused
 ```
 
-### `palbase purchases:paywalls:assets:delete`
+### `palbase iap:paywalls:assets:delete`
 
 Forget a paywall asset no paywall names, and remove its file from the project's storage
 
 ```sh
-palbase purchases:paywalls:assets:delete <asset:id|id>
+palbase iap:paywalls:assets:delete <asset:id|id>
 ```
 
-### `palbase purchases:paywalls:preview`
+### `palbase iap:paywalls:preview`
 
 A picture of a paywall as an app draws it — the SDK's own renderer, in a headless browser — to look at before it is saved
 
 ```sh
-palbase purchases:paywalls:preview <name|id> | --file <paywall.json> [--platform ios|android|web|macos] [--appearance light|dark] [--locale <tag>] [--text-size default|largest] [--package <key>] [--state tab=<id>,switch=on|off,sheet=<id>] [--full] [--all] [--out <png>] [--html <file>]
+palbase iap:paywalls:preview <name|id> | --file <paywall.json> [--platform ios|android|web|macos] [--appearance light|dark] [--locale <tag>] [--text-size default|largest] [--package <key>] [--state tab=<id>,switch=on|off,sheet=<id>] [--full] [--all] [--out <png>] [--html <file>]
 ```
 
 It draws the file being edited (--file), or a paywall's draft by its name. The picture is the platform's screen: its status bar and home indicator kept clear, as on a phone. --full draws the whole paywall instead: the part that scrolls in full, the header and the footer once.
 Prices are the environment's catalog's, as the platform sells each package; a package it does not sell there is drawn at a sample price, and named. The project's assets are downloaded and drawn when their bytes are the ones registered.
 It needs Chrome, Chromium, Edge or Brave (PALBASE_BROWSER names another; PALBASE_BROWSER_ARGS adds to its arguments, as --no-sandbox in a container that has no sandbox for it). Without one the page is written as HTML to open, and it exits 3; when the browser or the renderer cannot draw it, 4.
---all draws every platform in both appearances at both text sizes into one folder (`palbase/paywalls/.preview/<name>/`). --html writes the page alone, to open in a browser. purchases:paywalls:check measures what is drawn and lists what is wrong.
+--all draws every platform in both appearances at both text sizes into one folder (`palbase/paywalls/.preview/<name>/`). --html writes the page alone, to open in a browser. iap:paywalls:check measures what is drawn and lists what is wrong.
 
 ```text
       --file <paywall.json>      the definition to draw ('-': stdin)
@@ -4440,12 +4620,12 @@ It needs Chrome, Chromium, Edge or Brave (PALBASE_BROWSER names another; PALBASE
       --html <file>              write the page alone, as HTML under palbase/, to open in a browser
 ```
 
-### `palbase purchases:paywalls:check`
+### `palbase iap:paywalls:check`
 
 Measure a paywall as an app draws it, on every screen, and list what is wrong — code — where — what — exiting 1 while anything is
 
 ```sh
-palbase purchases:paywalls:check <name|id> | --file <paywall.json> [--platform …] [--appearance …] [--text-size …] [--locale <tag>] [--package <key>] [--state …]
+palbase iap:paywalls:check <name|id> | --file <paywall.json> [--platform …] [--appearance …] [--text-size …] [--locale <tag>] [--package <key>] [--state …]
 ```
 
 It draws the paywall with the SDK's own renderer in a headless browser — every platform, light and dark, at the default and the largest text size, unless a flag names one — and measures what shows:
@@ -4466,50 +4646,50 @@ It exits 0 when nothing is wrong, 1 when something is (and on a refusal: --json 
       --text-size <size>         default or largest alone (default: both)
 ```
 
-### `palbase purchases:paywalls:templates`
+### `palbase iap:paywalls:templates`
 
 The module's designed paywalls to start from: each one's key, what it looks like, and the packages it sells
 
 ```sh
-palbase purchases:paywalls:templates
+palbase iap:paywalls:templates
 ```
 
-palbase purchases:paywalls:new `<name>` --template `<key>` writes one to a file, selling the catalog's own packages.
+palbase iap:paywalls:new `<name>` --template `<key>` writes one to a file, selling the catalog's own packages.
 
-### `palbase purchases:paywalls:new`
+### `palbase iap:paywalls:new`
 
 Write a new paywall's definition to a file from one of the module's templates, selling the catalog's own packages, its pictures uploaded to the project
 
 ```sh
-palbase purchases:paywalls:new <name> --template <key> [--package <template package>=<product.plan> …] [--out <palbase/paywalls/name.json>]
+palbase iap:paywalls:new <name> --template <key> [--package <template package>=<product.plan> …] [--out <palbase/paywalls/name.json>]
 ```
 
 A template sells pro.monthly, pro.yearly, family.monthly, family.yearly and lifetime.once: each is renamed to the catalog's package that stands for it — the same one when the catalog sells it, else a plan of the same period. One that nothing stands for is said, and stays: --package `pro.yearly=<product>.<plan>` names it.
 A template's pictures are uploaded to the project's public bucket paywall-assets (made when there is none; a private one is left as it is, and nothing is written) and registered; the definition names the project's assets in their place.
-Nothing is saved to the environment but those assets: the file is edited, checked and looked at (purchases:paywalls:validate, :preview, :check), then saved with purchases:paywalls:put `<name>` --file `<file>` --revision 0.
+Nothing is saved to the environment but those assets: the file is edited, checked and looked at (iap:paywalls:validate, :preview, :check), then saved with iap:paywalls:put `<name>` --file `<file>` --revision 0.
 
 ```text
-      --template <key>     the template, as purchases:paywalls:templates lists them
+      --template <key>     the template, as iap:paywalls:templates lists them
       --package <from=to>  a template's package and the catalog's that stands for it (repeat it, or a comma list)
       --out <file>         where under palbase/ (default: palbase/paywalls/<name>.json)
 ```
 
-### `palbase purchases:placements`
+### `palbase iap:placements`
 
 The environment's placements: each one's default paywall, its rules and the experiment running on it
 
 ```sh
-palbase purchases:placements
+palbase iap:placements
 ```
 
-An app asks for a placement by its key (pb.purchases.paywall("onboarding")): an experiment running for everyone there decides first, then the first of its rules that holds for the viewer, then its default paywall.
+An app asks for a placement by its key (pb.iap.paywall("onboarding")): an experiment running for everyone there decides first, then the first of its rules that holds for the viewer, then its default paywall.
 
-### `palbase purchases:placements:set`
+### `palbase iap:placements:set`
 
 Give a placement its default paywall — what it shows whoever none of its rules holds for — making the placement when it is new
 
 ```sh
-palbase purchases:placements:set <placement> --paywall <name|id>
+palbase iap:placements:set <placement> --paywall <name|id>
 ```
 
 The apps asking for it get the paywall's newest version they can draw; a paywall never published is nothing yet: they draw their own until it is.
@@ -4518,20 +4698,20 @@ The apps asking for it get the paywall's newest version they can draw; a paywall
       --paywall <name|id>  the paywall it shows
 ```
 
-### `palbase purchases:placements:delete`
+### `palbase iap:placements:delete`
 
 Forget a placement and its rules: the apps that ask for it draw their own paywall
 
 ```sh
-palbase purchases:placements:delete <placement>
+palbase iap:placements:delete <placement>
 ```
 
-### `palbase purchases:placements:rules:get`
+### `palbase iap:placements:rules:get`
 
 A placement's rules, in the order they are read — each with its conditions, schedule and target — and their revision
 
 ```sh
-palbase purchases:placements:rules:get <placement> [--out <palbase/….json>]
+palbase iap:placements:rules:get <placement> [--out <palbase/….json>]
 ```
 
 --out writes them to a file to edit ({ "rules": [ … ] }); rules:put saves the edit on the revision printed.
@@ -4540,16 +4720,16 @@ palbase purchases:placements:rules:get <placement> [--out <palbase/….json>]
       --out <file>  write the rules to this file, under palbase/
 ```
 
-### `palbase purchases:placements:rules:put`
+### `palbase iap:placements:rules:put`
 
 Replace a placement's rules — all of them, in the order they are to be read — on the revision they were edited from
 
 ```sh
-palbase purchases:placements:rules:put <placement> --file <rules.json> --revision <n>
+palbase iap:placements:rules:put <placement> --file <rules.json> --revision <n>
 ```
 
 The first rule in effect whose conditions all hold for a viewer shows its target: a published paywall, or the variant of the experiment running on the placement for the rules. At most 50 rules of at most 10 conditions.
-A condition reads country, platform, app, app_version, sdk_version, locale, entitlement, first_seen_days or an attribute the app sends; purchases:placements:preview tries rules against a viewer before they are saved (--rules).
+A condition reads country, platform, app, app_version, sdk_version, locale, entitlement, first_seen_days or an attribute the app sends; iap:placements:preview tries rules against a viewer before they are saved (--rules).
 Of two people editing at once, the second is told — the rules moved past the revision they edited — never overwritten.
 
 ```text
@@ -4557,12 +4737,12 @@ Of two people editing at once, the second is told — the rules moved past the r
       --revision <n>       the revision they were edited from, as rules:get printed it
 ```
 
-### `palbase purchases:placements:preview`
+### `palbase iap:placements:preview`
 
 What a placement shows a viewer, and why: the experiment, the rule that decided — every rule, condition by condition — or the default
 
 ```sh
-palbase purchases:placements:preview <placement> [--platform ios|android|web|macos] [--country TR] [--app-version 2.1.0] [--sdk palbase-swift@0.2.0] [--locale tr-TR] [--attr key=value …] [--user <id>] [--rules <file>] [--at <RFC3339>]
+palbase iap:placements:preview <placement> [--platform ios|android|web|macos] [--country TR] [--app-version 2.1.0] [--sdk palbase-swift@0.2.0] [--locale tr-TR] [--attr key=value …] [--user <id>] [--rules <file>] [--at <RFC3339>]
 ```
 
 The viewer is what its app would send. With --user, the user's entitlements and the days since they were first seen are the project's; the user (else an installation) is who an experiment's variant is drawn for.
@@ -4580,12 +4760,12 @@ The viewer is what its app would send. With --user, the user's entitlements and 
       --at <RFC 3339>          the moment (default: now)
 ```
 
-### `palbase purchases:placements:results`
+### `palbase iap:placements:results`
 
 What each of a placement's rules showed and what its viewers did — exposures, viewers, purchases, conversion, revenue — beside the rules since removed, an experiment's variants and the default
 
 ```sh
-palbase purchases:placements:results <placement> [--days <n>] [--window-days <n>] [--sandbox]
+palbase iap:placements:results <placement> [--days <n>] [--window-days <n>] [--sandbox]
 ```
 
 What was shown in the last days (30 unless said, at most 90). The rules come in the order they are read, then the rules the placement no longer has, the variants of an experiment for everyone there, its default.
@@ -4597,39 +4777,39 @@ A purchase counts once, for what its buyer saw first at the placement, within th
       --sandbox          count the stores' test purchases too
 ```
 
-### `palbase purchases:placements:attributes`
+### `palbase iap:placements:attributes`
 
 The attribute keys the environment's apps sent with a placement's paywall, as they said them — suggestions for attribute conditions, the most used first, each with its JSON type and the hours it was seen in
 
 ```sh
-palbase purchases:placements:attributes
+palbase iap:placements:attributes
 ```
 
-An app sends what it says of the viewer as attributes (pb.purchases.paywall(placement, { attributes })); the keys are kept, never the values. They are what apps said, unverified — anyone with the publishable key can send one —: a help to write rules, not a list of what the app defines.
+An app sends what it says of the viewer as attributes (pb.iap.paywall(placement, { attributes })); the keys are kept, never the values. They are what apps said, unverified — anyone with the publishable key can send one —: a help to write rules, not a list of what the app defines.
 A key is seen again at most once an hour, and counted in one more hour as often. At most 200 are kept: past them a new key takes the place of the key seen longest ago once that one was last seen over a day ago, so keys sent once age out.
 
-### `palbase purchases:experiments`
+### `palbase iap:experiments`
 
 The environment's paywall experiments: the placement each runs on, its variants and their shares, and how it ended
 
 ```sh
-palbase purchases:experiments [--placement <placement>]
+palbase iap:experiments [--placement <placement>]
 ```
 
 ```text
       --placement <placement>  one placement's alone
 ```
 
-### `palbase purchases:experiments:start`
+### `palbase iap:experiments:start`
 
 Start an experiment on a placement: each viewer is shown one of 2 to 4 published paywalls, by weight, the same one every time
 
 ```sh
-palbase purchases:experiments:start <placement> --variants <paywall>=<weight>,<paywall>=<weight>[,…] [--audience placement|rules] [--name <name>]
+palbase iap:experiments:start <placement> --variants <paywall>=<weight>,<paywall>=<weight>[,…] [--audience placement|rules] [--name <name>]
 ```
 
 audience placement (the default): everyone at the placement, decided before its rules; the placement is made when new and keeps its default for when the experiment ends.
-audience rules: only the viewers the placement's rules send to it — a rule's target names the experiment (purchases:placements:rules:put).
+audience rules: only the viewers the placement's rules send to it — a rule's target names the experiment (iap:placements:rules:put).
 The first variant is what a stop keeps. One experiment runs on a placement at a time; each variant's paywall must be published.
 
 ```text
@@ -4638,36 +4818,36 @@ The first variant is what a stop keeps. One experiment runs on a placement at a 
       --name <name>                  the experiment's name (default: the placement and its paywalls)
 ```
 
-### `palbase purchases:experiments:stop`
+### `palbase iap:experiments:stop`
 
 Stop a running experiment, at once: what it showed becomes its first variant's paywall; its results stay
 
 ```sh
-palbase purchases:experiments:stop <id|name>
+palbase iap:experiments:stop <id|name>
 ```
 
-### `palbase purchases:experiments:winner`
+### `palbase iap:experiments:winner`
 
 End a running experiment with its winner: the winner's paywall becomes the placement's default — or, with --as-rule, a rule shows it to everyone
 
 ```sh
-palbase purchases:experiments:winner <id|name> --variant <key> [--as-rule]
+palbase iap:experiments:winner <id|name> --variant <key> [--as-rule]
 ```
 
 For an experiment for everyone at the placement, --as-rule rolls the winner out as a live rule at the top of its rules (to narrow later) and leaves the default as it is. For one for the rules, the rules that targeted it show the winner's paywall.
-purchases:experiments:results says which variant leads and whether calling it is sound yet.
+iap:experiments:results says which variant leads and whether calling it is sound yet.
 
 ```text
       --variant <key>  the winning variant's key
       --as-rule        roll the winner out as a rule for everyone, at the top of the placement's rules
 ```
 
-### `palbase purchases:experiments:results`
+### `palbase iap:experiments:results`
 
 What each variant's viewers did — exposures, viewers, purchases, conversion, revenue — each one's chance to convert best, and whether calling the leader is sound
 
 ```sh
-palbase purchases:experiments:results <id|name> [--window-days <n>] [--sandbox]
+palbase iap:experiments:results <id|name> [--window-days <n>] [--sandbox]
 ```
 
 A purchase counts for the first variant its buyer saw, within the window after seeing it (7 days unless said): the purchases the stores confirmed, never what an app reports. Revenue is what was paid to date, renewals in, refunds out.
@@ -4678,22 +4858,22 @@ The chance to win is Bayesian (each variant's rate a Beta distribution): how lik
       --sandbox          count the stores' test purchases too
 ```
 
-### `palbase purchases:charts`
+### `palbase iap:charts`
 
 The purchase charts, each with its definition: what it counts, over which period, and how refunds, product changes, resubscriptions and test purchases count
 
 ```sh
-palbase purchases:charts
+palbase iap:charts
 ```
 
-A chart is read with purchases:charts:get `<chart>`; the figures of now with purchases:charts:overview.
+A chart is read with iap:charts:get `<chart>`; the figures of now with iap:charts:overview.
 
-### `palbase purchases:charts:overview`
+### `palbase iap:charts:overview`
 
 The project's figures at a glance: MRR, active subscriptions and trials now; revenue, new customers and active customers over the last 28 days
 
 ```sh
-palbase purchases:charts:overview [--revenue-type gross|net_of_taxes|proceeds] [--currency <code>] [--sandbox]
+palbase iap:charts:overview [--revenue-type gross|net_of_taxes|proceeds] [--currency <code>] [--sandbox]
 ```
 
 ```text
@@ -4702,23 +4882,23 @@ palbase purchases:charts:overview [--revenue-type gross|net_of_taxes|proceeds] [
       --sandbox              count the stores' test purchases too
 ```
 
-### `palbase purchases:charts:get`
+### `palbase iap:charts:get`
 
 One purchase chart, period by period — a table of its periods and segments, or the module's CSV
 
 ```sh
-palbase purchases:charts:get <chart> [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--resolution day|week|month] [--segment <dimension>] [--filter <dimension:value>]… [--revenue-type <type>] [--currency <code>] [--window-days <n>] [--cohort new_customers|new_paying_customers] [--sandbox] [--csv [--out <palbase/….csv>]]
+palbase iap:charts:get <chart> [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--resolution day|week|month] [--segment <dimension>] [--filter <dimension:value>]… [--revenue-type <type>] [--currency <code>] [--window-days <n>] [--cohort new_customers|new_paying_customers] [--sandbox] [--csv [--out <palbase/….csv>]]
 ```
 
 Days are UTC; from and to are both included, at most two years apart (by default the last 30 days, 12 weeks or 12 months). A period marked `*` is not over: its value may still change.
-Money is in the reporting currency (purchases:charts:settings) at the European Central Bank's rate of the day it was paid; proceeds take off the store's commission and Stripe's fee, which the ledger does not hold: they are estimated, and so are taxes a store did not state.
+Money is in the reporting currency (iap:charts:settings) at the European Central Bank's rate of the day it was paid; proceeds take off the store's commission and Stripe's fee, which the ledger does not hold: they are estimated, and so are taxes a store did not state.
 --csv prints the module's CSV (a row a segment and period) — on the terminal its control characters escaped —; with --out it is written to that file, under palbase/. A cell that would start a spreadsheet formula (=, +, -, @) begins with a quote.
 
 ```text
       --from <YYYY-MM-DD>         the first day
       --to <YYYY-MM-DD>           the last day, included (default today)
       --resolution <resolution>   day (default), week or month
-      --segment <dimension>       split by a dimension (purchases:charts lists them)
+      --segment <dimension>       split by a dimension (iap:charts lists them)
       --filter <dimension:value>  keep only this value, one each --filter: --filter store:app_store --filter country:TR
       --revenue-type <type>       gross (default), net_of_taxes or proceeds
       --currency <code>           the currency to report money in (default: the reporting currency)
@@ -4729,26 +4909,26 @@ Money is in the reporting currency (purchases:charts:settings) at the European C
       --out <file>                with --csv, write it to this file, under palbase/
 ```
 
-### `palbase purchases:charts:settings`
+### `palbase iap:charts:settings`
 
-The charts' settings — the reporting currency, the stores' commission, Stripe's fee and the App Store's fee on web purchases linked out of the app — read, or changed with the flags given
+The charts' settings — the reporting currency, the stores' commission, web payment processing fee and the App Store's fee on web purchases linked out of the app — read, or changed with the flags given
 
 ```sh
-palbase purchases:charts:settings [--currency <code>] [--commission standard|small_business] [--stripe-percent <n>] [--stripe-fixed <amount>] [--stripe-fixed-currency <code>] [--app-store-link-percent <n>] [--app-store-link-days <n>]
+palbase iap:charts:settings [--currency <code>] [--commission standard|small_business] [--web-percent <n>] [--web-fixed <amount>] [--web-fixed-currency <code>] [--app-store-link-percent <n>] [--app-store-link-days <n>]
 ```
 
 Every amount is converted to the reporting currency at the European Central Bank's rate of the day it was paid; the ledger keeps what was paid as it was paid, so a change redraws every chart from its first day.
-The commission is what proceeds take off App Store and Google Play payments: standard (30%; 15% of a subscription's renewals after its first paid year in the App Store, and of every Google Play subscription) or small_business (15%). Stripe's fee — its share and fixed part — is taken off web payments; the ledger does not hold it, so proceeds are estimated.
+The commission is what proceeds take off App Store and Google Play payments: standard (30%; 15% of a subscription's renewals after its first paid year in the App Store, and of every Google Play subscription) or small_business (15%). Web fee — its share and fixed part — is taken off web payments; the ledger does not hold it, so proceeds are estimated.
 The App Store's link fee is what Apple takes of a web purchase bought through a link out of the iOS app in its United States storefront, within the days after the link: nothing today (App Review Guideline 3.1.1(a)), set here once Apple charges one.
 
 ```text
-      --currency <code>               the reporting currency, one the European Central Bank published a rate for in the last ten days
-      --commission <commission>       standard (30%) or small_business (15%)
-      --stripe-percent <n>            Stripe's share of a payment, in percent (2.9)
-      --stripe-fixed <amount>         Stripe's fixed fee of a payment (0.30)
-      --stripe-fixed-currency <code>  the currency of Stripe's fixed fee (USD)
-      --app-store-link-percent <n>    the App Store's share of a web purchase linked out of the iOS app, in percent (0)
-      --app-store-link-days <n>       for how many days after the link a purchase owes it (7)
+      --currency <code>             the reporting currency, one the European Central Bank published a rate for in the last ten days
+      --commission <commission>     standard (30%) or small_business (15%)
+      --web-percent <n>             web payment provider share of a payment, in percent (2.9)
+      --web-fixed <amount>          web payment provider fixed fee per payment (0.30)
+      --web-fixed-currency <code>   currency of the web fixed fee (USD)
+      --app-store-link-percent <n>  the App Store's share of a web purchase linked out of the iOS app, in percent (0)
+      --app-store-link-days <n>     for how many days after the link a purchase owes it (7)
 ```
 
 ## `journeys`
@@ -4801,7 +4981,7 @@ Walk a made-up person through a journey — a file, or a key — as it would run
 palbase journeys:simulate <file|key> [--user <id>] [--property name=value]… [--audience <id>]… [--timezone <zone>] [--event name@PT2H]… [--start <time>]
 ```
 
-The person enters at --start (now unless it says) and does each --event a while after entering: --event purchases.purchase.completed@P1D.
+The person enters at --start (now unless it says) and does each --event a while after entering: --event iap.purchase.completed@P1D.
 Their --property values are what branches read, --audience the audiences they are in, --timezone where a wait until a time of day is.
 
 ```text

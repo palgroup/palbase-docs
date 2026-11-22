@@ -14,7 +14,7 @@ A **coupon** is a code that opens an offer to whoever types it: a code many shar
 
 ## Offers are part of the catalog
 
-An offer is written in the catalog's `offers`, and goes to the stores with the rest of it when a plan is confirmed ([Catalog](https://palbase.studio/docs/purchases/catalog#bringing-the-stores-to-the-catalog)): a discount or a trial becomes the App Store's **promotional offer**, Google Play's **developer-determined offer** (tagged `palbase`) and a **Stripe coupon**, each by the offer's key. In Studio, **Purchases › Offers** adds and edits them, and shows how many customers were shown each and took it, by store.
+An offer is written in the catalog's `offers`, and goes to the stores with the rest of it when a plan is confirmed ([Catalog](https://palbase.studio/docs/iap/catalog#bringing-the-stores-to-the-catalog)): a discount or a trial becomes the App Store's **promotional offer**, Google Play's **developer-determined offer** (tagged `palbase`) and a **Stripe coupon**, each by the offer's key. In Studio, **Purchases › Offers** adds and edits them, and shows how many customers were shown each and took it, by store.
 
 ```json
 {
@@ -59,19 +59,19 @@ import { createClient } from "palbase/web";
 const pb = createClient({ url: "https://<ref>.palbase.studio", publishableKey: "pb_<ref>_c…" });
 
 export async function takeBestOffer(): Promise<string | null> {
-  const offers = await pb.purchases.offers();
+  const offers = await pb.iap.offers();
   const offer = offers[0];
   if (!offer) return null;
-  await pb.purchases.offerShown(offer.key); // counted the first time
+  await pb.iap.offerShown(offer.key); // counted the first time
 
   if (offer.kind === "grant") {
-    const grant = await pb.purchases.claimOffer(offer.key);
+    const grant = await pb.iap.claimOffer(offer.key);
     return `${grant.entitlement} until ${grant.expires_at}`;
   }
   // A discount or a trial is bought with the offer, on one of its web plans.
   const plan = offer.web?.plans[0];
   if (!offer.product || !plan) return null;
-  return pb.purchases.checkout({
+  return pb.iap.checkout({
     product: offer.product,
     plan,
     offer: offer.key,
@@ -83,7 +83,7 @@ export async function takeBestOffer(): Promise<string | null> {
 
 | | Web | iOS |
 |---|---|---|
-| The offers | `pb.purchases.offers()` | `pb.purchases.offers()` |
+| The offers | `pb.iap.offers()` | `pb.iap.offers()` |
 | Counted as shown | `offerShown(key)` | `offerShown(_:)` |
 | Buy with a discount or a trial | `checkout({ …, offer })` | `purchase(_:offer:)` |
 | Claim a grant | `claimOffer(key)` | `claim(_:)` |
@@ -91,9 +91,9 @@ export async function takeBestOffer(): Promise<string | null> {
 
 A paywall's package sold with an offer the customer may take shows the offer's price as `{{offer_price}}`, and its purchase button buys with it.
 
-**In the App Store**, a promotional offer is bought under Apple's signature for this customer, which the environment makes with the In-App Purchase key when the app asks — the app holds no key. The signature names an App Store transaction of the Apple account the app runs on, so it buys the offer for that Apple account alone: passed to someone else, it buys nothing. The iOS SDK sends the newest transaction of the group StoreKit holds on the device; without one, the customer's own newest subscription the environment knows is named. Apple gives a promotional offer only to a customer who subscribes, or subscribed, in the group: anyone else's purchase fails as `ineligibleForOffer`, and a customer with neither is signed none (`no_app_store_purchase`). On an Apple ID shared among the app's accounts, the second account is signed on the first's subscription, and what it buys with the offer is its own ([Customers](https://palbase.studio/docs/purchases/customers#restores-and-moved-purchases)). In Xcode, the StoreKit configuration's own Subscription Offers Key signs it ([Test Apple Purchases](https://palbase.studio/docs/purchases/testing-apple)). **On Google Play**, the Android SDK buys a plan with its introductory offer when Play says the user may take it. **On the web**, the checkout carries the offer's coupon.
+**In the App Store**, a promotional offer is bought under Apple's signature for this customer, which the environment makes with the In-App Purchase key when the app asks — the app holds no key. The signature names an App Store transaction of the Apple account the app runs on, so it buys the offer for that Apple account alone: passed to someone else, it buys nothing. The iOS SDK sends the newest transaction of the group StoreKit holds on the device; without one, the customer's own newest subscription the environment knows is named. Apple gives a promotional offer only to a customer who subscribes, or subscribed, in the group: anyone else's purchase fails as `ineligibleForOffer`, and a customer with neither is signed none (`no_app_store_purchase`). On an Apple ID shared among the app's accounts, the second account is signed on the first's subscription, and what it buys with the offer is its own ([Customers](https://palbase.studio/docs/iap/customers#restores-and-moved-purchases)). In Xcode, the StoreKit configuration's own Subscription Offers Key signs it ([Test Apple Purchases](https://palbase.studio/docs/iap/testing-apple)). **On Google Play**, the Android SDK buys a plan with its introductory offer when Play says the user may take it. **On the web**, the checkout carries the offer's coupon.
 
-A grant is claimed with an account: a guest is refused (`403 account_required`) unless a coupon opened the offer to it. An offer taken once is not taken again (`409 offer_taken`); one that is not the customer's to take now is `403 offer_not_open`. Taking one emits `purchases.offer.redeemed`.
+A grant is claimed with an account: a guest is refused (`403 account_required`) unless a coupon opened the offer to it. An offer taken once is not taken again (`409 offer_taken`); one that is not the customer's to take now is `403 offer_not_open`. Taking one emits `iap.offer.redeemed`.
 
 ## Coupons
 
@@ -106,12 +106,12 @@ import { createServer } from "palbase/server";
 const palbase = createServer({ url: process.env.PALBASE_URL!, secretKey: process.env.PALBASE_SECRET_KEY! });
 
 // One code anyone may type, 500 times at most.
-await palbase.purchases.createCoupon({
+await palbase.iap.createCoupon({
   body: { key: "launch", name: "Launch week", kind: "palbase", offer: "long_trial", code: "LAUNCH26", max_redemptions: 500 },
 });
 
 // 1,000 codes of one use each, to give out.
-await palbase.purchases.createCoupon({
+await palbase.iap.createCoupon({
   body: { key: "partners", name: "Partner codes", kind: "palbase", offer: "pro_week", one_time_codes: 1000, signed_in_only: true },
 });
 ```
@@ -124,7 +124,7 @@ await palbase.purchases.createCoupon({
 | `signed_in_only` | A guest cannot redeem it. |
 | `expires_at` | When it ends. An App Store batch's codes must end. |
 
-`listCouponCodes` (`GET /purchases/coupons/{coupon_key}/codes`) lists a batch's codes — whom each was given to, who redeemed it — and answers a CSV file to hand out when asked for `text/csv`. `revokeCoupon` ends one: no code of it is redeemed from then on, and what was redeemed stays. An App Store coupon's `apple.state` says how App Store Connect took it: `pending`, `applied` or `failed`.
+`listCouponCodes` (`GET /iap/coupons/{coupon_key}/codes`) lists a batch's codes — whom each was given to, who redeemed it — and answers a CSV file to hand out when asked for `text/csv`. `revokeCoupon` ends one: no code of it is redeemed from then on, and what was redeemed stays. An App Store coupon's `apple.state` says how App Store Connect took it: `pending`, `applied` or `failed`.
 
 ### Redeeming a code
 
@@ -138,7 +138,7 @@ const pb = createClient({ url: "https://<ref>.palbase.studio", publishableKey: "
 
 export async function redeemCode(code: string): Promise<string> {
   try {
-    const { offer, grant } = await pb.purchases.redeemCoupon(code);
+    const { offer, grant } = await pb.iap.redeemCoupon(code);
     return grant ? `${grant.entitlement} is yours` : `${offer.name} is yours to take`;
   } catch (e) {
     if (e instanceof PalbaseError && e.code === "redeem_at_app_store") return "Redeem this code in the App Store";
@@ -159,11 +159,11 @@ A grant is given at once; a discount or a trial is the customer's to buy from th
 | `422 redeem_at_app_store` | An App Store offer code: redeemed in the App Store. |
 | `429 too_many_attempts` | Too many codes tried by this customer or from this network: try again after `retryAfter`. |
 
-Redeeming emits `purchases.coupon.redeemed`, and `purchases.offer.redeemed` for a grant.
+Redeeming emits `iap.coupon.redeemed`, and `iap.offer.redeemed` for a grant.
 
 ## Related
 
-- [Catalog](https://palbase.studio/docs/purchases/catalog): where offers are written
-- [Paywalls](https://palbase.studio/docs/purchases/paywalls): packages sold with an offer
-- [Web](https://palbase.studio/docs/purchases/web) · [App Store](https://palbase.studio/docs/purchases/app-store) · [Google Play](https://palbase.studio/docs/purchases/google-play)
+- [Catalog](https://palbase.studio/docs/iap/catalog): where offers are written
+- [Paywalls](https://palbase.studio/docs/iap/paywalls): packages sold with an offer
+- [Web](https://palbase.studio/docs/iap/web) · [App Store](https://palbase.studio/docs/iap/app-store) · [Google Play](https://palbase.studio/docs/iap/google-play)
 - [Web Analytics](https://palbase.studio/docs/web/analytics): the audiences an offer is for

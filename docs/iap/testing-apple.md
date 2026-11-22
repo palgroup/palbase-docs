@@ -23,7 +23,7 @@ In Studio, **Purchases › App Store** shows the environment's In-App Purchase k
 **1. Make the StoreKit file from your catalog.**
 
 ```sh
-palbase purchases:storekit -E staging
+palbase iap:storekit -E staging
 ```
 
 It reads the environment's iOS offerings and writes one file, `palbase/environments/staging/<app>.storekit`: every iOS plan as the App Store product its store id names, with its text in each language the catalog has, its price, its subscription group and level, and its introductory offer. Nothing outside `palbase/` is written.
@@ -35,7 +35,7 @@ It reads the environment's iOS offerings and writes one file, `palbase/environme
 **4. Let the environment take Xcode's purchases.**
 
 ```sh
-palbase purchases:apple:xcode-certificate ~/Desktop/StoreKitTestCertificate.cer -E staging
+palbase iap:apple:xcode-certificate ~/Desktop/StoreKitTestCertificate.cer -E staging
 ```
 
 The environment now takes purchases signed with that certificate and records them as test purchases. Studio does the same under **Purchases › App Store › Xcode StoreKit Testing**. On the production environment both refuse.
@@ -43,12 +43,12 @@ The environment now takes purchases signed with that certificate and records the
 **5. Run the app and buy.** Xcode shows its own payment sheet; no Apple account is asked for. The customer has the entitlement as soon as the app reports the purchase:
 
 ```sh
-palbase purchases:customer:get <user id> -E staging
+palbase iap:customer:get <user id> -E staging
 ```
 
 ### When the catalog changes
 
-Run `palbase purchases:storekit -E staging` again. The same catalog makes the same file. What you set from Xcode's **Editor** menu while the file is open (the storefront, the subscription renewal rate, Ask to Buy, an error to force) is kept.
+Run `palbase iap:storekit -E staging` again. The same catalog makes the same file. What you set from Xcode's **Editor** menu while the file is open (the storefront, the subscription renewal rate, Ask to Buy, an error to force) is kept.
 
 The prices are in one storefront's currency: the price you entered, or the amount you set by hand for that currency. `--storefront DEU` makes the file for another storefront; a plan with no price in its currency keeps its own amount, and the command says which.
 
@@ -71,7 +71,7 @@ Studio connects it under **App Distribution**.
 **2. Connect the In-App Purchase key.** In the same place, the **In-App Purchase** tab, make a key. The environment verifies purchases and reads subscriptions with it.
 
 ```sh
-palbase purchases:apple:connect --key-file SubscriptionKey_XYZ987WVU6.p8 -E staging
+palbase iap:apple:connect --key-file SubscriptionKey_XYZ987WVU6.p8 -E staging
 ```
 
 The issuer is the one step 1 connected; the key's id is read from the file's name. Studio connects it under **Purchases › App Store**. Both keys go from your computer straight to the environment, never through Studio.
@@ -79,8 +79,8 @@ The issuer is the one step 1 connected; the key's id is read from the file's nam
 **3. Put the catalog in App Store Connect.** In Studio, **Purchases › Stores**, plan the stores and confirm the plan; or from a terminal:
 
 ```sh
-palbase purchases:catalog:plan -E staging
-palbase purchases:catalog:confirm <plan id> --hash <hash> -E staging
+palbase iap:catalog:plan -E staging
+palbase iap:catalog:confirm <plan id> --hash <hash> -E staging
 ```
 
 Your products, subscription groups, prices and introductory offers are created in App Store Connect, and what Apple holds of each is shown under the plan. Apple can take up to an hour to show a new product in the sandbox.
@@ -88,7 +88,7 @@ Your products, subscription groups, prices and introductory offers are created i
 **4. Check everything is ready.**
 
 ```sh
-palbase purchases:doctor -E staging
+palbase iap:doctor -E staging
 ```
 
 Each line is one check: ✓ holds, ✗ does not, and `i` only says how things are. Under each ✗ is the command or the place in App Store Connect that fixes it. Run it again until every ✗ is gone. Studio's **Purchases › App Store** shows the same list.
@@ -114,7 +114,7 @@ To buy the same products again, or to be eligible for an introductory offer agai
 palbase stores:apple:sandbox-testers:clear tester@example.com -E staging
 ```
 
-Then sign out of the sandbox account on the device and in again. `--interrupt on` makes the tester's next purchases stop halfway, as when a bank asks for a confirmation. Studio's **Purchases › App Store › Sandbox testers** changes the same settings and clears the same history.
+Then sign out of the sandbox account on the device and in again. `--interrupt on` makes the tester's next purchases stop halfway, as when a bank asks for a confirmation. Studio's **In-App Purchases › App Store › Sandbox testers** changes the same settings and clears the same history.
 
 The device has the same settings under **Settings › Developer › Sandbox Apple Account › Manage**.
 
@@ -128,11 +128,11 @@ The same code runs in both ways; StoreKit decides where the purchase goes. `pb` 
 
 ```swift
 import Palbase
-import PalbasePurchases
+import PalbaseIAP
 import SwiftUI
 
 struct Paywall: View {
-    @State private var products: [Purchases.StoreProduct] = []
+    @State private var products: [IAP.StoreProduct] = []
     @State private var isPro = false
     @State private var message = ""
 
@@ -144,22 +144,22 @@ struct Paywall: View {
                 }
             }
             Button("Restore purchases") {
-                Task { isPro = (try? await pb.purchases.restore())?.isEntitled("pro") ?? isPro }
+                Task { isPro = (try? await pb.iap.restore())?.isEntitled("pro") ?? isPro }
             }
             Text(isPro ? "Pro is on" : message)
         }
-        .task { products = (try? await pb.purchases.products())?.products ?? [] }
+        .task { products = (try? await pb.iap.products())?.products ?? [] }
         .task {
             // Kept current: a purchase on another device, a renewal, a refund.
-            for await info in pb.purchases.customerInfoUpdates {
+            for await info in pb.iap.customerInfoUpdates {
                 isPro = info?.isEntitled("pro") ?? false
             }
         }
     }
 
-    private func buy(_ product: Purchases.StoreProduct) async {
+    private func buy(_ product: IAP.StoreProduct) async {
         do {
-            switch try await pb.purchases.purchase(product) {
+            switch try await pb.iap.purchase(product) {
             case .purchased(let info): isPro = info.isEntitled("pro")
             case .alreadyEntitled(_, let entitlement, _): message = "\(entitlement) is already yours, bought elsewhere"
             case .pending: message = "Waiting for approval"
@@ -189,7 +189,7 @@ export class PremiumController {
   @Get("")
   async premium(@User() user: UserT): Promise<{ pro: true }> {
     // A user who has bought nothing is read as a customer with nothing.
-    const { data } = await Palbase.purchases.getCustomer({ path: { customer_id: user.id } });
+    const { data } = await Palbase.iap.getCustomer({ path: { customer_id: user.id } });
     if (!isEntitled(data, "pro")) throw new Forbidden("Pro is needed", "entitlement_required");
     return { pro: true };
   }
@@ -203,14 +203,14 @@ And act when something changes, with a typed event:
 import { Log, On, type PlatformEvent } from "palbase/backend";
 
 export class PurchaseEvents {
-  @On("purchases.entitlement.changed")
-  changed(event: PlatformEvent<"purchases.entitlement.changed">): void {
+  @On("iap.entitlement.changed")
+  changed(event: PlatformEvent<"iap.entitlement.changed">): void {
     const { customer_id, entitlement, active, is_sandbox } = event.data;
     Log.info("entitlement changed", { customer_id, entitlement, active, test: is_sandbox });
   }
 
-  @On("purchases.refund.changed")
-  refunded(event: PlatformEvent<"purchases.refund.changed">): void {
+  @On("iap.refund.changed")
+  refunded(event: PlatformEvent<"iap.refund.changed">): void {
     Log.info("payment taken back", { customer_id: event.data.customer_id, share: event.data.share_milli / 1000 });
   }
 }
@@ -232,17 +232,17 @@ A test purchase is marked: `is_sandbox` is `true` in its events and in what the 
 
 | What you see | Why, and what to do |
 |---|---|
-| `products()` is empty in Xcode | The scheme has no StoreKit Configuration, or the file is older than the catalog: run `palbase purchases:storekit` again. |
+| `products()` is empty in Xcode | The scheme has no StoreKit Configuration, or the file is older than the catalog: run `palbase iap:storekit` again. |
 | The purchase works in Xcode but the customer has nothing | The environment does not take Xcode's certificate yet: step A4. |
-| `products()` is empty on a device | `palbase purchases:doctor` names it: the catalog is not in App Store Connect yet, an agreement is not signed, or the product is less than an hour old. |
+| `products()` is empty on a device | `palbase iap:doctor` names it: the catalog is not in App Store Connect yet, an agreement is not signed, or the product is less than an hour old. |
 | No **[Environment: Sandbox]** on the sheet | The scheme still points at the `.storekit` file: set it to **None** (B6). |
 | The tester cannot buy again | Clear its history (`palbase stores:apple:sandbox-testers:clear`), then sign out and in on the device. |
 
 ## Related
 
-- [App Store](https://palbase.studio/docs/purchases/app-store): the keys, the server notifications, and what the environment does with each transaction
-- [Catalog](https://palbase.studio/docs/purchases/catalog): the products the StoreKit file is made from
-- [Entitlements, Credits & Limits](https://palbase.studio/docs/purchases/entitlements): `CustomerInfo`, `isEntitled` and every `purchases.*` event
+- [App Store](https://palbase.studio/docs/iap/app-store): the keys, the server notifications, and what the environment does with each transaction
+- [Catalog](https://palbase.studio/docs/iap/catalog): the products the StoreKit file is made from
+- [Entitlements, Credits & Limits](https://palbase.studio/docs/iap/entitlements): `CustomerInfo`, `isEntitled` and every `purchases.*` event
 - [Event Hooks](https://palbase.studio/docs/backend/hooks): `@On` handlers in a `palbase/backend` app
 - [Webhooks](https://palbase.studio/docs/server/webhooks): the same events in any server, with `palbase/server`
 - [Server SDK Overview](https://palbase.studio/docs/server/overview): `createServer`, refusals and retries

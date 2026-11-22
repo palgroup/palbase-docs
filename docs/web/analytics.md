@@ -159,7 +159,7 @@ A rule is one to twenty conditions, every one of which holds (`match: "all"`, un
 
 | Condition | Picks a person who… |
 |---|---|
-| `event` | did (`did: true`, `at_least` times, 1 unless said) or did not (`did: false`) an event in the last `within`: `amount` `minutes`, `hours` or `days`, a year at most. The event is an app's own or one of Palbase's (`purchases.purchase.completed`, `notification.opened` …). |
+| `event` | did (`did: true`, `at_least` times, 1 unless said) or did not (`did: false`) an event in the last `within`: `amount` `minutes`, `hours` or `days`, a year at most. The event is an app's own or one of Palbase's (`iap.purchase.completed`, `notification.opened` …). |
 | `property` | has a property: `eq`, `neq`, `gt`, `gte`, `lt`, `lte` (numbers), `contains` (text, any case), `set`, `not_set`. |
 | `place` | was last in a `country`, `region` or `city`: `eq`, `neq`, or `in` a list of up to 50. |
 | `platform` | last sent from `ios`, `android` or `web`: `eq`, `neq` or `in`. |

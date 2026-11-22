@@ -145,7 +145,7 @@ fun InboxScreen() {
 }
 ```
 
-`InboxView(client, modifier, locale, onOpen, onCustom, onUnread, empty, deleteLabel, onOffer, onOfferError)` takes the language to write it in (the person's chosen one unless given), what a tap on a message's link does (the system opens it unless given), a designed card's own buttons, the unread count as it changes, what an empty inbox says, and a designed card's offer button (the purchases module takes the offer unless given, once the app uses `pb.purchases`).
+`InboxView(client, modifier, locale, onOpen, onCustom, onUnread, empty, deleteLabel, onOffer, onOfferError)` takes the language to write it in (the person's chosen one unless given), what a tap on a message's link does (the system opens it unless given), a designed card's own buttons, the unread count as it changes, what an empty inbox says, and a designed card's offer button (the IAP module takes the offer unless given, once the app uses `pb.iap`).
 
 An app that draws its own uses `pb.notify.inbox`:
 

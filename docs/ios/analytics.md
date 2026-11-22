@@ -69,12 +69,12 @@ Each one can be turned off in the configuration: `PalbaseConfiguration.environme
 
 ## Performance
 
-While `performance` is granted, the SDK times on its own, with no code of the app's:
+While `performance` is granted, the SDK times on its own:
 
-- **Each request the app's `URLSession` makes** — the project's, its backend's and every other service's; async, completion handler or delegate alike — as a `network` sample: its method, its address as its route (no query, an id in the path as `:id`), its status and how long it took. What analytics itself sends is not timed, nor a request the app cancelled, nor a web socket.
+- **Every request the SDK makes** — to the project's modules and to your backend through `HTTPTransport` — as a `network` sample: its method, its address as its route (no query, an id in the path as `:id`), its status and how long it took. What analytics itself sends is not timed, nor a request the app cancelled, nor a web socket. To time the app's own `URLSession` requests too (the SDK does not swizzle `URLSession`), use `pb.analytics.session(configuration:)` or wrap your delegate with `pb.analytics.urlSessionDelegate(wrapping:)`.
 - **How long the launch took**, from the process's start to the app before the person, as an `app_start` sample named `cold`. A launch the system began ahead of the person (prewarming), or one begun in the background (a push, a fetch) and opened later, is not one.
 
-Before `performance` is granted nothing of the app's networking is touched. Each is turned off in the configuration: `AnalyticsOptions(network: false, appStart: false)`.
+Before `performance` is granted nothing is recorded. Each is turned off in the configuration: `AnalyticsOptions(network: false, appStart: false)`.
 
 The SDK's privacy manifest declares these timings as **Performance Data**, linked to the user, for analytics, so Xcode's Privacy Report lists it. An app whose users can grant `performance` adds Performance Data to its App Privacy answers in App Store Connect.
 

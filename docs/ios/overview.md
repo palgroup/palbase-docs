@@ -36,7 +36,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.22.2")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.24.0")
 ```
 
 | Product | What it is |
@@ -48,9 +48,11 @@ In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/pa
 | `PalbaseNotify` | [Push](https://palbase.studio/docs/ios/notifications): this install's token, preferences, topics, the inbox, in-app messages. |
 | `PalbaseNotificationService` | The app's notification service extension: each push reported delivered, its picture shown. |
 | `PalbaseStorage` | [Files](https://palbase.studio/docs/ios/storage): uploads and downloads at URLs your backend signs. |
-| `PalbasePurchases` | [Buying in the App Store](https://palbase.studio/docs/ios/purchases), and what the signed-in customer has bought in any store. |
+| `PalbaseIAP` | [Buying in the App Store](https://palbase.studio/docs/ios/iap), and what the signed-in customer has bought in any store. |
+| `PalbasePayments` | [Direct payments](https://palbase.studio/docs/payments/ios-sdk) (Stripe, iyzico, Masterpass, saved cards, subscriptions, wallets & QR). |
+| `PalbasePaymentsUI` | Optional drop-in PCI-DSS SAQ-A SwiftUI checkout (`PaymentSheet`, `WalletTopUpSheet`, `SavedCardsView`, `SpendQRView`). |
 | `PalbaseUI` | The renderer of the screens a project designs (paywalls, in-app messages, inbox cards), in SwiftUI. The two products below bring it. |
-| `PalbasePurchasesUI` | The paywall the project publishes, drawn natively. |
+| `PalbaseIAPUI` | The paywall the project publishes, drawn natively. |
 | `PalbaseNotifyUI` | In-app messages shown over the app, and the person's inbox, drawn natively. |
 | `PalbaseDebug` | The [in-app debug console](https://palbase.studio/docs/ios/debug-console)'s screens. |
 | `Palbe` | What the [backend clients](https://palbase.studio/docs/ios/backend-calls) `palbase apps:sync` generates compile against. Link it when the project has a backend. |
@@ -196,10 +198,10 @@ palbase apps:sync shop-mac
 
 Four things are the Mac's own:
 
-- **The keychain.** A Mac has two. An app signed with an App ID (one a provisioning profile gives) keeps the SDK's items in the data protection keychain, the one iOS has: in the configuration's `keychain_group` when it has the **Keychain Sharing** capability, which its extensions need to share the session, and in its App ID's own group otherwise. An app signed without an App ID (Developer ID with no profile) has only the person's login keychain, whose names are every app's: the SDK keeps its items there under a service of the app's own, `io.palbase.sdk (<bundle id>)`, so no two apps read or overwrite each other's. An item there is its signature's as well: macOS lets the signature that made it read it, and asks the person for their keychain's password when any other does. So the release, signed with a Developer ID, keeps that name from version to version, and a build signed otherwise (one from Xcode, which carries the release's bundle id) keeps its own, `io.palbase.sdk (<bundle id>, development)`: both run on one Mac and neither asks.
+- **The keychain.** A Mac has two. An app signed with an App ID (one a provisioning profile gives) keeps the SDK's items in the data protection keychain, the one iOS has: in the configuration's `keychain_group` when it has the **Keychain Sharing** capability, which its extensions need to share the session, and in its App ID's own group otherwise. An app signed without an App ID (Developer ID with no profile) has only the person's login keychain, whose names are every app's: the SDK keeps its items there under a service of the app's own, `studio.palbase.sdk (<bundle id>)`, so no two apps read or overwrite each other's. An item there is its signature's as well: macOS lets the signature that made it read it, and asks the person for their keychain's password when any other does. So the release, signed with a Developer ID, keeps that name from version to version, and a build signed otherwise (one from Xcode, which carries the release's bundle id) keeps its own, `studio.palbase.sdk (<bundle id>, development)`: both run on one Mac and neither asks.
 - **Renewal.** A Mac app is in the foreground while it runs: the access token is renewed ahead of its end while the Mac is awake, and after it wakes, a token that lapsed in its sleep is renewed before the next call goes.
 - **Consent.** A choice that could not be sent is sent again when the Mac wakes, as it is when an iPhone's app returns to the foreground.
-- **Its platform.** A Mac app is `macos` wherever Palbase asks the app's platform (`PalbaseClient.platform`): a placement's and a flag's platform rules, a paywall's and a message's `visible.platform`, a web checkout's source — so the [charts](https://palbase.studio/docs/purchases/charts) count its web purchases on the Mac. It buys through the App Store as an iPhone app does, on the `ios` channel.
+- **Its platform.** A Mac app is `macos` wherever Palbase asks the app's platform (`PalbaseClient.platform`): a placement's and a flag's platform rules, a paywall's and a message's `visible.platform`, a web checkout's source — so the [charts](https://palbase.studio/docs/iap/charts) count its web purchases on the Mac. It buys through the App Store as an iPhone app does, on the `ios` channel.
 
 ### A session the app keeps itself
 

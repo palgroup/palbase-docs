@@ -9,9 +9,9 @@ In Studio, **Purchases › Charts** shows them, each with its definition, and th
 ## Quick example
 
 ```sh
-palbase purchases:charts:overview -E production
-palbase purchases:charts:get mrr --resolution month --segment store -E production
-palbase purchases:charts:get revenue --from 2026-09-01 --to 2026-09-30 --filter country:TR --revenue-type proceeds --csv --out palbase/revenue-tr.csv -E production
+palbase iap:charts:overview -E production
+palbase iap:charts:get mrr --resolution month --segment store -E production
+palbase iap:charts:get revenue --from 2026-09-01 --to 2026-09-30 --filter country:TR --revenue-type proceeds --csv --out palbase/revenue-tr.csv -E production
 ```
 
 The overview is the project's figures at a glance: MRR, active subscriptions and active trials now; revenue, new customers and active customers over the last 28 days. From a server:
@@ -22,7 +22,7 @@ import { createServer } from "palbase/server";
 
 const palbase = createServer({ url: process.env.PALBASE_URL!, secretKey: process.env.PALBASE_SECRET_KEY! });
 
-const { data } = await palbase.purchases.getChart({
+const { data } = await palbase.iap.getChart({
   path: { chart: "mrr" },
   query: { resolution: "month", segment: "store" },
 });
@@ -31,7 +31,7 @@ console.log(data);
 
 ## The charts
 
-`palbase purchases:charts` lists every chart with its definition — what it counts, over which period, and how refunds, product changes, resubscriptions and test purchases count — and the dimensions it is split by.
+`palbase iap:charts` lists every chart with its definition — what it counts, over which period, and how refunds, product changes, resubscriptions and test purchases count — and the dimensions it is split by.
 
 | | Charts |
 |---|---|
@@ -73,20 +73,20 @@ The same request within a minute is answered from a cache, which a change of the
 How the charts count money:
 
 ```sh
-palbase purchases:charts:settings --currency EUR --commission small_business -E production
+palbase iap:charts:settings --currency EUR --commission small_business -E production
 ```
 
 | Flag | Setting | Default | What it is |
 |---|---|---|---|
 | `--currency` | `reporting_currency` | `USD` | The currency the charts report money in: one the European Central Bank published a rate for in the last ten days. Changing it redraws every chart from its first day. |
 | `--commission` | `store_commission` | `standard` | What proceeds take off App Store and Google Play payments: `standard` (30%; 15% of a subscription's renewals after its first paid year in the App Store, and of every Google Play subscription) or `small_business` (15%: the App Store Small Business Program, Google Play's first million). |
-| `--stripe-percent`, `--stripe-fixed`, `--stripe-fixed-currency` | `stripe_fee_bps`, `stripe_fee_fixed_micros`, `stripe_fee_fixed_currency` | 2.9% + 0.30 USD | Stripe's fee of a web payment, its share and its fixed part. With [Managed Payments](https://palbase.studio/docs/purchases/web#tax), add its 3.5%. |
+| `--stripe-percent`, `--stripe-fixed`, `--stripe-fixed-currency` | `web_fee_bps`, `web_fee_fixed_micros`, `web_fee_fixed_currency` | 2.9% + 0.30 USD | Stripe's fee of a web payment, its share and its fixed part. With [Managed Payments](https://palbase.studio/docs/iap/web#tax), add its 3.5%. |
 | `--app-store-link-percent`, `--app-store-link-days` | `app_store_link_fee_bps`, `app_store_link_attribution_days` | 0%, 7 days | What the App Store takes of a web purchase bought through a link out of an iOS app in its United States storefront, and for how many days after the link a purchase owes it. Nothing today; set it once Apple charges one. |
 
-Without flags, the command prints the settings. They are the purchases module's settings, also read and changed in Studio (**Purchases › Settings**) and with `updateSettings` ([Customers › Settings](https://palbase.studio/docs/purchases/customers#settings)).
+Without flags, the command prints the settings. They are the purchases module's settings, also read and changed in Studio (**Purchases › Settings**) and with `updateSettings` ([Customers › Settings](https://palbase.studio/docs/iap/customers#settings)).
 
 ## Related
 
-- [Customers](https://palbase.studio/docs/purchases/customers): one customer's purchases
-- [Paywalls](https://palbase.studio/docs/purchases/paywalls): a placement's and an experiment's own results
-- CLI: [`purchases:charts:get`](https://palbase.studio/docs/cli/reference#palbase-purchaseschartsget), [`purchases:charts:settings`](https://palbase.studio/docs/cli/reference#palbase-purchaseschartssettings)
+- [Customers](https://palbase.studio/docs/iap/customers): one customer's purchases
+- [Paywalls](https://palbase.studio/docs/iap/paywalls): a placement's and an experiment's own results
+- CLI: [`iap:charts:get`](https://palbase.studio/docs/cli/reference#palbase-iapchartsget), [`iap:charts:settings`](https://palbase.studio/docs/cli/reference#palbase-iapchartssettings)

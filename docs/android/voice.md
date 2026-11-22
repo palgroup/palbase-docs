@@ -21,8 +21,8 @@ export class VoiceController {
   // The app's WebRTC offer in; the voice's id and the provider's answer out.
   @Post("/{chatId}")
   async start(@Param("chatId") chatId: string, @Body(Offer) body: z.infer<typeof Offer>, @User() user: UserT): Promise<{ id: string; sdp: string }> {
-    const voice = await Palbase.ai.chats.voice.start(chatId, { sdp: body.sdp, as: user.id });
-    return { id: voice.id, sdp: voice.sdp };
+    const voice = await Palbase.ai.chats.voice.start(chatId, { transport: { type: "webrtc", sdp: body.sdp }, as: user.id });
+    return { id: voice.id, sdp: voice.transport.sdp ?? "" };
   }
 
   @Post("/{chatId}/{voiceId}/close")

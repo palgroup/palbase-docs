@@ -1,8 +1,57 @@
 > The full documentation index: https://palbase.studio/llms.txt
 
-# Agents
+# Agents & Native Transcription
 
-Your project's own agent can be in a call: a bot that transcribes it, takes notes, answers in a support line, translates. Your server lets it in with a ticket, and it joins as a participant everyone in the call hears (and sees), listed as an agent. Palbase runs no agent of its own: what the agent does with what it hears — and which model or service it uses — is yours.
+A call can include **native speaker-attributed transcription** (cheap STT via `POST /calls/admin/calls/{call_id}/transcription`), **Palbase AI Live Voice agents** (`POST /ai/chats/{chat_id}/voice` with `transport.type: "call"`), or **your own external LiveKit agent** joined with a ticket (`POST /calls/admin/calls/{call_id}/tickets`). All three compose freely in the same call.
+
+## Native speaker-attributed transcription
+
+When you want live speaker-attributed transcripts without paying for a live voice LLM, enable transcription on the call:
+
+```bash
+curl -s -X POST "https://<ref>.palbase.studio/calls/admin/calls/$CALL_ID/transcription" \
+  -H "apikey: $PALBASE_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "deepgram/nova-3", "language": "auto", "save_to_storage": true}'
+```
+
+- Every spoken audio segment (`POST /calls/{call_id}/transcription/audio` or `POST /calls/admin/calls/{call_id}/transcription/audio`) is transcribed via Palbase AI STT (`audio.stt_seconds` billing) and emitted as **`calls.transcript.segment`** (outbox + Realtime) with the exact `speaker_user_id`.
+- When transcription is stopped (`DELETE /calls/admin/calls/{call_id}/transcription`) or the call ends, Palbase finalizes the transcript, exports `calls/transcripts/<call_id>.json` and `.txt` to project Storage (when `save_to_storage: true`), and emits **`calls.transcript.completed`**.
+- Read the transcript anytime with `GET /calls/{call_id}/transcription` (or `/calls/admin/calls/{call_id}/transcription`).
+
+## Palbase AI Voice agents in a call
+
+Attach any Palbase AI chat session directly to an active call using `transport.type: "call"`:
+
+```bash
+curl -s -X POST "https://<ref>.palbase.studio/ai/chats/$CHAT_ID/voice" \
+  -H "apikey: $PALBASE_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "google/gemini-live-2.5",
+    "voice": "Aoede",
+    "delegation": "chat",
+    "transport": {
+      "type": "call",
+      "call_id": "'"$CALL_ID"'",
+      "identity": "assistant",
+      "name": "Assistant",
+      "activation": {
+        "mode": "manual",
+        "wake_phrases": ["hey assistant"],
+        "idle_close_seconds": 15
+      }
+    }
+  }'
+```
+
+- **`activation.mode: "open"`** keeps the live voice model connected continuously (ideal for support lines or two AI agents speaking directly to each other on the same `call_id`).
+- **`activation.mode: "manual"`** keeps the live voice model asleep at $0 live-LLM cost until woken by `wake_phrases` or an explicit `POST /ai/chats/{chat_id}/voice/{voice_id}/commands` (`activate` / `speak`), then automatically returns to sleep after `idle_close_seconds`.
+- When the call ends, all bound AI voice sessions close automatically with `close_reason: "call_ended"`.
+
+## Bringing your own LiveKit agent (tickets)
+
+You can also connect your own external LiveKit agent (Python, Node.js, Go, Rust) to any call with a ticket:
 
 ## A ticket
 

@@ -2,7 +2,7 @@
 
 # Overview
 
-`palbase/web` is the Palbase client for web and JavaScript apps. One function, `createClient`, makes the client for one project, and the client holds every module an app uses: `auth` signs a person in and keeps them signed in, `flags` holds the flags' values for them, `analytics` records what they do, `consent` keeps what they allowed, `notify` takes the project's pushes, inbox and in-app messages, `purchases` holds what they bought, and `socket` is the project's one realtime connection. Your own backend's routes and gateways join it as `pb.<backend>` once `palbase apps:sync` has written the app its module. Every call goes through the client's one transport, which carries the publishable key, the signed-in user's access token, refreshes and retries.
+`palbase/web` is the Palbase client for web and JavaScript apps. One function, `createClient`, makes the client for one project, and the client holds every module an app uses: `auth` signs a person in and keeps them signed in, `flags` holds the flags' values for them, `analytics` records what they do, `consent` keeps what they allowed, `notify` takes the project's pushes, inbox and in-app messages, `payments` handles direct card checkout, saved cards, wallets and subscriptions, `iap` holds their catalog entitlements and paywalls, and `socket` is the project's one realtime connection. Your own backend's routes and gateways join it as `pb.<backend>` once `palbase apps:sync` has written the app its module. Every call goes through the client's one transport, which carries the publishable key, the signed-in user's access token, refreshes and retries.
 
 The client is built with the **publishable** key, the one that ships in an app. It refuses a secret key outright, and the secret key belongs in [`palbase/server`](https://palbase.studio/docs/server/overview).
 
@@ -48,7 +48,7 @@ The web SDK is `palbase/web`, a part of the npm package `palbase`: `npm install 
 ```json
 {
   "dependencies": {
-    "palbase": "^0.66.0"
+    "palbase": "^0.69.0"
   }
 }
 ```
@@ -66,7 +66,8 @@ The package's web entry points:
 | `palbase/web/vite` | The Vite plugin: builds each mode against the environment you name for it, from what `palbase apps:sync` wrote, and type-checks the app against that environment's backend first. See [Calling Your Backend](https://palbase.studio/docs/web/backend-calls#building-for-an-environment). |
 | `palbase/web/palbe` | What the module `palbase apps:sync` writes registers your backend with. Your own code does not import it. |
 | `palbase/web/push-sw.js` | The service worker that shows the project's pushes. See [Notifications](https://palbase.studio/docs/web/notifications#the-service-worker). |
-| `palbase/web/paywall` | A paywall's definition resolved and drawn in the page (`renderPaywall`), and its prices formatted: what `pb.purchases.paywall(placement)` draws with (its `render(container, options)`), for an app that draws one itself. |
+| `palbase/web/payments-ui` | Drop-in, themeable checkout and wallet UI components: `mountPaymentSheet`, `openPaymentSheet`, `mountWalletTopUpSheet`, `mountSavedCardsView`, and `mountSpendQRView`. See [Payments Web SDK](https://palbase.studio/docs/payments/web-sdk). |
+| `palbase/web/paywall` | A paywall's definition resolved and drawn in the page (`renderPaywall`), and its prices formatted: what `pb.iap.paywall(placement)` draws with (its `render(container, options)`), for an app that draws one itself. |
 | `palbase/web/message` | An in-app message's definition resolved and drawn: over the page (`presentMessage`) or as an inbox card (`renderMessage`). What `pb.notify` draws with, for an app that draws one itself. |
 
 ## `createClient(options)`
@@ -99,7 +100,9 @@ What comes back:
 | `pb.consent` | What the person allowed, key by key: their choices, kept in the browser and sent to the project. See [Consent](https://palbase.studio/docs/web/consent). |
 | `pb.notify` | This browser's pushes (`push`), the signed-in person's inbox (`inbox`) and the project's in-app campaigns (`inApp`). See [Notifications](https://palbase.studio/docs/web/notifications). |
 | `pb.calls` | The signed-in person's voice and video calls: made, rung, answered — one to one or in a group. See [Calls](https://palbase.studio/docs/web/calls). |
-| `pb.purchases` | What the signed-in customer has, kept current; the catalog's offerings and paywalls; buying on the web with Stripe Checkout. See [Purchases on the web](https://palbase.studio/docs/purchases/web). |
+| `pb.ai` | Guardrailed client AI (`pb.ai.templates`): run, stream, speech, and live voice against server-locked templates. |
+| `pb.payments` | Direct card checkout (`confirm`, `present`, `submitOtp`, `waitForIntent`), capabilities, Turkish BIN installments, saved cards, Masterpass OTP, closed-loop wallets & QR spend tokens, billing profile, subscriptions and portal. See [Payments Web SDK](https://palbase.studio/docs/payments/web-sdk). |
+| `pb.iap` | What the signed-in customer has, kept current; the catalog's offerings and paywalls; buying catalog products on the web through Payments. See [In-App Purchases on the web](https://palbase.studio/docs/iap/web). |
 | `pb.installation` | This browser's install of the app: `pb.installation.id`, the same until the site's storage is cleared. Analytics, flags, consent and pushes say it with what they send. |
 | `pb.socket` | The project's realtime socket. It is opened the first time a channel is joined, never before. See [Realtime](https://palbase.studio/docs/web/realtime). |
 | `pb.transport` | The transport every call above goes through. See [Calls the client has no method for](#calls-the-client-has-no-method-for). |

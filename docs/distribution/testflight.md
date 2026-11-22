@@ -25,7 +25,7 @@ The environment checks the key with Apple and keeps it sealed with its own data 
 
 After the agreements are accepted, or the key's role changed, `palbase stores:apple:check` asks Apple again. `palbase stores:apple:disconnect` forgets the key for good; Apple keeps the apps and builds.
 
-The key is the environment's, connected once per environment. The same key puts a [purchases](https://palbase.studio/docs/purchases/testing-apple) catalog in App Store Connect and manages the team's sandbox testers.
+The key is the environment's, connected once per environment. The same key puts a [purchases](https://palbase.studio/docs/iap/testing-apple) catalog in App Store Connect and manages the team's sandbox testers.
 
 ## Link the app
 
@@ -186,6 +186,6 @@ The general ones (`build_changed`, `build_gone`, `step_timed_out`, `gave_up`) ar
 
 - [App Distribution](https://palbase.studio/docs/distribution/overview): packages, deliveries, actions and events
 - [Direct Install](https://palbase.studio/docs/distribution/direct-install): the same build on testers' own iPhones, with no TestFlight
-- [Test Apple Purchases](https://palbase.studio/docs/purchases/testing-apple): sandbox testers, and buying in TestFlight
+- [Test Apple Purchases](https://palbase.studio/docs/iap/testing-apple): sandbox testers, and buying in TestFlight
 - [iOS SDK](https://palbase.studio/docs/ios/overview): the app's settings, capabilities and client
 - [CLI reference: `stores`](https://palbase.studio/docs/cli/reference#stores)

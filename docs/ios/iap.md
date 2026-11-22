@@ -1,15 +1,15 @@
 > The full documentation index: https://palbase.studio/llms.txt
 
-# Purchases
+# In-App Purchases
 
-`pb.purchases` (the `PalbasePurchases` product) is what the signed-in customer has bought, in any store, as one answer, and buying in the App Store with StoreKit 2. A Pro bought on the web or on Google Play is this app's Pro too. `PalbasePurchasesUI` draws the paywall the project publishes, natively in SwiftUI, priced by the App Store. The catalog (products, plans, entitlements, offers) is the project's ([Catalog](https://palbase.studio/docs/purchases/catalog)), and the environment verifies every transaction with Apple ([App Store](https://palbase.studio/docs/purchases/app-store)).
+`pb.iap` (the `PalbaseIAP` product) is what the signed-in customer has bought, in any store, as one answer, and buying in the App Store with StoreKit 2. A Pro bought on the web or on Google Play is this app's Pro too. `PalbaseIAPUI` draws the paywall the project publishes, natively in SwiftUI, priced by the App Store. The catalog (products, plans, entitlements, offers) is the project's ([Catalog](https://palbase.studio/docs/iap/catalog)), and the environment verifies every transaction with Apple ([App Store](https://palbase.studio/docs/iap/app-store)).
 
 ## Quick example
 
 ```swift
 import Palbase
-import PalbasePurchases
-import PalbasePurchasesUI
+import PalbaseIAP
+import PalbaseIAPUI
 import SwiftUI
 
 struct Settings: View {
@@ -18,7 +18,7 @@ struct Settings: View {
     var body: some View {
         List {
             // Drawn again when it changes: a purchase in any store, a renewal or its end, a refund.
-            if pb.purchases.state.isEntitled("pro") {
+            if pb.iap.state.isEntitled("pro") {
                 Text("Pro is on")
             } else {
                 Button("Go Pro") { showPaywall = true }
@@ -33,13 +33,13 @@ struct ShopApp: App {
     init() {
         // Touched at launch: what the App Store hands over (a renewal, an approved Ask to Buy, an unfinished
         // purchase) is reported for whoever is signed in.
-        _ = pb.purchases
+        _ = pb.iap
     }
 
     var body: some Scene {
         WindowGroup {
             Settings()
-                .palbasePurchases(pb.purchases)   // once, at the root: the paywalls below buy through it
+                .palbaseIAP(pb.iap)   // once, at the root: the paywalls below buy through it
                 .paywallLinks(terms: URL(string: "https://example.com/terms"), privacy: URL(string: "https://example.com/privacy"))
         }
     }
@@ -59,27 +59,27 @@ struct ShopApp: App {
 | `onCustomerInfo(_:)` | Told what the customer has, once read and each time it changes; `nil` while no one is signed in. Returns what stops it. |
 | `customerInfoUpdates` | The same as an `AsyncStream`, the newest when the reader falls behind. |
 
-It is kept current over the customer's own realtime channel, theirs alone and read-only: when what they have changes anywhere, it is read again. When another user signs in, `nil` is told until theirs is read, so one user's is never shown as the next one's. Check the entitlement on your server too, where the content is served ([Entitlements, Credits & Limits](https://palbase.studio/docs/purchases/entitlements#checking-an-entitlement)).
+It is kept current over the customer's own realtime channel, theirs alone and read-only: when what they have changes anywhere, it is read again. When another user signs in, `nil` is told until theirs is read, so one user's is never shown as the next one's. Check the entitlement on your server too, where the content is served ([Entitlements, Credits & Limits](https://palbase.studio/docs/iap/entitlements#checking-an-entitlement)).
 
 ## Buying in the App Store
 
 ```swift
 import Palbase
-import PalbasePurchases
+import PalbaseIAP
 
 func buyFirst() async {
     do {
-        let products = try await pb.purchases.products()
+        let products = try await pb.iap.products()
         if let d = products.diagnosis { print(d) } // why some of the catalog is missing
         guard let pro = products.first else { return }
-        switch try await pb.purchases.purchase(pro) {
+        switch try await pb.iap.purchase(pro) {
         case .purchased(let info): print("pro:", info.isEntitled("pro"))
         case .alreadyEntitled(let store, let entitlement, _): print("\(entitlement) is already on, from \(store)")
         case .pending: print("waiting for approval")
         case .cancelled: break
         @unknown default: break   // a case a later SDK adds
         }
-    } catch let e as PurchasesError {
+    } catch let e as IAPError {
         print(e.message, e.code)
     } catch {
         print(error)
@@ -96,30 +96,30 @@ func buyFirst() async {
 
 `purchase(_:)` reads what the customer has first: when an entitlement the product gives is already on from another store, it answers `.alreadyEntitled(store:entitlement:manage:)` and the App Store is never opened, so nothing is charged twice. Otherwise the App Store sells it with the customer's account token, the transaction is reported to the environment, and it is finished only once the environment has it: a report that fails leaves it unfinished, and the App Store hands it over again. `.pending` is Ask to Buy or the bank's approval: the transaction is reported when it comes, and listeners are told.
 
-A purchase needs someone signed in (`session_required`); a guest from `signInAnonymously()` is someone, and what a guest buys stays theirs when they become an account. StoreKit's failures throw `PurchasesError`, one sentence each, with a `code`: `.cancelled`, `.productUnavailable`, `.purchaseNotAllowed`, `.notAvailableInStorefront`, `.ineligibleForOffer`, `.invalidOffer`, `.networkError`, `.systemError`, `.unverifiedTransaction` (never reported, never finished) and others. The environment's refusals throw `PalbaseError`.
+A purchase needs someone signed in (`session_required`); a guest from `signInAnonymously()` is someone, and what a guest buys stays theirs when they become an account. StoreKit's failures throw `IAPError`, one sentence each, with a `code`: `.cancelled`, `.productUnavailable`, `.purchaseNotAllowed`, `.notAvailableInStorefront`, `.ineligibleForOffer`, `.invalidOffer`, `.networkError`, `.systemError`, `.unverifiedTransaction` (never reported, never finished) and others. The environment's refusals throw `PalbaseError`.
 
 On an Apple ID shared with another of the app's accounts, a purchase made here moves the subscription to this customer, who paid; one that would move it a fourth time in 30 days leaves it where it is, and `purchase(_:)` throws `PalbaseError` with `restore_limit`. A restore moves a purchase to this customer only when StoreKit signed its transaction for this device. When one stays where it was, the rest is still applied, and `restore()` throws `PalbaseError` with `restore_not_this_device`, `restore_account_owned` (a guest restoring an account's: sign in to that account) or `restore_limit`.
 
 ## The paywall
 
-The paywall the project publishes at a **placement** ([Paywalls](https://palbase.studio/docs/purchases/paywalls)), designed in Studio, is drawn natively by `PaywallView`: its theme, components, packages, tabs, carousels, videos and fonts, with the App Store's prices for this user in their currency, its texts in the app's language, Dynamic Type, Reduce Motion and VoiceOver. Its purchase button buys with `purchase(_:)`, with an offer while the customer may take it; a restore button is `restore()`; an offer code button opens the App Store's sheet.
+The paywall the project publishes at a **placement** ([Paywalls](https://palbase.studio/docs/iap/paywalls)), designed in Studio, is drawn natively by `PaywallView`: its theme, components, packages, tabs, carousels, videos and fonts, with the App Store's prices for this user in their currency, its texts in the app's language, Dynamic Type, Reduce Motion and VoiceOver. Its purchase button buys with `purchase(_:)`, with an offer while the customer may take it; a restore button is `restore()`; an offer code button opens the App Store's sheet.
 
 | | What it does |
 |---|---|
-| `.palbasePurchases(pb.purchases)` | Once, at the root: the purchases module the paywalls below buy through. |
+| `.palbaseIAP(pb.iap)` | Once, at the root: the IAP module the paywalls below buy through. |
 | `.paywall(placement:attributes:isPresented:onPurchased:)` | Shows the placement's paywall over the screen while `isPresented`. |
 | `.presentPaywallIfNeeded(entitlement:placement:attributes:onPurchased:)` | Shows it once what the customer has is known, only when they do not have the entitlement, and closes it when they come to have it. |
 | `PaywallView(placement:attributes:onPurchased:onClose:)` | The paywall as a view of your own layout. |
 | `.paywallLinks(terms:privacy:)` | The app's terms and privacy policy, which a paywall's links open. |
 | `.paywallComponent(_:_:)` | Draws your own view in place of the component Studio names `id`, in every paywall below. |
 
-The paywall is asked for the signed-in customer (or this install, so an experiment's variant is the same every time) and kept on the device: asked again with its ETag, and shown as it was when the project cannot be asked. With nothing published at the placement, the SDK draws its own from the catalog. `attributes` is what the app says of the person to the placement's targeting rules (`["plan": "free"]`); the rules also read the app's version, the SDK's, the App Store's country and the person's languages. `pb.purchases.preloadPaywall(placement:attributes:)` at launch makes a placement shown early open at once, and offline.
+The paywall is asked for the signed-in customer (or this install, so an experiment's variant is the same every time) and kept on the device: asked again with its ETag, and shown as it was when the project cannot be asked. With nothing published at the placement, the SDK draws its own from the catalog. `attributes` is what the app says of the person to the placement's targeting rules (`["plan": "free"]`); the rules also read the app's version, the SDK's, the App Store's country and the person's languages. `pb.iap.preloadPaywall(placement:attributes:)` at launch makes a placement shown early open at once, and offline.
 
-An app that draws its own reads `pb.purchases.paywall(placement:attributes:)`, which answers the definition, its offerings, its files and offers, and calls `paywallShown(_:)` each time it puts one on screen.
+An app that draws its own reads `pb.iap.paywall(placement:attributes:)`, which answers the definition, its offerings, its files and offers, and calls `paywallShown(_:)` each time it puts one on screen.
 
 ## Offers and codes
 
-Offers and coupons are the catalog's ([Offers & Coupons](https://palbase.studio/docs/purchases/offers)).
+Offers and coupons are the catalog's ([Offers & Coupons](https://palbase.studio/docs/iap/offers)).
 
 | Method | What it does |
 |---|---|
@@ -133,21 +133,21 @@ Offers and coupons are the catalog's ([Offers & Coupons](https://palbase.studio/
 
 ## Buying on the web from the app
 
-In the App Store's United States storefront, an app may link out to buy on the web beside In-App Purchase (App Review Guideline 3.1.1(a)). `canOpenWebCheckout()` says whether the customer's storefront is one where it may; show the web button only then, no more prominent than the In-App Purchase. `openWebCheckout(product:plan:successURL:cancelURL:)` opens Stripe Checkout in the system browser for the signed-in customer, a guest too, and records where it was opened. Elsewhere it throws `web_checkout_not_allowed` and asks nothing. Stripe sends the customer back to the app's own scheme, its bundle id (`<bundle>://palbase/checkout?result=…`), and what they have is read again when the app is in front. See [Web Purchases](https://palbase.studio/docs/purchases/web#from-a-native-app).
+In the App Store's United States storefront, an app may link out to buy on the web beside In-App Purchase (App Review Guideline 3.1.1(a)). `canOpenWebCheckout()` says whether the customer's storefront is one where it may; show the web button only then, no more prominent than the In-App Purchase. `openWebCheckout(product:plan:channel:currency:offer:successURL:cancelURL:)` opens web checkout through your connected Payments channel in the system browser for the signed-in customer, a guest too, and records where it was opened. Elsewhere it throws `web_checkout_not_allowed` and asks nothing. Checkout sends the customer back to the app's own scheme, its bundle id (`<bundle>://palbase/checkout?result=…`), and what they have is read again when the app is in front. See [Web Purchases](https://palbase.studio/docs/iap/web#from-a-native-app).
 
 What someone bought on the web with no account waits for the app user who redeems it: its one-time link opens the app, and `redeem(_:)` takes it for the signed-in user.
 
 ```swift
 import Palbase
-import PalbasePurchases
+import PalbaseIAP
 import SwiftUI
 
 struct Root: View {
     var body: some View {
         Text("Shop")
             .onOpenURL { url in
-                guard Purchases.redemptionToken(in: url) != nil else { return }
-                Task { _ = try? await pb.purchases.redeem(url) }
+                guard IAP.redemptionToken(in: url) != nil else { return }
+                Task { _ = try? await pb.iap.redeem(url) }
             }
     }
 }
@@ -155,13 +155,14 @@ struct Root: View {
 
 ## Testing
 
-In Xcode with a StoreKit file made from the catalog, or in the App Store sandbox with a tester: see [Test Apple Purchases](https://palbase.studio/docs/purchases/testing-apple). A test purchase is marked: `isSandbox` is true on what it gives.
+In Xcode with a StoreKit file made from the catalog, or in the App Store sandbox with a tester: see [Test Apple Purchases](https://palbase.studio/docs/iap/testing-apple). A test purchase is marked: `isSandbox` is true on what it gives.
 
 ## Related
 
-- [Purchases](https://palbase.studio/docs/purchases/overview): the catalog, the stores and how a purchase becomes access
-- [App Store](https://palbase.studio/docs/purchases/app-store): connecting it, and what the environment does with a transaction
-- [Test Apple Purchases](https://palbase.studio/docs/purchases/testing-apple): buying before anyone pays
-- [Web Purchases](https://palbase.studio/docs/purchases/web): Stripe Checkout, and a buyer with no account
-- [Paywalls](https://palbase.studio/docs/purchases/paywalls) · [Offers & Coupons](https://palbase.studio/docs/purchases/offers) · [Entitlements, Credits & Limits](https://palbase.studio/docs/purchases/entitlements)
+- [In-App Purchases](https://palbase.studio/docs/iap/overview): the catalog, the stores and how a purchase becomes access
+- [Payments › iOS SDK](https://palbase.studio/docs/payments/ios-sdk): direct Stripe, iyzico, Masterpass checkout, saved cards, wallets & QR
+- [App Store](https://palbase.studio/docs/iap/app-store): connecting it, and what the environment does with a transaction
+- [Test Apple Purchases](https://palbase.studio/docs/iap/testing-apple): buying before anyone pays
+- [Web Purchases](https://palbase.studio/docs/iap/web): web checkout through Payments, and a buyer with no account
+- [Paywalls](https://palbase.studio/docs/iap/paywalls) · [Offers & Coupons](https://palbase.studio/docs/iap/offers) · [Entitlements, Credits & Limits](https://palbase.studio/docs/iap/entitlements)
 - [Notifications](https://palbase.studio/docs/ios/notifications#in-app-messages): an in-app message's paywall and offer buttons

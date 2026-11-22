@@ -2,7 +2,7 @@
 
 # Google Play
 
-The catalog's `android` products are sold on Google Play with Play Billing: the app buys through `palbase-purchases`, Google takes the payment, and the environment reads each purchase from Play, keeps it in the ledger and acknowledges it. Play's real-time developer notifications tell the environment when a purchase changes — a renewal, a cancellation, a refund — with the app closed.
+The catalog's `android` products are sold on Google Play with Play Billing: the app buys through `palbase-iap`, Google takes the payment, and the environment reads each purchase from Play, keeps it in the ledger and acknowledges it. Play's real-time developer notifications tell the environment when a purchase changes — a renewal, a cancellation, a refund — with the app closed.
 
 No key changes hands. Palbase makes a service account for the environment, your Play Console invites it, and the environment reads and acknowledges the app's purchases as that account.
 
@@ -32,7 +32,7 @@ Studio's **App Distribution** does the same.
 **3. Sell on Google Play in the app:**
 
 ```sh
-palbase purchases:google:connect --app shop-android -E staging
+palbase iap:google:connect --app shop-android -E staging
 ```
 
 Palbase makes the app's notifications topic, which Play's own account may publish to, and has it pushed to this environment's address. It prints the topic. In Studio, **Purchases › Stores › Google Play purchases** connects it and shows the topic.
@@ -40,16 +40,16 @@ Palbase makes the app's notifications topic, which Play's own account may publis
 **4. Name the topic in Play Console:** **Monetize with Play › Monetization setup › Real-time developer notifications**, paste the topic, **Save**, then **Send test notification**.
 
 ```sh
-palbase purchases:google -E staging
+palbase iap:google -E staging
 ```
 
 It says when the test notification arrived — the topic is set — and what is left to do. Every environment of the project that sells in the app reads the same topic.
 
-**5. Bring Google Play to the catalog:** plan the catalog and confirm it ([Catalog › Bringing the stores to the catalog](https://palbase.studio/docs/purchases/catalog#bringing-the-stores-to-the-catalog)). Each subscription product is created on Play with a base plan per plan, each other product as a one-time product, for the app connected in step 3.
+**5. Bring Google Play to the catalog:** plan the catalog and confirm it ([Catalog › Bringing the stores to the catalog](https://palbase.studio/docs/iap/catalog#bringing-the-stores-to-the-catalog)). Each subscription product is created on Play with a base plan per plan, each other product as a one-time product, for the app connected in step 3.
 
 ## Buying in the app
 
-The app takes `studio.palbase:palbase-purchases`, which brings Play Billing with it. `pb.purchases.products()` returns the catalog's Android plans as Play has them for this user — a subscription once per base plan — with a `diagnosis` when Play returned fewer than the catalog sells; `purchase(activity, product)` opens Play's purchase sheet; `restore()` is the user's own "Restore purchases". Touch `pb.purchases` at launch: what Play holds unreported — a report that failed, a pending purchase since paid, one made outside the app — is reported then. See [Android › Purchases](https://palbase.studio/docs/android/purchases).
+The app takes `studio.palbase:palbase-iap`, which brings Play Billing with it. `pb.iap.products()` returns the catalog's Android plans as Play has them for this user — a subscription once per base plan — with a `diagnosis` when Play returned fewer than the catalog sells; `purchase(activity, product)` opens Play's purchase sheet; `restore()` is the user's own "Restore purchases". Touch `pb.iap` at launch: what Play holds unreported — a report that failed, a pending purchase since paid, one made outside the app — is reported then. See [Android › In-App Purchases](https://palbase.studio/docs/android/iap).
 
 Buying a subscription while the customer has another plan of its group on Play replaces it, as `PlanChange` says: by default an upgrade now and a downgrade at the renewal, as Google recommends.
 
@@ -61,27 +61,27 @@ Buying a subscription while the customer has another plan of its group on Play r
 
 **It acknowledges it** once the ledger has it, and consumes a consumable: the SDK never does. Play refunds a purchase not acknowledged in three days. A purchase the catalog does not map gives nothing and is not acknowledged.
 
-**It follows Play.** A notification only says something changed: the purchase is read again from Play, and a voided one from the app's voided purchases. A refund turns the entitlement off and takes back the credits it gave (`purchases.refund.changed`).
+**It follows Play.** A notification only says something changed: the purchase is read again from Play, and a voided one from the app's voided purchases. A refund turns the entitlement off and takes back the credits it gave (`iap.refund.changed`).
 
-**Test purchases** are Google Play's license testers': `is_sandbox`, opening entitlements as the [settings](https://palbase.studio/docs/purchases/customers#settings) say.
+**Test purchases** are Google Play's license testers': `is_sandbox`, opening entitlements as the [settings](https://palbase.studio/docs/iap/customers#settings) say.
 
 ## Offers
 
-A catalog offer on an Android subscription is written to Play as a developer-determined offer of the subscription's base plans, tagged `palbase`. The Android SDK buys a plan with its introductory offer when the catalog's plan has one and Play says the user may take it. See [Offers & Coupons](https://palbase.studio/docs/purchases/offers).
+A catalog offer on an Android subscription is written to Play as a developer-determined offer of the subscription's base plans, tagged `palbase`. The Android SDK buys a plan with its introductory offer when the catalog's plan has one and Play says the user may take it. See [Offers & Coupons](https://palbase.studio/docs/iap/offers).
 
 ## Disconnecting
 
 ```sh
-palbase purchases:google:disconnect -E staging
+palbase iap:google:disconnect -E staging
 ```
 
 Play's notifications stop reaching the environment and the app's reports are refused; purchases already made stay in the ledger. The app's topic stays, for the other environments that read it. `palbase stores:google:disconnect` deletes the environment's service account at Google: Play Console's invite of it then reaches nothing.
 
-Connecting, a test notification arriving and disconnecting each emit `purchases.store.changed`.
+Connecting, a test notification arriving and disconnecting each emit `iap.store.changed`.
 
 ## Related
 
-- [Android › Purchases](https://palbase.studio/docs/android/purchases): `pb.purchases` in a Kotlin app
-- [Catalog](https://palbase.studio/docs/purchases/catalog) · [Offers & Coupons](https://palbase.studio/docs/purchases/offers)
-- [Entitlements, Credits & Limits](https://palbase.studio/docs/purchases/entitlements): checking access on your server
-- CLI: [`stores:google:connect`](https://palbase.studio/docs/cli/reference#palbase-storesgoogleconnect), [`purchases:google:connect`](https://palbase.studio/docs/cli/reference#palbase-purchasesgoogleconnect), [`purchases:google`](https://palbase.studio/docs/cli/reference#palbase-purchasesgoogle)
+- [Android › In-App Purchases](https://palbase.studio/docs/android/iap): `pb.iap` in a Kotlin app
+- [Catalog](https://palbase.studio/docs/iap/catalog) · [Offers & Coupons](https://palbase.studio/docs/iap/offers)
+- [Entitlements, Credits & Limits](https://palbase.studio/docs/iap/entitlements): checking access on your server
+- CLI: [`stores:google:connect`](https://palbase.studio/docs/cli/reference#palbase-storesgoogleconnect), [`iap:google:connect`](https://palbase.studio/docs/cli/reference#palbase-iapgoogleconnect), [`iap:google`](https://palbase.studio/docs/cli/reference#palbase-iapgoogle)

@@ -155,7 +155,10 @@ A sheet the user dismisses throws `passkey_cancelled` (`pb.auth.wasCancelled(e)`
 pb.auth.magicLink.send("ada@example.com")
 
 // The token from the link the email carried:
-val user = pb.auth.magicLink.verify(token)
+when (val result = pb.auth.magicLink.verify(token)) {
+    is Auth.SignInResult.SignedIn -> println("signed in as ${result.user.id}")
+    is Auth.SignInResult.MfaRequired -> println("a second factor is needed")
+}
 ```
 
 `send` answers the same whether or not the address has an account.
