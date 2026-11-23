@@ -2,7 +2,7 @@
 
 # iOS SDK
 
-`PalbasePayments` and `PalbasePaymentsUI` bring provider-agnostic card checkout (Stripe, iyzico, Masterpass), 3D Secure (`ASWebAuthenticationSession` + `WKWebView`), saved cards, BIN installments, billing portal, recurring subscriptions, and closed-loop wallets with CoreImage QR spend tokens to iOS 18+ and macOS 15+ apps.
+`PalbasePayments` and `PalbasePaymentsUI` bring provider-agnostic card checkout (Stripe and iyzico), 3D Secure (`ASWebAuthenticationSession` + `WKWebView`), saved cards, BIN installments, billing portal, recurring subscriptions, and closed-loop wallets with CoreImage QR spend tokens to iOS 18+ and macOS 15+ apps.
 
 ## Install
 
@@ -61,9 +61,9 @@ struct CheckoutScreen: View {
 | Surface | Methods / Properties | What it does |
 |---|---|---|
 | Discovery | `capabilities(currency:channel:)`, `installments(amount:currency:bin:methodId:channel:)` | Reads active channel feature flags and Turkish BIN installment tables. |
-| Checkout | `getIntent(_:clientSecret:)`, `confirm(_:options:)`, `submitOtp(_:challengeId:otp:clientSecret:saveMethod:)`, `present(_:options:)`, `waitForIntent(_:clientSecret:timeout:)` | Confirms server-created PaymentIntents, executes canonical `NextAction` (`redirect`, `embed`, `otp`, `masterpass`), and awaits settlement over `payment_intent:<ref>:<id>` with zero polling. |
+| Checkout | `getIntent(_:clientSecret:)`, `confirm(_:options:)`, `submitOtp(_:challengeId:otp:clientSecret:saveMethod:)`, `present(_:options:)`, `waitForIntent(_:clientSecret:timeout:)` | Confirms server-created PaymentIntents, executes canonical `NextAction` (`redirect`, `embed`, `otp`), and awaits settlement over `payment_intent:<ref>:<id>` with zero polling. |
 | Return links | `handleReturnURL(_:)`, `Payments.parseReturnURL(_:)` | Resumes in-flight `ASWebAuthenticationSession` or deep-link redirects. |
-| Saved cards | `methods.list()`, `methods.add(channel:vault:phone:returnURL:cancelURL:)`, `methods.remove(_:)` | Lists, vaults (Stripe, iyzico, Masterpass), and removes tokenized cards. |
+| Saved cards | `methods.list()`, `methods.add(channel:vault:phone:returnURL:cancelURL:)`, `methods.remove(_:)` | Lists, vaults (Stripe and iyzico), and removes tokenized cards. |
 | Billing profile | `profile.get()`, `profile.update(_:)` | Reads and updates buyer identity and address fields required by Turkish card processors. |
 | Wallets & QR | `wallet.state`, `wallet.balances()`, `wallet.balance(_:)`, `wallet.topUp(_:)`, `wallet.createSpendToken(walletKey:maxAmount:ttlSeconds:)`, `wallet.balancesUpdates` | `@Observable` live balances over `payments:<ref>:<uid>`, card-to-wallet top-ups, and single-use `pst_...` QR spend tokens. |
 | Subscriptions | `subscriptions.list(limit:cursor:)`, `subscriptions.cancel(_:)`, `portal(returnURL:channel:)` | Lists/cancels recurring subscriptions and opens a self-service billing portal session. |

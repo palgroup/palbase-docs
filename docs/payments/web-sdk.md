@@ -9,8 +9,8 @@
 | Surface | Methods | What it does |
 |---|---|---|
 | Discovery | `capabilities({ currency?, channel? })`, `installments({ amount, currency, bin?, methodId? })` | Reads active channel feature flags and Turkish BIN installment tables. |
-| Checkout | `getIntent(id)`, `confirm(id, opts)`, `submitOtp(id, opts)`, `present(intent, opts)`, `waitForIntent(id)` | Confirms server-created intents, drives canonical `NextAction` (redirect, 3DS iframe, OTP, Masterpass), and waits over Realtime. |
-| Saved cards | `methods.list()`, `methods.add(opts)`, `methods.remove(id)` | Lists, vaults (card or Masterpass), and removes tokenized payment methods. |
+| Checkout | `getIntent(id)`, `confirm(id, opts)`, `submitOtp(id, opts)`, `present(intent, opts)`, `waitForIntent(id)` | Confirms server-created intents, drives canonical `NextAction` (redirect, 3DS iframe, OTP), and waits over Realtime. |
+| Saved cards | `methods.list()`, `methods.add(opts)`, `methods.remove(id)` | Lists, vaults, and removes tokenized payment methods. |
 | Billing profile | `profile.get()`, `profile.update(buyer)` | Saves buyer identity and address fields required by Turkish card processors. |
 | Wallets & QR | `wallet.balances()`, `wallet.balance(key)`, `wallet.topUp(opts)`, `wallet.createSpendToken(opts)`, `wallet.onChange(fn)` | Reads live balances, initiates card-to-wallet top-ups, mints single-use `pst_...` QR tokens, and subscribes over Realtime. |
 | Subscriptions | `subscriptions.list()`, `subscriptions.cancel(id)`, `portal(returnUrl)` | Lists/cancels recurring subscriptions and opens Stripe Customer Portal. |

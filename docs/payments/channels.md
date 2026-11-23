@@ -2,7 +2,7 @@
 
 # Channels & Routing
 
-An environment can connect multiple payment channels simultaneously — for example `iyzico_tr` for Turkish Lira cards with installments and Masterpass, and `stripe_global` for international USD/EUR payments — and route every PaymentIntent deterministically by currency, country, or payment kind.
+An environment can connect multiple payment channels simultaneously — for example `iyzico_tr` for Turkish Lira cards with installments and 3DS, and `stripe_global` for international USD/EUR payments — and route every PaymentIntent deterministically by currency, country, or payment kind.
 
 ## Managing channels
 
@@ -31,7 +31,6 @@ Each channel declares its live capabilities (`GET /payments/capabilities`), whic
 - `three_ds`: 3D Secure authentication support
 - `installments`: BIN-based Turkish installment tables (`POST /payments/installments`)
 - `saved_cards`: PCI-safe tokenized card vault (`GET /payments/me/methods`)
-- `masterpass`: Masterpass phone-linked card lookup & OTP checkout
 - `subscriptions`: Native recurring billing (`POST /payments/subscriptions`)
 - `manual_capture`: Separate authorization and capture (`POST /payments/intents/{intent_id}/capture`)
 - `customer_portal`: Provider-hosted self-service billing portal (`POST /payments/me/portal`)
@@ -92,5 +91,5 @@ Project-wide payment guardrails live at `GET /payments/settings` and `PUT /payme
 
 ## Related
 
-- [Stripe](https://palbase.studio/docs/payments/stripe) · [iyzico](https://palbase.studio/docs/payments/iyzico) · [Masterpass](https://palbase.studio/docs/payments/masterpass)
+- [Stripe](https://palbase.studio/docs/payments/stripe) · [iyzico](https://palbase.studio/docs/payments/iyzico)
 - [Checkout & PaymentSheet](https://palbase.studio/docs/payments/checkout)

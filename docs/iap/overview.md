@@ -69,7 +69,7 @@ export async function isPro(userId: string): Promise<boolean> {
 |---|---|---|---|---|
 | `ios` | The App Store | StoreKit 2, through `PalbaseIAP` | An In-App Purchase key; an App Store Connect API key to write the catalog | [App Store](https://palbase.studio/docs/iap/app-store) |
 | `android` | Google Play | Play Billing, through `palbase-iap` | A service account your Play Console invites, and the app's notifications topic in Play Console | [Google Play](https://palbase.studio/docs/iap/google-play) |
-| `web` | Payments (Stripe, iyzico, Masterpass) | Web checkout, through `pb.iap.checkout()` | Any connected channel under **Payments › Channels** | [Payments Channels](https://palbase.studio/docs/payments/channels), [Web](https://palbase.studio/docs/iap/web) |
+| `web` | Payments (Stripe and iyzico) | Web checkout, through `pb.iap.checkout()` | Any connected channel under **Payments › Channels** | [Payments Channels](https://palbase.studio/docs/payments/channels), [Web](https://palbase.studio/docs/iap/web) |
 
 Each environment connects its own stores and payment channels: `staging` can sell through Sandbox/Test Mode while `production` takes live payments.
 
@@ -126,7 +126,7 @@ Each environment's **In-App Purchases** has these screens:
 
 ## The CLI
 
-The `iap` commands cover the catalog, App Store and Google Play connections, paywalls, placements, experiments, charts and customers; the `payments` commands configure web payment channels (Stripe, iyzico, Masterpass); and the `stores` commands connect the App Store Connect and Google Play accounts the catalog is written with. Every command is in the [CLI reference](https://palbase.studio/docs/cli/reference#iap).
+The `iap` commands cover the catalog, App Store and Google Play connections, paywalls, placements, experiments, charts and customers; the `payments` commands configure web payment channels (Stripe and iyzico); and the `stores` commands connect the App Store Connect and Google Play accounts the catalog is written with. Every command is in the [CLI reference](https://palbase.studio/docs/cli/reference#iap).
 
 ## Related
 

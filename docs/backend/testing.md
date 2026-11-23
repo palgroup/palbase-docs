@@ -260,7 +260,7 @@ On the platform the tests run against the new version **as it will run** — its
 
 The image has to carry the tests: `palbase init`'s `Dockerfile` copies `tests/`, and Bun's types are a dev dependency the image does not install.
 
-The platform runs the tests with the **Bun of the build's image**: a `Dockerfile`'s `FROM` (`palbase init` writes `FROM oven/bun:1.4.2-alpine`; `oven/bun:1.4.4-alpine` pins 1.4.4), or, without a Dockerfile, the one Railpack installs — see [Builds › The Bun it runs](https://palbase.studio/docs/machines/builds#the-bun-it-runs).
+The platform runs the tests with the **Bun of the build's image**: a `Dockerfile`'s `FROM` (`palbase init` writes `FROM oven/bun:1.4.5-alpine`; `oven/bun:1.4.4-alpine` pins 1.4.4), or, without a Dockerfile, the one Railpack installs — see [Builds › The Bun it runs](https://palbase.studio/docs/machines/builds#the-bun-it-runs).
 
 **Running them again** on the code a machine serves: `palbase machines:deploy <name> --wait` builds its branch's head again, and the new build is tested before it takes traffic, as a push's is; `palbase machines:builds:log <build>` shows what the tests printed. A change of `--test-command` or `--test-users` (`machines:update`) rolls out as a new version and is tested on the next build. For a pull request, a push to it builds its preview again, or `palbase machines:previews:open <number> --machine <name>` opens it again.
 

@@ -160,7 +160,7 @@ In Xcode with a StoreKit file made from the catalog, or in the App Store sandbox
 ## Related
 
 - [In-App Purchases](https://palbase.studio/docs/iap/overview): the catalog, the stores and how a purchase becomes access
-- [Payments › iOS SDK](https://palbase.studio/docs/payments/ios-sdk): direct Stripe, iyzico, Masterpass checkout, saved cards, wallets & QR
+- [Payments › iOS SDK](https://palbase.studio/docs/payments/ios-sdk): direct Stripe and iyzico checkout, saved cards, wallets & QR
 - [App Store](https://palbase.studio/docs/iap/app-store): connecting it, and what the environment does with a transaction
 - [Test Apple Purchases](https://palbase.studio/docs/iap/testing-apple): buying before anyone pays
 - [Web Purchases](https://palbase.studio/docs/iap/web): web checkout through Payments, and a buyer with no account

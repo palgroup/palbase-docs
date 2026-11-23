@@ -55,7 +55,7 @@ A `palbase/backend` app ships a `Dockerfile` (see [Project Structure](https://pa
 
 The Bun a machine runs — its program, its `bun install` and the tests a build runs before it takes traffic, all in the build's image — is the image's, and the repository pins it:
 
-- **With a `Dockerfile`**, its `FROM`. `palbase init` writes `FROM oven/bun:1.4.2-alpine`; `FROM oven/bun:1.4.4-alpine` runs 1.4.4. The build's log shows it: `FROM docker.io/oven/bun:1.4.4-alpine` and `bun install v1.4.4`.
+- **With a `Dockerfile`**, its `FROM`. `palbase init` writes `FROM oven/bun:1.4.5-alpine`; `FROM oven/bun:1.4.4-alpine` runs 1.4.4. The build's log shows it: `FROM docker.io/oven/bun:1.4.4-alpine` and `bun install v1.4.4`.
 - **Without one**, Railpack's: the `packageManager` field of `package.json` (`"packageManager": "bun@1.4.4"`), else `engines.bun`, else a `.bun-version`, `mise.toml` or `.tool-versions` file. With none, Railpack takes the newest Bun it resolves when it builds, so two builds of the same commit can differ: pin it.
 
 The pin is the repository's, so it takes effect at the next build — a push, or `palbase machines:deploy <name>` to build the branch's head again. A machine's settings carry no Bun version.

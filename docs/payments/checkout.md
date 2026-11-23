@@ -44,7 +44,7 @@ Pass `capture_method: "manual"` when creating the intent. Once the customer comp
 
 ## 2. Present PaymentSheet in the browser
 
-`palbase/web/payments-ui` ships a zero-dependency, themeable drop-in **PaymentSheet** that handles saved cards, new cards, Turkish installments, Masterpass OTP, embedded 3DS iframes, redirects, and split-payment summaries out of the box:
+`palbase/web/payments-ui` ships a zero-dependency, themeable drop-in **PaymentSheet** that handles saved cards, new cards, Turkish installments, embedded 3DS iframes, redirects, and split-payment summaries out of the box:
 
 ```ts
 import { createClient } from "palbase/web";
@@ -65,7 +65,6 @@ export async function checkoutOrder(intent: { id: string; client_secret?: string
     },
     allowSaveCard: true,
     allowInstallments: true,
-    allowMasterpass: true,
   });
 
   if (!settled) return; // dismissed by customer
@@ -81,7 +80,7 @@ You can also mount inline inside your own container element with `mountPaymentSh
 
 ## 3. Canonical NextAction & zero-polling settlement
 
-When building a custom checkout UI with `pb.payments.confirm()` and `pb.payments.present()`, every provider converges onto five canonical `next_action.type` values:
+When building a custom checkout UI with `pb.payments.confirm()` and `pb.payments.present()`, every provider converges onto canonical `next_action.type` values:
 
 | `next_action.type` | Meaning | How `pb.payments.present()` handles it |
 |---|---|---|
@@ -89,7 +88,6 @@ When building a custom checkout UI with `pb.payments.confirm()` and `pb.payments
 | `redirect` | Provider-hosted checkout or full-page 3DS redirect (`url`). | Calls `onRedirect` or navigates to `url`. |
 | `embed` | Sanitized 3DS or embedded checkout HTML (`html`). | Mounts a sandboxed iframe via `mountEmbedFrame()` and listens for the callback bridge `postMessage`. |
 | `otp` | Bank or vault OTP challenge (`challenge_id`, `masked_phone`). | Calls `onOtp` and submits via `pb.payments.submitOtp()`. |
-| `masterpass` | Masterpass card vault verification (`masterpass`, `challenge_id`). | Calls `onOtp` and submits via `pb.payments.submitOtp()`. |
 
 `pb.payments.waitForIntent(intentId)` joins the Realtime channel `payment_intent:<ref>:<intentId>` and listens for `palbase.payments` callback bridge messages — resolving as soon as the authoritative webhook or callback settles with **zero polling**.
 

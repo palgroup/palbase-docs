@@ -2,7 +2,7 @@
 
 # Overview
 
-`palbase/web` is the Palbase client for web and JavaScript apps. One function, `createClient`, makes the client for one project, and the client holds every module an app uses: `auth` signs a person in and keeps them signed in, `flags` holds the flags' values for them, `analytics` records what they do, `consent` keeps what they allowed, `notify` takes the project's pushes, inbox and in-app messages, `payments` handles direct card checkout, saved cards, wallets and subscriptions, `iap` holds their catalog entitlements and paywalls, and `socket` is the project's one realtime connection. Your own backend's routes and gateways join it as `pb.<backend>` once `palbase apps:sync` has written the app its module. Every call goes through the client's one transport, which carries the publishable key, the signed-in user's access token, refreshes and retries.
+`palbase/web` is the Palbase client for web and JavaScript apps. One function, `createClient`, makes the client for one project, and the client holds every module an app uses: `auth` signs a person in and keeps them signed in, `flags` holds the flags' values for them, `analytics` records what they do, `consent` keeps what they allowed, `notify` takes the project's pushes, inbox and in-app messages, `campaigns` fetches on-site messages and captures tracking-link attribution (`pb_click`, `pb_promo`, `utm_*`), `payments` handles direct card checkout, saved cards, wallets and subscriptions, `commerce` runs storefronts, carts, single-transaction checkout and seller portals, `iap` holds their catalog entitlements and paywalls, and `socket` is the project's one realtime connection. Your own backend's routes and gateways join it as `pb.<backend>` once `palbase apps:sync` has written the app its module. Every call goes through the client's one transport, which carries the publishable key, the signed-in user's access token, refreshes and retries.
 
 The client is built with the **publishable** key, the one that ships in an app. It refuses a secret key outright, and the secret key belongs in [`palbase/server`](https://palbase.studio/docs/server/overview).
 
@@ -48,7 +48,7 @@ The web SDK is `palbase/web`, a part of the npm package `palbase`: `npm install 
 ```json
 {
   "dependencies": {
-    "palbase": "^0.69.0"
+    "palbase": "^0.73.0"
   }
 }
 ```
@@ -99,9 +99,11 @@ What comes back:
 | `pb.analytics` | Events the app captures, page views, the person's properties, and the browser's own measures once started. See [Analytics](https://palbase.studio/docs/web/analytics). |
 | `pb.consent` | What the person allowed, key by key: their choices, kept in the browser and sent to the project. See [Consent](https://palbase.studio/docs/web/consent). |
 | `pb.notify` | This browser's pushes (`push`), the signed-in person's inbox (`inbox`) and the project's in-app campaigns (`inApp`). See [Notifications](https://palbase.studio/docs/web/notifications). |
+| `pb.campaigns` | On-site / in-app campaign messages (`listOnSiteMessages`, `recordImpression`, `recordEvent`) and tracking-link attribution (`captureAttribution`, `getAttribution`, `applyAttributedPromo`). See [Campaigns](https://palbase.studio/docs/campaigns/overview). |
 | `pb.calls` | The signed-in person's voice and video calls: made, rung, answered — one to one or in a group. See [Calls](https://palbase.studio/docs/web/calls). |
 | `pb.ai` | Guardrailed client AI (`pb.ai.templates`): run, stream, speech, and live voice against server-locked templates. |
-| `pb.payments` | Direct card checkout (`confirm`, `present`, `submitOtp`, `waitForIntent`), capabilities, Turkish BIN installments, saved cards, Masterpass OTP, closed-loop wallets & QR spend tokens, billing profile, subscriptions and portal. See [Payments Web SDK](https://palbase.studio/docs/payments/web-sdk). |
+| `pb.payments` | Direct card checkout (`confirm`, `present`, `submitOtp`, `waitForIntent`), capabilities, Turkish BIN installments, saved cards, closed-loop wallets & QR spend tokens, billing profile, subscriptions and portal. See [Payments Web SDK](https://palbase.studio/docs/payments/web-sdk). |
+| `pb.commerce` | Storefront product discovery (`listProducts`, `getProduct`), guest & customer carts (`createCart`, `addItem`, `applyPromoCode`, `checkout`), customer orders & returns, and user-pinned Seller Portal (`pb.commerce.seller(storeId)`). See [Commerce](https://palbase.studio/docs/commerce/overview). |
 | `pb.iap` | What the signed-in customer has, kept current; the catalog's offerings and paywalls; buying catalog products on the web through Payments. See [In-App Purchases on the web](https://palbase.studio/docs/iap/web). |
 | `pb.installation` | This browser's install of the app: `pb.installation.id`, the same until the site's storage is cleared. Analytics, flags, consent and pushes say it with what they send. |
 | `pb.socket` | The project's realtime socket. It is opened the first time a channel is joined, never before. See [Realtime](https://palbase.studio/docs/web/realtime). |

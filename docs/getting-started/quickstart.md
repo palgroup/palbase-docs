@@ -31,7 +31,7 @@ Start a Next.js app and give it the web SDK:
 ```json
 {
   "dependencies": {
-    "palbase": "^0.69.0",
+    "palbase": "^0.73.0",
     "next": "^16.3.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
@@ -159,7 +159,7 @@ notes-backend/
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.69.0"
+    "palbase": "^0.73.0"
   }
 }
 ```
@@ -307,7 +307,7 @@ await PalbaseFactory.create(AppModule, {
 How the machine runs it:
 
 ```dockerfile
-FROM oven/bun:1.4.2-alpine@sha256:d888c0ae6c86d7866ff10c5aafdd9077b36aee6455b33dd270fb93c0dd5cef6f
+FROM oven/bun:1.4.5-alpine@sha256:da816670775f4c2b4e990b6b1847cf5540dcdc721a42033dd331ce7a88ba6a3b
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production

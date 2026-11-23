@@ -49,7 +49,7 @@ In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/pa
 | `PalbaseNotificationService` | The app's notification service extension: each push reported delivered, its picture shown. |
 | `PalbaseStorage` | [Files](https://palbase.studio/docs/ios/storage): uploads and downloads at URLs your backend signs. |
 | `PalbaseIAP` | [Buying in the App Store](https://palbase.studio/docs/ios/iap), and what the signed-in customer has bought in any store. |
-| `PalbasePayments` | [Direct payments](https://palbase.studio/docs/payments/ios-sdk) (Stripe, iyzico, Masterpass, saved cards, subscriptions, wallets & QR). |
+| `PalbasePayments` | [Direct payments](https://palbase.studio/docs/payments/ios-sdk) (Stripe, iyzico, saved cards, subscriptions, wallets & QR). |
 | `PalbasePaymentsUI` | Optional drop-in PCI-DSS SAQ-A SwiftUI checkout (`PaymentSheet`, `WalletTopUpSheet`, `SavedCardsView`, `SpendQRView`). |
 | `PalbaseUI` | The renderer of the screens a project designs (paywalls, in-app messages, inbox cards), in SwiftUI. The two products below bring it. |
 | `PalbaseIAPUI` | The paywall the project publishes, drawn natively. |

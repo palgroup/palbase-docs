@@ -133,7 +133,7 @@ Check the entitlement where the content is served, not only in the app: `Palbase
 ## Related
 
 - [In-App Purchases](https://palbase.studio/docs/iap/overview): the catalog, the stores and how a purchase becomes access
-- [Payments › Android SDK](https://palbase.studio/docs/payments/android-sdk): direct Stripe, iyzico, Masterpass checkout, saved cards, wallets & QR
+- [Payments › Android SDK](https://palbase.studio/docs/payments/android-sdk): direct Stripe and iyzico checkout, saved cards, wallets & QR
 - [Google Play](https://palbase.studio/docs/iap/google-play): connecting the environment to Google Play
 - [Catalog](https://palbase.studio/docs/iap/catalog): the products and plans the app sells
 - [Entitlements, Credits & Limits](https://palbase.studio/docs/iap/entitlements): what `CustomerInfo` holds, and spending credits

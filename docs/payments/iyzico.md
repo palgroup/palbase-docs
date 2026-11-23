@@ -2,11 +2,11 @@
 
 # iyzico
 
-Connect **iyzico** (Sandbox or Live) to accept Turkish cards with mandatory 3D Secure, BIN-based installment tables, saved cards, Masterpass vaulting, recurring subscriptions, same-day cancellations, partial refunds, and signed webhook verification.
+Connect **iyzico** (Sandbox or Live) to accept Turkish cards with mandatory 3D Secure, BIN-based installment tables, saved cards, recurring subscriptions, same-day cancellations, partial refunds, and signed webhook verification.
 
 ## Connecting iyzico
 
-- **In Studio**: Open **Payments › Channels**, click **Connect iyzico / Key**, choose **iyzico**, set your channel key (e.g. `iyzico_tr`), enter your iyzico API Key and Secret Key, toggle Sandbox/Live mode, and optionally attach [Masterpass](https://palbase.studio/docs/payments/masterpass) credentials.
+- **In Studio**: Open **Payments › Channels**, click **Connect iyzico / Key**, choose **iyzico**, set your channel key (e.g. `iyzico_tr`), enter your iyzico API Key and Secret Key, and toggle Sandbox/Live mode.
 - **In the CLI**:
 
 ```sh
@@ -87,5 +87,4 @@ iyzico distinguishes same-day void (`cancel`) from post-settlement `refund`. Whe
 ## Related
 
 - [Channels & Routing](https://palbase.studio/docs/payments/channels)
-- [Masterpass](https://palbase.studio/docs/payments/masterpass)
 - [Checkout & PaymentSheet](https://palbase.studio/docs/payments/checkout)

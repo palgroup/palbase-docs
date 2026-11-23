@@ -153,6 +153,19 @@ palbase journeys:stop winback                      # no one enters it any more, 
 
 `journeys:get` prints a journey's definition to edit and push again, `journeys:copy` copies one into a new draft, `journeys:publish` publishes a draft, and `journeys:delete` deletes one with its runs and its report. Every command is in the [CLI reference](https://palbase.studio/docs/cli/reference#journeys).
 
+## Scoped Runs & Seller Blueprints
+
+For multi-seller marketplaces and cart-level journeys, set `scope` on a journey definition (for example `["store_id", "cart_id"]`) and `match_scope: true` on wait, exit, or goal event matches so each store or cart runs independently without cross-store interference.
+
+Marketplace sellers can activate pre-built, sandboxed **Seller Blueprints** (`abandoned_cart`, `post_purchase_review`, `winback_vip`, `first_order_welcome`) with up to 5 live journeys per store:
+
+```bash
+palbase journeys:blueprints
+palbase journeys:store-blueprints <store_id>
+palbase journeys:store-blueprints:activate <store_id> --blueprint abandoned_cart --channel push --body "Your cart is waiting"
+palbase journeys:store-blueprints:delete <store_id> <key>
+```
+
 ## Related
 
 - [Notifications](https://palbase.studio/docs/backend/notifications) — the send rules a journey's messages keep to, push templates and inboxes

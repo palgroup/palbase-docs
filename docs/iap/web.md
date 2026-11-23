@@ -2,7 +2,7 @@
 
 # Web
 
-The catalog's `web` products are sold through your environment's connected [Payments channels](https://palbase.studio/docs/payments/channels) (Stripe, iyzico, or Masterpass): Payments collects the card payment or recurring subscription using your deterministic routing rules and keeps the IAP entitlement ledger current on renewals, cancellations, refunds, and disputes. Connect a channel first under **Payments › Channels** ([Stripe](https://palbase.studio/docs/payments/stripe) or [iyzico](https://palbase.studio/docs/payments/iyzico)).
+The catalog's `web` products are sold through your environment's connected [Payments channels](https://palbase.studio/docs/payments/channels) (Stripe or iyzico): Payments collects the card payment or recurring subscription using your deterministic routing rules and keeps the IAP entitlement ledger current on renewals, cancellations, refunds, and disputes. Connect a channel first under **Payments › Channels** ([Stripe](https://palbase.studio/docs/payments/stripe) or [iyzico](https://palbase.studio/docs/payments/iyzico)).
 
 In a browser, `pb.iap` — the `palbase/web` client's In-App Purchases module — reads the offerings, opens web checkout and the customer portal, and keeps what the signed-in customer has current. Every call here takes the publishable key; what is the customer's takes their session too.
 

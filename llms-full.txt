@@ -188,7 +188,7 @@ Start a Next.js app and give it the web SDK:
 ```json
 {
   "dependencies": {
-    "palbase": "^0.69.0",
+    "palbase": "^0.73.0",
     "next": "^16.3.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
@@ -316,7 +316,7 @@ notes-backend/
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.69.0"
+    "palbase": "^0.73.0"
   }
 }
 ```
@@ -464,7 +464,7 @@ await PalbaseFactory.create(AppModule, {
 How the machine runs it:
 
 ```dockerfile
-FROM oven/bun:1.4.2-alpine@sha256:d888c0ae6c86d7866ff10c5aafdd9077b36aee6455b33dd270fb93c0dd5cef6f
+FROM oven/bun:1.4.5-alpine@sha256:da816670775f4c2b4e990b6b1847cf5540dcdc721a42033dd331ce7a88ba6a3b
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production
@@ -1062,7 +1062,7 @@ An app with no database has no `src/db/`, and no `db` in its config.
   "type": "module",
   "scripts": { "start": "bun run src/main.ts" },
   "dependencies": {
-    "palbase": "^0.69.0"
+    "palbase": "^0.73.0"
   }
 }
 ```
@@ -1093,7 +1093,7 @@ The SDK is one npm package, `palbase`: `npm install palbase` (or `bun add palbas
 ## `Dockerfile`
 
 ```dockerfile
-FROM oven/bun:1.4.2-alpine@sha256:d888c0ae6c86d7866ff10c5aafdd9077b36aee6455b33dd270fb93c0dd5cef6f
+FROM oven/bun:1.4.5-alpine@sha256:da816670775f4c2b4e990b6b1847cf5540dcdc721a42033dd331ce7a88ba6a3b
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production
@@ -1777,7 +1777,7 @@ The answer comes from these docs and from what the environment shows you: its ma
 | [`apps`](/docs/cli/reference#apps) | The apps that call the project, and the settings and backend clients written into their repositories ([Client Apps](/docs/apps/overview)) |
 | [`auth`](/docs/cli/reference#auth) | Sign-in providers, settings, roles, hooks, users, the audit trail ([Auth](/docs/auth/overview)) |
 | [`storage`](/docs/cli/reference#storage), [`flags`](/docs/cli/reference#flags), [`notify`](/docs/cli/reference#notify), [`realtime`](/docs/cli/reference#realtime), [`analytics`](/docs/cli/reference#analytics), [`secrets`](/docs/cli/reference#secrets), [`webhooks`](/docs/cli/reference#webhooks) | Each module's settings and data |
-| [`payments`](/docs/cli/reference#payments) | Payment channels (Stripe, iyzico, Masterpass), deterministic routing rules, closed-loop wallets, zero-drift checks and audit export ([Payments](/docs/payments/overview)) |
+| [`payments`](/docs/cli/reference#payments) | Payment channels (Stripe and iyzico), deterministic routing rules, closed-loop wallets, zero-drift checks and audit export ([Payments](/docs/payments/overview)) |
 | [`iap`](/docs/cli/reference#iap) | The IAP catalog, paywalls, App Store & Google Play connections, charts and customers ([In-App Purchases](/docs/iap/overview)) |
 | [`stores`](/docs/cli/reference#stores) | Builds, testers and review on TestFlight and Google Play ([App Distribution](/docs/distribution/overview)) |
 | [`github`](/docs/cli/reference#github), [`machines`](/docs/cli/reference#machines) | Connecting GitHub, machines, their builds, logs, crons and tasks ([Machines](/docs/machines/overview)) |
@@ -1792,9 +1792,9 @@ The answer comes from these docs and from what the environment shows you: its ma
 
 # CLI reference
 
-Every command of `palbase` 0.69.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
+Every command of `palbase` 0.73.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](/docs/cli/overview).
 
-514 commands in 38 groups.
+560 commands in 41 groups.
 
 ## Global flags
 
@@ -1958,6 +1958,14 @@ A member reads the plans, what was used and who pays; the money (amounts, the ca
 
 ```text
       --org <org>  the organization (name or id; the one of the project chosen here, or your only one)
+```
+
+### `palbase campaigns`
+
+List the environment's multi-channel broadcast campaigns
+
+```sh
+palbase campaigns
 ```
 
 ### `palbase journeys`
@@ -5803,6 +5811,358 @@ Skips gracefully with setup instructions when no sandbox credentials are present
       --bin <digits>    test card BIN prefix for installment lookup (default: 554960)
 ```
 
+### `palbase payments:sub-merchants`
+
+List marketplace sub-merchants registered across iyzico Pazaryeri and Stripe Connect channels
+
+```sh
+palbase payments:sub-merchants [--seller <ref>] [--channel <key>] [--status <status>] [--limit <n>] [--cursor <token>]
+```
+
+```text
+      --seller <ref>     filter by seller_ref
+      --channel <key>    filter by channel key
+      --status <status>  filter by sub-merchant status
+      --limit <n>        maximum rows to return (default 50)
+      --cursor <token>   pagination cursor from previous page
+```
+
+### `palbase payments:sub-merchants:upsert`
+
+Create or update a marketplace sub-merchant (iyzico Pazaryeri or Stripe Connect) from JSON file or stdin
+
+```sh
+palbase payments:sub-merchants:upsert --file <submerchant.json>
+```
+
+```text
+      --file <submerchant.json>  JSON payload file ('-' or omitted: stdin)
+```
+
+### `palbase payments:sub-merchants:sync`
+
+Refresh a marketplace sub-merchant status and payout readiness directly from its PSP
+
+```sh
+palbase payments:sub-merchants:sync <sub-merchant-id>
+```
+
+### `palbase payments:splits`
+
+List marketplace payment splits and escrow settlement state
+
+```sh
+palbase payments:splits [--intent <id>] [--seller <ref>] [--status <escrow_status>] [--limit <n>] [--cursor <token>]
+```
+
+```text
+      --intent <id>             filter by PaymentIntent UUID
+      --seller <ref>            filter by seller_ref
+      --status <escrow_status>  filter by escrow_status (pending, held, approved, transferred, disapproved, refunded)
+      --limit <n>               maximum rows to return (default 50)
+      --cursor <token>          pagination cursor from previous page
+```
+
+### `palbase payments:splits:approve`
+
+Approve a held marketplace payment split for seller payout (iyzico item/approve or Stripe Connect transfer)
+
+```sh
+palbase payments:splits:approve <split-id>
+```
+
+### `palbase payments:splits:disapprove`
+
+Reverse escrow approval on a marketplace payment split (iyzico item/disapprove or Stripe transfer reversal)
+
+```sh
+palbase payments:splits:disapprove <split-id>
+```
+
+### `palbase payments:splits:refund`
+
+Execute a partial or full item-level marketplace split refund with seller clawback
+
+```sh
+palbase payments:splits:refund <split-id> --card <minor> --clawback <minor> [--wallet <minor>] [--fee-reversed <minor>] [--tax-reversed <minor>] [--reason <text>]
+```
+
+```text
+      --card <minor>          card refund amount in minor units
+      --wallet <minor>        wallet refund amount in minor units (default: 0)
+      --clawback <minor>      seller clawback amount in minor units
+      --fee-reversed <minor>  platform commission reversed in minor units (default: 0)
+      --tax-reversed <minor>  withholding tax reversed in minor units (default: 0)
+      --reason <text>         optional refund reason
+```
+
+### `palbase payments:seller-accounts`
+
+Inspect channel-independent escrow, top-up escrow, payable, and debt balances for a marketplace seller
+
+```sh
+palbase payments:seller-accounts <seller-ref>
+```
+
+### `palbase payments:seller-accounts:ledger`
+
+List immutable double-entry ledger entries affecting a marketplace seller account
+
+```sh
+palbase payments:seller-accounts:ledger <seller-ref> [--limit <n>] [--cursor <seq>]
+```
+
+```text
+      --limit <n>     maximum entries to return (default 100)
+      --cursor <seq>  sequence cursor for older entries
+```
+
+### `palbase payments:reconcile`
+
+Run full payments & marketplace accounting reconciliation (zero-drift Checks 1-6 plus cash-flow summary)
+
+```sh
+palbase payments:reconcile [--from <iso>] [--to <iso>]
+```
+
+```text
+      --from <iso>  inclusive RFC 3339 start timestamp for cash-flow window
+      --to <iso>    exclusive RFC 3339 end timestamp for cash-flow window
+```
+
+## `commerce`
+
+### `palbase commerce:settings:get`
+
+Show the environment's commerce settings (currency, commission, withholding, escrow)
+
+```sh
+palbase commerce:settings:get
+```
+
+### `palbase commerce:settings:set`
+
+Update the environment's commerce settings from JSON (--file or stdin)
+
+```sh
+palbase commerce:settings:set [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with commerce settings
+```
+
+### `palbase commerce:stores`
+
+List the environment's first-party and marketplace seller stores
+
+```sh
+palbase commerce:stores
+```
+
+### `palbase commerce:stores:create`
+
+Create a first-party or marketplace seller store from JSON (--file or stdin)
+
+```sh
+palbase commerce:stores:create [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with store payload
+```
+
+### `palbase commerce:products`
+
+List catalog products (optionally filtered with --q)
+
+```sh
+palbase commerce:products [--q <query>]
+```
+
+```text
+      --q <query>  search query
+```
+
+### `palbase commerce:products:quick`
+
+Quick-create a product, default variant, listing, price, and initial stock from JSON
+
+```sh
+palbase commerce:products:quick [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with quick product payload
+```
+
+### `palbase commerce:orders`
+
+List parent commerce orders (optionally filtered by --status)
+
+```sh
+palbase commerce:orders [--status <status>]
+```
+
+```text
+      --status <status>  filter by order status
+```
+
+### `palbase commerce:orders:get`
+
+Inspect a commerce order including its per-store splits and line items
+
+```sh
+palbase commerce:orders:get <order id>
+```
+
+### `palbase commerce:store-orders`
+
+List per-seller split store orders
+
+```sh
+palbase commerce:store-orders [--store <store id>] [--status <status>]
+```
+
+```text
+      --store <id>       filter by store UUID
+      --status <status>  filter by status
+```
+
+### `palbase commerce:returns`
+
+List RMA returns and partial-refund requests
+
+```sh
+palbase commerce:returns
+```
+
+### `palbase commerce:settlements`
+
+List seller settlement statements
+
+```sh
+palbase commerce:settlements
+```
+
+### `palbase commerce:settlements:generate`
+
+Generate a deduplicated seller settlement statement from JSON (--file or stdin)
+
+```sh
+palbase commerce:settlements:generate [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with store_id, currency, period_start_at, period_end_at
+```
+
+### `palbase commerce:hooks`
+
+List configured blocking commerce extension hooks
+
+```sh
+palbase commerce:hooks
+```
+
+### `palbase commerce:hooks:set`
+
+Register or rotate a blocking commerce hook endpoint (returns signing secret once)
+
+```sh
+palbase commerce:hooks:set [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with hook_point, url, timeout_ms, fail_mode
+```
+
+### `palbase commerce:hooks:delete`
+
+Delete a blocking commerce extension hook
+
+```sh
+palbase commerce:hooks:delete <hook id>
+```
+
+## `promotions`
+
+### `palbase promotions:rules`
+
+List promotion rules (automatic, code, and referral campaigns)
+
+```sh
+palbase promotions:rules [--status <status>]
+```
+
+```text
+      --status <status>  filter by status
+```
+
+### `palbase promotions:rules:create`
+
+Create a promotion rule from JSON (--file or stdin)
+
+```sh
+palbase promotions:rules:create [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with rule definition
+```
+
+### `palbase promotions:rules:archive`
+
+Archive a promotion rule
+
+```sh
+palbase promotions:rules:archive <rule id>
+```
+
+### `palbase promotions:codes:create`
+
+Create a single or referral promo code for a rule
+
+```sh
+palbase promotions:codes:create <rule id> [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with code payload
+```
+
+### `palbase promotions:codes:batch`
+
+Generate a batch of single-use promo codes for a rule
+
+```sh
+palbase promotions:codes:batch <rule id> [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with count, prefix, expires_at
+```
+
+### `palbase promotions:evaluate`
+
+Dry-run evaluate applicable promotions against a cart JSON payload
+
+```sh
+palbase promotions:evaluate [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with evaluate request
+```
+
+### `palbase promotions:redemptions`
+
+List committed and reversed promotion redemptions
+
+```sh
+palbase promotions:redemptions
+```
+
 ## `iap`
 
 ### `palbase iap:catalog:get`
@@ -6721,6 +7081,92 @@ The App Store's link fee is what Apple takes of a web purchase bought through a 
       --app-store-link-days <n>     for how many days after the link a purchase owes it (7)
 ```
 
+## `campaigns`
+
+### `palbase campaigns:create`
+
+Create a draft or scheduled multi-channel broadcast from JSON (--file or stdin)
+
+```sh
+palbase campaigns:create [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with broadcast payload
+```
+
+### `palbase campaigns:start`
+
+Start dispatching a broadcast campaign to its target audience
+
+```sh
+palbase campaigns:start <broadcast id>
+```
+
+### `palbase campaigns:pause`
+
+Pause a running broadcast campaign
+
+```sh
+palbase campaigns:pause <broadcast id>
+```
+
+### `palbase campaigns:cancel`
+
+Cancel a broadcast campaign and cancel queued notify batches
+
+```sh
+palbase campaigns:cancel <broadcast id>
+```
+
+### `palbase campaigns:stats`
+
+Show delivery, holdout lift, and variant conversion stats for a broadcast
+
+```sh
+palbase campaigns:stats <broadcast id>
+```
+
+### `palbase campaigns:onsite`
+
+List the environment's on-site and in-app campaigns
+
+```sh
+palbase campaigns:onsite
+```
+
+### `palbase campaigns:onsite:create`
+
+Create an on-site / in-app campaign from JSON (--file or stdin)
+
+```sh
+palbase campaigns:onsite:create [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with on-site campaign payload
+```
+
+### `palbase campaigns:links`
+
+List the environment's allowlist-validated tracking links
+
+```sh
+palbase campaigns:links
+```
+
+### `palbase campaigns:links:create`
+
+Create an allowlist-validated tracking link from JSON (--file or stdin)
+
+```sh
+palbase campaigns:links:create [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with tracking link payload
+```
+
 ## `journeys`
 
 ### `palbase journeys:get`
@@ -6831,6 +7277,42 @@ Delete a journey with its runs and its report; the people in a live one leave it
 
 ```sh
 palbase journeys:delete <key>
+```
+
+### `palbase journeys:blueprints`
+
+List built-in sandboxed seller automation blueprints
+
+```sh
+palbase journeys:blueprints
+```
+
+### `palbase journeys:store-blueprints`
+
+List seller blueprint journeys activated for a marketplace store
+
+```sh
+palbase journeys:store-blueprints <store id>
+```
+
+### `palbase journeys:store-blueprints:activate`
+
+Activate a sandboxed seller automation blueprint for a store from JSON (--file or stdin)
+
+```sh
+palbase journeys:store-blueprints:activate <store id> [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with blueprint activation payload
+```
+
+### `palbase journeys:store-blueprints:delete`
+
+Stop and delete a blueprint journey owned by a marketplace store
+
+```sh
+palbase journeys:store-blueprints:delete <store id> <key>
 ```
 
 ## `apps`
@@ -14043,6 +14525,19 @@ palbase journeys:stop winback                      # no one enters it any more, 
 
 `journeys:get` prints a journey's definition to edit and push again, `journeys:copy` copies one into a new draft, `journeys:publish` publishes a draft, and `journeys:delete` deletes one with its runs and its report. Every command is in the [CLI reference](/docs/cli/reference#journeys).
 
+## Scoped Runs & Seller Blueprints
+
+For multi-seller marketplaces and cart-level journeys, set `scope` on a journey definition (for example `["store_id", "cart_id"]`) and `match_scope: true` on wait, exit, or goal event matches so each store or cart runs independently without cross-store interference.
+
+Marketplace sellers can activate pre-built, sandboxed **Seller Blueprints** (`abandoned_cart`, `post_purchase_review`, `winback_vip`, `first_order_welcome`) with up to 5 live journeys per store:
+
+```bash
+palbase journeys:blueprints
+palbase journeys:store-blueprints <store_id>
+palbase journeys:store-blueprints:activate <store_id> --blueprint abandoned_cart --channel push --body "Your cart is waiting"
+palbase journeys:store-blueprints:delete <store_id> <key>
+```
+
 ## Related
 
 - [Notifications](/docs/backend/notifications) — the send rules a journey's messages keep to, push templates and inboxes
@@ -14658,7 +15153,7 @@ Each entry of the file is a channel: `{"pattern": "room:{id}", "kind": "public",
 
 `Palbase.ai` is the project's models and agents, from your backend. It answers one-shot questions (`ask`, `generate`, `stream`, `embed`, `image`), gives an agent tools that run on your machine, defines agents from each turn's context, and runs **chats**: conversations of the project's agents with the members your backend names. Every call is made with the app's secret key and is recorded with its cost. The models are the platform's, and nothing is configured to use them.
 
-A model call is billed to the project, so no app makes one. There is no AI client in `palbase/web` or the mobile SDKs: an app reaches a chat through one of your backend's [gateways](/docs/backend/gateways), and asks your routes for anything else.
+Every unguarded model call carries the project's secret key and runs from your backend. In apps, `palbase/web` (`pb.ai.templates`), the iOS SDK (`PalbaseAI`), and the Android SDK (`palbase-ai`) expose guardrailed, server-locked templates — plus `chats`, `sessions`, and `voice` in the native SDKs — while an app reaches a backend-orchestrated chat through one of your backend's [gateways](/docs/backend/gateways) and calls your routes for anything else.
 
 ## Quick example
 
@@ -17392,7 +17887,7 @@ On the platform the tests run against the new version **as it will run** — its
 
 The image has to carry the tests: `palbase init`'s `Dockerfile` copies `tests/`, and Bun's types are a dev dependency the image does not install.
 
-The platform runs the tests with the **Bun of the build's image**: a `Dockerfile`'s `FROM` (`palbase init` writes `FROM oven/bun:1.4.2-alpine`; `oven/bun:1.4.4-alpine` pins 1.4.4), or, without a Dockerfile, the one Railpack installs — see [Builds › The Bun it runs](/docs/machines/builds#the-bun-it-runs).
+The platform runs the tests with the **Bun of the build's image**: a `Dockerfile`'s `FROM` (`palbase init` writes `FROM oven/bun:1.4.5-alpine`; `oven/bun:1.4.4-alpine` pins 1.4.4), or, without a Dockerfile, the one Railpack installs — see [Builds › The Bun it runs](/docs/machines/builds#the-bun-it-runs).
 
 **Running them again** on the code a machine serves: `palbase machines:deploy <name> --wait` builds its branch's head again, and the new build is tested before it takes traffic, as a push's is; `palbase machines:builds:log <build>` shows what the tests printed. A change of `--test-command` or `--test-users` (`machines:update`) rolls out as a new version and is tested on the next build. For a pull request, a push to it builds its preview again, or `palbase machines:previews:open <number> --machine <name>` opens it again.
 
@@ -17605,7 +18100,7 @@ Migrate it with the app itself, as a release does: run it once with `PALBASE_DB_
 
 # Overview
 
-`palbase/web` is the Palbase client for web and JavaScript apps. One function, `createClient`, makes the client for one project, and the client holds every module an app uses: `auth` signs a person in and keeps them signed in, `flags` holds the flags' values for them, `analytics` records what they do, `consent` keeps what they allowed, `notify` takes the project's pushes, inbox and in-app messages, `payments` handles direct card checkout, saved cards, wallets and subscriptions, `iap` holds their catalog entitlements and paywalls, and `socket` is the project's one realtime connection. Your own backend's routes and gateways join it as `pb.<backend>` once `palbase apps:sync` has written the app its module. Every call goes through the client's one transport, which carries the publishable key, the signed-in user's access token, refreshes and retries.
+`palbase/web` is the Palbase client for web and JavaScript apps. One function, `createClient`, makes the client for one project, and the client holds every module an app uses: `auth` signs a person in and keeps them signed in, `flags` holds the flags' values for them, `analytics` records what they do, `consent` keeps what they allowed, `notify` takes the project's pushes, inbox and in-app messages, `campaigns` fetches on-site messages and captures tracking-link attribution (`pb_click`, `pb_promo`, `utm_*`), `payments` handles direct card checkout, saved cards, wallets and subscriptions, `commerce` runs storefronts, carts, single-transaction checkout and seller portals, `iap` holds their catalog entitlements and paywalls, and `socket` is the project's one realtime connection. Your own backend's routes and gateways join it as `pb.<backend>` once `palbase apps:sync` has written the app its module. Every call goes through the client's one transport, which carries the publishable key, the signed-in user's access token, refreshes and retries.
 
 The client is built with the **publishable** key, the one that ships in an app. It refuses a secret key outright, and the secret key belongs in [`palbase/server`](/docs/server/overview).
 
@@ -17651,7 +18146,7 @@ The web SDK is `palbase/web`, a part of the npm package `palbase`: `npm install 
 ```json
 {
   "dependencies": {
-    "palbase": "^0.69.0"
+    "palbase": "^0.73.0"
   }
 }
 ```
@@ -17702,9 +18197,11 @@ What comes back:
 | `pb.analytics` | Events the app captures, page views, the person's properties, and the browser's own measures once started. See [Analytics](/docs/web/analytics). |
 | `pb.consent` | What the person allowed, key by key: their choices, kept in the browser and sent to the project. See [Consent](/docs/web/consent). |
 | `pb.notify` | This browser's pushes (`push`), the signed-in person's inbox (`inbox`) and the project's in-app campaigns (`inApp`). See [Notifications](/docs/web/notifications). |
+| `pb.campaigns` | On-site / in-app campaign messages (`listOnSiteMessages`, `recordImpression`, `recordEvent`) and tracking-link attribution (`captureAttribution`, `getAttribution`, `applyAttributedPromo`). See [Campaigns](/docs/campaigns/overview). |
 | `pb.calls` | The signed-in person's voice and video calls: made, rung, answered — one to one or in a group. See [Calls](/docs/web/calls). |
 | `pb.ai` | Guardrailed client AI (`pb.ai.templates`): run, stream, speech, and live voice against server-locked templates. |
-| `pb.payments` | Direct card checkout (`confirm`, `present`, `submitOtp`, `waitForIntent`), capabilities, Turkish BIN installments, saved cards, Masterpass OTP, closed-loop wallets & QR spend tokens, billing profile, subscriptions and portal. See [Payments Web SDK](/docs/payments/web-sdk). |
+| `pb.payments` | Direct card checkout (`confirm`, `present`, `submitOtp`, `waitForIntent`), capabilities, Turkish BIN installments, saved cards, closed-loop wallets & QR spend tokens, billing profile, subscriptions and portal. See [Payments Web SDK](/docs/payments/web-sdk). |
+| `pb.commerce` | Storefront product discovery (`listProducts`, `getProduct`), guest & customer carts (`createCart`, `addItem`, `applyPromoCode`, `checkout`), customer orders & returns, and user-pinned Seller Portal (`pb.commerce.seller(storeId)`). See [Commerce](/docs/commerce/overview). |
 | `pb.iap` | What the signed-in customer has, kept current; the catalog's offerings and paywalls; buying catalog products on the web through Payments. See [In-App Purchases on the web](/docs/iap/web). |
 | `pb.installation` | This browser's install of the app: `pb.installation.id`, the same until the site's storage is cleared. Analytics, flags, consent and pushes say it with what they send. |
 | `pb.socket` | The project's realtime socket. It is opened the first time a channel is joined, never before. See [Realtime](/docs/web/realtime). |
@@ -21042,7 +21539,7 @@ In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/pa
 | `PalbaseNotificationService` | The app's notification service extension: each push reported delivered, its picture shown. |
 | `PalbaseStorage` | [Files](/docs/ios/storage): uploads and downloads at URLs your backend signs. |
 | `PalbaseIAP` | [Buying in the App Store](/docs/ios/iap), and what the signed-in customer has bought in any store. |
-| `PalbasePayments` | [Direct payments](/docs/payments/ios-sdk) (Stripe, iyzico, Masterpass, saved cards, subscriptions, wallets & QR). |
+| `PalbasePayments` | [Direct payments](/docs/payments/ios-sdk) (Stripe, iyzico, saved cards, subscriptions, wallets & QR). |
 | `PalbasePaymentsUI` | Optional drop-in PCI-DSS SAQ-A SwiftUI checkout (`PaymentSheet`, `WalletTopUpSheet`, `SavedCardsView`, `SpendQRView`). |
 | `PalbaseUI` | The renderer of the screens a project designs (paywalls, in-app messages, inbox cards), in SwiftUI. The two products below bring it. |
 | `PalbaseIAPUI` | The paywall the project publishes, drawn natively. |
@@ -23411,7 +23908,7 @@ In Xcode with a StoreKit file made from the catalog, or in the App Store sandbox
 ## Related
 
 - [In-App Purchases](/docs/iap/overview): the catalog, the stores and how a purchase becomes access
-- [Payments › iOS SDK](/docs/payments/ios-sdk): direct Stripe, iyzico, Masterpass checkout, saved cards, wallets & QR
+- [Payments › iOS SDK](/docs/payments/ios-sdk): direct Stripe and iyzico checkout, saved cards, wallets & QR
 - [App Store](/docs/iap/app-store): connecting it, and what the environment does with a transaction
 - [Test Apple Purchases](/docs/iap/testing-apple): buying before anyone pays
 - [Web Purchases](/docs/iap/web): web checkout through Payments, and a buyer with no account
@@ -23719,7 +24216,7 @@ dependencies {
 | `palbase-notify-ui` | The inbox and in-app messages, drawn in Compose | `InboxView`, `PalbaseInAppMessages` ([Notifications](/docs/android/notifications#the-inbox)) |
 | `palbase-storage` | Files through URLs your backend signed, and public buckets | `pb.storage` ([Storage](/docs/android/storage)) |
 | `palbase-iap` | What the customer has, in any store, and buying on Google Play (Play Billing 9) | `pb.iap` ([In-App Purchases](/docs/android/iap)) |
-| `palbase-payments` | Direct payments (Stripe, iyzico, Masterpass, saved cards, subscriptions, wallets & QR) | `pb.payments` ([Payments](/docs/payments/android-sdk)) |
+| `palbase-payments` | Direct payments (Stripe, iyzico, saved cards, subscriptions, wallets & QR) | `pb.payments` ([Payments](/docs/payments/android-sdk)) |
 | `palbase-payments-ui` | Optional drop-in PCI-DSS SAQ-A Compose checkout (`PaymentSheet`, `WalletTopUpSheet`, `SavedCardsView`, `SpendQRView`) | `rememberPaymentSheet`, `PaymentSheet` ([Payments](/docs/payments/android-sdk)) |
 | `palbase-palbe` | Your backends' generated clients, their gateways and chats | `pb.<name>` ([Calling Your Backend](/docs/android/backend-calls), [Gateways](/docs/android/gateways)) |
 | `palbase-debug` | The debug console's screens, in Compose | `PalbaseConsole(pb.debug)` ([Debug Console](/docs/android/debug-console)) |
@@ -23944,7 +24441,7 @@ Your backend's refusals are a typed error of their own: [Calling Your Backend](/
 - [Notifications](/docs/android/notifications): FCM push for the signed-in user, preferences and topics
 - [Storage](/docs/android/storage): files through signed URLs, and public buckets
 - [In-App Purchases](/docs/android/iap): what the customer has, and buying on Google Play
-- [Payments](/docs/payments/android-sdk): direct Stripe, iyzico, Masterpass checkout, saved cards, wallets & QR
+- [Payments](/docs/payments/android-sdk): direct Stripe and iyzico checkout, saved cards, wallets & QR
 - [Voice](/docs/android/voice): a chat's live voice over WebRTC
 - [Debug Console](/docs/android/debug-console): the in-app console, opened for one user
 
@@ -25864,7 +26361,7 @@ Check the entitlement where the content is served, not only in the app: `Palbase
 ## Related
 
 - [In-App Purchases](/docs/iap/overview): the catalog, the stores and how a purchase becomes access
-- [Payments › Android SDK](/docs/payments/android-sdk): direct Stripe, iyzico, Masterpass checkout, saved cards, wallets & QR
+- [Payments › Android SDK](/docs/payments/android-sdk): direct Stripe and iyzico checkout, saved cards, wallets & QR
 - [Google Play](/docs/iap/google-play): connecting the environment to Google Play
 - [Catalog](/docs/iap/catalog): the products and plans the app sells
 - [Entitlements, Credits & Limits](/docs/iap/entitlements): what `CustomerInfo` holds, and spending credits
@@ -29576,7 +30073,7 @@ A system that later brings its tables to a database of the project names them in
 
 # Overview
 
-Palbase **Payments** is the provider-agnostic payment processing, closed-loop double-entry wallet, and recurring billing module. Every project gets a single canonical **PaymentIntent** model, **1:N attempt history**, deterministic multi-provider routing across **Stripe**, **iyzico**, and **Masterpass**, plus double-entry closed-loop wallets with QR spend tokens and zero-drift accounting verification.
+Palbase **Payments** is the provider-agnostic payment processing, closed-loop double-entry wallet, and recurring billing module. Every project gets a single canonical **PaymentIntent** model, **1:N attempt history**, deterministic multi-provider routing across **Stripe** and **iyzico**, plus double-entry closed-loop wallets with QR spend tokens and zero-drift accounting verification.
 
 ## Payments vs In-App Purchases
 
@@ -29584,7 +30081,7 @@ Palbase separates direct payment rails from app-store entitlements into two clea
 
 | Module | What it owns | SDK surface |
 |---|---|---|
-| **Payments** (`/payments/*`) | Direct card checkout (Stripe, iyzico, Masterpass), deterministic routing, 1:N attempts, closed-loop double-entry wallets, two-phase holds, QR spend tokens, recurring subscriptions, refunds (original card or instant wallet), disputes and audit ledger. | `pb.payments`, `palbase/web/payments-ui`, `PalbasePayments`/`PalbasePaymentsUI`, `palbase-payments`/`palbase-payments-ui`, `createServer().payments`, `Palbase.payments` |
+| **Payments** (`/payments/*`) | Direct card checkout (Stripe and iyzico), deterministic routing, 1:N attempts, closed-loop double-entry wallets, two-phase holds, QR spend tokens, recurring subscriptions, refunds (original card or instant wallet), disputes and audit ledger. | `pb.payments`, `palbase/web/payments-ui`, `PalbasePayments`/`PalbasePaymentsUI`, `palbase-payments`/`palbase-payments-ui`, `createServer().payments`, `Palbase.payments` |
 | **In-App Purchases** (`/iap/*`) | App Store StoreKit 2, Google Play Billing, unified product catalog, paywalls, placements, A/B experiments, offers, coupons, customer entitlements, credits and quotas. | `pb.iap`, `palbase/web/paywall`, `PalbaseIAP`/`PalbaseIAPUI`, `palbase-iap`, `createServer().iap`, `Palbase.iap` |
 
 When a customer buys a catalog product on the web through [In-App Purchases](/docs/iap/web), the `iap` module delegates payment collection cleanly to your connected **Payments** channels over internal RPC — so you connect Stripe or iyzico once under **Payments › Channels** and use it everywhere.
@@ -29592,8 +30089,8 @@ When a customer buys a catalog product on the web through [In-App Purchases](/do
 ## Core concepts
 
 - **PaymentIntent**: Server-authoritative record of an intent to collect money (`amount` in minor units, `currency`, `capture_method`, optional split `wallet_amount` + `card_amount`, canonical `status`). By default only your server (`palbase/server` or `palbase/backend`) may call `POST /payments/intents`.
-- **1:N Attempts**: Every card charge, 3DS redirect, or Masterpass OTP challenge appends an immutable attempt row (`GET /payments/intents/{intent_id}/attempts`) recording the provider, round-trip latency, fees, canonical `decline_code`, and `retryable` flag.
-- **Canonical NextAction**: Whether a payment routes to Stripe Checkout, iyzico 3DS iframe, or Masterpass OTP, the backend returns one unified `next_action` (`none`, `redirect`, `embed`, `otp`, or `masterpass`). `pb.payments.present()` and `openPaymentSheet()` handle all of them automatically with zero polling.
+- **1:N Attempts**: Every card charge, 3DS redirect, or OTP challenge appends an immutable attempt row (`GET /payments/intents/{intent_id}/attempts`) recording the provider, round-trip latency, fees, canonical `decline_code`, and `retryable` flag.
+- **Canonical NextAction**: Whether a payment routes to Stripe Checkout, iyzico 3DS iframe, or an OTP challenge, the backend returns one unified `next_action` (`none`, `redirect`, `embed`, or `otp`). `pb.payments.present()` and `openPaymentSheet()` handle all of them automatically with zero polling.
 - **Closed-loop Wallets & Double-Entry Ledger**: Every wallet top-up, spend, two-phase hold, P2P transfer, instant wallet refund, and chargeback debit writes balanced debit and credit legs. Run `palbase payments:audit:drift` at any time to verify zero drift across every account and transaction.
 
 ## Quick start
@@ -29605,7 +30102,7 @@ When a customer buys a catalog product on the web through [In-App Purchases](/do
 
 ## Next steps
 
-- [Channels & Routing](/docs/payments/channels) · [Stripe](/docs/payments/stripe) · [iyzico](/docs/payments/iyzico) · [Masterpass](/docs/payments/masterpass)
+- [Channels & Routing](/docs/payments/channels) · [Stripe](/docs/payments/stripe) · [iyzico](/docs/payments/iyzico)
 - [Checkout & PaymentSheet](/docs/payments/checkout) · [Wallets & QR Spend Tokens](/docs/payments/wallet-qr) · [Subscriptions](/docs/payments/subscriptions)
 - [Refunds & Disputes](/docs/payments/refunds-disputes) · [Ledger, Drift & Audit Export](/docs/payments/audit)
 - [Web SDK](/docs/payments/web-sdk) · [iOS SDK](/docs/payments/ios-sdk) · [Android SDK](/docs/payments/android-sdk) · [Server & Backend SDK](/docs/payments/server-sdk)
@@ -29616,7 +30113,7 @@ When a customer buys a catalog product on the web through [In-App Purchases](/do
 
 # Channels & Routing
 
-An environment can connect multiple payment channels simultaneously — for example `iyzico_tr` for Turkish Lira cards with installments and Masterpass, and `stripe_global` for international USD/EUR payments — and route every PaymentIntent deterministically by currency, country, or payment kind.
+An environment can connect multiple payment channels simultaneously — for example `iyzico_tr` for Turkish Lira cards with installments and 3DS, and `stripe_global` for international USD/EUR payments — and route every PaymentIntent deterministically by currency, country, or payment kind.
 
 ## Managing channels
 
@@ -29645,7 +30142,6 @@ Each channel declares its live capabilities (`GET /payments/capabilities`), whic
 - `three_ds`: 3D Secure authentication support
 - `installments`: BIN-based Turkish installment tables (`POST /payments/installments`)
 - `saved_cards`: PCI-safe tokenized card vault (`GET /payments/me/methods`)
-- `masterpass`: Masterpass phone-linked card lookup & OTP checkout
 - `subscriptions`: Native recurring billing (`POST /payments/subscriptions`)
 - `manual_capture`: Separate authorization and capture (`POST /payments/intents/{intent_id}/capture`)
 - `customer_portal`: Provider-hosted self-service billing portal (`POST /payments/me/portal`)
@@ -29706,7 +30202,7 @@ Project-wide payment guardrails live at `GET /payments/settings` and `PUT /payme
 
 ## Related
 
-- [Stripe](/docs/payments/stripe) · [iyzico](/docs/payments/iyzico) · [Masterpass](/docs/payments/masterpass)
+- [Stripe](/docs/payments/stripe) · [iyzico](/docs/payments/iyzico)
 - [Checkout & PaymentSheet](/docs/payments/checkout)
 
 
@@ -29780,11 +30276,11 @@ palbase payments:sandbox:verify
 
 # iyzico
 
-Connect **iyzico** (Sandbox or Live) to accept Turkish cards with mandatory 3D Secure, BIN-based installment tables, saved cards, Masterpass vaulting, recurring subscriptions, same-day cancellations, partial refunds, and signed webhook verification.
+Connect **iyzico** (Sandbox or Live) to accept Turkish cards with mandatory 3D Secure, BIN-based installment tables, saved cards, recurring subscriptions, same-day cancellations, partial refunds, and signed webhook verification.
 
 ## Connecting iyzico
 
-- **In Studio**: Open **Payments › Channels**, click **Connect iyzico / Key**, choose **iyzico**, set your channel key (e.g. `iyzico_tr`), enter your iyzico API Key and Secret Key, toggle Sandbox/Live mode, and optionally attach [Masterpass](/docs/payments/masterpass) credentials.
+- **In Studio**: Open **Payments › Channels**, click **Connect iyzico / Key**, choose **iyzico**, set your channel key (e.g. `iyzico_tr`), enter your iyzico API Key and Secret Key, and toggle Sandbox/Live mode.
 - **In the CLI**:
 
 ```sh
@@ -29865,83 +30361,7 @@ iyzico distinguishes same-day void (`cancel`) from post-settlement `refund`. Whe
 ## Related
 
 - [Channels & Routing](/docs/payments/channels)
-- [Masterpass](/docs/payments/masterpass)
 - [Checkout & PaymentSheet](/docs/payments/checkout)
-
-
-
-<!-- ===== payments/masterpass ===== -->
-
-# Masterpass
-
-Attach **Masterpass** merchant credentials to a payment channel to let Turkish customers look up their Masterpass-vaulted cards by phone number and complete one-click payments verified by SMS OTP — with zero raw card storage on your servers.
-
-## Attaching Masterpass to a channel
-
-Configure Masterpass on any active channel (typically your `iyzico_tr` channel):
-
-- **In Studio**: Open **Payments › Channels**, click **Connect iyzico / Key**, toggle **Attach Masterpass card vault**, and fill in:
-  - `client_id` (Masterpass merchant client identifier)
-  - `secret_key` (Masterpass signing secret)
-  - `macro_merchant_id` (optional macro merchant identifier)
-  - `base_url` (optional custom sandbox/production endpoint)
-  - `livemode` (`false` for sandbox, `true` for live)
-- **Browser handoff**: Use **Browser handoff link** (`POST /payments/channels/grants` with `kind: "masterpass_key"`) if you want credentials submitted directly to the Payments module.
-
-Once attached, `GET /payments/channels` reports `has_masterpass: true` and `GET /payments/capabilities` sets `capabilities.masterpass = true`.
-
-## Checkout flow with Masterpass OTP
-
-1. **Create a PaymentIntent on your server** (`POST /payments/intents`).
-2. **Confirm with Masterpass** from the browser (`POST /payments/intents/{intent_id}/confirm`) passing `useMasterpass: true` and the customer's `phone`.
-3. **Verify OTP**: The response returns `next_action.type === "masterpass"` (or `"otp"`) with `challenge_id` and `masked_phone`. Collect the SMS code and call `pb.payments.submitOtp()` (`POST /payments/intents/{intent_id}/otp`).
-
-```ts
-import { createClient } from "palbase/web";
-
-const pb = createClient({
-  url: "https://k3xq81w4m.palbase.studio",
-  publishableKey: "pb_k3xq81w4m_cZ8yX7wV6uT5",
-});
-
-async function payWithMasterpass(
-  intentId: string,
-  clientSecret: string,
-  phone: string,
-  promptUserForCode: (maskedPhone?: string) => Promise<string | null>,
-) {
-  const confirmed = await pb.payments.confirm(intentId, {
-    clientSecret,
-    useMasterpass: true,
-    phone,
-  });
-
-  // present() drives the OTP prompt, calls submitOtp(), and resolves on settlement.
-  return pb.payments.present(confirmed, {
-    clientSecret,
-    onOtp: async (ctx) => {
-      const code = await promptUserForCode(ctx.maskedPhone);
-      return code ? { otp: code, saveMethod: true } : null;
-    },
-  });
-}
-
-void payWithMasterpass;
-```
-
-## Using PaymentSheet
-
-When `openPaymentSheet()` or `mountPaymentSheet()` from `palbase/web/payments-ui` sees `capabilities.masterpass === true`, it automatically renders the Masterpass option and built-in OTP input screen when `allowMasterpass: true` (the default). See [Checkout & PaymentSheet](/docs/payments/checkout).
-
-## Linking Masterpass outside checkout
-
-Signed-in customers can also link their Masterpass phone vault from their account settings using `pb.payments.methods.add({ vault: "masterpass", phone })` (`POST /payments/me/methods`).
-
-## Related
-
-- [Channels & Routing](/docs/payments/channels)
-- [iyzico](/docs/payments/iyzico)
-- [Web SDK](/docs/payments/web-sdk)
 
 
 
@@ -29991,7 +30411,7 @@ Pass `capture_method: "manual"` when creating the intent. Once the customer comp
 
 ## 2. Present PaymentSheet in the browser
 
-`palbase/web/payments-ui` ships a zero-dependency, themeable drop-in **PaymentSheet** that handles saved cards, new cards, Turkish installments, Masterpass OTP, embedded 3DS iframes, redirects, and split-payment summaries out of the box:
+`palbase/web/payments-ui` ships a zero-dependency, themeable drop-in **PaymentSheet** that handles saved cards, new cards, Turkish installments, embedded 3DS iframes, redirects, and split-payment summaries out of the box:
 
 ```ts
 import { createClient } from "palbase/web";
@@ -30012,7 +30432,6 @@ export async function checkoutOrder(intent: { id: string; client_secret?: string
     },
     allowSaveCard: true,
     allowInstallments: true,
-    allowMasterpass: true,
   });
 
   if (!settled) return; // dismissed by customer
@@ -30028,7 +30447,7 @@ You can also mount inline inside your own container element with `mountPaymentSh
 
 ## 3. Canonical NextAction & zero-polling settlement
 
-When building a custom checkout UI with `pb.payments.confirm()` and `pb.payments.present()`, every provider converges onto five canonical `next_action.type` values:
+When building a custom checkout UI with `pb.payments.confirm()` and `pb.payments.present()`, every provider converges onto canonical `next_action.type` values:
 
 | `next_action.type` | Meaning | How `pb.payments.present()` handles it |
 |---|---|---|
@@ -30036,7 +30455,6 @@ When building a custom checkout UI with `pb.payments.confirm()` and `pb.payments
 | `redirect` | Provider-hosted checkout or full-page 3DS redirect (`url`). | Calls `onRedirect` or navigates to `url`. |
 | `embed` | Sanitized 3DS or embedded checkout HTML (`html`). | Mounts a sandboxed iframe via `mountEmbedFrame()` and listens for the callback bridge `postMessage`. |
 | `otp` | Bank or vault OTP challenge (`challenge_id`, `masked_phone`). | Calls `onOtp` and submits via `pb.payments.submitOtp()`. |
-| `masterpass` | Masterpass card vault verification (`masterpass`, `challenge_id`). | Calls `onOtp` and submits via `pb.payments.submitOtp()`. |
 
 `pb.payments.waitForIntent(intentId)` joins the Realtime channel `payment_intent:<ref>:<intentId>` and listens for `palbase.payments` callback bridge messages — resolving as soon as the authoritative webhook or callback settles with **zero polling**.
 
@@ -30431,6 +30849,53 @@ palbase payments:audit:export --format json --wallet try > ledger.json
 
 
 
+<!-- ===== payments/marketplace ===== -->
+
+# Marketplace Payments
+
+Palbase **Payments** supports multi-seller marketplaces natively across **iyzico Pazaryeri** and **Stripe Connect**, backed by a channel-agnostic double-entry seller ledger, BDDK 6493 escrow safeguards, and automated reconciliation.
+
+## Dual PSP Support
+
+- **iyzico Pazaryeri**: Sub-merchant onboarding (`POST /payments/sub-merchants`), split basket items (`payment_splits`), escrow item approval/disapproval (`POST /payments/splits/{split_id}/approve`, `POST /payments/splits/{split_id}/disapprove`), per-line v1 refunds (`POST /payments/splits/{split_id}/refund`), Turkish e-commerce %1 withholding tax (`withholding_tax_amount`) and installment fee separation (`installment_fee_amount`), plus Merchant-Initiated Transaction (MIT) recurring billing.
+- **Stripe Connect**: Express, Custom, and Standard connected account creation, onboarding links, Separate Charges & Transfers, automatic `TransferReversal` on split refunds, and signed Connect webhooks.
+
+## BDDK 6493 Safeguards & Double-Entry Seller Ledger
+
+- **No Unlicensed Fiat Float**: `allow_marketplace_fiat_wallet` defaults to `false` — marketplace split orders refuse closed-loop fiat wallet funding (`422`) unless explicitly enabled for a licensed entity.
+- **Seller Accounts & Debt Offset**: Every seller gets a double-entry ledger account (`payments.seller_accounts`) tracking escrow, pending payouts, commission, withholding tax, and negative balances from post-payout refunds/chargebacks (automatically offset against future earnings).
+- **Zero-Drift Audit**: `palbase payments:audit:drift` verifies balanced double-entry accounting across both customer wallets and seller split ledgers.
+
+## Server Usage
+
+```ts
+import { createServer } from "palbase/server";
+
+const pb = createServer({
+  url: "https://k3xq81w4m.palbase.studio",
+  secretKey: process.env.PALBASE_SECRET_KEY!,
+});
+
+const sellers = await pb.payments.listSubMerchants();
+console.log(sellers.data.sub_merchants.length);
+```
+
+## CLI Commands
+
+```bash
+palbase payments:sub-merchants
+palbase payments:sub-merchants:upsert --file seller.json
+palbase payments:splits
+palbase payments:splits:approve <split-id>
+palbase payments:splits:refund <split-id> --file refund.json
+palbase payments:seller-accounts
+palbase payments:reconcile
+```
+
+See [Commerce Overview](/docs/commerce/overview) for how multi-seller carts and split store orders connect automatically to Marketplace Payments.
+
+
+
 <!-- ===== payments/web-sdk ===== -->
 
 # Web SDK
@@ -30442,8 +30907,8 @@ palbase payments:audit:export --format json --wallet try > ledger.json
 | Surface | Methods | What it does |
 |---|---|---|
 | Discovery | `capabilities({ currency?, channel? })`, `installments({ amount, currency, bin?, methodId? })` | Reads active channel feature flags and Turkish BIN installment tables. |
-| Checkout | `getIntent(id)`, `confirm(id, opts)`, `submitOtp(id, opts)`, `present(intent, opts)`, `waitForIntent(id)` | Confirms server-created intents, drives canonical `NextAction` (redirect, 3DS iframe, OTP, Masterpass), and waits over Realtime. |
-| Saved cards | `methods.list()`, `methods.add(opts)`, `methods.remove(id)` | Lists, vaults (card or Masterpass), and removes tokenized payment methods. |
+| Checkout | `getIntent(id)`, `confirm(id, opts)`, `submitOtp(id, opts)`, `present(intent, opts)`, `waitForIntent(id)` | Confirms server-created intents, drives canonical `NextAction` (redirect, 3DS iframe, OTP), and waits over Realtime. |
+| Saved cards | `methods.list()`, `methods.add(opts)`, `methods.remove(id)` | Lists, vaults, and removes tokenized payment methods. |
 | Billing profile | `profile.get()`, `profile.update(buyer)` | Saves buyer identity and address fields required by Turkish card processors. |
 | Wallets & QR | `wallet.balances()`, `wallet.balance(key)`, `wallet.topUp(opts)`, `wallet.createSpendToken(opts)`, `wallet.onChange(fn)` | Reads live balances, initiates card-to-wallet top-ups, mints single-use `pst_...` QR tokens, and subscribes over Realtime. |
 | Subscriptions | `subscriptions.list()`, `subscriptions.cancel(id)`, `portal(returnUrl)` | Lists/cancels recurring subscriptions and opens Stripe Customer Portal. |
@@ -30547,7 +31012,7 @@ export function formatFailure(code: string | undefined): string {
 
 # iOS SDK
 
-`PalbasePayments` and `PalbasePaymentsUI` bring provider-agnostic card checkout (Stripe, iyzico, Masterpass), 3D Secure (`ASWebAuthenticationSession` + `WKWebView`), saved cards, BIN installments, billing portal, recurring subscriptions, and closed-loop wallets with CoreImage QR spend tokens to iOS 18+ and macOS 15+ apps.
+`PalbasePayments` and `PalbasePaymentsUI` bring provider-agnostic card checkout (Stripe and iyzico), 3D Secure (`ASWebAuthenticationSession` + `WKWebView`), saved cards, BIN installments, billing portal, recurring subscriptions, and closed-loop wallets with CoreImage QR spend tokens to iOS 18+ and macOS 15+ apps.
 
 ## Install
 
@@ -30606,9 +31071,9 @@ struct CheckoutScreen: View {
 | Surface | Methods / Properties | What it does |
 |---|---|---|
 | Discovery | `capabilities(currency:channel:)`, `installments(amount:currency:bin:methodId:channel:)` | Reads active channel feature flags and Turkish BIN installment tables. |
-| Checkout | `getIntent(_:clientSecret:)`, `confirm(_:options:)`, `submitOtp(_:challengeId:otp:clientSecret:saveMethod:)`, `present(_:options:)`, `waitForIntent(_:clientSecret:timeout:)` | Confirms server-created PaymentIntents, executes canonical `NextAction` (`redirect`, `embed`, `otp`, `masterpass`), and awaits settlement over `payment_intent:<ref>:<id>` with zero polling. |
+| Checkout | `getIntent(_:clientSecret:)`, `confirm(_:options:)`, `submitOtp(_:challengeId:otp:clientSecret:saveMethod:)`, `present(_:options:)`, `waitForIntent(_:clientSecret:timeout:)` | Confirms server-created PaymentIntents, executes canonical `NextAction` (`redirect`, `embed`, `otp`), and awaits settlement over `payment_intent:<ref>:<id>` with zero polling. |
 | Return links | `handleReturnURL(_:)`, `Payments.parseReturnURL(_:)` | Resumes in-flight `ASWebAuthenticationSession` or deep-link redirects. |
-| Saved cards | `methods.list()`, `methods.add(channel:vault:phone:returnURL:cancelURL:)`, `methods.remove(_:)` | Lists, vaults (Stripe, iyzico, Masterpass), and removes tokenized cards. |
+| Saved cards | `methods.list()`, `methods.add(channel:vault:phone:returnURL:cancelURL:)`, `methods.remove(_:)` | Lists, vaults (Stripe and iyzico), and removes tokenized cards. |
 | Billing profile | `profile.get()`, `profile.update(_:)` | Reads and updates buyer identity and address fields required by Turkish card processors. |
 | Wallets & QR | `wallet.state`, `wallet.balances()`, `wallet.balance(_:)`, `wallet.topUp(_:)`, `wallet.createSpendToken(walletKey:maxAmount:ttlSeconds:)`, `wallet.balancesUpdates` | `@Observable` live balances over `payments:<ref>:<uid>`, card-to-wallet top-ups, and single-use `pst_...` QR spend tokens. |
 | Subscriptions | `subscriptions.list(limit:cursor:)`, `subscriptions.cancel(_:)`, `portal(returnURL:channel:)` | Lists/cancels recurring subscriptions and opens a self-service billing portal session. |
@@ -30671,7 +31136,7 @@ struct WalletHubView: View {
 
 # Android SDK
 
-`studio.palbase:palbase-payments` and `studio.palbase:palbase-payments-ui` bring provider-agnostic card checkout (Stripe, iyzico, Masterpass), 3D Secure (Custom Tabs + `WebView` cookie/`JavascriptInterface` bridge), saved cards, BIN installments, billing portal, recurring subscriptions, and closed-loop wallets with pure-Kotlin ISO/IEC 18004 QR spend tokens to Android (`minSdk` 26, Kotlin 2.2+).
+`studio.palbase:palbase-payments` and `studio.palbase:palbase-payments-ui` bring provider-agnostic card checkout (Stripe and iyzico), 3D Secure (Custom Tabs + `WebView` cookie/`JavascriptInterface` bridge), saved cards, BIN installments, billing portal, recurring subscriptions, and closed-loop wallets with pure-Kotlin ISO/IEC 18004 QR spend tokens to Android (`minSdk` 26, Kotlin 2.2+).
 
 ## Install
 
@@ -30705,9 +31170,9 @@ class CheckoutActivity : ComponentActivity() {
 | Surface | Methods / Properties | What it does |
 |---|---|---|
 | Discovery | `capabilities(currency, channel)`, `installments(amount, currency, bin, methodId, channel)` | Reads active channel capabilities and Turkish BIN installment tables. |
-| Checkout | `intent(intentId, clientSecret)`, `confirm(intentId, request, idempotencyKey)`, `submitOtp(intentId, challengeId, otp, clientSecret, saveMethod)`, `present(intent, activity, handlers, timeoutMs)` | Confirms server-created PaymentIntents, executes canonical `NextAction` (`redirect`, `embed`, `otp`, `masterpass`), and awaits settlement over `payment_intent:<ref>:<id>` with zero polling. |
+| Checkout | `intent(intentId, clientSecret)`, `confirm(intentId, request, idempotencyKey)`, `submitOtp(intentId, challengeId, otp, clientSecret, saveMethod)`, `present(intent, activity, handlers, timeoutMs)` | Confirms server-created PaymentIntents, executes canonical `NextAction` (`redirect`, `embed`, `otp`), and awaits settlement over `payment_intent:<ref>:<id>` with zero polling. |
 | Return links | `handleRedirectIntent(intent)`, `handleRedirectUrl(url)`, `parsePaymentReturnUrl(...)` | Delivers Custom Tab / deep-link callbacks to active `present(...)` flows. |
-| Saved cards | `savedMethods()`, `addSavedMethod(request)`, `deleteSavedMethod(methodId)` | Lists, vaults (Stripe, iyzico, Masterpass), and removes tokenized cards. |
+| Saved cards | `savedMethods()`, `addSavedMethod(request)`, `deleteSavedMethod(methodId)` | Lists, vaults (Stripe and iyzico), and removes tokenized cards. |
 | Billing profile | `profile()`, `updateProfile(buyer)` | Reads and updates buyer identity and address fields required by Turkish card processors. |
 | Wallets & QR | `walletState`, `walletUpdates`, `wallets()`, `topUpWallet(...)`, `createSpendToken(walletKey, maxAmount, ttlSeconds)` | `StateFlow<WalletState>` kept live over `payments:<ref>:<uid>`, card-to-wallet top-ups, and single-use `pst_...` QR spend tokens. |
 | Subscriptions | `subscriptions(limit, cursor)`, `cancelSubscription(subscriptionId)`, `billingPortal(returnUrl, channel)` | Lists/cancels recurring subscriptions and opens a self-service billing portal URL. |
@@ -30878,6 +31343,203 @@ Subscribe to any of the 11 `payments.*` webhook events in Studio (**Settings ›
 
 
 
+<!-- ===== commerce/overview ===== -->
+
+# Commerce Overview
+
+Palbase **Commerce** is the unified catalog, inventory, cart, single-transaction checkout, multi-seller marketplace, split order management (OMS), returns (RMA), invoicing, and seller settlement module. It pairs directly with [Marketplace Payments](/docs/payments/marketplace) for split card escrow and [Promotions](/docs/commerce/promotions) for discount evaluation.
+
+## Commerce vs In-App Purchases
+
+| Module | What it owns | SDK surface |
+|---|---|---|
+| **Commerce** (`/commerce/*`) | First-party D2C stores, multi-seller marketplaces (shared canonical catalog, per-seller listings, Buy Box ranking), physical & digital fulfillment, FBM/FBA inventory, guest and customer carts, blocking checkout hooks, split seller orders, RMA returns, VUK/TTK invoices, and seller settlements. | `pb.commerce`, `pb.commerce.seller(storeId)`, `createServer().commerce`, `Palbase.commerce`, `Commerce` |
+| **Promotions** (`/promotions/*`) | Standalone and cart-integrated discount rules, coupon codes, stackable priority groups, budget caps, per-customer usage limits, and 0-minor-unit Hamilton allocation across lines. | `createServer().commerce`, `Promotions` |
+| **In-App Purchases** (`/iap/*`) | App Store StoreKit 2, Google Play Billing, unified digital subscription catalog, paywalls, placements, store offers, and cross-platform entitlements. | `pb.iap`, `createServer().iap`, `Palbase.iap` |
+
+For hybrid brands that sell a digital course or membership on the web storefront and unlock mobile app access, set `grants_entitlement_key` on a digital variant — when checkout succeeds, `commerce` grants the matching entitlement in [In-App Purchases](/docs/iap/entitlements) automatically.
+
+## Storefront & Seller Portal (`palbase/web`)
+
+```ts
+import { createClient } from "palbase/web";
+
+const pb = createClient({
+  url: "https://k3xq81w4m.palbase.studio",
+  publishableKey: "pb_k3xq81w4m_cZ8yX7wV6uT5",
+});
+
+// Browse products, create a cart, apply a promo code, and check out.
+const catalog = await pb.commerce.listProducts({ q: "sneaker" });
+const cart = await pb.commerce.createCart({ currency: "TRY" });
+if (cart.id) {
+  await pb.commerce.addItem(cart.id, { listing_id: "lst_123", quantity: 1 });
+  await pb.commerce.applyPromoCode(cart.id, "WELCOME10");
+  const checkout = await pb.commerce.checkout(cart.id, {});
+  console.log(catalog.products.length, checkout.payment_intent_id);
+}
+```
+
+Signed-in sellers open a session-pinned portal handle with `pb.commerce.seller(storeId)`. If the user signs out or switches accounts mid-flight, requests fail fast with `SessionChangedError`.
+
+## Blocking Extension Hooks (`palbase/server`)
+
+Core Commerce stays vertical-agnostic: connect your own shipping, tax, checkout validation, or Buy Box ranking logic via Standard Webhooks signed blocking hooks (`shipping.calculate`, `tax.calculate`, `checkout.validate`, `buybox.rank`):
+
+```ts
+import { createCommerceHookHandler } from "palbase/server";
+
+export const POST = createCommerceHookHandler<{ country: string }, { shipping_amount: number }>({
+  secret: process.env.COMMERCE_HOOK_SECRET!,
+  handle: ({ payload }) => ({
+    shipping_amount: payload.country === "TR" ? 4900 : 19900,
+  }),
+});
+```
+
+## CLI Commands
+
+Manage stores, catalog products, orders, returns, settlements, and blocking hooks directly from the CLI:
+
+```bash
+palbase commerce:settings:get
+palbase commerce:stores
+palbase commerce:products --q sneaker
+palbase commerce:products:quick --file product.json
+palbase commerce:orders --status paid
+palbase commerce:store-orders
+palbase commerce:returns
+palbase commerce:settlements
+palbase commerce:hooks
+```
+
+See [Promotions](/docs/commerce/promotions) and [Marketplace Payments](/docs/payments/marketplace) for discount rules and split seller payouts.
+
+
+
+<!-- ===== commerce/promotions ===== -->
+
+# Promotions
+
+Palbase **Promotions** (`/promotions/*`) is the deterministic discount and coupon engine shared by **Commerce** checkouts and standalone **Payments** integrations. It runs in the same ACID database as `commerce` so cart holds, budget deductions, and order redemptions commit atomically.
+
+## Capabilities
+
+- **Rule Graph**: Compose eligibility rules with `all`, `any`, and `not` boolean groups over subtotal, items, categories, stores, customer segments, channels, and regions.
+- **High-Throughput Sharded Codes**: Coupon redemption counters are sharded across 16 buckets to avoid hot-row contention during flash sales while enforcing exact `max_redemptions`, `max_per_customer`, and total monetary budget caps.
+- **Exact Hamilton Allocation**: Cart-level discounts are distributed across line items and seller splits using the largest-remainder (Hamilton) method so totals balance to zero minor units with zero rounding drift.
+- **Two-Phase Lifecycle**: Standalone backends call `POST /promotions/evaluate`, lock a budget reservation with `POST /promotions/holds`, commit on payment capture (`POST /promotions/holds/{hold_id}/commit`), release on abandonment (`POST /promotions/holds/{hold_id}/release`), or reverse on refund (`POST /promotions/redemptions/{redemption_id}/reverse`).
+
+## Server & Backend Usage
+
+```ts
+import { createServer } from "palbase/server";
+
+const pb = createServer({
+  url: "https://k3xq81w4m.palbase.studio",
+  secretKey: process.env.PALBASE_SECRET_KEY!,
+});
+
+const evalRes = await pb.commerce.evaluatePromotions({
+  body: {
+    currency: "TRY",
+    codes: ["WELCOME10"],
+    lines: [{ id: "l1", quantity: 1, unit_price: 25000 }],
+  },
+});
+console.log(evalRes.data.discount_total);
+```
+
+Inside a `palbase/backend` service, use the scoped `Promotions` service (`Promotions.listRules()`, `Promotions.evaluate()`, `Promotions.hold()`, `Promotions.commitHold()`, `Promotions.releaseHold()`, `Promotions.reverseRedemption()`).
+
+## CLI Commands
+
+```bash
+palbase promotions:rules
+palbase promotions:rules:create --file rule.json
+palbase promotions:codes:create --file code.json
+palbase promotions:codes:batch --file batch.json
+palbase promotions:evaluate --file cart.json
+palbase promotions:redemptions
+```
+
+
+
+<!-- ===== campaigns/overview ===== -->
+
+# Campaigns Overview
+
+Palbase **Campaigns** unifies multi-channel audience **Broadcasts** (with deterministic holdout groups and A/B variants), cross-platform **On-Site & In-App Messages** (modals, banners, slide-ins, toasts, and fullscreen flows), and **Allowlist-Protected Tracking Links** (`/l/{slug}`) with conversion and revenue attribution.
+
+## Broadcasts
+
+Broadcasts dispatch targeted messages across `email`, `sms`, `whatsapp`, `push`, and `inbox` to any live [Analytics Audience](/docs/web/analytics#audiences). Broadcast SMS traffic flows through `notify`'s isolated campaign lane so transactional OTPs and alerts are never delayed by marketing bursts.
+
+- **Holdout lift:** set `holdout_bps` (for example `1000` for a 10% holdout) to measure true incremental conversions against an unmessaged control group.
+- **A/B variants:** define weighted `variants` summing to 100 and compare conversions and attributed revenue per variant.
+- **Incentives:** attach a `commerce_promo`, `iap_coupon`, or `iap_offer` incentive and control exhaustion behavior via `on_promo_exhausted` (`pause`, `skip`, or `send_without_promo`).
+
+## On-Site & In-App Messages
+
+On-site campaigns use Palbase's shared schema-2 message renderer across Web (`palbase/web/message`), iOS (`PalbaseUI` / `PalbaseNotifyUI`), and Android (`palbase-ui` / `palbase-notify-ui`), adding `slide_in` and `toast` presentations plus one-click `apply_promo` and `copy_code` button actions.
+
+Legacy `/notify/in-app/*` requests automatically route to the `campaigns` service at the Edge so existing mobile apps continue working with zero breaking changes.
+
+## Tracking Links & Attribution (`palbase/web`)
+
+Tracking links live at `https://<ref>.palbase.studio/l/{slug}`. Every target URL is verified against your project's verified domains and allowed origins (unallowlisted origins are rejected with `422`), bot user-agents are filtered from click counts, and redirects append `pb_click`, `utm_*`, and optional `pb_promo` query parameters.
+
+```ts
+import { createClient } from "palbase/web";
+
+const pb = createClient({
+  url: "https://k3xq81w4m.palbase.studio",
+  publishableKey: "pb_k3xq81w4m_cZ8yX7wV6uT5",
+});
+
+// Capture pb_click, pb_promo, and utm_* parameters on landing pages.
+const attribution = pb.campaigns.captureAttribution(window.location.search);
+
+// Fetch eligible on-site / in-app campaigns for the current visitor or signed-in user.
+const { messages } = await pb.campaigns.listOnSiteMessages();
+
+// Apply an attributed tracking-link promo code directly to a Commerce cart.
+const cart = await pb.commerce.createCart({ currency: "TRY" });
+if (cart.id && attribution?.promoCode) {
+  await pb.campaigns.applyAttributedPromo(cart.id);
+}
+console.log(messages.length);
+```
+
+## Server & Backend Usage (`palbase/server`)
+
+Use `createServer().campaigns` (or `Palbase.campaigns` inside `palbase/backend`) to manage broadcasts, on-site campaigns, tracking links, and server-side conversion attribution:
+
+- `POST /campaigns/broadcasts` & `POST /campaigns/broadcasts/{id}/start` — create and dispatch a broadcast.
+- `GET /campaigns/broadcasts/{id}/stats` — read sent, holdout, conversion, and revenue figures per variant.
+- `POST /campaigns/onsite` & `GET /campaigns/onsite/{id}/stats` — create and measure on-site / in-app campaigns.
+- `POST /campaigns/links` & `POST /campaigns/links/attribute` — create allowlisted links and attribute checkout revenue to click tokens.
+
+## CLI Commands
+
+Manage broadcasts, on-site campaigns, and tracking links from the CLI:
+
+```bash
+palbase campaigns
+palbase campaigns:create --file broadcast.json
+palbase campaigns:start <id>
+palbase campaigns:pause <id>
+palbase campaigns:stats <id>
+palbase campaigns:onsite
+palbase campaigns:onsite:create --file slidein.json
+palbase campaigns:links
+palbase campaigns:links:create --slug summer --name "Summer Drop" --target-url https://shop.example.com/summer --promo-code SUMMER15
+```
+
+See [Journeys](/docs/backend/journeys) for event-driven lifecycle automation and Seller Blueprints, and [Promotions](/docs/commerce/promotions) for coupon and discount rules.
+
+
+
 <!-- ===== iap/overview ===== -->
 
 # Purchases
@@ -30949,7 +31611,7 @@ export async function isPro(userId: string): Promise<boolean> {
 |---|---|---|---|---|
 | `ios` | The App Store | StoreKit 2, through `PalbaseIAP` | An In-App Purchase key; an App Store Connect API key to write the catalog | [App Store](/docs/iap/app-store) |
 | `android` | Google Play | Play Billing, through `palbase-iap` | A service account your Play Console invites, and the app's notifications topic in Play Console | [Google Play](/docs/iap/google-play) |
-| `web` | Payments (Stripe, iyzico, Masterpass) | Web checkout, through `pb.iap.checkout()` | Any connected channel under **Payments › Channels** | [Payments Channels](/docs/payments/channels), [Web](/docs/iap/web) |
+| `web` | Payments (Stripe and iyzico) | Web checkout, through `pb.iap.checkout()` | Any connected channel under **Payments › Channels** | [Payments Channels](/docs/payments/channels), [Web](/docs/iap/web) |
 
 Each environment connects its own stores and payment channels: `staging` can sell through Sandbox/Test Mode while `production` takes live payments.
 
@@ -31006,7 +31668,7 @@ Each environment's **In-App Purchases** has these screens:
 
 ## The CLI
 
-The `iap` commands cover the catalog, App Store and Google Play connections, paywalls, placements, experiments, charts and customers; the `payments` commands configure web payment channels (Stripe, iyzico, Masterpass); and the `stores` commands connect the App Store Connect and Google Play accounts the catalog is written with. Every command is in the [CLI reference](/docs/cli/reference#iap).
+The `iap` commands cover the catalog, App Store and Google Play connections, paywalls, placements, experiments, charts and customers; the `payments` commands configure web payment channels (Stripe and iyzico); and the `stores` commands connect the App Store Connect and Google Play accounts the catalog is written with. Every command is in the [CLI reference](/docs/cli/reference#iap).
 
 ## Related
 
@@ -31719,7 +32381,7 @@ Connecting, a test notification arriving and disconnecting each emit `iap.store.
 
 # Web
 
-The catalog's `web` products are sold through your environment's connected [Payments channels](/docs/payments/channels) (Stripe, iyzico, or Masterpass): Payments collects the card payment or recurring subscription using your deterministic routing rules and keeps the IAP entitlement ledger current on renewals, cancellations, refunds, and disputes. Connect a channel first under **Payments › Channels** ([Stripe](/docs/payments/stripe) or [iyzico](/docs/payments/iyzico)).
+The catalog's `web` products are sold through your environment's connected [Payments channels](/docs/payments/channels) (Stripe or iyzico): Payments collects the card payment or recurring subscription using your deterministic routing rules and keeps the IAP entitlement ledger current on renewals, cancellations, refunds, and disputes. Connect a channel first under **Payments › Channels** ([Stripe](/docs/payments/stripe) or [iyzico](/docs/payments/iyzico)).
 
 In a browser, `pb.iap` — the `palbase/web` client's In-App Purchases module — reads the offerings, opens web checkout and the customer portal, and keeps what the signed-in customer has current. Every call here takes the publishable key; what is the customer's takes their session too.
 
@@ -35476,7 +36138,7 @@ palbase envs:delete staging --delete-bound      # deleted with it
 palbase envs:delete staging --move-to main      # moved first: its machines, databases and sites
 ```
 
-Moved, its machines, databases and sites go to the other environment as `machines:move`, `databases:move` and `hosting:sites:move` move them — keeping their data, answering throughout, their old addresses working — and the environment is deleted once each is up where it moved (the CLI waits; Studio answers `504 machines_still_moving` past a minute and a half, and the deletion is asked again). The passwords the CLI holds for its databases go with them. What cannot be moved is said, and nothing is deleted. Deleted with it, a database it keeps that a machine of another environment is given is not deleted at all (`409 database_given_elsewhere`): take the database from that machine first, or move it. An environment its organization froze answers nothing to ask what is bound to it: it is deleted with what is bound to it (`--delete-bound`). A machine moving into the environment is not moved out of it (`409 machines_moving_in`): let its move end, or go, first.
+Moved, its machines, databases and sites go to the other environment as `machines:move`, `databases:move` and `hosting:sites:move` move them — keeping their data, answering throughout, their old addresses working — and the environment is deleted once each is up where it moved (the CLI waits; Studio answers `504 machines_still_moving` past 45 seconds, and the deletion is asked again). The passwords the CLI holds for its databases go with them. What cannot be moved is said, and nothing is deleted. Deleted with it, a database it keeps that a machine of another environment is given is not deleted at all (`409 database_given_elsewhere`): take the database from that machine first, or move it. An environment its organization froze answers nothing to ask what is bound to it: it is deleted with what is bound to it (`--delete-bound`). A machine moving into the environment is not moved out of it (`409 machines_moving_in`): let its move end, or go, first.
 
 ## Its address
 
@@ -35967,7 +36629,7 @@ A `palbase/backend` app ships a `Dockerfile` (see [Project Structure](/docs/gett
 
 The Bun a machine runs — its program, its `bun install` and the tests a build runs before it takes traffic, all in the build's image — is the image's, and the repository pins it:
 
-- **With a `Dockerfile`**, its `FROM`. `palbase init` writes `FROM oven/bun:1.4.2-alpine`; `FROM oven/bun:1.4.4-alpine` runs 1.4.4. The build's log shows it: `FROM docker.io/oven/bun:1.4.4-alpine` and `bun install v1.4.4`.
+- **With a `Dockerfile`**, its `FROM`. `palbase init` writes `FROM oven/bun:1.4.5-alpine`; `FROM oven/bun:1.4.4-alpine` runs 1.4.4. The build's log shows it: `FROM docker.io/oven/bun:1.4.4-alpine` and `bun install v1.4.4`.
 - **Without one**, Railpack's: the `packageManager` field of `package.json` (`"packageManager": "bun@1.4.4"`), else `engines.bun`, else a `.bun-version`, `mise.toml` or `.tool-versions` file. With none, Railpack takes the newest Bun it resolves when it builds, so two builds of the same commit can differ: pin it.
 
 The pin is the repository's, so it takes effect at the next build — a push, or `palbase machines:deploy <name>` to build the branch's head again. A machine's settings carry no Bun version.

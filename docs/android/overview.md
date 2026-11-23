@@ -66,7 +66,7 @@ dependencies {
 | `palbase-notify-ui` | The inbox and in-app messages, drawn in Compose | `InboxView`, `PalbaseInAppMessages` ([Notifications](https://palbase.studio/docs/android/notifications#the-inbox)) |
 | `palbase-storage` | Files through URLs your backend signed, and public buckets | `pb.storage` ([Storage](https://palbase.studio/docs/android/storage)) |
 | `palbase-iap` | What the customer has, in any store, and buying on Google Play (Play Billing 9) | `pb.iap` ([In-App Purchases](https://palbase.studio/docs/android/iap)) |
-| `palbase-payments` | Direct payments (Stripe, iyzico, Masterpass, saved cards, subscriptions, wallets & QR) | `pb.payments` ([Payments](https://palbase.studio/docs/payments/android-sdk)) |
+| `palbase-payments` | Direct payments (Stripe, iyzico, saved cards, subscriptions, wallets & QR) | `pb.payments` ([Payments](https://palbase.studio/docs/payments/android-sdk)) |
 | `palbase-payments-ui` | Optional drop-in PCI-DSS SAQ-A Compose checkout (`PaymentSheet`, `WalletTopUpSheet`, `SavedCardsView`, `SpendQRView`) | `rememberPaymentSheet`, `PaymentSheet` ([Payments](https://palbase.studio/docs/payments/android-sdk)) |
 | `palbase-palbe` | Your backends' generated clients, their gateways and chats | `pb.<name>` ([Calling Your Backend](https://palbase.studio/docs/android/backend-calls), [Gateways](https://palbase.studio/docs/android/gateways)) |
 | `palbase-debug` | The debug console's screens, in Compose | `PalbaseConsole(pb.debug)` ([Debug Console](https://palbase.studio/docs/android/debug-console)) |
@@ -291,7 +291,7 @@ Your backend's refusals are a typed error of their own: [Calling Your Backend](h
 - [Notifications](https://palbase.studio/docs/android/notifications): FCM push for the signed-in user, preferences and topics
 - [Storage](https://palbase.studio/docs/android/storage): files through signed URLs, and public buckets
 - [In-App Purchases](https://palbase.studio/docs/android/iap): what the customer has, and buying on Google Play
-- [Payments](https://palbase.studio/docs/payments/android-sdk): direct Stripe, iyzico, Masterpass checkout, saved cards, wallets & QR
+- [Payments](https://palbase.studio/docs/payments/android-sdk): direct Stripe and iyzico checkout, saved cards, wallets & QR
 - [Voice](https://palbase.studio/docs/android/voice): a chat's live voice over WebRTC
 - [Debug Console](https://palbase.studio/docs/android/debug-console): the in-app console, opened for one user
 

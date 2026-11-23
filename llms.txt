@@ -168,16 +168,27 @@ Every page is named below. What each one covers is in its section's index — th
 - [Channels & Routing](https://palbase.studio/docs/payments/channels)
 - [Stripe](https://palbase.studio/docs/payments/stripe)
 - [iyzico](https://palbase.studio/docs/payments/iyzico)
-- [Masterpass](https://palbase.studio/docs/payments/masterpass)
 - [Checkout & PaymentSheet](https://palbase.studio/docs/payments/checkout)
 - [Wallets & QR Spend Tokens](https://palbase.studio/docs/payments/wallet-qr)
 - [Subscriptions](https://palbase.studio/docs/payments/subscriptions)
 - [Refunds & Disputes](https://palbase.studio/docs/payments/refunds-disputes)
 - [Ledger, Drift & Audit Export](https://palbase.studio/docs/payments/audit)
+- [Marketplace Payments](https://palbase.studio/docs/payments/marketplace)
 - [Web SDK](https://palbase.studio/docs/payments/web-sdk)
 - [iOS SDK](https://palbase.studio/docs/payments/ios-sdk)
 - [Android SDK](https://palbase.studio/docs/payments/android-sdk)
 - [Server & Backend SDK](https://palbase.studio/docs/payments/server-sdk)
+
+## Commerce
+
+- [Commerce: what each page covers](https://palbase.studio/llms/commerce.txt)
+- [Overview](https://palbase.studio/docs/commerce/overview)
+- [Promotions](https://palbase.studio/docs/commerce/promotions)
+
+## Campaigns
+
+- [Campaigns: what each page covers](https://palbase.studio/llms/campaigns.txt)
+- [Overview](https://palbase.studio/docs/campaigns/overview)
 
 ## In-App Purchases
 

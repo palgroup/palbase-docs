@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.69.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.73.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-514 commands in 38 groups.
+560 commands in 41 groups.
 
 ## Global flags
 
@@ -168,6 +168,14 @@ A member reads the plans, what was used and who pays; the money (amounts, the ca
 
 ```text
       --org <org>  the organization (name or id; the one of the project chosen here, or your only one)
+```
+
+### `palbase campaigns`
+
+List the environment's multi-channel broadcast campaigns
+
+```sh
+palbase campaigns
 ```
 
 ### `palbase journeys`
@@ -4013,6 +4021,358 @@ Skips gracefully with setup instructions when no sandbox credentials are present
       --bin <digits>    test card BIN prefix for installment lookup (default: 554960)
 ```
 
+### `palbase payments:sub-merchants`
+
+List marketplace sub-merchants registered across iyzico Pazaryeri and Stripe Connect channels
+
+```sh
+palbase payments:sub-merchants [--seller <ref>] [--channel <key>] [--status <status>] [--limit <n>] [--cursor <token>]
+```
+
+```text
+      --seller <ref>     filter by seller_ref
+      --channel <key>    filter by channel key
+      --status <status>  filter by sub-merchant status
+      --limit <n>        maximum rows to return (default 50)
+      --cursor <token>   pagination cursor from previous page
+```
+
+### `palbase payments:sub-merchants:upsert`
+
+Create or update a marketplace sub-merchant (iyzico Pazaryeri or Stripe Connect) from JSON file or stdin
+
+```sh
+palbase payments:sub-merchants:upsert --file <submerchant.json>
+```
+
+```text
+      --file <submerchant.json>  JSON payload file ('-' or omitted: stdin)
+```
+
+### `palbase payments:sub-merchants:sync`
+
+Refresh a marketplace sub-merchant status and payout readiness directly from its PSP
+
+```sh
+palbase payments:sub-merchants:sync <sub-merchant-id>
+```
+
+### `palbase payments:splits`
+
+List marketplace payment splits and escrow settlement state
+
+```sh
+palbase payments:splits [--intent <id>] [--seller <ref>] [--status <escrow_status>] [--limit <n>] [--cursor <token>]
+```
+
+```text
+      --intent <id>             filter by PaymentIntent UUID
+      --seller <ref>            filter by seller_ref
+      --status <escrow_status>  filter by escrow_status (pending, held, approved, transferred, disapproved, refunded)
+      --limit <n>               maximum rows to return (default 50)
+      --cursor <token>          pagination cursor from previous page
+```
+
+### `palbase payments:splits:approve`
+
+Approve a held marketplace payment split for seller payout (iyzico item/approve or Stripe Connect transfer)
+
+```sh
+palbase payments:splits:approve <split-id>
+```
+
+### `palbase payments:splits:disapprove`
+
+Reverse escrow approval on a marketplace payment split (iyzico item/disapprove or Stripe transfer reversal)
+
+```sh
+palbase payments:splits:disapprove <split-id>
+```
+
+### `palbase payments:splits:refund`
+
+Execute a partial or full item-level marketplace split refund with seller clawback
+
+```sh
+palbase payments:splits:refund <split-id> --card <minor> --clawback <minor> [--wallet <minor>] [--fee-reversed <minor>] [--tax-reversed <minor>] [--reason <text>]
+```
+
+```text
+      --card <minor>          card refund amount in minor units
+      --wallet <minor>        wallet refund amount in minor units (default: 0)
+      --clawback <minor>      seller clawback amount in minor units
+      --fee-reversed <minor>  platform commission reversed in minor units (default: 0)
+      --tax-reversed <minor>  withholding tax reversed in minor units (default: 0)
+      --reason <text>         optional refund reason
+```
+
+### `palbase payments:seller-accounts`
+
+Inspect channel-independent escrow, top-up escrow, payable, and debt balances for a marketplace seller
+
+```sh
+palbase payments:seller-accounts <seller-ref>
+```
+
+### `palbase payments:seller-accounts:ledger`
+
+List immutable double-entry ledger entries affecting a marketplace seller account
+
+```sh
+palbase payments:seller-accounts:ledger <seller-ref> [--limit <n>] [--cursor <seq>]
+```
+
+```text
+      --limit <n>     maximum entries to return (default 100)
+      --cursor <seq>  sequence cursor for older entries
+```
+
+### `palbase payments:reconcile`
+
+Run full payments & marketplace accounting reconciliation (zero-drift Checks 1-6 plus cash-flow summary)
+
+```sh
+palbase payments:reconcile [--from <iso>] [--to <iso>]
+```
+
+```text
+      --from <iso>  inclusive RFC 3339 start timestamp for cash-flow window
+      --to <iso>    exclusive RFC 3339 end timestamp for cash-flow window
+```
+
+## `commerce`
+
+### `palbase commerce:settings:get`
+
+Show the environment's commerce settings (currency, commission, withholding, escrow)
+
+```sh
+palbase commerce:settings:get
+```
+
+### `palbase commerce:settings:set`
+
+Update the environment's commerce settings from JSON (--file or stdin)
+
+```sh
+palbase commerce:settings:set [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with commerce settings
+```
+
+### `palbase commerce:stores`
+
+List the environment's first-party and marketplace seller stores
+
+```sh
+palbase commerce:stores
+```
+
+### `palbase commerce:stores:create`
+
+Create a first-party or marketplace seller store from JSON (--file or stdin)
+
+```sh
+palbase commerce:stores:create [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with store payload
+```
+
+### `palbase commerce:products`
+
+List catalog products (optionally filtered with --q)
+
+```sh
+palbase commerce:products [--q <query>]
+```
+
+```text
+      --q <query>  search query
+```
+
+### `palbase commerce:products:quick`
+
+Quick-create a product, default variant, listing, price, and initial stock from JSON
+
+```sh
+palbase commerce:products:quick [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with quick product payload
+```
+
+### `palbase commerce:orders`
+
+List parent commerce orders (optionally filtered by --status)
+
+```sh
+palbase commerce:orders [--status <status>]
+```
+
+```text
+      --status <status>  filter by order status
+```
+
+### `palbase commerce:orders:get`
+
+Inspect a commerce order including its per-store splits and line items
+
+```sh
+palbase commerce:orders:get <order id>
+```
+
+### `palbase commerce:store-orders`
+
+List per-seller split store orders
+
+```sh
+palbase commerce:store-orders [--store <store id>] [--status <status>]
+```
+
+```text
+      --store <id>       filter by store UUID
+      --status <status>  filter by status
+```
+
+### `palbase commerce:returns`
+
+List RMA returns and partial-refund requests
+
+```sh
+palbase commerce:returns
+```
+
+### `palbase commerce:settlements`
+
+List seller settlement statements
+
+```sh
+palbase commerce:settlements
+```
+
+### `palbase commerce:settlements:generate`
+
+Generate a deduplicated seller settlement statement from JSON (--file or stdin)
+
+```sh
+palbase commerce:settlements:generate [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with store_id, currency, period_start_at, period_end_at
+```
+
+### `palbase commerce:hooks`
+
+List configured blocking commerce extension hooks
+
+```sh
+palbase commerce:hooks
+```
+
+### `palbase commerce:hooks:set`
+
+Register or rotate a blocking commerce hook endpoint (returns signing secret once)
+
+```sh
+palbase commerce:hooks:set [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with hook_point, url, timeout_ms, fail_mode
+```
+
+### `palbase commerce:hooks:delete`
+
+Delete a blocking commerce extension hook
+
+```sh
+palbase commerce:hooks:delete <hook id>
+```
+
+## `promotions`
+
+### `palbase promotions:rules`
+
+List promotion rules (automatic, code, and referral campaigns)
+
+```sh
+palbase promotions:rules [--status <status>]
+```
+
+```text
+      --status <status>  filter by status
+```
+
+### `palbase promotions:rules:create`
+
+Create a promotion rule from JSON (--file or stdin)
+
+```sh
+palbase promotions:rules:create [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with rule definition
+```
+
+### `palbase promotions:rules:archive`
+
+Archive a promotion rule
+
+```sh
+palbase promotions:rules:archive <rule id>
+```
+
+### `palbase promotions:codes:create`
+
+Create a single or referral promo code for a rule
+
+```sh
+palbase promotions:codes:create <rule id> [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with code payload
+```
+
+### `palbase promotions:codes:batch`
+
+Generate a batch of single-use promo codes for a rule
+
+```sh
+palbase promotions:codes:batch <rule id> [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with count, prefix, expires_at
+```
+
+### `palbase promotions:evaluate`
+
+Dry-run evaluate applicable promotions against a cart JSON payload
+
+```sh
+palbase promotions:evaluate [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with evaluate request
+```
+
+### `palbase promotions:redemptions`
+
+List committed and reversed promotion redemptions
+
+```sh
+palbase promotions:redemptions
+```
+
 ## `iap`
 
 ### `palbase iap:catalog:get`
@@ -4931,6 +5291,92 @@ The App Store's link fee is what Apple takes of a web purchase bought through a 
       --app-store-link-days <n>     for how many days after the link a purchase owes it (7)
 ```
 
+## `campaigns`
+
+### `palbase campaigns:create`
+
+Create a draft or scheduled multi-channel broadcast from JSON (--file or stdin)
+
+```sh
+palbase campaigns:create [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with broadcast payload
+```
+
+### `palbase campaigns:start`
+
+Start dispatching a broadcast campaign to its target audience
+
+```sh
+palbase campaigns:start <broadcast id>
+```
+
+### `palbase campaigns:pause`
+
+Pause a running broadcast campaign
+
+```sh
+palbase campaigns:pause <broadcast id>
+```
+
+### `palbase campaigns:cancel`
+
+Cancel a broadcast campaign and cancel queued notify batches
+
+```sh
+palbase campaigns:cancel <broadcast id>
+```
+
+### `palbase campaigns:stats`
+
+Show delivery, holdout lift, and variant conversion stats for a broadcast
+
+```sh
+palbase campaigns:stats <broadcast id>
+```
+
+### `palbase campaigns:onsite`
+
+List the environment's on-site and in-app campaigns
+
+```sh
+palbase campaigns:onsite
+```
+
+### `palbase campaigns:onsite:create`
+
+Create an on-site / in-app campaign from JSON (--file or stdin)
+
+```sh
+palbase campaigns:onsite:create [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with on-site campaign payload
+```
+
+### `palbase campaigns:links`
+
+List the environment's allowlist-validated tracking links
+
+```sh
+palbase campaigns:links
+```
+
+### `palbase campaigns:links:create`
+
+Create an allowlist-validated tracking link from JSON (--file or stdin)
+
+```sh
+palbase campaigns:links:create [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with tracking link payload
+```
+
 ## `journeys`
 
 ### `palbase journeys:get`
@@ -5041,6 +5487,42 @@ Delete a journey with its runs and its report; the people in a live one leave it
 
 ```sh
 palbase journeys:delete <key>
+```
+
+### `palbase journeys:blueprints`
+
+List built-in sandboxed seller automation blueprints
+
+```sh
+palbase journeys:blueprints
+```
+
+### `palbase journeys:store-blueprints`
+
+List seller blueprint journeys activated for a marketplace store
+
+```sh
+palbase journeys:store-blueprints <store id>
+```
+
+### `palbase journeys:store-blueprints:activate`
+
+Activate a sandboxed seller automation blueprint for a store from JSON (--file or stdin)
+
+```sh
+palbase journeys:store-blueprints:activate <store id> [--file <path>]
+```
+
+```text
+      --file <path>  JSON file with blueprint activation payload
+```
+
+### `palbase journeys:store-blueprints:delete`
+
+Stop and delete a blueprint journey owned by a marketplace store
+
+```sh
+palbase journeys:store-blueprints:delete <store id> <key>
 ```
 
 ## `apps`

@@ -4,7 +4,7 @@
 
 `Palbase.ai` is the project's models and agents, from your backend. It answers one-shot questions (`ask`, `generate`, `stream`, `embed`, `image`), gives an agent tools that run on your machine, defines agents from each turn's context, and runs **chats**: conversations of the project's agents with the members your backend names. Every call is made with the app's secret key and is recorded with its cost. The models are the platform's, and nothing is configured to use them.
 
-A model call is billed to the project, so no app makes one. There is no AI client in `palbase/web` or the mobile SDKs: an app reaches a chat through one of your backend's [gateways](https://palbase.studio/docs/backend/gateways), and asks your routes for anything else.
+Every unguarded model call carries the project's secret key and runs from your backend. In apps, `palbase/web` (`pb.ai.templates`), the iOS SDK (`PalbaseAI`), and the Android SDK (`palbase-ai`) expose guardrailed, server-locked templates — plus `chats`, `sessions`, and `voice` in the native SDKs — while an app reaches a backend-orchestrated chat through one of your backend's [gateways](https://palbase.studio/docs/backend/gateways) and calls your routes for anything else.
 
 ## Quick example
 
