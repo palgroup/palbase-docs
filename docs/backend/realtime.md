@@ -52,13 +52,13 @@ export async function watch(userId: string, onStatus: (change: unknown) => void)
 | `event` | The event's name, which the client reads as the frame's `event`. |
 | `payload` | Any JSON. |
 
-It answers `202` with how many were published. A broadcast reaches every subscriber on every replica of realtime, but the one that sent it — and the server is no subscriber, so a server broadcast reaches them all.
+It answers `202` with how many were published. A broadcast reaches every connected subscriber on the channel except the client that sent it — and the server is not a subscriber, so a server broadcast reaches them all.
 
 **A broadcast is delivered at most once.** A client that was not on the channel at that moment — offline, reconnecting, not joined yet — does not get it later, and nothing is kept. That makes a broadcast a *nudge*: "order 42 changed, look again". What a client must not miss belongs in your database, or in the channel's state.
 
 ## Revalidate
 
-`POST /realtime/revalidate` asks every replica to decide again, now, who may be on channels whose decision may no longer hold, and drops the members who may not. It names one channel (`topic`), or every channel of a pattern whose named parameters have the values given (`pattern` and `params`), and optionally one user's memberships alone (`user`). With a `topic` and no `user`, `end: true` ends the channel instead: every member is dropped without being asked, and what a durable channel kept is forgotten. It answers `202`. A dropped member's client is told the channel closed, and its rejoin is decided on the merits. Without it, a decision holds until the user's token runs out, fifteen minutes at most.
+`POST /realtime/revalidate` re-evaluates channel access immediately and disconnects members who are no longer authorized. It names one channel (`topic`), or every channel of a pattern whose named parameters have the values given (`pattern` and `params`), and optionally one user's memberships alone (`user`). With a `topic` and no `user`, `end: true` ends the channel instead: every member is dropped without being asked, and what a durable channel kept is forgotten. It answers `202`. A dropped member's client is told the channel closed, and its rejoin is decided on the merits. Without it, a decision holds until the user's token runs out, fifteen minutes at most.
 
 ## Shared state
 

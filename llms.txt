@@ -256,4 +256,7 @@ Every page is named below. What each one covers is in its section's index — th
 
 - [The whole corpus in one file](https://palbase.studio/llms-full.txt): every section in one file.
 - [Backend only](https://palbase.studio/llms-backend.txt): getting-started + backend + server + machines, the slice for writing a Palbase backend and putting it on a machine.
+- [Public OpenAPI catalog](https://palbase.studio/openapi.json): sanitized OpenAPI specifications for every public Palbase module.
+- [Agent discovery manifest](https://palbase.studio/.well-known/agent.json): machine-readable index of docs, OpenAPI specs, semantic docs search, and SDK packages.
+- [Documentation feed](https://palbase.studio/feed.xml): RSS feed of every documentation page.
 - Any page as raw Markdown: replace `/docs/` with `/docs-md/`, or append `.md` to its URL.

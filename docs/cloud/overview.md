@@ -103,13 +103,13 @@ The client's own namespaces are Studio's API — the same calls Studio's screens
 
 | Namespace | What it does |
 | --- | --- |
-| `orgs`, `projects` | the organization, its members and audit log; projects and their environments, usage, keys' hints, GitHub installations shared to a new environment |
+| `orgs`, `invitations`, `projects` | the organization, its members, invitations and audit log; projects and their environments, usage, keys' hints, GitHub installations shared to a new environment |
 | `billing` | the bill, cards, invoices and charges; a project's plan and monthly limit, an environment frozen; the payment account that pays for the organization |
 | `webhooks`, `orgWebhooks` | an environment's webhook endpoints and deliveries; the organization's own endpoints for its projects' billing events |
 | `environmentTokens` | tokens for one environment: an agent's, or one of your users' (below) |
 | `apps`, `snippets`, `chartViews`, `accessRequests`, `docs` | client apps, saved database snippets and chart views, access requests, the docs' search |
 
-`cloud.project(ref)` is one environment's modules: `auth`, `storage`, `analytics`, `purchases`, `ai`, `messaging`, `notify`, `flags`, `journeys`, `secrets`, `stores`, `realtime` and `machines` (the project's machines, databases and sites, listed from any of its environments' refs with the environment each is bound to; a change is made at the ref of the environment it is bound to) — every call of theirs a server makes, by the names their API reference gives them. What only an app's user calls — signing in, signing up, a password reset — is not there: that is the apps' SDKs'.
+`cloud.project(ref)` is one environment's modules: `auth`, `storage`, `analytics`, `iap`, `payments`, `commerce`, `campaigns`, `ai`, `messaging`, `calls`, `notify`, `flags`, `journeys`, `secrets`, `stores`, `realtime`, `workspaces` and `machines` (the project's machines, databases and sites, listed from any of its environments' refs with the environment each is bound to; a change is made at the ref of the environment it is bound to) — every call of theirs a server makes, by the names their API reference gives them. What only an app's user calls — signing in, signing up, a password reset — is not there: that is the apps' SDKs'.
 
 ## Your users: a token each
 

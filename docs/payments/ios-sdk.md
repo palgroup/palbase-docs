@@ -67,7 +67,7 @@ struct CheckoutScreen: View {
 | Billing profile | `profile.get()`, `profile.update(_:)` | Reads and updates buyer identity and address fields required by Turkish card processors. |
 | Wallets & QR | `wallet.state`, `wallet.balances()`, `wallet.balance(_:)`, `wallet.topUp(_:)`, `wallet.createSpendToken(walletKey:maxAmount:ttlSeconds:)`, `wallet.balancesUpdates` | `@Observable` live balances over `payments:<ref>:<uid>`, card-to-wallet top-ups, and single-use `pst_...` QR spend tokens. |
 | Subscriptions | `subscriptions.list(limit:cursor:)`, `subscriptions.cancel(_:)`, `portal(returnURL:channel:)` | Lists/cancels recurring subscriptions and opens a self-service billing portal session. |
-| Plugins | `register(_:)`, `unregister(pluginId:)` | Optional `PaymentMethodPlugin` extension slot for native wallets. |
+| Plugins | `register(_:)`, `unregisterPlugin(id:)` | Optional `PaymentMethodPlugin` extension slot for native wallets. |
 
 ```swift
 import Palbase

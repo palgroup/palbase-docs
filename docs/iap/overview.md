@@ -2,9 +2,9 @@
 
 # Purchases
 
-Every project has a purchases module. It holds **one catalog** of what the app sells — subscriptions, one-time products, packs of credits — sold in the **App Store**, on **Google Play** and on the **web** through the environment's own Stripe account. And it gives **one answer** to "what does this customer have", whatever store they bought in: a Pro bought on the web is Pro in the iOS app.
+Every project has an In-App Purchases module. It holds **one catalog** of what the app sells — subscriptions, one-time products, packs of credits — sold in the **App Store**, on **Google Play** and on the **web** through your environment's connected [Payments](https://palbase.studio/docs/payments/channels) channels (Stripe or iyzico). And it gives **one answer** to "what does this customer have", whatever store they bought in: a Pro bought on the web is Pro in the iOS app.
 
-Apps buy with each store's own machinery — StoreKit on iOS, Play Billing on Android, Stripe Checkout on the web — through Palbase's SDKs. Palbase verifies every purchase with the store, keeps it in the project's **ledger**, and keeps each customer's entitlements, credits and quotas current: in the apps, live, and on your server, by a read or an event.
+Apps buy with each store's own machinery — StoreKit on iOS, Play Billing on Android, and your connected Payments checkout on the web — through Palbase's SDKs. Palbase verifies every purchase with the store or payment provider, keeps it in the project's **ledger**, and keeps each customer's entitlements, credits and quotas current: in the apps, live, and on your server, by a read or an event.
 
 ## Quick example
 
@@ -29,7 +29,7 @@ export async function buyYearly(): Promise<void> {
     successUrl: "https://app.example.com/thanks",
     cancelUrl: "https://app.example.com/pricing",
   });
-  location.assign(url); // Stripe Checkout
+  location.assign(url); // Hosted web checkout (Stripe or iyzico)
 }
 ```
 
@@ -95,14 +95,14 @@ In a `palbase/backend` app the module is `Palbase.iap`; from any other server it
 
 ## Test purchases
 
-Purchases nobody pays for are **test purchases**: the App Store's sandbox (where TestFlight and App Review buy), Xcode's StoreKit Testing, Google Play's license testers and Stripe's test mode. Each is marked `is_sandbox` — in what the customer has and in the purchase events — and the environment's settings say whether they open entitlements: for **everyone** (the default), only for customers on an allowlist, or for **nobody**. App Review buys in the sandbox: on the environment a build in review uses, a test purchase that opens nothing gets the app rejected. See [Customers](https://palbase.studio/docs/iap/customers#settings).
+Purchases nobody pays for are **test purchases**: the App Store's sandbox (where TestFlight and App Review buy), Xcode's StoreKit Testing, Google Play's license testers, and test/sandbox mode on your connected web payment channel (Stripe Test Mode or iyzico Sandbox). Each is marked `is_sandbox` — in what the customer has and in the purchase events — and the environment's settings say whether they open entitlements: for **everyone** (the default), only for customers on an allowlist, or for **nobody**. App Review buys in the sandbox: on the environment a build in review uses, a test purchase that opens nothing gets the app rejected. See [Customers](https://palbase.studio/docs/iap/customers#settings).
 
 Test the iOS side end to end with [Test Apple Purchases](https://palbase.studio/docs/iap/testing-apple).
 
 ## Setting up, in order
 
 1. **Write the catalog** — in Studio, **Purchases › Catalog**, or as a file with `palbase iap:catalog:put`. [Catalog](https://palbase.studio/docs/iap/catalog)
-2. **Connect the stores you sell in** — the [App Store](https://palbase.studio/docs/iap/app-store), [Google Play](https://palbase.studio/docs/iap/google-play), [Stripe](https://palbase.studio/docs/payments/stripe).
+2. **Connect the stores you sell in** — the [App Store](https://palbase.studio/docs/iap/app-store), [Google Play](https://palbase.studio/docs/iap/google-play), and a web [Payments channel](https://palbase.studio/docs/payments/channels) ([Stripe](https://palbase.studio/docs/payments/stripe) or [iyzico](https://palbase.studio/docs/payments/iyzico)).
 3. **Bring the stores to the catalog** — plan it, read what each store will get, and confirm: `palbase iap:catalog:plan`, then `palbase iap:catalog:confirm`. Palbase creates the products and prices in each store.
 4. **Buy from the apps** — [iOS](https://palbase.studio/docs/ios/iap), [Android](https://palbase.studio/docs/android/iap), [the web](https://palbase.studio/docs/iap/web).
 5. **Check access where the content is served** — [Entitlements, Credits & Limits](https://palbase.studio/docs/iap/entitlements).

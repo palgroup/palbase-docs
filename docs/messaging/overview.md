@@ -52,18 +52,18 @@ A person finds their messages by their words — in one conversation, or across 
 
 - **Only what the person sees.** Nothing from before they joined a group that keeps its history from new members, nor after they left; nothing they cleared or removed for themselves, nor an answer in the thread of one; nothing a person they block sent them since, in their direct conversation; nothing removed.
 - **Never found.** Messages seen once, and those of vanish mode. A message changed is found by what it says now.
-- **Kept encrypted.** The words are kept as marks the conversation's key makes of their beginnings: never readable in the database, and one word said in two conversations leaves unrelated marks. Within one conversation the marks do show which of its messages share a word's beginning, and how often — not what the word is: the price of searching encrypted words on the server. A word's middle ("plantı") finds nothing, and a single letter finds only a word of one letter.
+- **Kept encrypted.** Search indexes are stored encrypted per conversation so message words are never readable in plaintext in the database. Search matches word prefixes (a substring in the middle of a word such as `"plantı"` does not match, and a single character matches single-character words only).
 
-The 2,000 conversations a person spoke in last are searched. Search costs nothing extra: its marks are not counted in what the messages weigh.
+Search covers a person's most recent active conversations and does not count against message storage quota.
 
 ### By meaning
 
-With the project's `search_by_meaning` on, a person also finds their messages by what they mean, in none of the words asked: "uçuş saati" finds "THY 14:30'da kalkıyor" (`GET /messaging/search?by=meaning`). What is found is what is near the question, the nearest first, each with how near (`score`, 0.3 to 1) — one page; a message about something else may still come, further down. The same people see the same messages as by words, and a message changed is found by what it means now.
+With the project's `search_by_meaning` setting enabled, a person can also search messages semantically (`GET /messaging/search?by=meaning`), matching related concepts even when none of the exact words appear (for example, `"uçuş saati"` matches `"THY 14:30'da kalkıyor"`). Results are ordered by relevance (`score`), and honor the exact same visibility rules as word search.
 
-- **Your choice, off until you turn it on.** Each message's text — not a system message's, nor one seen once, nor one of vanish mode — goes to OpenAI to be embedded (`text-embedding-3-large`), billed to the project as its AI use ([AI](https://palbase.studio/docs/backend/ai#what-it-costs)): about $2.90 a million short messages (about twenty tokens each), and each question a person asks. OpenAI keeps what it is sent up to 30 days for abuse monitoring and never trains on it; say so in your app's privacy policy. Turned on, the messages written before are embedded too, in the background; turned off, nothing more goes to OpenAI and the vectors are removed.
-- **Kept encrypted.** A message's vector says nearly what its text said, so it is kept sealed with the conversation's key, as the message is: a copy of the database holds none readable. A search opens the vectors of the person's conversations in the server's memory alone.
-- **Within reason.** A person asks 30 questions by meaning at once and one more a minute (`429 too_many_searches`, with `Retry-After`); a question asked again within ten minutes is not asked of OpenAI again. Of each conversation, its newest 100,000 messages are searched by meaning. When the project's AI allowance or budget is spent (`402 ai_payment_required`), messages are sent as ever and found by their words; those written meanwhile are embedded once it is renewed.
-- **Short messages.** A message of one word ("tamam") is found by its word, not embedded.
+- **Opt-in (off by default).** When enabled, message text (excluding system messages, view-once media, and vanish-mode messages) is indexed using an external embedding model, billed under project AI usage ([AI](https://palbase.studio/docs/backend/ai#what-it-costs)). Existing messages are indexed in the background; turning the setting off removes semantic indexes and stops further embedding calls. Disclose semantic search processing in your app's privacy policy when enabled.
+- **Kept encrypted.** Semantic vectors are stored encrypted with the conversation's key so database backups hold no plaintext vectors.
+- **Rate limits & budget.** Semantic search is rate-limited per user (`429 too_many_searches`, with `Retry-After`). If the project's AI allowance or budget is exhausted (`402 ai_payment_required`), messaging and keyword search continue uninterrupted and new messages are indexed once the allowance is restored.
+- **Short messages.** Single-word messages (`"tamam"`) are matched by keyword search rather than semantic indexing.
 
 ## Screenshots
 
@@ -156,6 +156,6 @@ In Studio (**Messaging**), with the CLI (`palbase messaging:settings:set`, `palb
 | Messages sent | 1 million | $5.25 a million |
 | What the messages weigh where they are kept | 1 GiB | $1.05 a GiB-month |
 
-A message weighs its sealed text and 768 bytes for its row and indexes: a GiB holds over a million short messages. Its files are the project's storage, its deliveries to people's sockets realtime messages, and its pushes push notifications — each on the bill as they are ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)). A message sent again with the same `client_message_id` is one.
+Message storage counts the encrypted message payload and storage metadata (1 GiB holds over a million short messages). File attachments count toward storage, socket deliveries toward realtime messages, and push notifications toward notifications ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)). A message sent again with the same `client_message_id` is counted once.
 
 A free project past either is slowed, never stopped: its messages go at about one a second, all its people together. A send waits its turn, 10 seconds at the most; one that would wait longer is `429 slowed` with `Retry-After`, and the clients keep it in their outbox and send it again. Reading, syncing and everything else go on at full speed.

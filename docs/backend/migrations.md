@@ -10,7 +10,7 @@ There are no migration files. Your [schema files](https://palbase.studio/docs/ba
 # 1. Edit the declaration: add a column, rename one, tighten one.
 #    src/db/public.ts
 # 2. Regenerate the types, so Database.public.* matches what you wrote.
-bun run scripts/palbase-env.ts
+npx palbase db:types
 # 3. Commit and push to the machine's branch. That push is the release.
 git commit -am "notes: pinned, and title is called subject"
 git push
@@ -58,7 +58,7 @@ How a run exits is all the platform reads of it:
 |---|---|---|
 | `0` | done, or nothing to do | the release goes on: rollout after start, and so on |
 | `1` | the migration's own verdict — it is refused, or the rows do not fit it (two rows where a new unique index wants one). Run again, it would end the same | the release stops. What start began is taken back, the version serving stays, and the build says why |
-| anything else | it was cut off — the database restarting, a lock not had in the tries it has, the run's node drained, its memory out (`75` when the app says so) | the run is made again, and picks up where it stopped |
+| anything else | it was cut off — the database restarting, a lock not had in the tries it has, a transient platform interruption, its memory out (`75` when the app says so) | the run is made again, and picks up where it stopped |
 
 A run's lines are in the machine's logs, marked as a migration run's, and its last line is the reason the build shows — see [Builds, Logs & Rollback](https://palbase.studio/docs/machines/builds). A migration the process dies in picks up where it stopped: each step is recorded when it commits, and copying a large table records its place with every batch. A step has a day, its attempts together — not a measure of the work, only the end of a run that would never end.
 
@@ -270,10 +270,12 @@ A refused migration changes nothing, and the version serving keeps serving. The 
 A database another tool left — Prisma, Drizzle, a team's hand-written SQL — comes over as it is. Palgres writes schema files from it, read only; the address is an environment variable, not an argument, because it holds a password:
 
 ```bash
-PALGRES_DATABASE_URL='postgresql://…' bun node_modules/palgres/src/cli.ts pull src
+npx palbase db:pull
 # wrote src/db/public.ts
 #   column public.orders.user_id may hold a user's id: mark it ownedByUser() or userRef() so user.deleted reaches it
 ```
+
+Or directly against any Postgres connection string using the `palgres` CLI under Bun (`PALGRES_DATABASE_URL='postgresql://…' bun node_modules/palgres/dist/cli.js pull src`).
 
 What the DSL's builders say is written with them; a default, check or policy they cannot say is written as its SQL. An index the typed form cannot say, and what the database holds besides tables — domains, types, sequences, functions, views, triggers — are raw units in Postgres' own words. The command prints what to look at: columns that may hold a user's id, and what it leaves as it is (a partitioned table, a view over one).
 

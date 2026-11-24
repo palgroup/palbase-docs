@@ -18,8 +18,8 @@ palbase payments:wallets:put \
   --name "TRY Wallet" \
   --kind fiat \
   --currency TRY \
-  --topup-min 1000 \
-  --topup-max 500000
+  --min 1000 \
+  --max 500000
 ```
 
 Each customer's balance tracks five accounting numbers in minor units:

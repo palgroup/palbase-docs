@@ -72,7 +72,7 @@ void payWithInstallments;
 
 ## Buyer profile & fallback defaults
 
-iyzico risk rules require buyer contact and billing address metadata (`name`, `surname`, `email`, `identity_number`, `city`, `country`, `address`). Palbase lets customers save their profile once (`GET /payments/me/profile`, `PUT /payments/me/profile` via `pb.payments.profile`) and lets you configure safe fallback defaults in Studio (**Payments › Routing & Settings**) when a buyer omits optional fields.
+iyzico risk rules require buyer contact and billing address metadata (`name`, `surname`, `email`, `tax_id`, and `billing_address` with `line1`, `city`, `country`, and optional `line2`, `state`, `postal_code`, `contact_name`). Palbase lets customers save their profile once (`GET /payments/me/profile`, `PUT /payments/me/profile` via `pb.payments.profile`) and lets you configure safe fallback defaults in Studio (**Payments › Routing & Settings**) when a buyer omits optional fields.
 
 ## 3D Secure & authoritative webhook verification
 

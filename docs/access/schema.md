@@ -52,7 +52,7 @@ An object is a type and an id — `product:10`. A **subject** is who holds somet
 The table whose rows are the type's objects. With it:
 
 - **an object exists when its row does.** Nothing is held on an object that is not there, and a relationship cannot be given on one;
-- **a row that is deleted takes its relationships**, a key that is updated carries them to the new id — row by row, in the order the statement changed them, before any trigger of the table's own (access' triggers' names begin with `!`, which comes before any letter or digit; a trigger of the table's own that fires after a change and is named to come before `!access_move` — beginning with a space, say, or `!a` — is refused when the schema is put in: rename it, or make it fire before the change) — and a table that is truncated leaves none, each written in the history as the database's own doing. A row that is made starts with nobody holding anything on it, whatever its id was before;
+- **a row that is deleted takes its relationships**, a key that is updated carries them to the new id — row by row, before any user-defined `AFTER` triggers on the table (triggers whose names sort ahead of Access's internal trigger order are refused when applying the schema; rename them or run them `BEFORE` the change) — and a table that is truncated leaves none, each recorded in history as a database change. A newly inserted row starts with no relationships, even if its id existed previously;
 - the type's relations can be read from the row's columns (below), and its permissions can guard the rows ([in a backend](https://palbase.studio/docs/access/backend#a-policy-names-a-permission), or with [`rows`](#rows)).
 
 The object's id is the table's primary key. A table whose primary key is several columns, or that has none, names one column that identifies a row: `table invoices key number`. The key is text, a uuid or an integer, and it identifies a row **by itself, at every moment**: `NOT NULL`, and unique alone — the primary key, or a unique constraint or index of that column and no other — by a check that is not `DEFERRABLE`. A schema other than `public` is written before the name.
@@ -207,7 +207,7 @@ Against the database it is also held to the tables as they are: every table and 
 | Relations a permission comes to once everything it is derived from is written out | 200 |
 | Lookups the database plans for one permission | 300 |
 | Indexes on a type's table | 150 |
-| What the database spends planning one name, measured when the schema is put in | 96 MB and 100 ms |
+| Schema complexity & planning budget | Checked automatically when the schema is applied |
 | Terms the whole schema comes to, written out | 25,000 |
 | Permissions derived from one another, in a chain | 16 |
 | Levels of a [nested type](https://palbase.studio/docs/access/nested) (`depth`) | 32 — 16 when not said |
@@ -217,14 +217,13 @@ Against the database it is also held to the tables as they are: every table and 
 
 Four of these are the ones a real schema can meet.
 
-- **Relations written out.** Permissions that name each other through several paths multiply. Say the shared part once, as a permission of its own, and name that.
-- **Lookups planned.** A kept relation is a lookup for each way it can be held — `viewer: user | user:* | public` is three — and a permission read through another type's — `company->view` — is planned by the database with that permission's whole definition inside it, twice over through a relation read from a column and four times over through a kept one. Each level multiplies: a chain org → company → product → session → record, read from columns, is 133 lookups — about 19 MB of the database's memory and 7.5 ms to plan, on every statement it guards. Past 300, read fewer levels deep through other types' permissions, or through relations read from columns rather than kept ones.
-- **Indexes on a type's table.** The database reads every index of a table each time a lookup reads it, and the cost grows faster than their number: the same chain plans in 5 ms on tables with their key alone, 10 ms with 150 indexes on each, 46 ms with 300 and 169 ms with 600. A table with more than 150 is refused as a type's table when the schema is put in. Up to that, and however many columns the tables have, a permission costs at most about two and a half times what it does on bare tables: the chain on tables of 1,500 columns with 150 indexes each plans in 12 ms and 24 MB.
-- **What planning takes.** What an index carries — a partial index's predicate, an index's expressions — and a table's statistics, and the indexes of `access.relationships`, are planned with every lookup that reads them. So the database itself is asked: each name's view is planned (not run) when the schema is put in, smallest first, and the schema is refused past 96 MB or 100 ms for one name, by name — a name the smaller ones show would be far past is refused without being planned. It is asked again each time the schema is put in, the same one too: by `access:schema:set`, and at every deploy of an app that carries its schema, so an index made since is found at the next.
-  - The bound is per statement on a type's table: a name is planned once for each place the table's policies read it, and the places add up. An `UPDATE` under `rows select, update: view` reads `view` in three places — the rows it reads, its `USING` and its `WITH CHECK` — and is counted as three plans of it (Postgres plans it about twice: the count leaves room), held to the bound together, as is a policy that names several permissions; an upsert (`INSERT … ON CONFLICT DO UPDATE`) adds the `INSERT`'s check to the `UPDATE`'s.
-  - A statement that reads a guarded table more than once (the table joined with itself) plans its rule once for each: that is the query's to keep in mind.
-  - The time is a connection's that has planned before; the first statement of a new connection also loads the database's catalog, whatever it asks.
-  - Palbase's databases run with JIT off. Postgres costs a rule's lookups by the plan it does not take — each related row read one by one — so a list over a large table is estimated far past what JIT compiles, and compiling took 2 s of a list that runs in 12 ms (110,000 sessions, in prod). On a Postgres of your own, turn it off for the app's logins: `ALTER ROLE <login> SET jit = off`.
+- **Relations written out.** Permissions that name each other through several paths multiply. Define the shared part once as its own permission and reference it.
+- **Lookups planned.** Each union branch on a kept relation and each arrow through another type's permission expands the query plan. Deep multi-level chains through kept relations multiply quickly; if your schema exceeds the 300-lookup limit, flatten the chain or read relations from row columns where possible.
+- **Indexes on a type's table.** Tables with more than 150 indexes are refused when applying the schema so query planning stays fast.
+- **Query planning budget.** When you apply a schema (`access:schema:set` or a deploy), Palbase validates that every permission and row policy stays within safe planning time and memory bounds for your tables and indexes, refusing overly expensive schemas by name before they reach production.
+  - Because a single `UPDATE` or upsert statement may evaluate multiple policies (`SELECT`, `USING`, `WITH CHECK`), their costs combine against the per-statement budget.
+  - A query that self-joins a guarded table evaluates the policy for each reference.
+  - If you run Access on a self-hosted Postgres database, disable Postgres JIT compilation for your application role (`ALTER ROLE <login> SET jit = off`) so complex permission queries do not incur unnecessary JIT compilation overhead.
 
 Each is refused when the schema is put in — with the count, and the line or the table — rather than found slow, or out of memory, in production.
 

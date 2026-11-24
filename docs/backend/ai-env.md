@@ -160,22 +160,18 @@ An allowance belongs to the agent's secret, not to its value: a new value keeps 
 
 It is a person's setting: in Studio it is **Let app users' work use open secrets**, under an environment's **AI › Settings**. The CLI shows the warning and asks for your yes wherever it is turned on.
 
-## The proxy
+## Outbound proxy behavior
 
-What the proxy beside each machine does, as measured against it:
+How sealed secrets and outbound network requests behave inside an agent session:
 
-- **The list of allowed hosts is the protection.** Hiding a value a host echoes back is a second line only. It cannot catch a value the host returns changed (reversed, encoded another way) or in pieces. Allow only the hosts a secret belongs to.
-- **What a host does with the value is beyond the proxy.** The proxy hides a value only in what the secret's own hosts send back through it. A host that shows the value somewhere else (a public page, another of its names) lets an agent read it there. And what a host gives for the value is no secret Palbase knows: a session token the agent gets by signing in with the key reaches it as it is, and works as the key does until it expires. Every proxy that puts secrets into requests has this limit. Give a key only the rights the agent's work needs.
-- **The machine sets it up itself.** Each machine sets the proxy's environment variables and its certificate authority for the session: you set none.
-- **A placeholder looks like the key.** It keeps a vendor's known prefix where there is one, so an SDK that checks the prefix works; the rest is random and holds no part of the secret.
-- **A sealed value's length is not hidden.** An agent can learn how long a value is, never what it is: from where an allowed host, or the proxy's own limits (`431`, `413`), start refusing a request that carries the placeholder many times. Most API keys' lengths are public anyway; a value inside a longer one shows its own (a password inside a `DATABASE_URL`).
-- **Some clients need a line of setup.** `stripe-python` brings its own certificate bundle, and its requests get no value until the code sets `stripe.ca_bundle_path = "/etc/ssl/certs/ca-certificates.crt"`. `stripe-node` uses its own HTTPS agent and goes around the proxy until it is given one that follows it, on Node 24: `new Stripe(key, { httpAgent: new https.Agent({ proxyEnv: process.env }) })`.
-- **WebSockets.** Node's built-in `WebSocket` and Python's `websockets` go through the proxy. The npm `ws` package ignores it and fails closed: it never reaches the host.
-- **The proxy reads the agent's HTTPS traffic to find placeholders.** A connection to a host none of the machine's secrets may go to is read the same way, so a placeholder sent there is seen and its owner is asked. A client that pins its own certificates fails once for such a host, and the proxy then passes that host through untouched for an hour: a placeholder sent to it meanwhile is not noticed, and no ask is made. A host one of the machine's secrets may go to is never passed through, so a pinned client fails there every time.
-- **ssh and `git://`** go through as they are: a secret is never put in them.
-- **Four ports, each held to its protocol.** A machine reaches the internet on four ports: 22 for ssh, 9418 for `git://`, 80 for HTTP and 443 for TLS. A connection must speak its port's protocol, and its client must speak first, within 30 seconds; anything else is closed.
-- **ssh over port 443 is not carried.** Settings written for networks that close port 22 — `ssh.github.com` on port 443, `altssh.gitlab.com:443`, `altssh.bitbucket.org:443` in `~/.ssh/config` — fail. The same repositories answer on port 22: remove the alternate host from `~/.ssh/config`.
-- **Limits.** A session may hold 256 connections and 256 requests at once. A request whose body carries a secret is held in memory while the secret is put in, up to 4 MiB a body and 32 MiB a machine at once. Past a limit the answer is `503` with `Retry-After`, and a client retries after the time it says. A body over 4 MiB is `413`, and secrets put into a request's headers and query that add more than 64 KiB are `431`.
+- **The list of allowed hosts is the primary boundary.** Redacting echoed values from responses is defense in depth only and cannot catch values transformed or split by a remote service. Allow only the exact hosts a secret belongs to.
+- **Downstream handling is outside Palbase's control.** If an allowed host returns a derived session token or displays a secret elsewhere, the agent can read that output. Grant each key only the minimum scopes the agent needs.
+- **Configured automatically.** Each managed session configures its outbound proxy environment variables and trust store automatically.
+- **Format-compatible placeholders.** Sealed placeholders preserve common key prefixes where applicable so client SDK format checks succeed, while containing no bytes of the real secret.
+- **Client compatibility.** Some HTTP clients ignore standard proxy or system certificate settings by default (for example, `stripe-python` requires `stripe.ca_bundle_path = "/etc/ssl/certs/ca-certificates.crt"`, and `stripe-node` on Node 24 requires an `https.Agent` with `proxyEnv: process.env`). Standard Node `WebSocket` and Python `websockets` work through the proxy; clients that bypass proxy settings fail closed.
+- **Certificate-pinned clients.** Clients that pin third-party TLS certificates cannot have sealed secrets injected for those hosts and fail when contacting hosts bound to sealed secrets.
+- **Supported protocols and ports.** Outbound connections support HTTP (`80`), HTTPS (`443`), SSH (`22`), and `git://` (`9418`). Secrets are never injected into SSH or `git://` traffic, and SSH over port `443` (such as `ssh.github.com:443`) is not supported — use standard port `22`.
+- **Request limits.** Requests exceeding session concurrency or body-size limits return `503` (with `Retry-After`), `413`, or `431` as applicable.
 
 ## In Studio
 

@@ -6,7 +6,7 @@ Studio's **Logs** page lists what happened in an environment, newest first, one 
 
 | Category | A line is | Its source | Its level |
 |---|---|---|---|
-| **Requests** | A request to the environment's address, whichever module it went to, as the platform's edge answered it — refused ones too | The module: `auth`, `storage`, `realtime`, `flags`, `notify`, `analytics`, `secrets`, `machines` (databases included), `stores`, or `other` for a path no module answers | Info below 400, warn a 4xx, error a 5xx or no answer at all |
+| **Requests** | A request to the environment's address, whichever module it went to, as the platform answered it — refused ones too | The module: `auth`, `storage`, `realtime`, `flags`, `notify`, `analytics`, `secrets`, `machines` (databases included), `stores`, `ai`, `messaging`, `calls`, `payments`, `iap`, `commerce`, `campaigns`, `journeys`, `workspaces`, or `other` for a path no module answers | Info below 400, warn a 4xx, error a 5xx or no answer at all |
 | **Auth** | An event of auth's audit trail: a sign-in, a sign-up, a password or session change | The event, such as `auth.login.success` | Warn a failure |
 | **Notifications** | An email, SMS, WhatsApp message or push sent, and what became of it | The channel | Error one that did not arrive (failed, bounced, rejected, expired) |
 | **Machines** | What a machine wrote, its migration runs included ([Builds, Logs & Rollback](https://palbase.studio/docs/machines/builds#logs)) | The machine | The level the line says of itself |
@@ -16,7 +16,7 @@ Each category is narrowed by text, by source and by level, over the last 15 minu
 
 ## Request lines
 
-A request line holds what the edge knows of the request, and nothing it carried:
+A request line holds metadata about the request, and nothing of its body or headers:
 
 | Field | |
 |---|---|
@@ -25,11 +25,11 @@ A request line holds what the edge knows of the request, and nothing it carried:
 | `method`, `path` | The path **without its query**: a signed URL's signature and a token travel in the query, so it is never kept. Past 2,048 bytes it is cut |
 | `status` | What the client was answered; `0` when it got no answer |
 | `duration_ms` | Until the last byte of the answer was sent |
-| `client_ip`, `user_agent` | Who asked: the client's address as the edge saw it, and its user agent (its first 512 bytes) |
+| `client_ip`, `user_agent` | Who asked: the client's IP address as received by the platform, and its user agent (its first 512 bytes) |
 | `request_id` | The `X-Request-Id` the client was answered with — the one to quote when asking about a request |
-| `flags` | Present when the request ended short of a module's answer: `UAEX` the key or rate check refused it, `NR` no module answers its path, `UF` or `UH` the module could not be reached, `UT` it did not answer in time, `DC` the client went away |
+| `flags` | Present when the request ended before a module answered (for example: rejected by auth or rate limits, unmatched path, upstream unreachable or timed out, or client disconnected) |
 
-Not its headers, not its body. A line is kept **7 days** and deleted within a day after; only the project it was made for reads it. Anyone can send a project requests, and a refused one is a line too: under a flood, each of the platform's edges keeps about 1 MiB of a project's lines a second and drops the rest, so a flood to one project does not cost the others their lines.
+Not its headers, not its body. A line is kept **7 days** and deleted within a day after; only the project it was made for reads it. Under extreme request floods, request logging is rate-capped per project so high-volume traffic on one project does not affect logging for others.
 
 From a server, `GET /analytics/requests` with the project's secret key answers the same lines, newest first:
 

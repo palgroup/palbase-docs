@@ -71,7 +71,7 @@ export default defineSchema("public", { tables: [notes] });
 
 One file per schema, each with a default export. There are no migration files: a release migrates the database to this declaration beside the version that serves ([Schema changes](https://palbase.studio/docs/backend/migrations)). The request runs as its caller — `authenticated`, with the token's claims — so `auth.uid()` is the signed-in user, and the policy holds for every query of the request.
 
-> **Note:** `ownedByUser()` is the column type made for `owner`: when the user is deleted, their rows go. The platform tells the app through the project's webhook (`user.deleted`), so an app whose schema has an `ownedByUser()` or `userRef()` column does not boot without `PALBASE_WEBHOOK_SECRET`, the secret of the project's webhook endpoint — and an endpoint cannot be made from Studio. A project without one keeps its owner column a `text()` with a policy, as here. See [Event Hooks](https://palbase.studio/docs/backend/hooks).
+> **Note:** `ownedByUser()` is the column type made for `owner`: when a user is deleted, their rows go via the project's `user.deleted` event hook. On a Palbase machine, `PALBASE_WEBHOOK_SECRET` is provided automatically by the platform. Locally (outside a machine), an app still boots without `PALBASE_WEBHOOK_SECRET` and logs a warning that events will not be delivered until a webhook endpoint is configured in Studio (**Settings › Webhooks**). See [Event Hooks](https://palbase.studio/docs/backend/hooks) and [Webhooks](https://palbase.studio/docs/server/webhooks).
 
 ### 2. The schemas
 
@@ -219,7 +219,7 @@ These are the shapes a code assistant reaches for by default. Every one is wrong
 - **A migration file** — there are none. The schema file is the declaration.
 - **`try { … } catch { return 500 }`** — throw the error class and let the framework build the envelope; swallowing it turns a `404` into a `500`.
 - **Hand-built responses** — no `new Response(...)`, no `JSON.stringify`. Return the value; return nothing for `204`.
-- **A secret in the repository** — the secret key and every credential are project secrets the machine starts with; `.env.example` names them, never their values.
+- **A secret in the repository** — third-party credentials live in project secrets (while the machine's own `PALBASE_SECRET_KEY` and `PALBASE_WEBHOOK_SECRET` are provided automatically by the platform); `.env.example` names the variables your code expects, never their values.
 
 ## Adding a feature
 

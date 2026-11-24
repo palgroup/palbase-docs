@@ -68,7 +68,7 @@ An encrypted column is not a default, a primary key, a foreign key, a generated 
 
 ## Keys
 
-Each environment has its own field keys, kept by the platform's secrets module and derived from the environment's data key, which the platform's key-encryption key (Azure Key Vault) wraps. Your app reads them with its secret key when it starts and every minute after; a schema without an encrypted column never reads them. The secrets audit trail (`palbase secrets:audit`) has each app key's first read in the hour, and every download by a developer.
+Each environment has its own field keys, kept by the platform's secrets module and derived from the environment's data key, which is wrapped by a platform-managed key-encryption key. Your app reads them with its secret key when it starts and every minute after; a schema without an encrypted column never reads them. The secrets audit trail (`palbase secrets:audit`) has each app key's first read in the hour, and every download by a developer.
 
 A value is bound to its column — `table.column`, or `schema.table.column` outside public: moved to another column, or into another environment, it does not open, and a value changed in the database is refused when read, as is a plain value where an encrypted one belongs.
 

@@ -170,7 +170,7 @@ A signed URL is absolute, at the CDN's address under the project's ref, and open
 
 ## The CDN
 
-`cdn.palbase.studio` is served by Cloudflare: a file read there is kept near whoever reads it, and the next read of it near them is answered from that copy without reaching your project.
+`cdn.palbase.studio` is served through Palbase's global CDN: a file read there is cached near whoever reads it, and subsequent reads near them are answered from cache without reaching your project.
 
 - **A minute at most.** A public object is kept 60 seconds (`Cache-Control: public, max-age=60`), browsers included; a signed URL's object 60 seconds or until the URL expires, whichever comes first. A file deleted or replaced is gone from every copy within a minute. A refusal — `403`, `404` — is never kept.
 - **Pictures and files, not video.** A video, or a file larger than 25 MiB, is not kept: the CDN's address answers `302` with the same path and query at the project's own address (`https://<ref>.palbase.studio/storage/…`), and it is read there. A client following redirects, as browsers and every SDK do, sees nothing of it.

@@ -4,7 +4,7 @@
 
 The catalog is the project's one definition of what it sells. Each product is written **once** — its kind, its plans and prices, its name in each language, the channels it is sold on and what it gives — and each channel adds only what is its own there: the App Store's shorter name, a web price without the stores' commission.
 
-It is one JSON document, saved in **revisions**. Edit it in Studio (**Purchases › Catalog**) or keep it as a file in your repository and save it with the CLI. Saving a revision writes nothing to a store: a **plan** brings the App Store, Google Play and Stripe to it, store by store, after you have read what each will get and confirmed it.
+It is one JSON document, saved in **revisions**. Edit it in Studio (**In-App Purchases › Catalog**) or keep it as a file in your repository and save it with the CLI. Saving a revision writes nothing to a store: a **plan** brings the App Store and Google Play to it, store by store, after you have read what each will get and confirmed it; web plans run directly through your connected [Payments channels](https://palbase.studio/docs/payments/channels).
 
 Each environment has its own catalog.
 

@@ -109,7 +109,7 @@ What comes back:
 | `pb.socket` | The project's realtime socket. It is opened the first time a channel is joined, never before. See [Realtime](https://palbase.studio/docs/web/realtime). |
 | `pb.transport` | The transport every call above goes through. See [Calls the client has no method for](#calls-the-client-has-no-method-for). |
 | `pb.setLanguage(language)` | Changes the language every request says from now on; `null` goes back to the browser's. |
-| `pb.chatToolCall(chatId, callId)`, `pb.chatWorkspaceFile(chatId, path)` | A chat's whole tool answer, and a file of its workspace, read with the member's own session. See [Gateways](https://palbase.studio/docs/web/gateways#chat-gateways). |
+| `pb.chatToolCall(chatId, callId)` | A chat's whole tool answer, read with the member's own session. See [Gateways](https://palbase.studio/docs/web/gateways#chat-gateways). |
 | `pb.<backend>` | Your backend's routes and gateways, typed: `pb.backend.notes.create({ title })`, from the module `palbase apps:sync` writes the app. See [Calling Your Backend](https://palbase.studio/docs/web/backend-calls) and [Gateways](https://palbase.studio/docs/web/gateways). |
 
 A client is one project. Make it once and import it where you need it: each client keeps its own socket and its own copy of the session. An app whose checkout runs `palbase apps:sync` has its client made for it: it imports `pb` from `palbase/<app>`, made with its environment's address and key, and gives it the options above with `connect(options)` ([Calling Your Backend](https://palbase.studio/docs/web/backend-calls#the-generated-module)).

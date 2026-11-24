@@ -187,7 +187,7 @@ USER bun
 CMD ["bun", "run", "src/main.ts"]
 ```
 
-The machine builds the directory's `Dockerfile` when it has one; without one, Railpack detects what the directory is and plans the image ([Builds](https://palbase.studio/docs/machines/builds)). A backend ships its own, for two reasons: the decorators need `tsconfig.json` beside the sources, and `bun run src/main.ts` is exactly how the app is meant to start. Pin the base image by digest, so a rebuild of the same commit builds the same image.
+The machine builds the directory's `Dockerfile` when it has one; without one, the platform automatically detects the runtime and builds the image ([Builds](https://palbase.studio/docs/machines/builds)). A backend ships its own, for two reasons: the decorators need `tsconfig.json` beside the sources, and `bun run src/main.ts` is exactly how the app is meant to start. Pin the base image by digest, so a rebuild of the same commit builds the same image.
 
 The process listens on `$PORT` and stops cleanly on `SIGTERM`: it finishes the requests in flight (20 seconds at most), runs `onShutdown()`, and exits — which is what a rollout asks of the version it replaces.
 

@@ -71,7 +71,7 @@ export async function handlePaymentsWebhook(rawBody: string, signature: string |
 
 ## Webhook events
 
-Subscribe to any of the 11 `payments.*` webhook events in Studio (**Settings › Webhooks**) or with `@On(...)` in `palbase/backend`:
+Subscribe to any of the 15 `payments.*` webhook events in Studio (**Settings › Webhooks**) or with `@On(...)` in `palbase/backend`:
 
 | Event | When it fires |
 |---|---|
@@ -86,6 +86,10 @@ Subscribe to any of the 11 `payments.*` webhook events in Studio (**Settings ›
 | `payments.subscription.canceled` | A recurring subscription was canceled (immediately or at period end). |
 | `payments.wallet.balance_changed` | A customer's closed-loop wallet balance changed (also delivered over Realtime). |
 | `payments.wallet.hold_changed` | A two-phase wallet hold was created, committed, released, or expired. |
+| `payments.wallet.vested` | A pending wallet credit vested and moved into available balance. |
+| `payments.split.approved` | A marketplace split item was approved for seller payout release. |
+| `payments.split.refunded` | A marketplace split item was refunded (with card refund and/or seller clawback). |
+| `payments.sub_merchant.updated` | A marketplace sub-merchant onboarding or payout profile changed status. |
 
 ## Related
 

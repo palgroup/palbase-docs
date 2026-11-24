@@ -173,7 +173,7 @@ when (val result = pb.auth.phone.verifyCode("+905551234567", "482913")) {
 }
 ```
 
-Phone sign-in must be enabled for the project (`provider_not_enabled` otherwise). The code is texted through the project's own SMS provider or verification service — with neither, through Palbase's Twilio Verify.
+Phone sign-in must be enabled for the project (`provider_not_enabled` otherwise). The code is texted through the project's own SMS provider or verification service — with neither, through Palbase's shared verification channel.
 
 ## Passwords
 

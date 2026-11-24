@@ -309,7 +309,7 @@ A delivery is a signed `POST`, so a test signs one the way the sender does and h
 ```ts
 // src/modules/billing/stripe.webhook.test.ts
 import { createHmac } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { Module, On, PalbaseFactory, Webhook, type PalbaseApplication } from "palbase/backend";
 
 const seen: string[] = [];

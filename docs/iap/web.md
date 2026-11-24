@@ -51,11 +51,11 @@ export const stop = pb.iap.onCustomerInfo((info) => {
 
 ## Buying
 
-`pb.iap.checkout({ product, plan, successUrl, cancelUrl })` opens a Stripe Checkout session for one of the catalog's web plans, at its price on the environment's Stripe account, and answers its URL: send the buyer there. Stripe sends them back to `successUrl` once they paid, or to `cancelUrl`.
+`pb.iap.checkout({ product, plan, successUrl, cancelUrl })` opens a hosted web checkout session for one of the catalog's web plans through your active [Payments channel](https://palbase.studio/docs/payments/channels) (Stripe or iyzico, selected by your routing rules) and answers its URL: send the buyer there. The payment provider sends them back to `successUrl` once they paid, or to `cancelUrl`.
 
 Both addresses go back to one of the project's registered apps — a web app's origin (`palbase apps:env:set <app> --origin https://app.example.com`), or a native app's own scheme — and nowhere else.
 
-With a customer signed in — a guest too — the purchase is theirs once Stripe reports it, and `onCustomerInfo` hears it then: the success page shows the change when it arrives, not before.
+With a customer signed in — a guest too — the purchase is theirs once the payment settles, and `onCustomerInfo` hears it then: the success page shows the change when it arrives, not before.
 
 | Refusal | Why |
 |---|---|
@@ -146,7 +146,7 @@ export async function manage(): Promise<void> {
 }
 ```
 
-`portal(returnUrl)` opens Stripe's customer portal for the signed-in customer, where they change, cancel or renew what they bought on the web and how they pay. A subscription bought in the App Store or on Google Play is managed there: its `manage.url` is the store's page.
+`portal(returnUrl)` opens the customer billing portal for the signed-in customer on their web payment provider (when supported by the channel, such as Stripe's Customer Portal), where they change, cancel or renew what they bought on the web and how they pay. A subscription bought in the App Store or on Google Play is managed there: its `manage.url` is the store's page.
 
 ## A paywall on the web
 

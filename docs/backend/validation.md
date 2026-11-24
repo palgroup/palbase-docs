@@ -62,7 +62,7 @@ The handler gets the schema's **output**: defaults filled in, coercions and tran
 | `@Param("name")` | One path segment, `{name}` in the route's path | no: always a string |
 | `@User()` / `@OptionalUser()` | The signed-in user | see [Authentication](https://palbase.studio/docs/backend/authentication) |
 | `@Req()` | The `Request` itself | no |
-| `@RequestId()` | The request's id (`@TraceId()` is the same) | no |
+| `@RequestId()` | The request's id | no |
 | `@Client()` | `{ sdkVersion, appVersion, platform, osVersion }`, from the client's headers | no |
 
 A schema passed to `@Body`, `@QueryParams` or `@Headers` must be a Standard Schema value, the object itself. Anything else (a type, a plain object, `undefined`) throws when the class is declared: `@Body(schema): schema is a Standard Schema (a zod, valibot or arktype schema)`.

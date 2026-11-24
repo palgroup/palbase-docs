@@ -114,7 +114,7 @@ A page is kept by the CDN for one minute; a file whose name holds its content's 
 
 ## Redirects, rewrites and headers
 
-A site says how it answers beyond its files in two plain-text files at the root of what is deployed — the folder `hosting:deploy` sends, or the folder its build writes (put them in `public/` or `static/`, which builders copy there): `_redirects` and `_headers`. They are [Cloudflare Pages's files](https://developers.cloudflare.com/pages/configuration/redirects/), which Netlify's mostly are, so a site moved from either keeps them; what Vercel's `vercel.json` says in `redirects`, `rewrites` and `headers` is written in them. Neither is served: `/_redirects` and `/_headers` are answered as paths no file answers.
+A site says how it answers beyond its files in two plain-text files at the root of what is deployed — the folder `hosting:deploy` sends, or the folder its build writes (put them in `public/` or `static/`, which builders copy there): `_redirects` and `_headers`. They follow the standard `_redirects` and `_headers` plain-text rule syntax used by common static hosts, so a site migrated from another provider keeps its rules cleanly. Neither is served: `/_redirects` and `/_headers` are answered as paths no file answers.
 
 ### `_redirects`
 
@@ -156,19 +156,19 @@ Every rule whose path is the one asked adds its headers, in their order, to what
 
 `Cache-Control` says how long browsers keep an answer. The CDN keeps a page a minute whatever it says, and lets go of everything at the next release; a 404 keeps the platform's `Cache-Control`, so that a missing page is never kept long.
 
-A site sets no header that is the platform's or would reach every visitor alike: `Set-Cookie` (a page the CDN keeps is everyone's: its cookie would be too), `Cache-Tag`, `Cloudflare-CDN-Cache-Control`, `CDN-Cache-Control` and `ETag` (how the CDN and browsers keep a site's answers and let go of them), `Location` (a redirect is a rule of `_redirects`), `Clear-Site-Data` (it would sign every site on the platform's domains out, not this one alone — no site or machine sends it), `Content-Length`, `Content-Encoding`, `Content-Range`, `Transfer-Encoding`, `Connection`, `Keep-Alive`, `Upgrade` and `Trailer` (how an answer is sent), and any `X-Palbase-…` or `CF-…` header — nor takes one off.
+A site cannot set or remove reserved headers that affect caching, framing across platform domains, or HTTP transport: `Set-Cookie` (a cached page is shared across visitors), `ETag` and CDN cache-control headers, `Location` (redirects belong in `_redirects`), `Clear-Site-Data`, hop-by-hop/framing headers (`Content-Length`, `Content-Encoding`, `Content-Range`, `Transfer-Encoding`, `Connection`, `Keep-Alive`, `Upgrade`, `Trailer`), and any `X-Palbase-…` or platform-reserved header.
 
 ### What is refused
 
-A release whose `_redirects` or `_headers` has a line that does not hold is refused — `hosting:deploy` says so, and a build fails, changing nothing, with why on `hosting:builds <build>` — naming the file, each line and why. Cloudflare Pages leaves such a line out with a warning in its deploy's log; here you hear of it before the site serves it. Besides the headers above and the limits below, these are refused:
+A release whose `_redirects` or `_headers` has an invalid line is refused — `hosting:deploy` reports it, and a build fails without replacing the live site (`hosting:builds <build>` names the file, each line, and why). Besides the reserved headers above and the limits below, these are refused:
 
 - **A proxy to another address** — `/api/* https://api.example.com/:splat 200`. A rewrite answers with a file of the site; call a machine at its own address or domain.
-- **Netlify's other statuses and conditions** — a `404` rewrite (a path no file answers is answered by the site's `/404.html`), `Country=`, `Language=`, `Role=`, `Cookie=`, and query parameters in a source.
-- **`!` after a status** — Netlify's forced rule. On Netlify a rule does not apply where a file is at its source unless it is forced; here, as on Cloudflare Pages, every rule applies.
+- **Unsupported statuses and conditions** — a `404` rewrite (a path no file answers is answered by the site's `/404.html`), `Country=`, `Language=`, `Role=`, `Cookie=`, and query parameters in a source.
+- **`!` after a status** — forced rules are not needed because every matching rule applies directly.
 - **A domain as a source** — `https://example.com/* …`: a domain sends its visitors to another with `hosting:domains:redirect`.
-- **`/* /index.html 200`** and the like (`/app/* /app/index.html`): it would answer every path below — scripts and images too — with one page. A single-page app's fallback is the site's own: `hosting:sites:update <name> --spa`. Cloudflare Pages refuses it too.
-- **A redirect to a path it matches itself** — `/docs/* /docs/start 301` — which a browser would follow for ever.
-- **A second rule with the same source**, or a second `_headers` rule with the same path: Cloudflare Pages applies the first of two redirects and the last of two header rules; write one.
+- **`/* /index.html 200`** and the like (`/app/* /app/index.html`): it would answer every path below — scripts and images too — with one page. A single-page app's fallback is the site's own: `hosting:sites:update <name> --spa`.
+- **A redirect to a path it matches itself** — `/docs/* /docs/start 301` — which a browser would follow forever.
+- **A second rule with the same source**, or a second `_headers` rule with the same path: write one rule per path.
 - **In `_headers`, an address that is not `https://`, or that names a port.**
 
 | Limit | |
@@ -202,7 +202,7 @@ Any environment previews its pull requests, production's (`main`) too: a pull re
   palbase machines:previews:open 12 --machine api
   ```
 
-  On a preview that is open, `previews:open` starts its 3 days again. A preview the environment's limits refuse — no room for one more machine, or the storage the previews' databases are made on filling up — reads `refused`, with why, on `machines:previews` and the pull request; it is tried again every ten minutes, and the next push or `previews:open` tries at once.
+  On a preview that is open, `previews:open` starts its 3 days again. A preview the environment's limits refuse — no room for one more machine, or temporary preview capacity limits — reads `refused`, with why, on `machines:previews` and the pull request; it is tried again every ten minutes, and the next push or `previews:open` tries at once.
 - A pull request from a **fork** — another account's copy of the repository, which anyone can open — waits for an admin of the environment (**fork protection**, as Vercel's Git Fork Protection): nothing of it is built until one authorizes its head, and each new push asks again. Its comment says so, with a link to the site's or machine's page in Studio, where **Authorize** builds it; or from the CLI:
 
   ```sh
@@ -257,7 +257,7 @@ Adding one prints the records to add to the domain's DNS:
 | `CNAME` | `www.example.com` | `domains.palbase.app` |
 | `TXT` | `_palbase.<domain>` | `palbase-domain=<a token of its own>` |
 
-An apex takes an **A record** at the platform's address for apexes, which any DNS host has — GoDaddy's, Namecheap's, your registrar's. Its certificate is issued for you by Let's Encrypt; remove any other A record and any AAAA record of the apex, or Let's Encrypt may ask an address that is not ours. A subdomain takes a **CNAME**, and is served through the CDN. Where your DNS host has an `ALIAS`, `ANAME` or flattened CNAME (Cloudflare's DNS does), the apex may point at `domains.palbase.app` with one instead, and is served through the CDN too — what matters only when the apex is the address visitors end up at. The TXT record shows the domain is this environment's. A domain answers once its records are there and its certificate is issued, usually within minutes; `hosting:domains` says what is still missing.
+An apex takes an **A record** at the platform's address for apexes, which any DNS host supports. Its TLS certificate is issued automatically; remove any other A record and any AAAA record of the apex so certificate verification succeeds. A subdomain takes a **CNAME**, and is served through the CDN. Where your DNS host supports `ALIAS`, `ANAME`, or flattened CNAME records, the apex may point at `domains.palbase.app` instead and be served through the CDN too — which matters only when the apex is the primary address visitors land on. The TXT record shows the domain is this environment's. A domain answers once its records are there and its certificate is issued, usually within minutes; `hosting:domains` says what is still missing.
 
 ### Redirects
 
@@ -275,7 +275,7 @@ A domain is one environment's at a time, across the platform: another environmen
 
 ## Keeping a machine awake
 
-A machine of a shared size sleeps when it has had no request for 15 minutes, and the next request wakes it: it waits while the machine's sandbox starts and its program listens — about 3 to 4 seconds, the sandbox's 2 to 3 of them (measured 02.11: a plain Node server 3.2–3.6 s, Next.js 3.6–4.0 s) — and is sent to the machine the moment it does. Its files under `/_next/static/` and the like stay at the CDN all the while. In a project on **Pay as you go**, `palbase machines:update <name> --always-on` keeps it awake: never put to sleep, started again at once if it ever stops, and every hour of it paid. On the Free plan the setting is refused, and the machine sleeps as any. A dedicated size never sleeps.
+A machine of a shared size sleeps when it has had no request for 15 minutes, and the next request wakes it: it waits a few seconds while the machine starts and your program listens, then forwards the request immediately. Its hashed static files under `/_next/static/` and the like stay at the CDN all the while. In a project on **Pay as you go**, `palbase machines:update <name> --always-on` keeps it awake: never put to sleep, started again at once if it ever stops, and every hour of it paid. On the Free plan the setting is refused, and the machine sleeps as any. A dedicated size never sleeps.
 
 ## Abuse
 

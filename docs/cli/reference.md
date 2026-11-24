@@ -2249,18 +2249,18 @@ palbase workspaces:get <id-or-name>
 
 ### `palbase workspaces:create`
 
-Create a workspace on Palbase managed R2, or on your own S3 bucket with --byos
+Create a workspace on Palbase managed storage, or on your own S3 bucket with --byos
 
 ```sh
 palbase workspaces:create [name] [--byos --endpoint <url> --bucket <name> --access-key-id <key>]
 ```
 
-Without --byos, the workspace stores blobs in Palbase managed Cloudflare R2.
+Without --byos, the workspace stores blobs in Palbase managed object storage.
 With --byos, pipe the S3 secret access key on stdin (never passed as a flag): printf "%s" "$SECRET" | palbase workspaces:create app-ios --byos --endpoint https://… --bucket my-bucket --access-key-id AKIA…
 
 ```text
       --byos                          back this workspace with your own S3-compatible bucket (secret read from stdin)
-      --endpoint <https-url>          S3-compatible HTTPS endpoint (e.g. https://<account>.r2.cloudflarestorage.com)
+      --endpoint <https-url>          S3-compatible HTTPS endpoint (e.g. https://s3.example.com)
       --bucket <bucket>               S3 bucket name
       --region <region>               S3 region (default: auto)
       --prefix <prefix>               optional object key prefix inside the bucket
@@ -2292,7 +2292,7 @@ palbase workspaces:storage:set <id-or-name> --endpoint <url> --bucket <name> --a
 Pipe the new S3 secret access key on stdin. The bucket is probed before saving.
 
 ```text
-      --endpoint <https-url>          S3-compatible HTTPS endpoint (e.g. https://<account>.r2.cloudflarestorage.com)
+      --endpoint <https-url>          S3-compatible HTTPS endpoint (e.g. https://s3.example.com)
       --bucket <bucket>               S3 bucket name
       --region <region>               S3 region (default: auto)
       --prefix <prefix>               optional object key prefix inside the bucket
@@ -2312,7 +2312,7 @@ palbase workspaces:byos:test --endpoint <url> --bucket <name> --access-key-id <k
 Pipe the S3 secret access key on stdin; nothing is persisted.
 
 ```text
-      --endpoint <https-url>          S3-compatible HTTPS endpoint (e.g. https://<account>.r2.cloudflarestorage.com)
+      --endpoint <https-url>          S3-compatible HTTPS endpoint (e.g. https://s3.example.com)
       --bucket <bucket>               S3 bucket name
       --region <region>               S3 region (default: auto)
       --prefix <prefix>               optional object key prefix inside the bucket
@@ -2756,7 +2756,7 @@ palbase ai:environments:put <name> [--mode ephemeral|always_on] [--isolation str
       --mode <ephemeral|always_on>         lifecycle mode (always_on never auto-parks)
       --isolation <strict|relaxed>         minimum sandbox isolation posture
       --image <image>                      base OCI container image
-      --vm-profile <macos-xcode|linux-vm>  Virtualization.framework VM profile
+      --vm-profile <macos-xcode|linux-vm>  VM profile for isolated macOS or Linux sandboxes
       --cpu <n>                            vCPU count
       --memory-mb <mb>                     memory limit in MiB
       --disk-mb <mb>                       encrypted workspace disk budget in MiB
@@ -3169,7 +3169,7 @@ Connect Google Play: Palbase makes a service account for the environment, which 
 palbase stores:google:connect
 ```
 
-No key changes hands: Palbase acts as the service account it made in its own Google Cloud project.
+No key changes hands: Palbase manages a dedicated service account for your environment.
 Then, in Play Console → Users and permissions, invite the service account with the app (Release to testing tracks; for purchases also View financial data and Manage orders and subscriptions), link the Android app (stores:apps:link) and check: stores:google:check.
 
 ### `palbase stores:google:check`
@@ -5776,7 +5776,7 @@ The environment needs its GitHub link first: palbase github:connect.
       --path <dir>                        the directory built, from the repository's root (default: this directory's place in it)
       --context <dir>                     what the build is given above --path (a monorepo: ".")
       --size <size>                       its size (palbase machines:sizes lists them)
-      --replicas <n>                      how many copies run, 1 to 100 (one on Free), over two nodes at least and never all on one — with --max-replicas, the fewest its load runs (2 at least), spread over nodes as room allows
+      --replicas <n>                      how many copies run, 1 to 100 (one on Free), spread for high availability — with --max-replicas, the fewest its load runs (2 at least)
       --max-replicas <n>                  scale its copies by its load, up to n (2 to 100; Pay as you go): as many run as keep each near --cpu-percent and --memory-percent of its size
       --cpu-percent <p>                   with --max-replicas: the share of a copy's processor it is kept near, 10 to 95 (a copy is added above it)
       --memory-percent <p>                with --max-replicas: the share of a copy's memory it is kept near, 10 to 95
@@ -5816,7 +5816,7 @@ Named by none, it is the only machine of the environment chosen for this directo
       --path <dir>                        the directory built, from the repository's root (default: this directory's place in it)
       --context <dir>                     what the build is given above --path (a monorepo: ".")
       --size <size>                       its size (palbase machines:sizes lists them)
-      --replicas <n>                      how many copies run, 1 to 100 (one on Free), over two nodes at least and never all on one — with --max-replicas, the fewest its load runs (2 at least), spread over nodes as room allows
+      --replicas <n>                      how many copies run, 1 to 100 (one on Free), spread for high availability — with --max-replicas, the fewest its load runs (2 at least)
       --max-replicas <n>                  scale its copies by its load, up to n (2 to 100; Pay as you go): as many run as keep each near --cpu-percent and --memory-percent of its size
       --cpu-percent <p>                   with --max-replicas: the share of a copy's processor it is kept near, 10 to 95 (a copy is added above it)
       --memory-percent <p>                with --max-replicas: the share of a copy's memory it is kept near, 10 to 95
@@ -6942,7 +6942,7 @@ The address asks for a checked certificate (sslmode=verify-full). Node drivers c
 
 ```text
       --role <role>    owner (migrations, dumps) or app (what the machines use); default owner
-      --pooled         the pooled port (PgBouncer, transaction mode): for an app's many short connections
+      --pooled         the pooled port (transaction pooling): for an app's many short connections
       --with-password  put the password in the address
 ```
 

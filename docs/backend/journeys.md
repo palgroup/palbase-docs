@@ -162,8 +162,21 @@ Marketplace sellers can activate pre-built, sandboxed **Seller Blueprints** (`ab
 ```bash
 palbase journeys:blueprints
 palbase journeys:store-blueprints <store_id>
-palbase journeys:store-blueprints:activate <store_id> --blueprint abandoned_cart --channel push --body "Your cart is waiting"
+palbase journeys:store-blueprints:activate <store_id> --file blueprint.json
 palbase journeys:store-blueprints:delete <store_id> <key>
+```
+
+Example `blueprint.json`:
+
+```json
+{
+  "blueprint_id": "abandoned_cart",
+  "channel": "push",
+  "title": "Your cart is waiting",
+  "body": "Complete your checkout before items sell out.",
+  "delay": "PT2H",
+  "publish": true
+}
 ```
 
 ## Related

@@ -56,7 +56,7 @@ What it leaves in the database:
 | `access.relationships`, `access.history` | who is what of which object, and every change to it |
 | `access.can`, `access.check`, … | the functions below |
 | `access.<type>__<name>` | a view for each relation and permission: the ids the asker holds it on |
-| triggers on each type's table (`!access_fresh`, `!access_forget`, `!access_move`, `!access_empty`) | a deleted row takes its relationships, an updated key carries them, a new row starts with none |
+| triggers on each type's table | a deleted row takes its relationships, an updated key carries them, a new row starts with none |
 | `access_<digest>` | the compiled schema itself. Yours to read, not to write in: it is replaced when the schema changes |
 
 The schema is bound to your tables. A migration of yours that would drop or retype a column the schema reads is stopped by the database, naming what depends on it:

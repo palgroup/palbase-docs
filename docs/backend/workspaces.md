@@ -59,7 +59,7 @@ export class BuildsController {
 
 ## Live multi-way sync
 
-Run `palbase-agent workspace sync` on every machine that shares the workspace (Linux cloud sandboxes, macOS Tart VMs, or developer laptops). Each agent watches the local directory natively — `inotify` on Linux and `FSEvents` on macOS — and listens for remote commits over Server-Sent Events (`GET /workspaces/sync/events`).
+Run `palbase-agent workspace sync` on every machine that shares the workspace (Linux environments, macOS build VMs, or developer laptops). Install `palbase-agent` first (`curl -fsSL https://get.palbase.studio/agent/install.sh | sh`; see [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines#enrolling-a-machine)). Each agent watches the local directory natively — `inotify` on Linux and `FSEvents` on macOS — and listens for remote commits over Server-Sent Events (`GET /workspaces/sync/events`).
 
 ```bash
 PALBASE_WORKSPACE_URL="https://<ref>.palbase.studio/workspaces/sync" \
@@ -108,7 +108,7 @@ force_path_style = true
 
 ## Bring Your Own S3 (BYOS)
 
-By default, workspaces store content-addressed blobs in platform-managed Cloudflare R2 (`storage_kind: "managed"`). You can also bind a workspace to your own S3-compatible bucket — Cloudflare R2, AWS S3, or MinIO — with `storage.kind: "byos"`.
+By default, workspaces store content-addressed blobs in Palbase-managed object storage (`storage_kind: "managed"`). You can also bind a workspace to your own S3-compatible bucket (such as AWS S3, MinIO, or another S3-compatible store) with `storage.kind: "byos"`.
 
 - **SSRF protection:** BYOS endpoints are validated against private, loopback, link-local, and cloud metadata IP ranges before any request is made, and HTTP redirects are disabled.
 - **Live connectivity probe:** Call `POST /workspaces/byos/test` to verify Put, Head, Delete, and Presign operations without persisting credentials.
@@ -126,7 +126,7 @@ const pb = createServer({
 
 const byosStorage = {
   kind: "byos" as const,
-  endpoint: "https://account-id.r2.cloudflarestorage.com",
+  endpoint: "https://s3.example.com",
   region: "auto",
   bucket: "acme-workspaces",
   prefix: "prod/",
@@ -206,7 +206,8 @@ Manage workspaces, BYOS storage, sync tokens, and S3 keys directly from the `pal
 ```bash
 palbase workspaces:list
 palbase workspaces:create ios-disk
-palbase workspaces:byos:test --endpoint https://acct.r2.cloudflarestorage.com --bucket acme-ws --access-key-id "$AK"
+# Pipe the S3 secret access key on stdin so it never appears in shell history:
+printf '%s' "$BYOS_SECRET_ACCESS_KEY" | palbase workspaces:byos:test --endpoint https://s3.example.com --bucket acme-ws --access-key-id "$AK"
 palbase workspaces:tokens:create ws_01J... --kind sync --access rw --label mac-vm
 palbase workspaces:s3-keys:create --access rw --label ci-runner
 palbase workspaces:delete ws_01J... --force
@@ -216,7 +217,7 @@ palbase workspaces:delete ws_01J... --force
 
 | Method & path | Purpose |
 |---|---|
-| `GET /workspaces` / `POST /workspaces` | List or create a workspace (managed R2 or BYOS). |
+| `GET /workspaces` / `POST /workspaces` | List or create a workspace (managed storage or BYOS). |
 | `GET /workspaces/{id}` / `DELETE /workspaces/{id}` | Inspect or delete a workspace (`?force=true` overrides `409`). |
 | `POST /workspaces/byos/test` | SSRF-checked live probe of a BYOS S3 bucket. |
 | `PUT /workspaces/{id}/storage` | Rotate BYOS credentials or update connection settings. |

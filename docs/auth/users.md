@@ -70,7 +70,7 @@ An invitation to an address made for a test (`palbase auth:test-users:address`, 
 
 `send_email: false` sends nothing: the answer carries the link as `invitation.accept_url`, for you to deliver — a text message, your own mail. It sets the account's password, so give it to the person alone.
 
-`redirect_to` — a page of your app's, on the redirect allow-list (`additional_redirect_urls` in the [auth settings](https://palbase.studio/docs/auth/overview)) — is where the link opens instead of Palbase's page. It receives `?token=`, and sends it with the password the person chose to `POST /auth/invitations/accept` (`{ token, password }`, with the publishable key); they then sign in. The email itself is the environment's `auth.user_invitation` template (**Auth › Templates**).
+`redirect_to` — a page of your app's, on the redirect allow-list (`redirect_urls` in the [auth settings](https://palbase.studio/docs/auth/overview)) — is where the link opens instead of Palbase's page. It receives `?token=`, and sends it with the password the person chose to `POST /auth/invitations/accept` (`{ token, password }`, with the publishable key); they then sign in. The email itself is the environment's `auth.user_invitation` template (**Auth › Templates**).
 
 ### From the terminal and Studio
 

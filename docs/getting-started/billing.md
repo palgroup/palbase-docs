@@ -55,7 +55,7 @@ A payment account's **Monthly report** gives the month of every organization it 
 
 Palbase AI's models, on Palbase's own provider keys, are their provider's price and 10%, and each month brings each project $1.00 of them free, its environments together. An environment may have a monthly AI budget of its own ([AI](https://palbase.studio/docs/backend/ai#what-it-costs)). A call under an environment's own provider key is the provider's to bill. Requests, push notifications, and email, SMS and WhatsApp sent through an environment's own provider are not charged.
 
-A piece of AI work is paid for once. When Palbase sends the same step, summary, advisor's look, search or picture to its provider again (a worker was lost during the call, say), the repeat is on Palbase. The project's spend, its budget and its usage list count one of the two calls from the moment the repeat is answered. The month's AI usage reaches the bill as it goes, and the bill never lowers a month it was told. So until the project's later use passes the difference, the bill keeps the larger of the two calls on each item. Say the first call read 1,000 input tokens and the repeat 800: the month shows 1,000 until the project reads 200 more, and is exact from then. It never counts both calls ([AI](https://palbase.studio/docs/backend/ai#what-it-costs)).
+Each piece of AI work is billed once. If a call is retried automatically after a transient failure, you are not double-billed for the repeat; usage and monthly limits reflect a single call ([AI](https://palbase.studio/docs/backend/ai#what-it-costs)).
 
 ## Each project's own
 
@@ -108,7 +108,7 @@ What Studio's Billing page does, an admin's [access token](https://palbase.studi
 | `GET /v1/orgs/{id}/billing/charges.csv?period=2026-10` | The same, as CSV |
 | `GET /v1/orgs/{id}/billing/invoices` | The account's charges' invoices |
 
-`{project}` is the project's id (`palbase projects:list` shows it). Amounts are in micro-dollars (1,000,000 is $1), in whole cents. A member reads the plans and what was used; amounts and money are an admin's.
+`{project}` is the project's id (`palbase projects:list --json` prints each project's `id`). Amounts are in micro-dollars (1,000,000 is $1), in whole cents. A member reads the plans and what was used; amounts and money are an admin's.
 
 ## Related
 

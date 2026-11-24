@@ -90,8 +90,8 @@ Kimi K3.1 Pro (`kimi:kimi-k3.1-pro`, Moonshot AI) is answered only when a projec
 - A Free project's dollar and a budget hold as each use ends: a response is admitted with what the project has left, and one that would cost more, or is still running when it is reached, stops there with the error `ai_limit_reached` (a project with less than a cent left is at its limit: `402`). Responses running at once may each spend what was left, so the month may pass the limit by a little.
 - **Pay as you go.** A paying project's responses — all its environments' together — are held, the same way, to what its payment account may still owe before it is charged — twice its threshold, less what it owes now; no more than the project's monthly limit still allows — and what is left of its free dollar. When less than a cent is left, calls are `402 ai_payment_required` until the account's charge is paid, which happens at once from its card.
 - **Voice.** A voice session's model runs for as long as the session is open: an environment of a project on Free opens one on Palbase's models no more (`402 ai_payment_required`), one of a project on Pay as you go needs a dollar left of its budget and of what its account may still owe for each voice open, and an open one is closed (`ai_limit_reached`) when the project's free dollar, the environment's budget or that runs out. On the project's own OpenAI key it runs regardless.
-- **A call cut before its answer** (a turn stopped, a stream given up): its provider says what its tokens were only at the end. A reasoning model's hidden thinking, which the provider bills as output, is then estimated from how long it thought at the model's measured speed, rounded down, and the use is marked `estimated` (Studio: **Estimate**).
-- **A piece of work is billed once.** When the platform sends a step, a summary, an advisor's look, a search or a picture to its provider again (say, a worker was lost during the call), the repeat is on Palbase. Your spend, your budget, `/ai/usage` and a turn's cost count one of the calls: the last one, unless it was cut short after the whole answer had come (then the answer), or the first call was in a month that has ended (then the first). Within a month, the bill counts at most the larger of the two calls on each item, never both, and it is exact once your later use that month passes the difference ([Billing](https://palbase.studio/docs/getting-started/billing#what-is-charged)). When the provider refuses the repeat, the call before it stays billed. When the two calls ran on different keys (the project connected or removed its own key in between), the first call is the one counted. So if the first ran on Palbase's key and the repeat on the project's own, the provider bills the repeat to the project as well. A turn you stop is not a repeat: what it used is billed, and so is the next turn.
+- **A call stopped before finishing** (a turn stopped, a stream cancelled): when a provider does not report final token counts for an interrupted call, reasoning output is estimated conservatively and marked `estimated` (Studio: **Estimate**).
+- **Each piece of AI work is billed once.** If a call is retried automatically after a transient failure, you are not double-billed for the repeat; spend, budgets, `/ai/usage`, and turn cost reflect a single call ([Billing](https://palbase.studio/docs/getting-started/billing#what-is-charged)). A turn you stop manually is billed for what it used before stopping.
 
 `GET /ai/spend` says the month's spend at what it is billed, what is left of a Free project's dollar, the budget, and whether Palbase's models serve the project now (and if not, why). Studio shows the same on **AI › Models & keys**.
 
@@ -371,11 +371,11 @@ A turn the model's provider refused for good ends `provider_rejected`, and its m
 
 | What was refused | The message says | What happens, and what to do |
 |---|---|---|
-| **Palbase's own account** at the provider: its credit, or its key | `Palbase's Anthropic account refused the call (its credit or its key): this is on Palbase's side, not your request …` | `retryable: true`. Palbase's operators are told at once, and the same turn is answered once the account serves again. Your request is not at fault and nothing of yours changes. The models of other providers answer meanwhile: name one of them (`GET /ai/models`) to go on now. |
+| **Palbase's own account** at the provider: its credit, or its key | `Palbase's Anthropic account refused the call (its credit or its key): this is on Palbase's side, not your request …` | `retryable: true`. Your request is not at fault and nothing of yours changes; retry once the provider recovers or select another provider's model (`GET /ai/models`). |
 | **Your project's own key** for the provider (`connectProvider`) | `your project's own Anthropic key was refused by Anthropic (its credential, its permission or its account's credit) …` | `retryable: false`. Fix the key, or its account's credit, at the provider. Or disconnect it (**AI › Models & keys**, `DELETE /ai/providers/{provider}`) for Palbase's keys to answer. |
 | **The request itself** | `Anthropic refused the request itself …` | `retryable: false`. The same request is refused again. Change what it sends: its model, its tools, its attachments, its size. |
 
-A refusal is neither a rate limit nor a provider's outage. Those are retried by the platform while the turn runs, and a turn that still cannot reach the provider ends with an error whose `retryable` says asking again may help. The provider's own sentence never reaches you: it can name what the request held, and Palbase's operators read it. A turn that spent its budget ends `budget_exceeded`, and one past its deadline `timed_out`. The project's refusals of its own — its limit, its plan — are in [Refusals](#refusals).
+A refusal is neither a rate limit nor a provider's outage. Those are retried by the platform while the turn runs, and a turn that still cannot reach the provider ends with an error whose `retryable` says asking again may help. Raw upstream error text is withheld to avoid leaking request content. A turn that spent its budget ends `budget_exceeded`, and one past its deadline `timed_out`. The project's refusals of its own — its limit, its plan — are in [Refusals](#refusals).
 
 ## Voice
 
@@ -398,7 +398,7 @@ What was said either way is the chat's: a `transcript` part of its stream for ea
 
 ## Workspaces
 
-A chat attaches to an encrypted standalone workspace ([Workspaces](https://palbase.studio/docs/backend/workspaces)) via `workspace_id`. Every workspace blob stored in object storage (R2 or BYOS) is encrypted end-to-end with chunked AES-256-GCM (`PBWS1`) under a per-workspace data encryption key derived from your project key, and mounted on runner disks only inside an encrypted container or disk. Keys live in RAM only and are zeroed on park or eviction.
+A chat attaches to an encrypted standalone workspace ([Workspaces](https://palbase.studio/docs/backend/workspaces)) via `workspace_id`. Workspace files are encrypted at rest in managed storage or BYOS under per-workspace keys, and isolated per session while mounted.
 
 ```bash
 # Configure a strict always-on runtime environment with Palbase DB egress
@@ -445,11 +445,11 @@ Configure named execution environments with `POST /ai/environments` or `PUT /ai/
 - **`isolation: "strict" | "relaxed"`:** enforces minimum attested sandbox isolation on enrolled runners.
 - **`network.allow_palbase_db: true`:** permits encrypted PostgreSQL connections (`SSLRequest` + TLS or PostgreSQL 17 direct TLS with verified SNI) from the sandbox to your project's Palbase databases (`*.db.<domain>:5432,6543`); cleartext PostgreSQL startups and SNI mismatches are refused.
 
-**Workspace lifecycle and events.** File reads/writes, sync tokens, S3 access, and webhook events (`workspace.published`, `workspace.conflict`, `workspace.deleted`) are all served through the unified [Workspaces](https://palbase.studio/docs/backend/workspaces) module. When a chat hands off across targets (for example, between a cloud Linux machine and a local macOS runner), Palbase waits for the workspace head sequence and issues an HPKE-sealed per-machine grant so the new target syncs directly over encrypted `PBWS1` blobs without exposing plaintext to storage.
+**Workspace lifecycle and events.** File reads/writes, sync tokens, S3 access, and webhook events (`workspace.published`, `workspace.conflict`, `workspace.deleted`) are all served through the unified [Workspaces](https://palbase.studio/docs/backend/workspaces) module. When a chat hands off across targets (for example, between a managed Linux session and a self-hosted macOS runner), Palbase synchronizes the latest workspace revision securely so the new target picks up where the previous one left off.
 
-### The workspace's machine: Debian 12, Node 24, headless Chrome
+### The workspace's environment
 
-On Palbase's own Linux machines, a workspace's turns run inside an isolated container backed by an encrypted volume on Debian 12 with Node 24, Python 3, git, a C toolchain, ripgrep, poppler, tesseract, and headless Chrome (`/usr/bin/chromium` / `CHROME_PATH`). On customer Macs, turns run inside isolated Apple `Virtualization.framework` VMs (`macos-xcode` for native `xcodebuild` / SwiftPM or `linux-vm` for Linux VMs) — see [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines).
+Managed Linux workspace sessions include Node 24, Python 3, git, a C toolchain, ripgrep, poppler, tesseract, and a headless browser (`CHROME_PATH`). On self-hosted Macs, turns run inside isolated VM profiles (`macos-xcode` for native `xcodebuild` / SwiftPM or `linux-vm` for Linux builds) — see [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines).
 
 ### What the workspace's machine costs
 
@@ -574,8 +574,8 @@ Each arrives as a `PalbaseError` with its `status` and `code`, its message said 
 - [Gateways](https://palbase.studio/docs/backend/gateways): the channel a chat reaches its members on
 - [Web Gateways](https://palbase.studio/docs/web/gateways): a chat's state in the browser
 - [Event Hooks](https://palbase.studio/docs/backend/hooks): `ai.response.started`, `ai.response.completed` and `ai.response.failed` (a background response's end, and every chat turn's start and end), `ai.goal.updated`, `ai.voice.started`, `ai.voice.closed`, `ai.voice.delegated`, `ai.secret_host_requested`, plus `workspace.published`, `workspace.conflict`, `workspace.deleted`
-- [Workspaces](https://palbase.studio/docs/backend/workspaces): standalone encrypted workspaces (`PBWS1`), sync, S3 gateway and webhook events
-- [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines): runner pools of your own Macs (Apple Virtualization.framework) and Linux machines, key rotation, environment variables and setup scripts
+- [Workspaces](https://palbase.studio/docs/backend/workspaces): standalone encrypted workspaces, sync, S3 gateway and webhook events
+- [AI on Your Own Machines](https://palbase.studio/docs/backend/ai-machines): runner pools of your own Macs and Linux machines, key rotation, environment variables and setup scripts
 - [AI Variables & Secrets](https://palbase.studio/docs/backend/ai-env): the variables and secrets its sessions have, the hosts a secret may go to, a sealed value's rules, the hosts it asked for and who allows them
 - [Secrets](https://palbase.studio/docs/backend/secrets): an HTTPS tool's signing secret
 - [Row-Level Security](https://palbase.studio/docs/backend/row-level-security): what a tool finds as the chat's member

@@ -51,11 +51,15 @@ In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/pa
 | `PalbaseIAP` | [Buying in the App Store](https://palbase.studio/docs/ios/iap), and what the signed-in customer has bought in any store. |
 | `PalbasePayments` | [Direct payments](https://palbase.studio/docs/payments/ios-sdk) (Stripe, iyzico, saved cards, subscriptions, wallets & QR). |
 | `PalbasePaymentsUI` | Optional drop-in PCI-DSS SAQ-A SwiftUI checkout (`PaymentSheet`, `WalletTopUpSheet`, `SavedCardsView`, `SpendQRView`). |
+| `PalbaseCommerce` | Storefront & marketplace commerce client (catalog, carts, checkout, orders, returns & seller portal). |
+| `PalbaseMessaging` | [Messaging](https://palbase.studio/docs/ios/messaging): direct and group conversations kept on the device and live, with client-side encrypted attachments. |
+| `PalbaseMessagingNotificationService` | Notification service extension for apps with messaging: downloads incoming messages onto the device while the app is closed. |
 | `PalbaseUI` | The renderer of the screens a project designs (paywalls, in-app messages, inbox cards), in SwiftUI. The two products below bring it. |
 | `PalbaseIAPUI` | The paywall the project publishes, drawn natively. |
 | `PalbaseNotifyUI` | In-app messages shown over the app, and the person's inbox, drawn natively. |
 | `PalbaseDebug` | The [in-app debug console](https://palbase.studio/docs/ios/debug-console)'s screens. |
 | `Palbe` | What the [backend clients](https://palbase.studio/docs/ios/backend-calls) `palbase apps:sync` generates compile against. Link it when the project has a backend. |
+| `PalbaseAI` | Client AI: guardrailed templates (App Attest), streaming chats, live session mirroring & handoff, and voice transport control. |
 | `PalbaseVoice` | A chat's live [voice](https://palbase.studio/docs/ios/voice) over WebRTC (`PBVoice`), on iOS and macOS. |
 | `PalbaseCalls` | Voice and video [calls](https://palbase.studio/docs/ios/calls), group huddles (`pb.calls.place(_:)`), screen sharing and `CallVideoView`, on iOS and macOS. |
 

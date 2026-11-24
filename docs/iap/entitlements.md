@@ -69,12 +69,12 @@ An entitlement:
 | `active` | Whether the customer has it now. |
 | `expires_at` | When it ends; `null` for life. |
 | `will_renew` | Whether what gives it renews. |
-| `store` | Where it comes from: `app_store`, `play_store`, `stripe`, or `promotional` (a grant). |
+| `store` | Where it comes from: `app_store`, `play_store`, `web`, or `promotional` (a grant). |
 | `product`, `plan` | The catalog's product and plan that give it. |
 | `period_type` | `normal`, `trial` (a free trial) or `promotional` (a grant). |
 | `billing_issue` | The store could not charge the renewal: the customer keeps access through its grace period. |
 | `is_sandbox` | A test purchase gives it. |
-| `manage` | Where it is managed: the store, and its page (`url`) — none for Stripe, whose portal is opened on request. |
+| `manage` | Where it is managed: the store, and its page (`url`) — none for `web`, whose billing portal is opened on request via `pb.iap.portal()`. |
 | `sources` | Everything that gives it, active ones first. |
 
 An entitlement is read from the source that gives it longest: one for life wins, a real purchase wins over a test one.
@@ -83,7 +83,7 @@ A subscription's `state` is `trial`, `active` or `grace` while it gives access, 
 
 ## Checking an entitlement
 
-**On your server**, read the customer and ask `isEntitled(info, key)` from `palbase/server`: the entitlement is active and, unless it is for life, ends after now. It reads the `CustomerInfo` alone, so one kept a while still ends when its entitlement does. In a `palbase/backend` app the module is `Palbase.iap`; from any server, `createServer({ url, secretKey }).purchases`. Reading a customer writes nothing: a user who has bought nothing reads as a customer with nothing — and with every limit's free tier.
+**On your server**, read the customer and ask `isEntitled(info, key)` from `palbase/server`: the entitlement is active and, unless it is for life, ends after now. It reads the `CustomerInfo` alone, so one kept a while still ends when its entitlement does. In a `palbase/backend` app the module is `Palbase.iap`; from any server, `createServer({ url, secretKey }).iap`. Reading a customer writes nothing: a user who has bought nothing reads as a customer with nothing — and with every limit's free tier.
 
 **In the app**, what the customer has is kept current on its own:
 

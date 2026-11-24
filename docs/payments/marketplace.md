@@ -12,7 +12,7 @@ Palbase **Payments** supports multi-seller marketplaces natively across **iyzico
 ## BDDK 6493 Safeguards & Double-Entry Seller Ledger
 
 - **No Unlicensed Fiat Float**: `allow_marketplace_fiat_wallet` defaults to `false` — marketplace split orders refuse closed-loop fiat wallet funding (`422`) unless explicitly enabled for a licensed entity.
-- **Seller Accounts & Debt Offset**: Every seller gets a double-entry ledger account (`payments.seller_accounts`) tracking escrow, pending payouts, commission, withholding tax, and negative balances from post-payout refunds/chargebacks (automatically offset against future earnings).
+- **Seller Accounts & Debt Offset**: Every seller gets a double-entry seller ledger account tracking escrow, pending payouts, commission, withholding tax, and negative balances from post-payout refunds/chargebacks (automatically offset against future earnings).
 - **Zero-Drift Audit**: `palbase payments:audit:drift` verifies balanced double-entry accounting across both customer wallets and seller split ledgers.
 
 ## Server Usage
@@ -36,9 +36,26 @@ palbase payments:sub-merchants
 palbase payments:sub-merchants:upsert --file seller.json
 palbase payments:splits
 palbase payments:splits:approve <split-id>
-palbase payments:splits:refund <split-id> --file refund.json
-palbase payments:seller-accounts
+palbase payments:splits:refund <split-id> --card 5000 --clawback 4500
+palbase payments:seller-accounts <seller-ref>
 palbase payments:reconcile
+```
+
+Example `seller.json` (`seller_ref` is required; provider-specific fields such as `iban`, `tax_number`, and `sub_merchant_type` depend on your payment channel):
+
+```json
+{
+  "seller_ref": "seller_42",
+  "name": "Acme Goods",
+  "sub_merchant_type": "private_company",
+  "email": "payouts@acmegoods.example",
+  "gsm_number": "+905551112233",
+  "tax_number": "1234567890",
+  "tax_office": "Kadikoy",
+  "iban": "TR330006100519786457841326",
+  "country": "TR",
+  "currency": "TRY"
+}
 ```
 
 See [Commerce Overview](https://palbase.studio/docs/commerce/overview) for how multi-seller carts and split store orders connect automatically to Marketplace Payments.

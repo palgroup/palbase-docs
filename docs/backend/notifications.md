@@ -37,14 +37,14 @@ A send is **queued**, not delivered: it answers `202` with the message's id, and
 | Push | Your own FCM, APNs or Expo account — a browser's through its own push service, with the project's Web Push key (nothing to set up). |
 | Inbox, in-app messages | Palbase itself: nothing to set up. |
 | SMS | Your own SMS providers — Twilio, Vonage or Azure Communication Services — in failover order. |
-| One-time codes | Your own verification service (Twilio Verify), or your SMS providers — and with neither, **Palbase's Twilio Verify**: nothing to set up, billed at Twilio's price and 10% past $4 a month (`notify.sms.shared`, [Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)). |
+| One-time codes | Your own verification service (Twilio Verify), or your SMS providers — and with neither, **Palbase's shared verification channel**: nothing to set up, billed at carrier cost plus 10% past $4 a month (`notify.sms.shared`, [Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)). |
 | WhatsApp | Your own WhatsApp Business account (Meta). |
 
 An email the shared sender may not send is refused with `403 own_provider_required` — one of auth's templates your key sends, with `403 auth_template_reserved`: auth's own flows send them —; past the shared sender's limits a send is `429 send_limit_reached` ([below](#the-shared-senders-limits)). A project with an active email provider sends all its email through it.
 
 ### The shared sender's limits
 
-The shared sender is Palbase's own accounts — Cloudflare Email Service, and a backup that takes what Cloudflare cannot send at the moment — and every project's auth mail leaves through them. Mail providers suspend an account whose mail bounces or is reported as spam, for every sender on it at once, so the shared sender holds each project, and each address, to what a real app sends:
+The shared sender uses Palbase-managed email delivery for project auth emails and invitations. Because high bounce or spam rates affect sender reputation, the shared sender holds each project, and each address, to what a real app sends:
 
 | Limit | Free | Pay as you go |
 |---|---|---|
@@ -136,7 +136,7 @@ palbase notify:send email ada@example.com --template auth.org_invitation \
   --var inviter_name=Ali --var org_name=Acme --var accept_link=https://app.example.com/join/abc --var expires_at=15.11.2026
 ```
 
-- **`accept_link` is a page of your own app**: on your auth `site_url`'s address, any path on it, or matching your redirect allow-list (`palbase auth:settings:set additional_redirect_urls=…`, or a web app's `palbase apps:env:set --redirect`). It is one link, as it is shown: `https` (or `http`), the characters a URL is written with — no space —, one `://` (a link in its query is percent-encoded), 2048 bytes at most. Another site, a user part (`https://someone@…`) or an app's own scheme is refused with `400 accept_link_not_allowed`, and nothing is sent. The check binds the link to the sites your auth settings name — the ones auth's own links lead to; those settings are your secret key's to change too, so keep the key on your server. When auth cannot be asked, the send is `503 auth_unavailable`, sends nothing, and may be retried.
+- **`accept_link` is a page of your own app**: on your auth `site_url`'s address, any path on it, or matching your redirect allow-list (`palbase auth:settings:set redirect_urls=…`, or a web app's `palbase apps:env:set --redirect`). It is one link, as it is shown: `https` (or `http`), the characters a URL is written with — no space —, one `://` (a link in its query is percent-encoded), 2048 bytes at most. Another site, a user part (`https://someone@…`) or an app's own scheme is refused with `400 accept_link_not_allowed`, and nothing is sent. The check binds the link to the sites your auth settings name — the ones auth's own links lead to; those settings are your secret key's to change too, so keep the key on your server. When auth cannot be asked, the send is `503 auth_unavailable`, sends nothing, and may be retried.
 - **Its words are names and a time**: `inviter_name` and `org_name` 1 to 100 characters (`inviter_name` may be an email address), `expires_at` 40 at most, each one line, with no link or web address (`://`, `www.`, a domain such as `example.com`), no invisible or direction-changing character, and not naming Palbase — the mail's reader opens a web address as a link, and the link it may carry is `accept_link`. Otherwise the send is `400 invalid_invitation`.
 - **It goes in Palbase's words**, English or Turkish by `locale`: who invited whom to what, the link, its expiry when `expires_at` is not empty, and that it came through Palbase, which does not check the names an invitation gives. Your own words over it go through your own provider.
 - **It waits behind your codes**: an invitation is sent after the sign-in codes and links in the shared sender's queue, and waits up to a day when the sender is throttled.
@@ -354,7 +354,7 @@ Palbase is not an İYS integrator: the account is yours, and İYS's records are 
 | Call | What it does |
 |---|---|
 | `sendSms({ body: { to, body } })` | A text to one number in E.164 form (`+14155551212`): a body, or a `template` with `variables`. A number gets one text a minute and ten a day. It answers the segments and encoding the text takes. |
-| `startVerification({ body: { to } })` | Has your verification service — Palbase's when you have none — generate a one-time code and text it. A number Twilio cannot text is refused (`400 verification_refused`); past a free environment's $4 of Palbase's codes a month, `429 quota_exceeded`. |
+| `startVerification({ body: { to } })` | Has your verification service — Palbase's shared channel when you have none — generate a one-time code and text it. A number that cannot receive verification SMS is refused (`400 verification_refused`); past a free environment's $4 of Palbase's codes a month, `429 quota_exceeded`. |
 | `checkVerification({ body: { to, code } })` | `{ approved }`: whether the code is the one it sent. |
 | `sendWhatsApp({ body: { to, template_slug, variables } })` | A WhatsApp message: a text inside a conversation the user opened in the last 24 hours, a template approved on your Meta account, or one of your slugs. |
 

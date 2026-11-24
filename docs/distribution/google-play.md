@@ -10,7 +10,7 @@ An Android app's builds go to Google Play's internal testing track, for the test
 palbase stores:google:connect -E main
 ```
 
-Palbase makes a service account for the environment in its own Google Cloud project and prints it. It holds no key: Palbase acts as it. Connecting again answers the same account. In Studio, **App Distribution › Overview › Connect Google Play** does the same.
+Palbase provisions a dedicated Google Play service account for the environment and prints its address. No private key file is exported or shared. Connecting again returns the same account. In Studio, **App Distribution › Overview › Connect Google Play** does the same.
 
 Then, in Play Console:
 

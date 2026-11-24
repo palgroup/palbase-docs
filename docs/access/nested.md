@@ -126,21 +126,11 @@ Nothing is changed. Move it, or put the schema in with a greater `depth`.
 
 While a `palbase/backend` app's deploy makes teams nest anew, or less deep, the version still serving would put a team in another by the rule it had: until the deploy completes, a team is not put in another (`55000`, *put in another once that deploy completes*). What teams hold, and folders, are written as ever.
 
-## How fast
+## Query performance
 
-Measured on a million folders (100 tops, 8 folders in each, six levels — and one branch sixteen deep), 200,000 relationships, `depth 16`, Postgres 18, as a signed-in request:
+Checking a single object or listing the direct children of a folder (`WHERE parent_id = …`) walks at most `depth` ancestor levels and stays fast even on large hierarchies. Full-table scans with no selective filter — such as `count(*)` across an entire guarded table — evaluate access per scanned row and scale with table size. Scope queries to a parent (`WHERE parent_id = …`), paginate with keyset pagination (`ORDER BY id LIMIT 50`, then `WHERE id > …`), or maintain summary counts separately.
 
-| | |
-|---|---|
-| can one user view one folder — sixteen levels below where it was given, or not at all | under 1 ms |
-| the folders in one folder that a user can view (`WHERE parent_id = …`, the row policy) | 0.5–1.2 ms |
-| the first 50 a user can view, by id | 1 ms (sees everything) – 55 ms (sees 5,266) |
-| planning one of those statements | 2–3.5 ms |
-| counting every folder a user can view | about 4.4 s |
-
-A question about one object, or the objects in one, is answered by walking up from each row it reads — a lookup a level, at most `depth` of them. What has to read the whole table — a `count(*)`, a list with no filter but the policy — reads every row and walks up from each: seconds on a million rows. Ask it of a folder (`WHERE parent_id = …`), page it (`ORDER BY id LIMIT 50`, then `WHERE id > …`), or keep the count yourself.
-
-A team, nested by relationships, is read by walking up every way there is, each team once a level: as fast for a team in many as for one in one.
+A team nested by relationships follows all parent paths up to `depth`, keeping lookups bounded for multi-parent graphs as well.
 
 ## Testing it
 

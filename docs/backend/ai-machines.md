@@ -64,9 +64,9 @@ On macOS the sessions of one machine are **not isolated from each other**: one s
 
 On a Linux machine of yours, a session's commands have no network of their own. The agent runs a proxy for each workspace, and that workspace's commands reach the internet through it alone: public hosts only, never your local network or the machine's own ports. A sealed secret stays in that proxy. The commands see a placeholder, and the proxy puts the value into a request to one of the secret's hosts. An open secret is in the command's environment, as on a Mac ([Sealed or open](https://palbase.studio/docs/backend/ai-env#sealed-or-open)). A placeholder sent to a host its secret does not allow is sent as it is, and the host is asked about ([Hosts asked for](https://palbase.studio/docs/backend/ai-env#hosts-asked-for)).
 
-The machine gives each command the proxy (`HTTPS_PROXY` and its kin) and its certificates (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS` and the rest, under `/run/palbase`). A client that brings its own certificate bundle takes `$SSL_CERT_FILE` (`/run/palbase/bundle.pem`) here, where [The proxy](https://palbase.studio/docs/backend/ai-env#the-proxy) names `/etc/ssl/certs/…`. HTTP and HTTPS reach their hosts through the proxy; ssh and `git://` reach nothing unless a command sends them through it itself (an ssh `ProxyCommand` to `127.0.0.1:3128`).
+The machine configures standard proxy environment variables (`HTTPS_PROXY`) and its session certificate bundle (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`) automatically for each command. Clients that bring their own certificate bundle should point to `$SSL_CERT_FILE` (see [Outbound proxy behavior](https://palbase.studio/docs/backend/ai-env#outbound-proxy-behavior)). HTTP and HTTPS reach allowed public hosts through the proxy; SSH and `git://` require explicit proxy configuration if needed.
 
-The proxy needs Linux 5.14 or newer and `bubblewrap`. On an older kernel, or when `palbase-agent` runs inside a container, a session has no proxy: its commands reach no network, and only open secrets reach them. The agent's log says so when it starts.
+The proxy requires Linux 5.14 or newer and `bubblewrap`. On an older kernel, or when `palbase-agent` runs inside a container without sandboxing support, sessions run without network access and receive open secrets only; the agent logs this at startup.
 
 What a session's commands write is masked with the open values its turn's commands were given: a command's output, a background task's log, and a file read or searched through the agent. Three things are not masked:
 
@@ -191,16 +191,16 @@ export const builder = Palbase.ai.agent("builder", () => ({
 
 An agent's variables sit beside the project's: give them names of their own. Palbase keeps a definition's values sealed with your project's own key, never readable in its database, and opens them only for the sessions that run with them. A value is never answered again: an agent read back (`GET /ai/agents/{name}`) shows each name with an empty value. An agent written back with an empty value keeps the value it has, so a definition read, changed and put again loses nothing. What such a kept secret says of itself (its hosts, where it is put, its class, whether it is a secret) is changed without its value by a person alone: an owner or an admin signed in to Studio or the CLI. A key or a token is refused it (`403 person_required`) and gives the value with the change instead; rolling an agent back to a version that says otherwise is a person's too ([Who changes where a secret goes](https://palbase.studio/docs/backend/ai-env#who-changes-where-a-secret-goes)). A new name needs its value. Each definition's variables and script are written once, where its sessions run: an agent the project keeps as it is published or rolled back, an agent your backend defines at each turn (or a chat's own definition) at its first turn. Two definitions that differ, such as two chats' own or a version a chat stays on and the one published, never share them: each turn runs with its own definition's.
 
-## Apple Virtualization & Key Rotation
+## macOS VM Profiles & Key Rotation
 
-On Apple Silicon macOS hosts, `palbase-agent` runs isolated VMs via Apple's `Virtualization.framework` (`macos-xcode` for native `xcodebuild` / SwiftPM, capped at 2 concurrent VMs per Mac host, and `linux-vm` for Linux VMs) with APFS copy-on-write cloning, host-encrypted block images, and vsock egress proxying:
+On Apple Silicon macOS hosts, `palbase-agent` can run isolated VM profiles (`macos-xcode` for native `xcodebuild` / SwiftPM builds — up to 2 concurrent macOS VMs per host — and `linux-vm` for Linux builds):
 
 ```bash
 palbase-agent vm init --profile macos-xcode
 palbase-agent vm status
 ```
 
-Each enrolled runner attests its sandbox isolation posture on heartbeat, and rotates its mTLS client certificate in place without changing its `runner_id`:
+Each enrolled runner rotates its client credentials in place without changing its `runner_id`:
 
 ```bash
 palbase-agent rotate-key
@@ -208,7 +208,7 @@ palbase-agent rotate-key
 
 ## Related
 
-- [AI](https://palbase.studio/docs/backend/ai): agents, chats, runtime environments and encrypted workspaces
-- [Workspaces](https://palbase.studio/docs/backend/workspaces): standalone encrypted workspaces (`PBWS1`), sync and S3 access
+- [AI](https://palbase.studio/docs/backend/ai): agents, chats, runtime environments and workspaces
+- [Workspaces](https://palbase.studio/docs/backend/workspaces): standalone workspaces, sync and S3 access
 - [AI Variables & Secrets](https://palbase.studio/docs/backend/ai-env): a secret's hosts, sealed or open, its value's rules, the hosts it asked for and the agents' allowed hosts
 - [Secrets](https://palbase.studio/docs/backend/secrets): your backend's own secrets

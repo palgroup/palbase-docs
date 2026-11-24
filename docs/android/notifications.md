@@ -2,7 +2,7 @@
 
 # Notifications
 
-`pb.notify` (`studio.palbase:palbase-notify`) is what the app does for the project's messages: it records this device's push token for the signed-in user, and reads and writes the user's own preferences and topics. Sending is the project's server's, with the secret key ([Notifications](https://palbase.studio/docs/backend/notifications)), never the app's.
+`pb.notify` (`studio.palbase:palbase-notify`) registers this device's push token (for the install while signed out, and for the signed-in user once signed in), draws incoming pushes via `PalbaseMessagingService`, reports delivery/open/dismiss receipts automatically, and manages preferences, topics, the inbox, and in-app campaigns. Sending is the project's server's, with the secret key ([Notifications](https://palbase.studio/docs/backend/notifications)), never the app's.
 
 A push reaches an Android device through Firebase Cloud Messaging, with the project's own FCM account.
 
@@ -16,83 +16,67 @@ A push reaches an Android device through Firebase Cloud Messaging, with the proj
    ```
 
    The credentials are read from stdin, checked as the sender will use them, and never shown again.
-3. **Ask to notify.** On Android 13 and newer, the app asks for `POST_NOTIFICATIONS` at runtime and declares it in its manifest.
-4. **Record the token** for the signed-in user, and **show what arrives**, both from the app's `FirebaseMessagingService` (below).
+3. **Ask to notify.** On Android 13 and newer, request `POST_NOTIFICATIONS` at runtime and declare it in your manifest; call `pb.notify.pushAllowed()` after the user grants permission so the token is registered immediately.
+4. **Touch `pb.notify` at launch** in your `Application.onCreate()`. `palbase-notify`'s merged manifest already declares `PalbaseMessagingService`, so token registration, notification rendering, and receipt reporting work with no extra service code.
 
 ## Recording the token
 
-<!-- given: appScope: CoroutineScope -->
-
 ```kotlin
-// app/src/main/kotlin/com/example/shop/Push.kt
+// app/src/main/kotlin/com/example/shop/ShopApp.kt
 package com.example.shop
 
-import com.google.firebase.messaging.FirebaseMessaging
-import kotlinx.coroutines.launch
+import android.app.Application
+import palbase.environment
+import studio.palbase.PalbaseClient
+import studio.palbase.PalbaseConfiguration
 import studio.palbase.notify.notify
 
-// appScope: a CoroutineScope of the app's own, as long as the process.
-fun startPush() {
-    FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-        appScope.launch { runCatching { pb.notify.register(fcmToken = token) } }
+lateinit var pb: PalbaseClient
+
+class ShopApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        pb = PalbaseClient(this, PalbaseConfiguration.environment)
+        // Registers this install's FCM token automatically and flushes any pending receipts.
+        pb.notify
     }
 }
 ```
 
-`register(fcmToken, locale)` records the token for the signed-in user and returns the device as the project has it. The token is this install's, and the device row is the user's:
+`pb.notify` manages the token across the full sign-in lifecycle automatically:
 
-- **Signed out**, `register` throws `PalbaseError` `missing_credential`, and the token is kept: it is recorded for whoever signs in next, with no call of yours.
-- **Signing out** forgets the device for that user while they can still be named. The call is left with the client for that moment, and made even by a later process that never loaded `pb.notify`. The next person on the phone does not get the last one's notifications.
-- **Someone else signing in** gets the token the app last gave.
+- **Signed out**, the FCM token is registered with the publishable key and the install's secret (`installationId`), so pushes addressed to the install reach people before they sign up.
+- **Signing in** re-registers the token with the user's session so the device belongs to that user.
+- **Signing out** (or session expiry) drops the device from the previous user and re-registers it for the anonymous install, so the next person on the phone never receives the previous user's notifications.
+- You can also call `pb.notify.register(fcmToken, locale)` manually when needed.
 
 `pb.notify.deviceId` is how the project names this device: `android-` and the installation's id. `unregister()` forgets it for the signed-in user, and it receives nothing until it is registered again. `devices()` lists the user's devices.
 
-## Showing a push
+## Showing a push and receipts
 
-A push reaches an Android app as an FCM data message, never as a notification the system draws by itself. Its parts are in the message's data, beside the push's own `data`:
+A push reaches an Android app as an FCM data message containing `pb_title`, `pb_body`, optional `pb_image`, `pb_sound`, `deep_link`, and `pb_receipt` beside your custom `data` keys. A silent push (`silent: true`) omits the display keys and wakes the app with its data alone.
 
-| Key | What it is |
-|---|---|
-| `pb_title`, `pb_body` | The push's title and body. |
-| `pb_image`, `pb_sound` | Its image's https address and its sound, when it has them. |
-| `deep_link` | Its deep link, when it has one. |
-| `pb_receipt` | The push's sealed receipt for this device. |
+`PalbaseMessagingService` (declared automatically by `palbase-notify`'s manifest):
 
-A silent push (`silent: true`) carries none of the title, body, image and sound: it wakes the app with its data alone.
+- draws standard notifications using the app's `com.google.firebase.messaging.default_notification_icon` and `com.google.firebase.messaging.default_notification_channel_id` metadata when present (falling back to the app icon and the SDK's default channel, named by the string resource `palbase_notification_channel_name`);
+- opens the app's launch activity on tap with the push's data attached as extras;
+- automatically reports `delivered`, `not_shown` (when notifications or the channel are turned off), `opened`, and `dismissed` receipts to `POST /notify/receipts` (retried on the next launch if offline);
+- forwards module pushes (such as [Messaging](https://palbase.studio/docs/android/messaging) and [Calls](https://palbase.studio/docs/android/calls)) to their handlers.
 
-At this version the SDK draws nothing, so the app's own service shows it:
-
-<!-- given: appScope: CoroutineScope, object R { object drawable { val ic_notification: Int = 0 } } -->
+If your app needs custom `FirebaseMessagingService` logic alongside Palbase, subclass `PalbaseMessagingService`, call `super` first, declare your subclass for `com.google.firebase.MESSAGING_EVENT`, and remove the SDK's manifest entry:
 
 ```kotlin
 // app/src/main/kotlin/com/example/shop/PushService.kt
 package com.example.shop
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import androidx.core.app.NotificationCompat
-import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import kotlinx.coroutines.launch
-import studio.palbase.notify.notify
+import studio.palbase.notify.PalbaseMessagingService
 
-class PushService : FirebaseMessagingService() {
-    // A token FCM changed goes to the project for whoever is signed in.
-    override fun onNewToken(token: String) {
-        appScope.launch { runCatching { pb.notify.register(fcmToken = token) } }
-    }
-
+class PushService : PalbaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
-        val title = message.data["pb_title"] ?: return   // a silent push: data alone
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel("messages", "Messages", NotificationManager.IMPORTANCE_DEFAULT))
-        val notification = NotificationCompat.Builder(this, "messages")
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(title)
-            .setContentText(message.data["pb_body"])
-            .setAutoCancel(true)
-            .build()
-        manager.notify(message.messageId.hashCode(), notification)
+        // Call super first so Palbase draws notifications, reports receipts, and dispatches Calls/Messaging pushes.
+        super.onMessageReceived(message)
+        // Custom handling for your app's own messages.
     }
 }
 ```
@@ -100,7 +84,10 @@ class PushService : FirebaseMessagingService() {
 ```xml
 <!-- app/src/main/AndroidManifest.xml -->
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-<application>
+<application xmlns:tools="http://schemas.android.com/tools">
+    <service
+        android:name="studio.palbase.notify.PalbaseMessagingService"
+        tools:node="remove" />
     <service android:name=".PushService" android:exported="false">
         <intent-filter>
             <action android:name="com.google.firebase.MESSAGING_EVENT" />
@@ -108,10 +95,6 @@ class PushService : FirebaseMessagingService() {
     </service>
 </application>
 ```
-
-`onMessageReceived` runs in the background too, so a process the push woke makes the client as the app's `Application` does. A call it makes as the user, to your backend for example, renews the session only if the call needs it.
-
-The project counts how each push went on each device from what the device reports with `pb_receipt` (`POST /notify/receipts`). The Android SDK at this version reports nothing, so a push sent to an Android device is `unconfirmed` unless the app reports it itself.
 
 ## Preferences and topics
 
@@ -178,7 +161,7 @@ setContent {
 
 The person's campaigns are asked for as each session of theirs starts (the launch, a return after half an hour away, a sign-in or out). An event the app records with `pb.analytics` (its captures and screens), or names with `pb.notify.inApp.trigger(event, properties)`, shows the first campaign it triggers, the highest priority first, that its caps let: the project's (in a session, in a day, the least time between two) and the campaign's own. Triggers are matched on the device, so no event leaves it for them, and a message is shown whatever the person chose of analytics; a campaign to an audience reaches only people who allowed personalization. A [journey](https://palbase.studio/docs/backend/journeys)'s in-app step opens one of these campaigns for its person, shown the next time it is triggered.
 
-`InAppHandlers` says what the app does with a message's buttons: `onDeepLink`, `onShowPaywall` (a placement's paywall), `onCustom` (the app's own code: a name and a value), `onRequestPush` (the push ask) and `onOffer` (one of the catalog's offers; the purchases module takes it unless given, once the app uses it). A button whose action the app does not take is not drawn.
+`InAppHandlers` says what the app does with a message's buttons: `onDeepLink`, `onShowPaywall` (a placement's paywall), `onCustom` (the app's own code: a name and a value), `onRequestPush` (the push ask) and `onOffer` (one of the catalog's offers; the IAP module (`palbase-iap`) takes it unless given, once the app uses `pb.iap`). A button whose action the app does not take is not drawn.
 
 An app that draws its own calls `pb.notify.inApp.start { presentation -> … }`, which hands it each `InAppPresentation` to show (its `definition`, its `variables`) and `null` when what is shown must go. The app tells back `clicked(action)`, `dismissed()` or `closed()`. `stop()` stops them, and `refresh()` asks for the person's campaigns again.
 

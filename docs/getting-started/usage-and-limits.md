@@ -35,7 +35,7 @@ Every member of the organization reads it ([Organizations](https://palbase.studi
 | `requests` | **API requests**: each request to the environment's address that a module answers. Not among them: the cache's calls, the stores' reports to purchases (`/iap/webhooks/…`), and the files the platform moves for a module's own work, such as an AI workspace's |
 | `auth.mau` | **Monthly active users**: the users who signed in or kept a session alive in the month |
 | `notify.email`, `notify.push`, `notify.sms`, `notify.whatsapp` | **Email**, **Push**, **SMS** and **WhatsApp** sent: an email through any sender (those through Palbase's shared sender are also `notify.email.shared`), a push delivered to a user on any of their devices, a text or a verification code, a WhatsApp message |
-| `notify.sms.shared` | **Verification codes through Palbase's Twilio**, in nano-dollars at Twilio's price: each code's text at the dearest price Twilio lists for its country (which carrier a number is on is not known before it is texted), and $0.05 for each code approved. An environment with no SMS provider and no verification service of its own sends its codes (phone sign-in, SMS second factor, `/notify/verifications`) this way, from a Twilio Verify service of its own: its texts say the code is from the project when the environment has paid rights, from Palbase otherwise. Billed at Twilio's price and 10%, its first $4 of a month free; a free environment past them sends no more until the month ends (`429 quota_exceeded`) |
+| `notify.sms.shared` | **Verification codes through Palbase's shared channel**, in nano-dollars at carrier cost: each code's text at the country rate, plus $0.05 for each code approved. An environment with no SMS provider or verification service of its own sends its codes (phone sign-in, SMS second factor, `/notify/verifications`) this way: its texts identify your project when the environment has paid rights, and Palbase otherwise. Billed at carrier cost plus 10%, with the first $4 of a month free; a free environment past that quota sends no more until the month ends (`429 quota_exceeded`) |
 | `storage.bytes` | **Stored data**: the objects and their renditions, the month's largest |
 | `storage.egress` | **Download traffic**: what storage sent, a part of response traffic |
 | `storage.operations` | The requests storage served |
@@ -44,7 +44,7 @@ Every member of the organization reads it ([Organizations](https://palbase.studi
 | `realtime.messages` | **Realtime messages**: each one delivered — a broadcast to ten subscribers is ten |
 | `realtime.connections` | Realtime connections open at once, the month's largest |
 | `messaging.messages` | **Chat messages**: each message the project's people, or its server, sent in its conversations; one sent again with the same client id is one |
-| `messaging.bytes` | **Chat message storage**: what the project's messages weigh where they are kept — each one's sealed text and 768 bytes for its row and indexes — the month's largest |
+| `messaging.bytes` | **Chat message storage**: total stored size of the project's messages (payload and storage metadata), the month's largest |
 | `calls.bytes` | **Call data**: what the media server sent the people, and the agents, of the project's calls — their sound, picture and data from the others and the media server's control messages to their app, voice and video alike ([Calls](https://palbase.studio/docs/calls/overview#what-it-costs)) |
 | `flags.reads` | The flag reads clients made, answered in full or not modified |
 | `analytics.events` | **Analytics events**: captures, identifies, aliases, screens and page views (setting a person's properties is not counted) |
@@ -63,7 +63,7 @@ Every member of the organization reads it ([Organizations](https://palbase.studi
 | `databases.seconds.<size>` | **Database hours**: how long the databases of each size were awake; `databases.seconds.preview` a pull request preview's own database, at the `free` size's price and from its 400 free hours |
 | `databases.bytes`, `databases.backups` | What the databases hold, and what their backups hold, the month's largest |
 | `databases.disk.idle` | **Database disk while asleep**: the disk of a database that is not awake — asleep, or deleted and kept until it is purged — in GiB-seconds; an awake database's disk is paid for by its hours |
-| `databases.traffic` | What the databases read from and wrote to their disks; `databases.traffic.san` the part of it of the databases on the shared disk (`free`, `hobby` and preview), billed past 100 GB a month |
+| `databases.traffic` | What the databases read from and wrote to their disks; `databases.traffic.san` the part of it for `free`, `hobby` and preview databases, billed past 100 GB a month |
 | `databases.egress` | **Database client traffic**: what the databases sent clients that connect to them over their own addresses (`psql`, a backend on your computer) |
 | `ai.tokens.<provider>.<model>.<kind>` | **AI tokens** with Palbase's provider keys, by model and kind: `input`, `image_input`, `output`, `cache_read`, `cache_write`. A model used with the project's own provider key is the provider's to count |
 | `ai.images.<provider>.<model>` | **AI images** made, by model |
@@ -120,11 +120,11 @@ A project is free while it is on the Free plan — every project starts on it �
 - **AI.** $1.00 of Palbase's models a month, its environments together, at the provider's price and 10%. Past it, until the month ends, a call to them is `402 ai_payment_required`; a call under an environment's own provider key goes on ([AI](https://palbase.studio/docs/backend/ai#what-it-costs)).
 - **Domains, site files and journeys.** 20 custom domains, 10 GiB of its sites' files and 2 live journeys, its environments together.
 
-A project on Pay as you go is never slowed for its traffic, and the machines and databases of every environment of it may be of any size, as many as it likes and up to 100 copies of a machine — held to no limit of what they reserve, as Render holds a paid workspace; databases of the `free` size keep their 400 hours whoever holds them. What its environments use past its free quotas is charged to the payment account that pays for its organization ([Billing](https://palbase.studio/docs/getting-started/billing)).
+A project on Pay as you go is never slowed for its traffic, and the machines and databases of every environment of it may be of any size, as many as it likes and up to 100 copies of a machine; databases of the `free` size keep their 400 hours on either plan. What its environments use past its free quotas is charged to the payment account that pays for its organization ([Billing](https://palbase.studio/docs/getting-started/billing)).
 
 ## What machines and databases cost
 
-On Pay as you go a machine of a paid size is billed by the second it runs, each copy counted, and a database of a paid size by the second it is awake: Render's prices for the same CPU and memory, a month being 730 hours — except where Render's would be under what the size costs us (its smallest machine, and the sizes with whole CPUs of their own), priced at that cost and a quarter more. A database's storage is billed beside its size, at Render's $0.30 a GB-month past its first GB: the database prices below are its size's, and the ones in brackets those of a database at its size's storage ([Machines](https://palbase.studio/docs/machines/overview#sizes), [Databases](https://palbase.studio/docs/machines/databases#storage)).
+On Pay as you go, a machine of a paid size is billed by the second it runs (each copy counted), and a database of a paid size by the second it is awake, with a month counted as 730 hours. A database's storage is billed beside its size at $0.30 a GB-month past its first GB: the database prices below show the compute size price, and the ones in brackets show the total at each size's default storage ([Machines](https://palbase.studio/docs/machines/overview#sizes), [Databases](https://palbase.studio/docs/machines/databases#storage)).
 
 | Machine size | A month | Database size | A month |
 |---|---|---|---|

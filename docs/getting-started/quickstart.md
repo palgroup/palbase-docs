@@ -317,24 +317,24 @@ USER bun
 CMD ["bun", "run", "src/main.ts"]
 ```
 
-And what it needs before it can start — the build reads this file, and waits rather than roll out an app that would not:
+And what it needs before it can start — the build reads `.env.example`, and waits rather than roll out an app missing a variable of your own. On a Palbase machine, `PALBASE_URL`, `PALBASE_PROJECT_ID`, `PALBASE_SECRET_KEY`, and `PALBASE_WEBHOOK_SECRET` are provided automatically by the platform, so list only your own variables here:
 
 ```text
-PALBASE_URL=
-PALBASE_PROJECT_ID=
-PALBASE_SECRET_KEY=
+WEB_ORIGINS=
 ```
 
 Run `bun install` once to write `bun.lock`, and commit everything.
 
-## 4. Give it the secret key
+## 4. Environment variables and secrets
 
-The machine is started with `PALBASE_URL` and `PALBASE_PROJECT_ID` by the platform. `PALBASE_SECRET_KEY` is yours to give — the backend uses it to reach the project's modules and to check its callers' sessions.
+On a Palbase machine, the platform automatically provides `PALBASE_URL`, `PALBASE_PROJECT_ID`, the machine's own `PALBASE_SECRET_KEY`, and `PALBASE_WEBHOOK_SECRET` — you do not need to create or attach `PALBASE_SECRET_KEY` manually for a machine ([Project Structure](https://palbase.studio/docs/getting-started/project-structure#what-the-process-is-given), [Secrets](https://palbase.studio/docs/backend/secrets)).
 
-1. **Settings › API keys › Secret keys**: a **Key name** (`notes backend`), **Create secret key**. It is shown **once** — copy it now.
-2. **Environment › Variables**, **Add secret**: the name `PALBASE_SECRET_KEY`, the key as its value.
+For your own settings and third-party API keys (such as `WEB_ORIGINS` for your production frontend origin):
 
-The secret is in the environment's **production** set. A machine starts with the set it names, which you choose in the next step.
+1. Open **Environment › Variables** in Studio and click **Add secret** (for credentials) or configure non-secret variables on the machine's **Edit settings** page.
+2. Add `WEB_ORIGINS` with your web app's origin (for example `http://localhost:3000` while testing locally).
+
+Project secrets live in the environment's **production** or **development** set; a machine receives the secret set you choose in the next step.
 
 ## 5. Connect GitHub and open the machine
 
@@ -345,7 +345,7 @@ The secret is in the environment's **production** set. A machine starts with the
 3. **Name**: `backend` — the machine of that name answers at `https://<ref>.app.palbase.studio`. **Size**: `shared-256`. **Port**: `8080`.
 4. **Create machine**.
 
-The branch's head is built at once. Its build stops at **Waiting for variables**, `PALBASE_SECRET_KEY` missing: the machine starts with no secrets yet. Open it, **Edit settings**, **Secrets: Production secrets**, **Save settings** — and the waiting build rolls out by itself. `.env.example` is what caught it ([Builds](https://palbase.studio/docs/machines/builds#envexample-what-the-program-must-be-given)).
+The branch's head is built at once. If `.env.example` names a variable of your own (such as `WEB_ORIGINS`) that is not set on the machine yet, the build pauses at **Waiting for variables** instead of rolling out broken: open the machine, **Edit settings**, set the variable (or attach **Production secrets**), and **Save settings** — the waiting build rolls out automatically ([Builds](https://palbase.studio/docs/machines/builds#envexample-what-the-program-must-be-given)).
 
 ## 6. Push
 

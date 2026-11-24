@@ -168,7 +168,7 @@ Two first path segments are the platform's and never your controllers': `_palbas
 
 - **Boot.** Every class is built once, dependencies first. Then each one's `onStart()` runs, in that order. A boot that fails in `onStart()` (a database not up yet) is tried again from scratch after 1, 2, 4 and 8 seconds. If it still fails, the process exits 1 and the machine starts it again. What waiting cannot fix, such as a missing setting or a [DI mistake](https://palbase.studio/docs/backend/modules), stops at once.
 - **Serving.** `GET /_palbase/health` answers `200 {"ok":true}` while the app serves. It is the machine's health check by default.
-- **Stopping.** On `SIGTERM` the app stops taking connections and gives the requests in flight up to 20 seconds. Then it runs every `onShutdown()`, in reverse order. Health answers `503` meanwhile. A machine's sandbox sends `SIGTERM` more than once, milliseconds apart: the app stops once, and a later signal changes nothing.
+- **Stopping.** On `SIGTERM` the app stops taking connections and gives the requests in flight up to 20 seconds. Then it runs every `onShutdown()`, in reverse order. Health answers `503` meanwhile. If `SIGTERM` is delivered more than once during shutdown, the app handles it once and ignores subsequent signals.
 - **A crash.** An uncaught error or an unhandled rejection is logged. The requests in flight get a few seconds, and the process exits 1 for the machine to start it again, rather than run half-alive.
 - **A migration run.** Started with `PALBASE_DB_MIGRATE`, the same image migrates its database and exits without serving anything. See [Schema changes](https://palbase.studio/docs/backend/migrations).
 

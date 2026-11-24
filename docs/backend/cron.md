@@ -158,7 +158,7 @@ Off the platform there is no `PALBASE_PLATFORM_SECRET`, so `/_palbase/crons` is 
 
 ```ts
 // src/modules/reports/upload-sweep.cron.test.ts
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { UploadSweep } from "./upload-sweep.cron";
 
 describe("UploadSweep", () => {

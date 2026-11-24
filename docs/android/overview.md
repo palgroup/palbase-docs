@@ -62,22 +62,27 @@ dependencies {
 | `palbase-flags` | The project's flags, kept current | `pb.flags` ([Flags](https://palbase.studio/docs/android/flags)) |
 | `palbase-analytics` | Events, screens, timings and diagnostics, each behind its consent key | `pb.analytics` ([Analytics](https://palbase.studio/docs/android/analytics)) |
 | `palbase-realtime` | Channels: broadcasts and a shared state | `pb.realtime` ([Realtime](https://palbase.studio/docs/android/realtime)) |
-| `palbase-notify` | This device's push token for the user, their preferences and topics, the inbox, in-app messages | `pb.notify` ([Notifications](https://palbase.studio/docs/android/notifications)) |
+| `palbase-notify` | This device's push token, preferences and topics, the inbox, in-app messages, and `PalbaseMessagingService` | `pb.notify` ([Notifications](https://palbase.studio/docs/android/notifications)) |
+| `palbase-ui` | Shared Compose renderer for designed screens (paywalls, in-app messages, inbox cards) | Brought by `palbase-notify-ui` |
 | `palbase-notify-ui` | The inbox and in-app messages, drawn in Compose | `InboxView`, `PalbaseInAppMessages` ([Notifications](https://palbase.studio/docs/android/notifications#the-inbox)) |
 | `palbase-storage` | Files through URLs your backend signed, and public buckets | `pb.storage` ([Storage](https://palbase.studio/docs/android/storage)) |
 | `palbase-iap` | What the customer has, in any store, and buying on Google Play (Play Billing 9) | `pb.iap` ([In-App Purchases](https://palbase.studio/docs/android/iap)) |
 | `palbase-payments` | Direct payments (Stripe, iyzico, saved cards, subscriptions, wallets & QR) | `pb.payments` ([Payments](https://palbase.studio/docs/payments/android-sdk)) |
 | `palbase-payments-ui` | Optional drop-in PCI-DSS SAQ-A Compose checkout (`PaymentSheet`, `WalletTopUpSheet`, `SavedCardsView`, `SpendQRView`) | `rememberPaymentSheet`, `PaymentSheet` ([Payments](https://palbase.studio/docs/payments/android-sdk)) |
+| `palbase-commerce` | Storefront & marketplace commerce client (catalog, carts, checkout, orders, returns & seller portal) | `pb.commerce` ([Commerce](https://palbase.studio/docs/commerce/overview)) |
+| `palbase-messaging` | Direct and group conversations kept on the device and live, with encrypted attachments | `pb.messaging` ([Messaging](https://palbase.studio/docs/android/messaging)) |
+| `palbase-ai` | Guardrailed client AI templates, streaming chats, and voice transport control | `pb.ai` |
 | `palbase-palbe` | Your backends' generated clients, their gateways and chats | `pb.<name>` ([Calling Your Backend](https://palbase.studio/docs/android/backend-calls), [Gateways](https://palbase.studio/docs/android/gateways)) |
 | `palbase-debug` | The debug console's screens, in Compose | `PalbaseConsole(pb.debug)` ([Debug Console](https://palbase.studio/docs/android/debug-console)) |
 | `palbase-voice` | A chat's live voice over WebRTC | `PBVoice.connect(…)` ([Voice](https://palbase.studio/docs/android/voice)) |
 | `palbase-calls` | Voice and video calls between the project's people, rung over the lock screen | `pb.calls` ([Calls](https://palbase.studio/docs/android/calls)) |
 | `palbase-runtime` | The types every generated client calls into; `palbase` brings it | — |
+| `palbase-gradle-plugin` | Optional Gradle plugin (`id("studio.palbase")`) for automatic network request timing in `palbase-analytics` | [Analytics](https://palbase.studio/docs/android/analytics) |
 | `palbase-bom` | One version for all of them | `platform(…)` |
 
 WebRTC comes only with `palbase-voice` and `palbase-calls`, Play Billing only with `palbase-iap` and Compose only with `palbase-debug` and the `-ui` modules, so an app that takes none of them carries none of them.
 
-Each module is an extension of the client (a property, and for analytics a function), imported from the module's package: `import studio.palbase.flags.flags`, `studio.palbase.notify.notify`, `studio.palbase.storage.storage`, `studio.palbase.realtime.realtime`, `studio.palbase.iap.iap`, `import studio.palbase.payments.payments`, `studio.palbase.analytics.analytics`.
+Each module is an extension property on the client, imported from the module's package: `import studio.palbase.flags.flags`, `import studio.palbase.notify.notify`, `import studio.palbase.storage.storage`, `import studio.palbase.realtime.realtime`, `import studio.palbase.iap.iap`, `import studio.palbase.payments.payments`, `import studio.palbase.messaging.messaging`, `import studio.palbase.calls.calls`, `import studio.palbase.analytics.analytics`.
 
 ## Registering the app
 
@@ -106,7 +111,7 @@ palbase/
 
 There is a directory for every environment the app is set in. Commit it; `palbase apps:sync --check` exits 1 in CI when it is not what the project gives now ([`apps:sync`](https://palbase.studio/docs/cli/reference#palbase-appssync)).
 
-The app's build compiles one environment into each build variant. There is no Gradle plugin: this task, in `app/build.gradle.kts`, reads `palbase/environments/` and writes the variant's sources. It reaches nothing on the network. Map each variant to an environment, and set `app` to the app's slug:
+The app's build compiles one environment into each build variant. Environment binding requires no Gradle plugin — this task in `app/build.gradle.kts` reads `palbase/environments/` and writes the variant's sources offline without reaching the network (the optional `studio.palbase` Gradle plugin is only needed if you want automatic network timing for [Analytics](https://palbase.studio/docs/android/analytics)). Map each variant to an environment, and set `app` to the app's slug:
 
 ```kotlin
 // app/build.gradle.kts — the environment each build variant compiles in.
@@ -286,9 +291,11 @@ Your backend's refusals are a typed error of their own: [Calling Your Backend](h
 - [Calling Your Backend](https://palbase.studio/docs/android/backend-calls): the generated client, its typed errors and retries
 - [Gateways](https://palbase.studio/docs/android/gateways): a backend's realtime gateways, and the chats piped into them
 - [Realtime](https://palbase.studio/docs/android/realtime): the project's channels, broadcasts and a shared state
+- [Messaging](https://palbase.studio/docs/android/messaging): direct and group conversations kept on the device and live
+- [Calls](https://palbase.studio/docs/android/calls): voice and video calls rung over the lock screen
 - [Flags](https://palbase.studio/docs/android/flags): flags read without waiting, kept current
 - [Analytics](https://palbase.studio/docs/android/analytics): events, screens, timings and diagnostics behind consent
-- [Notifications](https://palbase.studio/docs/android/notifications): FCM push for the signed-in user, preferences and topics
+- [Notifications](https://palbase.studio/docs/android/notifications): FCM push, automatic delivery and open reporting, inbox, in-app messages, preferences and topics
 - [Storage](https://palbase.studio/docs/android/storage): files through signed URLs, and public buckets
 - [In-App Purchases](https://palbase.studio/docs/android/iap): what the customer has, and buying on Google Play
 - [Payments](https://palbase.studio/docs/payments/android-sdk): direct Stripe and iyzico checkout, saved cards, wallets & QR

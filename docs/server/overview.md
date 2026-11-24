@@ -52,17 +52,29 @@ It answers a `PalbaseServer`:
 
 | Member | Module | Contract |
 |---|---|---|
-| `auth` | users, sessions, test users, auth settings (`/admin/…`) | auth |
-| `storage` | buckets, objects, signed URLs | storage |
-| `workspaces` | synchronized network-disk workspaces, BYOS S3, tokens, S3 keys and advisory locks ([Workspaces](https://palbase.studio/docs/backend/workspaces)) | workspaces |
-| `notify` | email, push, SMS, WhatsApp, templates, topics | notify |
-| `secrets` | the project's secrets, by environment | secrets |
-| `flags` | definitions, users' values, publishing | flags |
-| `analytics` | captures, and reading events back | analytics |
-| `realtime` | broadcast, state, the channel declaration, limits | realtime |
+| `ai` | models, agents, chats, embeddings, images, spend and runner pools ([AI](https://palbase.studio/docs/backend/ai)) | ai |
+| `analytics` | captures, and reading events back ([Analytics](https://palbase.studio/docs/analytics/overview)) | analytics |
+| `auth` | users, sessions, test users, auth settings (`/admin/…`) ([Auth](https://palbase.studio/docs/auth/overview)) | auth |
+| `cache` | short-lived shared key-value cache and counters ([Cache](https://palbase.studio/docs/backend/cache)) | cache |
 | `calls` | the calls settings and hook, the project's calls read and ended, an agent's ticket ([Calls](https://palbase.studio/docs/calls/server)) | calls |
-| `machines` | machines, builds, logs, databases | machines |
+| `campaigns` | broadcasts, slide-ins, links and referrals ([Campaigns](https://palbase.studio/docs/campaigns/overview)) | campaigns |
+| `commerce` | storefronts, products, carts, orders, returns and promotions ([Commerce](https://palbase.studio/docs/commerce/overview)) | commerce |
+| `fields` | field-level encryption and blind-index lookups ([Field Encryption](https://palbase.studio/docs/backend/encryption)) | secrets |
+| `flags` | definitions, users' values, publishing ([Flags](https://palbase.studio/docs/backend/flags)) | flags |
+| `iap` | catalog, paywalls, offers, coupons, customers and entitlements ([In-App Purchases](https://palbase.studio/docs/iap/overview)) | iap |
+| `journeys` | lifecycle journeys, simulation, publishing and stats ([Journeys](https://palbase.studio/docs/backend/journeys)) | journeys |
+| `machines` | machines, builds, logs, databases and sites ([Machines](https://palbase.studio/docs/machines/overview)) | machines |
+| `messaging` | conversations, messages, moderation reports and settings ([Messaging](https://palbase.studio/docs/messaging/overview)) | messaging |
+| `notify` | email, push, SMS, WhatsApp, templates, topics ([Notifications](https://palbase.studio/docs/backend/notifications)) | notify |
+| `payments` | payment intents, channels, routing, wallets, subscriptions and marketplace splits ([Payments](https://palbase.studio/docs/payments/overview)) | payments |
+| `realtime` | broadcast, state, the channel declaration, limits ([Realtime](https://palbase.studio/docs/backend/realtime)) | realtime |
+| `secrets` | the project's secrets, by environment ([Secrets](https://palbase.studio/docs/backend/secrets)) | secrets |
+| `storage` | buckets, objects, signed URLs ([Storage](https://palbase.studio/docs/backend/storage)) | storage |
+| `stores` | builds, TestFlight and Google Play distribution ([App Distribution](https://palbase.studio/docs/distribution/overview)) | stores |
+| `transit` | end-to-end request payload encryption keys ([Request Encryption](https://palbase.studio/docs/backend/request-encryption)) | — |
+| `workspaces` | synchronized network-disk workspaces, BYOS S3, tokens, S3 keys and advisory locks ([Workspaces](https://palbase.studio/docs/backend/workspaces)) | workspaces |
 | `transport` | the one transport every call goes through | — |
+| `url` | the environment's base URL | — |
 
 Each module's methods are generated from its contract, one per operation, named by its operation id in camelCase: `PUT /storage/buckets/{bucket}` is `storage.putBucket`, `GET /admin/users` is `auth.adminListUsers`. The module pages say what each module does: [Storage](https://palbase.studio/docs/backend/storage), [Secrets](https://palbase.studio/docs/backend/secrets), [Flags](https://palbase.studio/docs/backend/flags), [Notifications](https://palbase.studio/docs/backend/notifications), [Realtime](https://palbase.studio/docs/backend/realtime), [Channels](https://palbase.studio/docs/backend/channels), [Test Users](https://palbase.studio/docs/backend/test-users), and [Machines](https://palbase.studio/docs/machines/overview) for machines and databases.
 
@@ -175,7 +187,7 @@ A listing that answers a cursor it has answered before is a loop, and `pages` th
 
 ## From a Palbase machine
 
-A `palbase/backend` app reaches the same client as `Palbase`, imported, never constructed: it is built at boot from `PALBASE_URL` (which the platform sets on every machine) and `PALBASE_SECRET_KEY` (a project secret you add — see [Secrets](https://palbase.studio/docs/backend/secrets)). Everything on this page holds for it: `Palbase.storage.putBucket(…)` is `createServer(…).storage.putBucket(…)`.
+A `palbase/backend` app reaches the same client as `Palbase`, imported, never constructed: it is built at boot from `PALBASE_URL` and `PALBASE_SECRET_KEY`, both of which the platform sets automatically on every Palbase machine (for external servers running outside Palbase, create a secret key in **Settings › API keys** — see [Secrets](https://palbase.studio/docs/backend/secrets)). Everything on this page holds for it: `Palbase.storage.putBucket(…)` is `createServer(…).storage.putBucket(…)`.
 
 ## Related
 

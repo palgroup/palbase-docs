@@ -9,7 +9,7 @@ Palbase **Commerce** is the unified catalog, inventory, cart, single-transaction
 | Module | What it owns | SDK surface |
 |---|---|---|
 | **Commerce** (`/commerce/*`) | First-party D2C stores, multi-seller marketplaces (shared canonical catalog, per-seller listings, Buy Box ranking), physical & digital fulfillment, FBM/FBA inventory, guest and customer carts, blocking checkout hooks, split seller orders, RMA returns, VUK/TTK invoices, and seller settlements. | `pb.commerce`, `pb.commerce.seller(storeId)`, `createServer().commerce`, `Palbase.commerce`, `Commerce` |
-| **Promotions** (`/promotions/*`) | Standalone and cart-integrated discount rules, coupon codes, stackable priority groups, budget caps, per-customer usage limits, and 0-minor-unit Hamilton allocation across lines. | `createServer().commerce`, `Promotions` |
+| **Promotions** (`/promotions/*`) | Standalone and cart-integrated discount rules, coupon codes, stackable priority groups, budget caps, per-customer usage limits, and exact penny-level allocation across lines with zero rounding drift. | `createServer().commerce`, `Promotions` |
 | **In-App Purchases** (`/iap/*`) | App Store StoreKit 2, Google Play Billing, unified digital subscription catalog, paywalls, placements, store offers, and cross-platform entitlements. | `pb.iap`, `createServer().iap`, `Palbase.iap` |
 
 For hybrid brands that sell a digital course or membership on the web storefront and unlock mobile app access, set `grants_entitlement_key` on a digital variant — when checkout succeeds, `commerce` grants the matching entitlement in [In-App Purchases](https://palbase.studio/docs/iap/entitlements) automatically.
@@ -31,7 +31,7 @@ if (cart.id) {
   await pb.commerce.addItem(cart.id, { listing_id: "lst_123", quantity: 1 });
   await pb.commerce.applyPromoCode(cart.id, "WELCOME10");
   const checkout = await pb.commerce.checkout(cart.id, {});
-  console.log(catalog.products.length, checkout.payment_intent_id);
+  console.log(catalog.products.length, checkout.order_id, checkout.checkout?.id);
 }
 ```
 
@@ -66,6 +66,19 @@ palbase commerce:store-orders
 palbase commerce:returns
 palbase commerce:settlements
 palbase commerce:hooks
+```
+
+Example `product.json` for `commerce:products:quick`:
+
+```json
+{
+  "title": "Runner Sneaker",
+  "handle": "runner-sneaker",
+  "kind": "physical",
+  "price": 149900,
+  "currency": "TRY",
+  "stock": 50
+}
 ```
 
 See [Promotions](https://palbase.studio/docs/commerce/promotions) and [Marketplace Payments](https://palbase.studio/docs/payments/marketplace) for discount rules and split seller payouts.

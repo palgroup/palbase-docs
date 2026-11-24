@@ -16,7 +16,7 @@ Broadcasts dispatch targeted messages across `email`, `sms`, `whatsapp`, `push`,
 
 On-site campaigns use Palbase's shared schema-2 message renderer across Web (`palbase/web/message`), iOS (`PalbaseUI` / `PalbaseNotifyUI`), and Android (`palbase-ui` / `palbase-notify-ui`), adding `slide_in` and `toast` presentations plus one-click `apply_promo` and `copy_code` button actions.
 
-Legacy `/notify/in-app/*` requests automatically route to the `campaigns` service at the Edge so existing mobile apps continue working with zero breaking changes.
+Legacy `/notify/in-app/*` requests automatically route to the `campaigns` module so existing mobile apps continue working with zero breaking changes.
 
 ## Tracking Links & Attribution (`palbase/web`)
 
@@ -66,7 +66,45 @@ palbase campaigns:stats <id>
 palbase campaigns:onsite
 palbase campaigns:onsite:create --file slidein.json
 palbase campaigns:links
-palbase campaigns:links:create --slug summer --name "Summer Drop" --target-url https://shop.example.com/summer --promo-code SUMMER15
+palbase campaigns:links:create --file link.json
+```
+
+Example JSON payloads:
+
+```json
+// broadcast.json
+{
+  "name": "Summer Drop",
+  "channel": "push",
+  "audience_id": "00000000-0000-0000-0000-000000000001",
+  "holdout_bps": 1000,
+  "variants": [
+    { "key": "a", "weight": 50, "title": { "en": "Summer Drop is live" }, "body": "Save 15% today." },
+    { "key": "b", "weight": 50, "title": { "en": "New arrivals" }, "body": "15% off with code SUMMER15." }
+  ]
+}
+```
+
+```json
+// slidein.json
+{
+  "name": "Summer Slide-In",
+  "surface": "slide_in",
+  "trigger_event": "page_view",
+  "definition": { "schema": 2 }
+}
+```
+
+```json
+// link.json
+{
+  "slug": "summer",
+  "name": "Summer Drop",
+  "target_url": "https://shop.example.com/summer",
+  "promo_code": "SUMMER15",
+  "utm_source": "newsletter",
+  "utm_campaign": "summer_drop"
+}
 ```
 
 See [Journeys](https://palbase.studio/docs/backend/journeys) for event-driven lifecycle automation and Seller Blueprints, and [Promotions](https://palbase.studio/docs/commerce/promotions) for coupon and discount rules.

@@ -100,7 +100,13 @@ fun PaymentsScreen(intentId: String) {
         if (status.isNotEmpty()) Text(status)
         SpendQRView(client = pb, walletKey = "try", ttlSeconds = 60L)
         SavedCardsView(client = pb)
-        WalletTopUpSheet(client = pb, walletKey = "try", currency = "TRY") { }
+        WalletTopUpSheet(client = pb, walletKey = "try", currency = "TRY") { result ->
+            status = when (result) {
+                is PaymentResult.Succeeded -> "Topped up ${result.intent.id}"
+                PaymentResult.Canceled -> "Top-up canceled"
+                is PaymentResult.Failed -> result.message
+            }
+        }
     }
 }
 ```

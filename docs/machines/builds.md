@@ -27,11 +27,11 @@ git push origin main
 
 Each commit of the branch is built once for a machine, however often it is pushed. A project builds one thing at a time; a newer commit that arrives while an older one waits takes its place, and the older build ends `cancelled` (*Left behind* on its GitHub check).
 
-A machine that deploys only after its commit's checks pass (`deploy_after_checks`, as Render's *After CI Checks Pass*) lets every push wait for its own checks, side by side. The first whose checks pass is built and leaves the older ones behind, so the machine only ever moves to a newer commit: an older push whose checks pass later is not built. A push whose checks fail ends `skipped`; the others keep waiting.
+A machine that deploys only after its commit's checks pass (`deploy_after_checks`) lets every push wait for its own checks, side by side. The first whose checks pass is built and leaves the older ones behind, so the machine only ever moves to a newer commit: an older push whose checks pass later is not built. A push whose checks fail ends `skipped`; the others keep waiting.
 
 ### Tests before it takes traffic
 
-A machine that names a **test command** (`test_command`, as Render's pre-deploy command or a CI's test step) has every new build tested before it takes traffic — the build is `testing` meanwhile. Once its database's migration has started, the new version comes up beside the one that serves, **as it will run**: its env, its secrets, its database. The build's own image then runs the command in a shell (`bun test`, `npm test`) against it:
+A machine that names a **test command** (`test_command`) has every new build tested before it takes traffic — the build is `testing` meanwhile. Once its database's migration has started, the new version comes up beside the one that serves, **as it will run**: its env, its secrets, its database. The build's own image then runs the command in a shell (`bun test`, `npm test`) against it:
 
 - `PALBASE_TEST_BASE_URL` is where the new version answers; `PALBASE_TEST_AUTH_URL` the project's auth;
 - **test users** the run makes for its tests (`test_users`), each with its access token, are in `PALBASE_TEST_IDENTITIES` — `api.signInAs("alice")` from `palbase/backend/test` (or `palbase/server/testing`, whatever the backend is written with) acts as one; they are deleted when the run ends, however it ends.
@@ -47,7 +47,7 @@ To run them again on the code a machine serves — after a change of its `--test
 The build reads the machine's directory (its `path`):
 
 - **With a `Dockerfile`** there, the build uses it, with the build context the machine names (its `context`, else its `path`).
-- **Without one**, [Railpack](https://railpack.com) detects what the directory is — Node, Bun, Go, Python, … — and plans the image from it.
+- **Without one**, the platform automatically detects the runtime — Node, Bun, Go, Python, … — and builds the image from the repository.
 
 A `palbase/backend` app ships a `Dockerfile` (see [Project Structure](https://palbase.studio/docs/getting-started/project-structure)): its decorators need the TypeScript compiler options that Bun reads from `tsconfig.json`, and a Dockerfile says exactly how it is run. A build has 20 minutes, and a repository is built from at most 1 GiB and 100,000 files.
 
@@ -56,7 +56,7 @@ A `palbase/backend` app ships a `Dockerfile` (see [Project Structure](https://pa
 The Bun a machine runs — its program, its `bun install` and the tests a build runs before it takes traffic, all in the build's image — is the image's, and the repository pins it:
 
 - **With a `Dockerfile`**, its `FROM`. `palbase init` writes `FROM oven/bun:1.4.5-alpine`; `FROM oven/bun:1.4.4-alpine` runs 1.4.4. The build's log shows it: `FROM docker.io/oven/bun:1.4.4-alpine` and `bun install v1.4.4`.
-- **Without one**, Railpack's: the `packageManager` field of `package.json` (`"packageManager": "bun@1.4.4"`), else `engines.bun`, else a `.bun-version`, `mise.toml` or `.tool-versions` file. With none, Railpack takes the newest Bun it resolves when it builds, so two builds of the same commit can differ: pin it.
+- **Without one**, automatic runtime detection reads the `packageManager` field of `package.json` (`"packageManager": "bun@1.4.4"`), else `engines.bun`, else a `.bun-version`, `mise.toml` or `.tool-versions` file. With none, it resolves the latest Bun at build time, so two builds of the same commit can differ: pin it.
 
 The pin is the repository's, so it takes effect at the next build — a push, or `palbase machines:deploy <name>` to build the branch's head again. A machine's settings carry no Bun version.
 
@@ -66,12 +66,11 @@ A `.env.example` in the machine's directory is read as **the list of variables t
 
 ```text
 # .env.example — the names this backend reads; their values live in Palbase.
-PALBASE_URL=
-PALBASE_PROJECT_ID=
-PALBASE_SECRET_KEY=
+WEB_ORIGINS=
+STRIPE_WEBHOOK_SECRET=
 ```
 
-When the build is done, every name is looked for among what the machine will start with: its own environment variables, its secret set, and what the platform gives it (`PALBASE_URL`, `PALBASE_PROJECT_ID`, `PALBASE_REPLICAS`, `PALBASE_PLATFORM_SECRET`, and with a database `PALBASE_DB_URL` and `PALBASE_DB_CONNECTIONS`). A name found nowhere stops the rollout: the build waits as **`waiting_config`** (*Waiting for variables* in Studio, *Waiting for configuration* on GitHub), its `missing_env` lists the names, and it **rolls out by itself once the machine has them** — add the secret, or the variable, and nothing has to be pushed again.
+When the build is done, every name is looked for among what the machine will start with: its own environment variables, its secret set, and what the platform provides automatically (`PALBASE_URL`, `PALBASE_PROJECT_ID`, `PALBASE_SECRET_KEY`, `PALBASE_WEBHOOK_SECRET`, `PALBASE_REPLICAS`, `PALBASE_PLATFORM_SECRET`, and with a database `PALBASE_DB_URL` and `PALBASE_DB_CONNECTIONS`). A name found nowhere stops the rollout: the build waits as **`waiting_config`** (*Waiting for variables* in Studio, *Waiting for configuration* on GitHub), its `missing_env` lists the names, and it **rolls out by itself once the machine has them** — add the secret, or the variable, and nothing has to be pushed again.
 
 Without this file nothing is checked, and an app missing a setting is rolled out to fail at start. The version before it keeps serving either way, but the waiting build says what is wrong by name; the failed start says it in its logs.
 
@@ -81,7 +80,7 @@ The new version starts beside the one that serves, and is held to its [health ch
 
 A change that is not a push rolls out the same way: a new size, port, number of copies, environment, secret set or health path, a changed secret of the machine's set, and a rollback.
 
-**`SIGTERM` can come more than once.** A machine runs in a sandbox of its own (a small VM), and a version being stopped is sent `SIGTERM` twice, a few milliseconds apart. A `palbase/backend` app handles that. An app of your own should stop on the first and keep its handler for the rest: in Node and Bun `process.on("SIGTERM", …)`, not `process.once`. A process listening once dies of the second signal (exit 143), and its requests still in flight are cut (`503 machine_interrupted`).
+**`SIGTERM` can arrive more than once during shutdown.** A `palbase/backend` app handles this automatically. In a custom Node or Bun server, keep your handler registered with `process.on("SIGTERM", …)` rather than `process.once` so a repeated signal does not terminate the process (exit 143) before in-flight requests finish (`503 machine_interrupted`).
 
 ### When a release migrates its database
 

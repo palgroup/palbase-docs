@@ -45,7 +45,7 @@ When `POST /payments/intents` runs without an explicit `channel` override, Palba
 palbase payments:routing
 
 # Replace routing rules from a JSON file
-palbase payments:routing:put routing-rules.json
+palbase payments:routing:put --file routing-rules.json
 ```
 
 Example `routing-rules.json`:

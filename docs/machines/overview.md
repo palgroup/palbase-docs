@@ -103,9 +103,9 @@ A path whose first segment is `_palbase` — `/_palbase/health`, `/_palbase/cron
 | `dedicated-1x` | 1 vCPU of its own | 2048 MiB | never | $94 a month |
 | `dedicated-2x` | 2 vCPU of its own | 4096 MiB | never | $182 a month |
 
-A month is 730 hours, and a machine is billed by the second it runs, each copy counted: a `standard-1x` that ran half the month is $12.50. The standard sizes are Render's at Render's prices; `starter` is $16, not Render's $7, and the dedicated sizes are what their whole CPUs cost us and a quarter more — at Render's prices they would cost less than they cost us. `palbase machines:sizes` (`GET /machines/sizes`) lists every size with its price (`price_micros_per_hour`).
+A month is 730 hours, and a machine is billed by the second it runs, each copy counted: a `standard-1x` that ran half the month is $12.50. `palbase machines:sizes` (`GET /machines/sizes`) lists every size with its price (`price_micros_per_hour`).
 
-A **shared** size has a fraction of a CPU as its ceiling and is **put to sleep when it is idle** — after 15 minutes without a request — and woken by the next request, which waits for it. A request that waits longer than the wake allows is answered `503 machine_waking` with `Retry-After`, and asking again is what brings the answer. A **standard** size never sleeps: its CPUs are its ceiling, a quarter of them are reserved for it on its node, and it uses the rest while the other machines there leave them — Render's sizes, at Render's prices. A **dedicated** size has whole CPUs of its own and never sleeps. Memory is never shared: a machine's memory is its own whatever its size.
+A **shared** size has a fraction of a CPU as its ceiling and is **put to sleep when it is idle** — after 15 minutes without a request — and woken by the next request, which waits for it. A request that waits longer than the wake allows is answered `503 machine_waking` with `Retry-After`, and asking again is what brings the answer. A **standard** size never sleeps and bursts up to its vCPU ceiling. A **dedicated** size has dedicated whole CPUs of its own and never sleeps. Memory is never shared: a machine's memory is its own whatever its size.
 
 `shared-512` and `shared-1024`, sizes that were paid for and slept, are retired: a machine that has one runs on as it did, billed as `starter` and `standard-1x`, and none is opened at or moved to one.
 
@@ -113,13 +113,13 @@ Sleeping has consequences for code: a machine that sleeps runs nothing while it 
 
 `shared-256` is the size every project may open. The others are sizes that are paid for: open to every environment of a project on Pay as you go whose payment account is not held ([Billing](https://palbase.studio/docs/getting-started/billing)); for another, opening a machine at one, or moving one to it, is refused with `403 size_not_available`; `palbase machines:sizes` lists the sizes the environment may open now ([Usage & Limits](https://palbase.studio/docs/getting-started/usage-and-limits)).
 
-On Free, what a project's machines and databases reserve between them is held to 2 vCPU and 4 GiB, each copy counted (a shared or standard size reserves a quarter of its CPUs, a dedicated one all of them; memory is reserved whole), and a project has 5 machines and 3 databases at most: a size or a number of copies that does not fit is refused with `409 machines_over_limit`, one machine or database more with `409 too_many_machines` or `409 too_many_databases`. On Pay as you go a project is held to none of them, as Render holds a paid workspace — each machine to its 100 copies. The platform may hold one project to limits of its own (to stop what runs away); the refusal then names them.
+On Free, a project has up to 5 machines and 3 databases within the Free compute quota (2 vCPU and 4 GiB total): a size or a number of copies that does not fit is refused with `409 machines_over_limit`, one machine or database more with `409 too_many_machines` or `409 too_many_databases`. On Pay as you go those Free limits do not apply — each machine may scale up to 100 copies. The platform may hold an individual project to custom safety limits if needed; a refusal then names them.
 
-Where the cluster has no room for a copy right now, it brings up a node for it — a few minutes — and the machine says so meanwhile: `state_reason_kind` `no_room` ("Waiting for room" in Studio), its copies that have a node serving. The platform's operators are told if no node can be brought.
+When capacity is still being provisioned for a copy, the machine reports `state_reason_kind` `no_room` ("Waiting for room" in Studio) for a few minutes while its running copies continue serving.
 
 ## Copies
 
-A machine runs **one copy** unless you give it more (`replicas`, **Copies** in Studio, 1 to 100). More than one copy is open to a project on Pay as you go: on Free a machine runs one copy (`403 copies_not_available`), and one of a project that is Free again runs one until it pays. Its copies run on two nodes at least and never all on one — the copies on two nodes differ by 29 at most of a hundred (by 1 of up to three copies, 3 of up to nine, 9 of up to 29); a request goes to one of them, and a copy or a node that goes leaves the others serving. A new version comes up a quarter of the copies at a time, each old copy stopping once its new one is ready. A node taken for maintenance or given back is emptied one copy at a time (a tenth of them at a time, of a machine of ten or more), and a machine of one copy is moved, not stopped: its copy starts on another node and takes requests before the old one stops. Every copy is of the machine's size and counts as one against the project's limits and its machine time.
+A machine runs **one copy** unless you give it more (`replicas`, **Copies** in Studio, 1 to 100). More than one copy is open to a project on Pay as you go: on Free a machine runs one copy (`403 copies_not_available`), and one of a project that is Free again runs one until it pays. Multiple copies are spread across fault domains so a single failure leaves the others serving, and incoming requests are balanced across healthy copies. Rollouts and platform maintenance replace copies gradually without dropping traffic, waiting for each replacement copy to pass its health check before stopping the old one. Every copy is of the machine's size and counts as one against the project's limits and its machine time.
 
 What a copy keeps in its own memory or on its own disk, the others do not see — a session, a counter, a cache, a rate-limit window. A machine with more than one copy keeps those where every copy reaches them: its database, or the project's [cache](https://palbase.studio/docs/backend/cache). A long-lived connection (a WebSocket) stays with the copy that took it. The machine finds its number of copies in `PALBASE_REPLICAS`.
 
@@ -140,6 +140,8 @@ The platform starts every machine with these, whatever else it is given:
 | `PALBASE_PROJECT_ID` | The project's id |
 | `PALBASE_REPLICAS` | How many copies of it run |
 | `PALBASE_PLATFORM_SECRET` | The key the platform signs its own calls to this machine with ([crons and tasks](#crons-and-tasks), a backend's contract) |
+| `PALBASE_SECRET_KEY` | The machine's own project secret key (`machine: <name>` under **Settings › API keys**), provided automatically by the platform |
+| `PALBASE_WEBHOOK_SECRET` | The signing secret for project events delivered to the machine, provided automatically by the platform |
 | `PALBASE_MACHINE` | The machine's own name: what its program puts its tasks on the queue of |
 | `PALBASE_DB_URL` | Given a database: where it answers, as the application's login |
 | `PALBASE_DB_CONNECTIONS` | Given a database: how many connections to it one copy may hold |
@@ -149,7 +151,7 @@ Besides those, a machine has two sources of its own:
 - **Environment variables** — settings, not secrets: one `NAME=value` a line in Studio's **Edit settings**, `env` in the API. 100 variables and 64 KiB at most. `PORT` is refused there, and a name the platform sets gives way to the platform's.
 - **Secrets** — the project keeps its secrets in two sets, `production` and `development`, and a machine names the set it starts with (**Secrets** in **Edit settings**: *No secrets*, *Production secrets* or *Development secrets*). Every secret of the set is in the machine's environment by its name; a name in `env` wins over the same secret. When a secret of the set changes, the machine rolls out with the new value beside the version that serves. Studio's **Environment › Variables** screen holds the set the environment's machines start with — see [Secrets](https://palbase.studio/docs/backend/secrets).
 
-A `palbase/backend` app also needs `PALBASE_SECRET_KEY` — the project's secret key, which nothing puts there for you. Make a secret key in **Settings › API keys** (it is shown once), add it as the secret `PALBASE_SECRET_KEY`, and start the machine with that set. Name it in the app's `.env.example` and a build waits for it instead of rolling out an app that cannot start ([Builds](https://palbase.studio/docs/machines/builds)).
+List your own required variables in `.env.example` so a build pauses at `waiting_config` instead of rolling out an app that is missing a setting ([Builds](https://palbase.studio/docs/machines/builds)).
 
 A change of size, port, copies, environment, secrets or health path rolls out beside the version that serves; a change of source is built first and rolls out once its build is up.
 
@@ -301,7 +303,7 @@ Every machine reaches the internet from one small range of addresses, the platfo
 |---|---|
 | Machines per project | 5 on Free; as many as you like on Pay as you go |
 | Copies per machine | 1 on Free; 1 to 100 on Pay as you go |
-| What machines and databases reserve between them | 2 vCPU and 4096 MiB a project on Free (a shared or standard size reserves a quarter of its CPU ceiling, a dedicated one all of it; memory is reserved whole); no limit on Pay as you go |
+| What machines and databases reserve between them | 2 vCPU and 4096 MiB a project on Free; no limit on Pay as you go |
 | Builds | 50 a day (UTC) per project; one build at a time; 20 minutes at most each. On Free, 500 build minutes a month — builds, sites' builds and test and migration runs together — then no build until the month ends (`429 quota_exceeded`); on Pay as you go, past them, $0.021 a minute |
 | Idle before a shared size sleeps | 15 minutes |
 | Environment variables | 100, 64 KiB in all |
@@ -309,7 +311,7 @@ Every machine reaches the internet from one small range of addresses, the platfo
 | Images kept | On Free, 1 GiB: past it the sites' build caches, then the machines' older images are taken back — never the image a machine runs, nor its newest; on Pay as you go $0.2625 a GiB-month past it |
 | Tasks put on the queues | 1 million a month free; past it, on Free no task is put until the month ends (`429 quota_exceeded`), on Pay as you go $0.40 a million |
 | Traffic, free project | 5 GB a month at full speed, machine internet traffic, response traffic, database client traffic and site traffic together; then all of them, and storage's files, at about 256 kbit/s until the month ends (UTC); see [Reaching the internet](#reaching-the-internet) |
-| Connections to the internet open at once | Per copy of a machine, by its memory: 4,096 for 256 MiB, twice that for each doubling — 8,192 (`starter`), 32,768 (`standard-1x`, `dedicated-1x` and larger). One more is refused at once (`connection refused` / a reset). Connections to the platform, to your databases and DNS questions to the machine's resolvers are not counted. The cap keeps one machine from taking a server's whole connection table from the machines beside it: close connections you no longer use, and pool those you reuse |
+| Connections to the internet open at once | Per copy of a machine, by its memory: 4,096 for 256 MiB, twice that for each doubling — 8,192 (`starter`), 32,768 (`standard-1x`, `dedicated-1x` and larger). One more is refused at once (`connection refused` / a reset). Connections to the platform, to your databases and DNS queries are not counted. Close connections you no longer use, and pool those you reuse |
 
 ## Related
 

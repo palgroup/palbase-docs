@@ -19,7 +19,7 @@ The web, iOS and Android SDKs run a call for the app — ringing, answering, the
 - **A shared screen.** Anyone in a call may share their screen: the others get it as a picture of its own, apart from the camera, and its data is the call's like the rest.
 - **A meeting at a place.** A group call may be held at a place your app names — a channel (`channel:42`), a conversation of Palbase's messaging (`conversation:<id>`). Whom the place lets in finds it going on and joins it without being asked, someone added to the channel after it started too ([A call at a place](#a-call-at-a-place)).
 
-Every call's sound and picture go through Palbase's media server (LiveKit, open source), one to one too: each device sends its own once, however many listen, and gets the others' from the server. A device's address reaches no one else in the call. Where a network lets no UDP out, the media goes over TCP on port 443 (straight to the media server: a network that lets the web out only through an HTTPS proxy does not pass it). The server sees the media as it passes it on; nothing of it is kept.
+Every call's sound and picture go through Palbase's managed media server, one to one too: each device sends its own once, however many listen, and gets the others' from the server. A device's address reaches no one else in the call. Where a network lets no UDP out, the media goes over TCP on port 443 (straight to the media server: a network that lets the web out only through an HTTPS proxy does not pass it). The server relays the media without storing it.
 
 A call is voice or video (`video`) from its start; a person may still turn their camera on or off in it. What a call costs is the data the media server sent its people ([What it costs](#what-it-costs)).
 

@@ -242,7 +242,7 @@ A test purchase is marked: `is_sandbox` is `true` in its events and in what the 
 
 - [App Store](https://palbase.studio/docs/iap/app-store): the keys, the server notifications, and what the environment does with each transaction
 - [Catalog](https://palbase.studio/docs/iap/catalog): the products the StoreKit file is made from
-- [Entitlements, Credits & Limits](https://palbase.studio/docs/iap/entitlements): `CustomerInfo`, `isEntitled` and every `purchases.*` event
+- [Entitlements, Credits & Limits](https://palbase.studio/docs/iap/entitlements): `CustomerInfo`, `isEntitled` and every `iap.*` event
 - [Event Hooks](https://palbase.studio/docs/backend/hooks): `@On` handlers in a `palbase/backend` app
 - [Webhooks](https://palbase.studio/docs/server/webhooks): the same events in any server, with `palbase/server`
 - [Server SDK Overview](https://palbase.studio/docs/server/overview): `createServer`, refusals and retries

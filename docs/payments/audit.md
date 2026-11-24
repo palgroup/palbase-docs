@@ -64,7 +64,7 @@ Export filtered double-entry entries by `customer_id`, `wallet_key`, `kind`, `fr
 palbase payments:audit:export --wallet try --from 2026-11-01T00:00:00Z > ledger.csv
 
 # Export structured JSON with balanced legs
-palbase payments:audit:export --format json --wallet try > ledger.json
+palbase payments:audit:export --wallet try --json > ledger.json
 ```
 
 ## Related
