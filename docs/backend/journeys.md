@@ -64,6 +64,10 @@ Durations are ISO 8601: `PT30M`, `PT2H`, `P2D`, `P1W`.
 | `branch` | Sends the person to `then` when `if` holds of them, else to `else`. A condition asks a `property` of theirs (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`, `exists`, `missing`), whether they are in an `audience`, whether they did an `event` (since entering, or `within` a while), or `all`, `any` or `not` of others. |
 | `split` | An A/B split: 2 to 5 ways whose `weight`s add up to 100. Each person takes one way by chance — the same one every time — and the report counts each way's conversions. |
 
+A step that gives — `coupon`, `offer`, a commerce promotion code, a wallet credit — runs in a run begun on the platform's word or your server's: a module's event (`iap.purchase.completed`), an audience, or an event your server sent with the secret key. A time away (`inactive`) is as trusted as the event it is counted from. In a run an event from an app began, the step is passed over (its outcome is `skipped`, with `untrusted_source`) and the messages go as they would — but one that names what the step would have given (`{{coupon}}`, `{{promo_code}}`), passed over with it: what an app sends, its user can send without having done it. To give for something the app knows first (onboarding finished), send that event from your server.
+
+A module's event is taken from the platform alone. The same name sent by an app is refused by analytics, and sent by a server it lets no one into a journey and ends no wait.
+
 A message step is sent by the project's send rules ([Notifications › When a message goes](https://palbase.studio/docs/backend/notifications#when-a-message-goes)): quiet hours, the marketing cap and what the person allowed. A message they did not allow is skipped and the run goes on. A journey has 100 steps at most, every one reachable from `start`, and no way back to a step already taken but through a wait.
 
 ## From your backend

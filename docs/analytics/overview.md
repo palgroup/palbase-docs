@@ -17,6 +17,8 @@ Nothing needs to be turned on. The project's address takes events from its first
 
 The platform adds events of its own to a person's timeline: a purchase, a push that reached their phone, a consent they changed, an audience they entered or left. `GET /analytics/catalog` lists every event a timeline can hold, the platform's with their fields and the app's own as they arrived.
 
+The platform's names are the platform's to tell. An app that sends an event under one of them (`commerce.order.paid`, `audience.entered`) is answered `400 reserved_event_name`; in a batch that event alone is refused, by its place. An app's own name beside them (`user.signed_up`) is kept, and so is what a server sends with the secret key, as the server's.
+
 Each event is given the place of the address it came from: its `country`, `region` and `city`. Places come from DB-IP's IP to City Lite database: IP geolocation by [DB-IP](https://db-ip.com), CC BY 4.0. An address says where its network is, not where the device is.
 
 ## Who did it
