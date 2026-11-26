@@ -1251,6 +1251,9 @@ They answer `403 token_out_of_scope` (or `person_only`), whoever minted the toke
 - read a secret's value, a task's payload (it may carry a token) or a coupon's one-time codes. Setting a secret is allowed;
 - set or remove a sign-in provider's client secret, or change which apps' sign-ins with it the environment takes (its client ids);
 - bring or remove a message provider (where the project's mail and texts are sent, and with whose credentials);
+- connect or remove a payment channel with its keys, or change which channel a payment goes to (the default channel, the routing rules);
+- set where a marketplace's seller is paid: a sub-merchant's or a store's payout account, the onboarding link whoever opens sets it at, or who the members of a store that is there are (its owner sets where it is paid — a token still opens a new store, with its first owner);
+- take a connected App Store Connect key, In-App Purchase key or Apple ID away;
 - override or remove a template that carries a sign-in or reset credential — a reset or magic-sign-in link, a verification or invitation link, a one-time code — on email, SMS or WhatsApp. The app's own notification templates stay open, so an agent still brands them.
 
 The last three close the roundabout ways to a user's own credential: a sign-in provider's client of one's own, a message provider aimed at a server of one's own, or a reset template that tucks the link into one it fetches, would catch a sign-in the way signing in as the user would.
@@ -1260,6 +1263,8 @@ The sender's own settings stay open — a token sets the project's `from` addres
 Each module refuses these itself, on the route it matched, so writing the path another way does not get past this list: an escape, a dot segment, other letter case or a slash at the end all name the same thing.
 
 A link the token signs does not outlive it either. A signed download or upload URL, a package's upload link, a link to hand over an Apple or Stripe key, a signed bundle's download link and the link that connects GitHub all end no later than the token. The answer's `expires_at` says when.
+
+A link to hand over a key sets up what is not there yet, and replaces nothing: whoever holds the token holds the link too, and could type keys of their own into it. A token's link connects a project's **first** payment channel — where none was ever connected, the Stripe App's install link the same — and an App Store Connect key, an In-App Purchase key or an Apple ID where the project has none (an Apple ID whose session ended is signed in again, the same one). Otherwise the link answers `409`: another channel is added, a disconnected one connected again and a connected key replaced by a person signed in to Studio, or with the project's secret key.
 
 Test users, and the sign-ins made for them, are open: they are test fixtures, and `auth:test-users` is for them.
 
@@ -14447,7 +14452,14 @@ Durations are ISO 8601: `PT30M`, `PT2H`, `P2D`, `P1W`.
 | `branch` | Sends the person to `then` when `if` holds of them, else to `else`. A condition asks a `property` of theirs (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`, `exists`, `missing`), whether they are in an `audience`, whether they did an `event` (since entering, or `within` a while), or `all`, `any` or `not` of others. |
 | `split` | An A/B split: 2 to 5 ways whose `weight`s add up to 100. Each person takes one way by chance — the same one every time — and the report counts each way's conversions. |
 
-A step that gives — `coupon`, `offer`, a commerce promotion code, a wallet credit — runs in a run begun on the platform's word or your server's: a module's event (`iap.purchase.completed`), an audience, or an event your server sent with the secret key. A time away (`inactive`) is as trusted as the event it is counted from. In a run an event from an app began, the step is passed over (its outcome is `skipped`, with `untrusted_source`) and the messages go as they would — but one that names what the step would have given (`{{coupon}}`, `{{promo_code}}`), passed over with it: what an app sends, its user can send without having done it. To give for something the app knows first (onboarding finished), send that event from your server.
+A step that gives — `coupon`, `offer`, a commerce promotion code, a wallet credit — runs only when nothing an app said decided the run's way to it. What an app sends, its user can send without having done it; what a module saw happen itself (a purchase a store verified, an order a payment settled, a cart left idle) and what your server sends with the secret key cannot be forged from a phone. A module's event that only passes on what the app reported of the device is the app's word too: a push delivered, opened or dismissed (`notification.opened`, `notification.action`), an in-app campaign shown or clicked (`campaigns.onsite.clicked`). So is what became of a message that was sent (`notification.sent`, `notification.bounced`, `notification.read`, `notification.uninstalled`): it does not say what had the message sent. An app's word comes onto a run's way by:
+
+- **the event that began it** — an event your app captured, or one a module tells on the app's report. A time away (`inactive`) is as trusted as the event it is counted from.
+- **an event that ended a wait** — a `wait` for an event that an app told. The wait's own `timeout` passing is the platform's clock, and leaves the run as it was.
+- **what a `branch` read** — a `property` of the person's (an app writes any, and takes any away), an event they did that only an app told, an audience that is not trusted, or that they are *not* in an audience (a person who turns personalization off in their app is told to be in none). That they are in a trusted audience is the platform's word: to give to those who did not buy, make the audience of those who did not, and ask whether they are in it.
+- **an audience** — one a person entered, or was a member of when the journey was published. An audience is **trusted** when every condition of its rule is an event a module saw happen itself; a property, a place, a platform, an event of your own naming, one told on the app's report, or another audience's or a journey's event makes it an app's word. `audience.entered` says which (`trusted`), and counts the same when a journey waits for it or a branch asks for it.
+
+From there the run is an app's, and stays one: its steps that give are passed over (their outcome is `skipped`, with `untrusted_source`), and so is a message that names what they would have given (`{{coupon}}`, `{{promo_code}}`); its other messages go as they would. To give for something the app knows first (onboarding finished, the app opened), send that event from your server, or give on a module's event.
 
 A module's event is taken from the platform alone. The same name sent by an app is refused by analytics, and sent by a server it lets no one into a journey and ends no wait.
 
@@ -14472,7 +14484,7 @@ A journey's page draws it top to bottom: who enters at the top, each step under 
 
 ## Trying a journey on a test user
 
-`POST /journeys/{key}/test` with `{ "user_id": "…" }` runs the saved journey — a draft too — for one of the project's [test users](/docs/backend/test-users) from its first step. Its messages really go to that user, each wait is a minute long, and the try is counted in no report and no month's people; its `journey.*` events carry `test: true`. Studio's **Try on a test user** does the same, and follows the run beside what landed in the person's inbox. A user who is not a test user is refused (`422 not_a_test_user`), and so is a stopped journey (`409 journey_stopped`). A new try of the same journey ends that user's try still running.
+`POST /journeys/{key}/test` with `{ "user_id": "…" }` runs the saved journey — a draft too — for one of the project's [test users](/docs/backend/test-users) from its first step. Its messages really go to that user, each wait is a minute long, a step that gives is passed over where the journey's real runs pass it over (people enter it on an event the app reports, on what became of a message, or on an audience that is not trusted: [Steps](#steps)), and the try is counted in no report and no month's people; its `journey.*` events carry `test: true`. Studio's **Try on a test user** does the same, and follows the run beside what landed in the person's inbox. A user who is not a test user is refused (`422 not_a_test_user`), and so is a stopped journey (`409 journey_stopped`). A new try of the same journey ends that user's try still running.
 
 ## Publishing, stopping and copying
 
@@ -21550,7 +21562,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.24.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
 ```
 
 | Product | What it is |
@@ -21699,6 +21711,8 @@ if let active = accounts.activeClient() {
     _ = await active.currentSession()
 }
 ```
+
+Keep an account's client for as long as the app uses anything of it, its modules too (`pb.flags`, `pb.realtime`, and the rest): a module does not keep its client. Let it go when the account goes: a client the app no longer holds is done. Its session is renewed no more, on its timer or for a call, and its realtime socket closes; what the app still holds of it goes on with the token it has while auth accepts it, and says `client_gone` after. A session is one client's at a time: auth gives a new refresh token at every renewal and takes an old one sent again for a stolen one, which ends the session on every device. Never give the same tokens to two clients that are both alive; to move a session to another client, let the first one go, then adopt the session there (`adoptSession`, below).
 
 An app migrating sessions it previously kept in its own store hands them over offline with `accounts.adoptSession(account:accessToken:refreshToken:expiresAt:select:)` (or `pb.auth.adoptSession(accessToken:refreshToken:expiresAt:)`). Adoption reads `sub` and `exp` from the access token without a network call, never overwrites credentials the SDK has already rotated, and throws `keychain_unavailable` if the keychain is locked so the app keeps its legacy copy until persistence succeeds. To move a single-account default `"session"` item into an account slot, call `accounts.adoptDefaultKeychainSession(account:select:)`: it deletes the legacy item only after the new account slot is written.
 
@@ -22681,7 +22695,7 @@ The project holds its clients to limits the platform sets and the project may lo
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.24.0 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.25.0 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -22913,10 +22927,10 @@ When the person signs out, what the phone kept of their conversations is dropped
 `PalbaseCalls` ships directly in `https://github.com/palgroup/palbase-swift` for **iOS 18+** and **macOS 15+** with zero external dependencies:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.24.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
 ```
 
-Link `PalbaseCalls` to the app (it brings `Palbase` and `PalbaseNotify` with it). On iOS, if your app also shares the whole screen in the background via a Broadcast Upload Extension ([Sharing a screen](#sharing-a-screen)), add `https://github.com/palgroup/palbase-swift-calls` at the same version (`exact: "0.24.0"`) and link `PalbaseCallsBroadcast` to the extension target alone. **Do not add LiveKit's own Swift package beside them**: LiveKit's client SDK is already inside `PalbaseCalls`. Requires iOS 18 or macOS 15, and Xcode 16.3 or newer.
+Link `PalbaseCalls` to the app (it brings `Palbase` and `PalbaseNotify` with it). On iOS, if your app also shares the whole screen in the background via a Broadcast Upload Extension ([Sharing a screen](#sharing-a-screen)), add `https://github.com/palgroup/palbase-swift-calls` at the same version (`exact: "0.25.0"`) and link `PalbaseCallsBroadcast` to the extension target alone. **Do not add LiveKit's own Swift package beside them**: LiveKit's client SDK is already inside `PalbaseCalls`. Requires iOS 18 or macOS 15, and Xcode 16.3 or newer.
 
 The app:
 
@@ -23956,7 +23970,7 @@ A chat of the project's agents can be talked to out loud ([AI › Voice](/docs/b
 `PalbaseVoice` ships directly in `https://github.com/palgroup/palbase-swift` for **iOS 18+** and **macOS 15+** with zero external dependencies:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.24.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
 ```
 
 Link `PalbaseVoice`; it brings `Palbase` with it. The app's Info.plist says why it asks for the microphone, in `NSMicrophoneUsageDescription`.
@@ -26915,7 +26929,7 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `messaging.conversation.read` | A person read a conversation, or a thread of it, further. Sent only to an endpoint that names it. | `{ conversation_id, space, user_id, read_seq, thread_id }` |
 | `calls.call.started` / `calls.call.ended` | A call was made — ringing, or a group going on — or ended (`end_reason` says why) ([Calls](/docs/calls/server#webhooks)). | `{ call_id, kind, video, mode, state, caller_id, conversation_id, room }`, and `end_reason` when it ended |
 | `calls.participant.joined` / `calls.participant.left` | A person answered or joined a call, or left it; or the project's agent came into it, or left ([Agents](/docs/calls/agents)). | the same fields, and `user_id`, `participant_kind` (`user` or `bot`) |
-| `audience.entered` / `audience.exited` | A person came to be in an analytics audience, or left it. | `{ audience_id, audience_name, person_id, user_id }` |
+| `audience.entered` / `audience.exited` | A person came to be in an analytics audience, or left it. | `{ audience_id, audience_name, person_id, user_id, trusted }` |
 | `machine.created` / `machine.updated` / `machine.deleted` | A machine was opened, changed, or taken away. | `{ name, source, size, replicas, port, version }` |
 | `stores.apple.changed` | The Apple account was connected, checked (and Apple's answer changed) or disconnected. The key is never in the event. | `{ change, issuer_id, key_id, status, capabilities }` |
 | `stores.app.changed` | An app was linked to its store. | `{ change, app_id, bundle_id, asc_app_id }` |
@@ -30259,7 +30273,7 @@ If you prefer a restricted key (`rk_test_...` or `rk_live_...`), grant it access
 palbase payments:stripe:grant --channel stripe_global
 ```
 
-`POST /payments/channels/grants` returns a single-use browser form (`GET /payments/connect`) hosted directly by your environment's Payments module so your key never passes through Studio.
+`POST /payments/channels/grants` returns a single-use browser form (`GET /payments/connect`) hosted directly by your environment's Payments module so your key never passes through Studio. The link names its channel. One made with an [environment token](/docs/getting-started/access-tokens) sets up a project's first channel only: where a channel was connected before — still connected or not — it answers `409 channel_exists`, and a person signed in to Studio adds the next one or changes a channel's keys.
 
 ## Webhooks & authoritative verification
 
@@ -31052,10 +31066,10 @@ export function formatFailure(code: string | undefined): string {
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` (0.24.0 or later) and link `PalbasePayments` for headless checkout, plus `PalbasePaymentsUI` when you want Palbase's optional drop-in PCI-DSS SAQ-A SwiftUI sheets:
+Add `https://github.com/palgroup/palbase-swift` (0.25.0 or later) and link `PalbasePayments` for headless checkout, plus `PalbasePaymentsUI` when you want Palbase's optional drop-in PCI-DSS SAQ-A SwiftUI sheets:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.24.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
 ```
 
 Attach `.palbasePayments(pb.payments)` once at the root of your SwiftUI hierarchy and forward payment return URLs via `.onOpenURL`:
@@ -31427,6 +31441,12 @@ if (cart.id) {
 ```
 
 Signed-in sellers open a session-pinned portal handle with `pb.commerce.seller(storeId)`. If the user signs out or switches accounts mid-flight, requests fail fast with `SessionChangedError`.
+
+## How an order is paid
+
+A checkout's `payment_method` is `card` (the default) or `wallet`, paid through one of the project's payment channels, or one of the ways an order is made with nothing paid yet: `cod` (on delivery) and `bank_transfer`. A buyer picks one of those two only where the project sells that way — name them in the commerce settings' `offline_payment_methods` (`PUT /commerce/settings`); until then a buyer's checkout with one is refused (`403 payment_method_not_allowed`). `net_terms` is credit, and your server's to give: a checkout with the secret key takes it, and any of the others.
+
+An order sent before it is paid — on delivery — is marked paid when the money is in (`POST /commerce/orders/{order_id}/mark-paid`). A return is of an order that was paid, and an order's returns together give back no more than was paid for it. A line your server prices (`custom_unit_amount`, with the secret key) keeps the quantity your server gave it.
 
 ## Blocking Extension Hooks (`palbase/server`)
 
@@ -34494,6 +34514,8 @@ Nothing needs to be turned on. The project's address takes events from its first
 The platform adds events of its own to a person's timeline: a purchase, a push that reached their phone, a consent they changed, an audience they entered or left. `GET /analytics/catalog` lists every event a timeline can hold, the platform's with their fields and the app's own as they arrived.
 
 The platform's names are the platform's to tell. An app that sends an event under one of them (`commerce.order.paid`, `audience.entered`) is answered `400 reserved_event_name`; in a batch that event alone is refused, by its place. An app's own name beside them (`user.signed_up`) is kept, and so is what a server sends with the secret key, as the server's.
+
+An **audience** whose rule asks only for events a module saw happen itself (people who bought, who paid an order) is **trusted**: nothing an app says moves a person into it or out. A rule that reads a property, a place, a platform, an event of your own naming, an event a module tells on the app's report (a push opened), what became of a message sent, or another audience's or a journey's event is not, since an app can say those. A journey gives — a coupon, a grant, a wallet credit — on a trusted audience's word only ([Journeys](/docs/backend/journeys#steps)); `audience.entered` and `audience.exited` say which in `trusted`. A rule changed is not trusted until its members are worked out again. A platform event in a rule counts no row an app sent.
 
 Each event is given the place of the address it came from: its `country`, `region` and `city`. Places come from DB-IP's IP to City Lite database: IP geolocation by [DB-IP](https://db-ip.com), CC BY 4.0. An address says where its network is, not where the device is.
 

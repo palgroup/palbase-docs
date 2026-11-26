@@ -37,6 +37,12 @@ if (cart.id) {
 
 Signed-in sellers open a session-pinned portal handle with `pb.commerce.seller(storeId)`. If the user signs out or switches accounts mid-flight, requests fail fast with `SessionChangedError`.
 
+## How an order is paid
+
+A checkout's `payment_method` is `card` (the default) or `wallet`, paid through one of the project's payment channels, or one of the ways an order is made with nothing paid yet: `cod` (on delivery) and `bank_transfer`. A buyer picks one of those two only where the project sells that way — name them in the commerce settings' `offline_payment_methods` (`PUT /commerce/settings`); until then a buyer's checkout with one is refused (`403 payment_method_not_allowed`). `net_terms` is credit, and your server's to give: a checkout with the secret key takes it, and any of the others.
+
+An order sent before it is paid — on delivery — is marked paid when the money is in (`POST /commerce/orders/{order_id}/mark-paid`). A return is of an order that was paid, and an order's returns together give back no more than was paid for it. A line your server prices (`custom_unit_amount`, with the secret key) keeps the quantity your server gave it.
+
 ## Blocking Extension Hooks (`palbase/server`)
 
 Core Commerce stays vertical-agnostic: connect your own shipping, tax, checkout validation, or Buy Box ranking logic via Standard Webhooks signed blocking hooks (`shipping.calculate`, `tax.calculate`, `checkout.validate`, `buybox.rank`):

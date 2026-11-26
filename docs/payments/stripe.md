@@ -31,7 +31,7 @@ If you prefer a restricted key (`rk_test_...` or `rk_live_...`), grant it access
 palbase payments:stripe:grant --channel stripe_global
 ```
 
-`POST /payments/channels/grants` returns a single-use browser form (`GET /payments/connect`) hosted directly by your environment's Payments module so your key never passes through Studio.
+`POST /payments/channels/grants` returns a single-use browser form (`GET /payments/connect`) hosted directly by your environment's Payments module so your key never passes through Studio. The link names its channel. One made with an [environment token](https://palbase.studio/docs/getting-started/access-tokens) sets up a project's first channel only: where a channel was connected before — still connected or not — it answers `409 channel_exists`, and a person signed in to Studio adds the next one or changes a channel's keys.
 
 ## Webhooks & authoritative verification
 

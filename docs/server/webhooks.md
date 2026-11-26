@@ -103,7 +103,7 @@ The platform waits **10 seconds** for an answer, follows no redirect, and tries 
 | `messaging.conversation.read` | A person read a conversation, or a thread of it, further. Sent only to an endpoint that names it. | `{ conversation_id, space, user_id, read_seq, thread_id }` |
 | `calls.call.started` / `calls.call.ended` | A call was made — ringing, or a group going on — or ended (`end_reason` says why) ([Calls](https://palbase.studio/docs/calls/server#webhooks)). | `{ call_id, kind, video, mode, state, caller_id, conversation_id, room }`, and `end_reason` when it ended |
 | `calls.participant.joined` / `calls.participant.left` | A person answered or joined a call, or left it; or the project's agent came into it, or left ([Agents](https://palbase.studio/docs/calls/agents)). | the same fields, and `user_id`, `participant_kind` (`user` or `bot`) |
-| `audience.entered` / `audience.exited` | A person came to be in an analytics audience, or left it. | `{ audience_id, audience_name, person_id, user_id }` |
+| `audience.entered` / `audience.exited` | A person came to be in an analytics audience, or left it. | `{ audience_id, audience_name, person_id, user_id, trusted }` |
 | `machine.created` / `machine.updated` / `machine.deleted` | A machine was opened, changed, or taken away. | `{ name, source, size, replicas, port, version }` |
 | `stores.apple.changed` | The Apple account was connected, checked (and Apple's answer changed) or disconnected. The key is never in the event. | `{ change, issuer_id, key_id, status, capabilities }` |
 | `stores.app.changed` | An app was linked to its store. | `{ change, app_id, bundle_id, asc_app_id }` |

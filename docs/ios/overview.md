@@ -36,7 +36,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.24.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
 ```
 
 | Product | What it is |
@@ -185,6 +185,8 @@ if let active = accounts.activeClient() {
     _ = await active.currentSession()
 }
 ```
+
+Keep an account's client for as long as the app uses anything of it, its modules too (`pb.flags`, `pb.realtime`, and the rest): a module does not keep its client. Let it go when the account goes: a client the app no longer holds is done. Its session is renewed no more, on its timer or for a call, and its realtime socket closes; what the app still holds of it goes on with the token it has while auth accepts it, and says `client_gone` after. A session is one client's at a time: auth gives a new refresh token at every renewal and takes an old one sent again for a stolen one, which ends the session on every device. Never give the same tokens to two clients that are both alive; to move a session to another client, let the first one go, then adopt the session there (`adoptSession`, below).
 
 An app migrating sessions it previously kept in its own store hands them over offline with `accounts.adoptSession(account:accessToken:refreshToken:expiresAt:select:)` (or `pb.auth.adoptSession(accessToken:refreshToken:expiresAt:)`). Adoption reads `sub` and `exp` from the access token without a network call, never overwrites credentials the SDK has already rotated, and throws `keychain_unavailable` if the keychain is locked so the app keeps its legacy copy until persistence succeeds. To move a single-account default `"session"` item into an account slot, call `accounts.adoptDefaultKeychainSession(account:select:)`: it deletes the legacy item only after the new account slot is written.
 

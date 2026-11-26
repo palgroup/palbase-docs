@@ -19,6 +19,8 @@ The platform adds events of its own to a person's timeline: a purchase, a push t
 
 The platform's names are the platform's to tell. An app that sends an event under one of them (`commerce.order.paid`, `audience.entered`) is answered `400 reserved_event_name`; in a batch that event alone is refused, by its place. An app's own name beside them (`user.signed_up`) is kept, and so is what a server sends with the secret key, as the server's.
 
+An **audience** whose rule asks only for events a module saw happen itself (people who bought, who paid an order) is **trusted**: nothing an app says moves a person into it or out. A rule that reads a property, a place, a platform, an event of your own naming, an event a module tells on the app's report (a push opened), what became of a message sent, or another audience's or a journey's event is not, since an app can say those. A journey gives — a coupon, a grant, a wallet credit — on a trusted audience's word only ([Journeys](https://palbase.studio/docs/backend/journeys#steps)); `audience.entered` and `audience.exited` say which in `trusted`. A rule changed is not trusted until its members are worked out again. A platform event in a rule counts no row an app sent.
+
 Each event is given the place of the address it came from: its `country`, `region` and `city`. Places come from DB-IP's IP to City Lite database: IP geolocation by [DB-IP](https://db-ip.com), CC BY 4.0. An address says where its network is, not where the device is.
 
 ## Who did it

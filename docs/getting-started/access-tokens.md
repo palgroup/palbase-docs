@@ -85,6 +85,9 @@ They answer `403 token_out_of_scope` (or `person_only`), whoever minted the toke
 - read a secret's value, a task's payload (it may carry a token) or a coupon's one-time codes. Setting a secret is allowed;
 - set or remove a sign-in provider's client secret, or change which apps' sign-ins with it the environment takes (its client ids);
 - bring or remove a message provider (where the project's mail and texts are sent, and with whose credentials);
+- connect or remove a payment channel with its keys, or change which channel a payment goes to (the default channel, the routing rules);
+- set where a marketplace's seller is paid: a sub-merchant's or a store's payout account, the onboarding link whoever opens sets it at, or who the members of a store that is there are (its owner sets where it is paid — a token still opens a new store, with its first owner);
+- take a connected App Store Connect key, In-App Purchase key or Apple ID away;
 - override or remove a template that carries a sign-in or reset credential — a reset or magic-sign-in link, a verification or invitation link, a one-time code — on email, SMS or WhatsApp. The app's own notification templates stay open, so an agent still brands them.
 
 The last three close the roundabout ways to a user's own credential: a sign-in provider's client of one's own, a message provider aimed at a server of one's own, or a reset template that tucks the link into one it fetches, would catch a sign-in the way signing in as the user would.
@@ -94,6 +97,8 @@ The sender's own settings stay open — a token sets the project's `from` addres
 Each module refuses these itself, on the route it matched, so writing the path another way does not get past this list: an escape, a dot segment, other letter case or a slash at the end all name the same thing.
 
 A link the token signs does not outlive it either. A signed download or upload URL, a package's upload link, a link to hand over an Apple or Stripe key, a signed bundle's download link and the link that connects GitHub all end no later than the token. The answer's `expires_at` says when.
+
+A link to hand over a key sets up what is not there yet, and replaces nothing: whoever holds the token holds the link too, and could type keys of their own into it. A token's link connects a project's **first** payment channel — where none was ever connected, the Stripe App's install link the same — and an App Store Connect key, an In-App Purchase key or an Apple ID where the project has none (an Apple ID whose session ended is signed in again, the same one). Otherwise the link answers `409`: another channel is added, a disconnected one connected again and a connected key replaced by a person signed in to Studio, or with the project's secret key.
 
 Test users, and the sign-ins made for them, are open: they are test fixtures, and `auth:test-users` is for them.
 

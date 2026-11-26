@@ -9,7 +9,7 @@ A chat of the project's agents can be talked to out loud ([AI › Voice](https:/
 `PalbaseVoice` ships directly in `https://github.com/palgroup/palbase-swift` for **iOS 18+** and **macOS 15+** with zero external dependencies:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.24.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
 ```
 
 Link `PalbaseVoice`; it brings `Palbase` with it. The app's Info.plist says why it asks for the microphone, in `NSMicrophoneUsageDescription`.
