@@ -4,7 +4,7 @@
 
 The Android SDK is `studio.palbase:palbase` and one artifact per module, in Kotlin, with coroutines. `palbase` holds the project's address and publishable key, the transport every call goes through, the signed-in user's session, the realtime socket, consent and auth. Each module (flags, analytics, realtime, notify, storage, iap, payments) is an artifact of its own that hangs off the same client, as `pb.flags`, `pb.notify` and so on. A backend of yours is a typed client that `palbase apps:sync` writes into the app, and it calls through the same client too.
 
-The version on this page is **0.20.1**.
+The version on this page is **0.21.0**.
 
 ## Requirements
 
@@ -49,7 +49,7 @@ android {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.20.1"))
+    implementation(platform("studio.palbase:palbase-bom:0.21.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-flags")     // and the other modules the app uses
     implementation("studio.palbase:palbase-palbe")     // when the app calls a backend of yours
@@ -71,7 +71,7 @@ dependencies {
 | `palbase-payments-ui` | Optional drop-in PCI-DSS SAQ-A Compose checkout (`PaymentSheet`, `WalletTopUpSheet`, `SavedCardsView`, `SpendQRView`) | `rememberPaymentSheet`, `PaymentSheet` ([Payments](https://palbase.studio/docs/payments/android-sdk)) |
 | `palbase-commerce` | Storefront & marketplace commerce client (catalog, carts, checkout, orders, returns & seller portal) | `pb.commerce` ([Commerce](https://palbase.studio/docs/commerce/overview)) |
 | `palbase-messaging` | Direct and group conversations kept on the device and live, with encrypted attachments | `pb.messaging` ([Messaging](https://palbase.studio/docs/android/messaging)) |
-| `palbase-ai` | Guardrailed client AI templates, streaming chats, and voice transport control | `pb.ai` |
+| `palbase-ai` | Guardrailed client AI templates, and a member's chats with no gateway — followed live, written to, stopped | `pb.ai` ([Gateways](https://palbase.studio/docs/android/gateways#a-chat-with-no-gateway)) |
 | `palbase-palbe` | Your backends' generated clients, their gateways and chats | `pb.<name>` ([Calling Your Backend](https://palbase.studio/docs/android/backend-calls), [Gateways](https://palbase.studio/docs/android/gateways)) |
 | `palbase-debug` | The debug console's screens, in Compose | `PalbaseConsole(pb.debug)` ([Debug Console](https://palbase.studio/docs/android/debug-console)) |
 | `palbase-voice` | A chat's live voice over WebRTC | `PBVoice.connect(…)` ([Voice](https://palbase.studio/docs/android/voice)) |
@@ -236,7 +236,7 @@ Every request says the user's languages in `Accept-Language`, the device's in th
 pb.setPreferredLanguages(listOf("tr", "en"))   // null goes back to the device's
 ```
 
-Requests also carry `X-Palbase-SDK: android/0.20.1` (`PalbaseClient.VERSION`).
+Requests also carry `X-Palbase-SDK: android/0.21.0` (`PalbaseClient.VERSION`).
 
 ### Observable state
 

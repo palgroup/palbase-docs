@@ -15157,6 +15157,8 @@ Five namespaces are the platform's and cannot be declared: `roles:`, `flags:`, `
 
 All three are read-only: only the platform writes them.
 
+One more channel is the platform's to decide only where the project declared nothing for it: `chat:<chat_id>`, a chat's own channel, where the AI module writes the chat's stream ([A chat with no gateway](/docs/backend/ai#a-chat-with-no-gateway)). The chat's members join it and read it, and no member writes on it. `chat:` is not a reserved namespace: a pattern of yours that matches (`chat:{room}`) decides the channel instead, as any declared channel is decided — whoever your rule lets in then reads the streams of the chats written there. One thing holds whatever the rule says: on a channel named `chat:<chat_id>` a client's broadcast of the event `chat` is refused (`forbidden`), since that is how the platform tells a chat's parts.
+
 ## When it changes
 
 - **Open sockets are decided again within a heartbeat** of a new declaration: a client whose channel is no longer theirs is put off it.
@@ -15550,7 +15552,7 @@ export class SupportController {
 
 **Budgets.** `send(id, { text, budget: { maxCostUsd: 0.5 } })` bounds what the turn that message starts may cost, its subagents' calls counted. Past it the turn stops and ends `budget_exceeded`. A message into a turn already running takes that turn's budget.
 
-**Settings.** `Palbase.ai.settings.put({ … })` sets what the project allows its chats: `userMessagesPerMinute` (1 to 600, 20 unless set), and `historyLimitBytes`, the chat history the project keeps: a free project at most 500 MiB, less if it says so; a project with paid rights keeps all of it (`historyLimitBytes` is `null`) unless it says a limit of its own, up to 1 TiB. Past it, a message is refused (`409 history_full`) until chats are deleted. `settings.get()` also says how much is kept now. `clients`, off unless set, lets a user's own session read and write the chats they are in at the project's address. The app SDKs read through it what a gateway does not carry — a chat's older history (`loadOlder`), a tool call's whole answer (`chatToolCall`), a workspace file or an attachment — and a chat's live messages still come through its gateway.
+**Settings.** `Palbase.ai.settings.put({ … })` sets what the project allows its chats: `userMessagesPerMinute` (1 to 600, 20 unless set), and `historyLimitBytes`, the chat history the project keeps: a free project at most 500 MiB, less if it says so; a project with paid rights keeps all of it (`historyLimitBytes` is `null`) unless it says a limit of its own, up to 1 TiB. Past it, a message is refused (`409 history_full`) until chats are deleted. `settings.get()` also says how much is kept now. `clients`, off unless set, lets a user's own session read and write the chats they are in at the project's address. The app SDKs read through it what a gateway does not carry — a chat's older history (`loadOlder`), a tool call's whole answer (`chatToolCall`), a workspace file or an attachment. A chat's live messages come through its gateway, or, for a chat left on its own channel, to the member's SDK itself ([A chat with no gateway](#a-chat-with-no-gateway)).
 
 ### When a turn fails
 
@@ -15650,7 +15652,7 @@ A chat reaches its members through a gateway declared with `chat: true`. When it
 
 The channel keeps a day of the chat. A chat opened later is read back at `GET /ai/chats/{id}/parts?limit=&cursor=`, a page at a time from its newest end back: the same parts the stream told, in their order, each under the id the channel told it (`part_id`). A client that holds the channel's parts and pages of these keeps each one once. An answer's text is placed by its offset, as in the stream. The last page reaches the chat's start and begins where a fork began. A client that already holds the channel's day passes the `id` of the oldest part it holds as `before=<id>`, and the first page starts just before that part, so the day is not read twice. Each page after it is read by its `next_cursor`. A call with both `cursor` and `before` is refused (`400`). A page reads `limit` of the chat's events (1 to 1000, 300 by default), or, with `turns=<n>` (1 to 20), back to where the chat's n-th turn before the cursor opens: `?turns=1` is the last turn whole, its opening first (a goal's turn opens at the goal's `turn_started`, any other at its start, the messages that began it right after), and `?turns=1&cursor=` of its `next_cursor` the turn before. Such a page says how many turns open in it (`turns`). One that would read more than 5000 events ends there with fewer, and its `next_cursor` reads on. A call with both `limit` and `turns` is refused (`400`). From a server, `Palbase.ai.chats.parts(id, { turns: 1, before })` reads the same page. A voice's end is in the pages under the id the channel told it (`vclosed:<voice>`). For a voice the engine lost, whose end its journal never says, it comes right after the voice's last part. Reading a page changes nothing. A client's `loadOlder()` reads the page before the oldest it holds, and `loadOlder({ turns: 1 })` the turn before it.
 
-A tool call's answer is in the stream by its end: its last 16 KiB, with `omitted_bytes` saying what was left out. A build's log ends with what failed. A member who opens the call reads it whole at `GET /ai/chats/{id}/tool-calls/{callId}`, with secrets masked as the stream masks them. Your server reads a turn's tool calls as the engine committed them, arguments and results as they were, a page at a time, at `GET /ai/chats/{id}/tool-calls?turn=<responseId>&limit=&cursor=`. That is what a diff of the files the turn wrote is made of. A subagent's calls are read by its response (an agent part's `response_id`). A project reads two of these, or of a chat's past pages, at once (`429 too_many_reads`).
+A tool call's answer is in the stream by its end: its last 16 KiB, with `omitted_bytes` saying what was left out. A build's log ends with what failed. A member who opens the call reads it whole at `GET /ai/chats/{id}/tool-calls/{callId}`, with secrets masked as the stream masks them. Your server reads a turn's tool calls as the engine committed them, arguments and results as they were, a page at a time, at `GET /ai/chats/{id}/tool-calls?turn=<responseId>&limit=&cursor=`. That is what a diff of the files the turn wrote is made of. A subagent's calls are read by its response (an agent part's `response_id`). A call the agent's harness ran itself on a machine of yours (`origin: "harness"`, see [AI on Your Own Machines](/docs/backend/ai-machines)) is read the same way; its answer is kept by its end, and `omitted_bytes` of the whole read says what was not kept. A project reads two of these, or of a chat's past pages, at once (`429 too_many_reads`).
 
 ```ts
 // src/modules/support/support.gateway.ts
@@ -15732,6 +15734,21 @@ export class SupportModule {}
 ```
 
 In the app, the member joins `SupportGateway` with the chat's id, and the handle holds the chat's state (`handle.chat`), which the generated client folds from what the platform writes: the messages and answers in order, the last turn, and what waits for this user. The member sends `say`, `decide`, `answer` and `stop` through the gateway, and a refusal arrives as its reason: `not_your_turn`, `too_many_messages`, `history_full`. See [Web Gateways](/docs/web/gateways#chat-gateways).
+
+### A chat with no gateway
+
+A chat has a channel of its own, `chat:<chat_id>`, and the platform writes its stream there from the chat's start unless your server put it elsewhere: every chat by default (`settings.auto_pipe_chats`, on unless set), or the one started with `live: true` where the setting is off. A chat read says the channel it is written into (`topic`). `chats.events(id).pipe(topic)` moves the stream into a gateway's channel, and the chat's own channel is then written no more.
+
+Where the project lets its users reach their chats (`settings.clients`), a member joins the chat's own channel with their own session and no channel rule of yours: realtime asks the AI module at the join, and only the chat's members are let in, to read. The answer is trusted for a minute and asked again. A member taken out of the chat, a stream put into another channel, and `clients` turned off are told to realtime as they happen, which drops those joins then; a chat deleted ends its channel. A join that could not be decided again — the word lost, a client that stopped answering — is sent nothing more within two minutes of its last yes. Nothing is written there by a member: a chat's parts on its own channel are the platform's alone to say, and a stream is not put into another chat's own channel (`400 invalid_topic`). What they do goes to the chat's own routes, as themselves: a message (`POST /ai/chats/{id}/messages`), a yes or a no to their own turn's approval (`…/approvals/{approvalId}`), a client tool's answer (`…/tool-outputs/{callId}`), stop (`…/stop`).
+
+The channel keeps nothing: a member reads the chat's past at `GET /ai/chats/{id}/parts` and then hears it live, each part once (a part's `id`, an answer's text by its offset). The native SDKs do both in one call: `pb.ai.chats.stream(chatId)` on [iOS](/docs/ios/gateways#a-chat-with-no-gateway) and [Android](/docs/android/gateways#a-chat-with-no-gateway) tells the latest turn whole, then every part as it is told, and after a drop reads what it missed before it goes on.
+
+| | A gateway (`chat: true`) | The chat's own channel |
+|---|---|---|
+| Who is let in | Your `@Authorize` decides, per join. | The chat's members, where `clients` is on. |
+| What a member does | A message of the gateway's, which your backend does as them: your own checks run first. | The chat's routes, as themselves: the module's rules alone. |
+| What the channel keeps | A day (or what `durable` says), replayed to a member who joins later. | Nothing: the past is read by page. |
+| Use it when | The app's chat has rules of its own, or more than the chat rides the channel (typing, presence). | The app only shows a chat and writes to it: no backend route is written for it. |
 
 ## Refusals
 
@@ -15963,6 +15980,148 @@ export const builder = Palbase.ai.agent("builder", () => ({
 ```
 
 An agent's variables sit beside the project's: give them names of their own. Palbase keeps a definition's values sealed with your project's own key, never readable in its database, and opens them only for the sessions that run with them. A value is never answered again: an agent read back (`GET /ai/agents/{name}`) shows each name with an empty value. An agent written back with an empty value keeps the value it has, so a definition read, changed and put again loses nothing. What such a kept secret says of itself (its hosts, where it is put, its class, whether it is a secret) is changed without its value by a person alone: an owner or an admin signed in to Studio or the CLI. A key or a token is refused it (`403 person_required`) and gives the value with the change instead; rolling an agent back to a version that says otherwise is a person's too ([Who changes where a secret goes](/docs/backend/ai-env#who-changes-where-a-secret-goes)). A new name needs its value. Each definition's variables and script are written once, where its sessions run: an agent the project keeps as it is published or rolled back, an agent your backend defines at each turn (or a chat's own definition) at its first turn. Two definitions that differ, such as two chats' own or a version a chat stays on and the one published, never share them: each turn runs with its own definition's.
+
+## Claude Code, Codex or Gemini CLI as the agent
+
+A chat on a machine of yours can run its turns on the CLI that machine's owner is signed in to (Claude Code, Codex or Gemini CLI) instead of Palbase's own engine. The model is then the owner's own subscription's: Palbase bills no model use for those turns. The chat's `target` says so: its `executor` is `{"kind": "acp", "harness": "claude-code"}` (or `"codex"`, `"gemini-cli"`) and its `compute` a machine or a pool of yours, given when the chat is started (`POST /ai/chats`) or moved (`POST /ai/chats/{chat_id}/handoff`). `GET /ai/chats/{chat_id}/execution` answers the chat's target and, under `harnesses`, the CLIs its machine has. Palbase calls such a CLI a **harness**.
+
+A harness works as the chat's agent. It is given, at each turn:
+
+- **The agent's tools.** Your backend's tools, your HTTPS tools, your MCP servers' tools and your app's client tools are listed to the harness by one MCP server, named `palbase`, that the agent on the machine serves on the loopback address for that turn alone. A call of one is not run on the machine: Palbase runs it as it runs any call of the chat (a backend tool runs in your backend, the agent's `max_tool_calls` counts it, a tool that asks for approval asks for it) and the harness's call returns the answer, its text and its pictures. A harness is held to the tools the agent declares: a call of any other is refused by Palbase, whatever the machine sent.
+- **The agent's instructions.** Claude Code takes them appended to its own system prompt, read again at each turn. Codex takes them as its developer instructions, on its command line: on that machine a list of its processes shows them, and past 64 KB they lead each turn's message instead. Gemini CLI has no place for them beside its own prompt, so they lead each turn's message.
+- **The agent's setup script and environment.** The setup script runs in the workspace before the harness starts, as it runs before an agent's first command. The harness is started with the project's and the agent's variables that are no secret, and with the open secrets. It is given no sealed secret, on a Linux machine with the proxy too: a harness's own requests do not pass that proxy. A key that was not set is named to the harness with why, and so is a setup script that failed. Every value the harness was started with is masked in what it says and in what its tools print, before any of it leaves the machine. The harness keeps the machine owner's home folder, where its sign-in is, while a setup script's `$HOME` is the session's own: what the harness must find, the script writes into the workspace.
+- **Setup is held too, on a Mac.** Where the turn runs Claude Code or Codex, the setup script and every other command of that turn's start run inside a sandbox of the agent on the machine. It **writes** the session's workspace, each repository's `.git` among it (setup is what clones them), and the session's own folders; it **reads** what a session's commands read (below) and nothing of the owner's home; it connects to the unix sockets the machine's policy names, such as the one a credential helper asks its app over. **Its network is open and its files are not**: a list of hosts needs a proxy, and the agent has none on a Mac, so setup reaches any host. Where the sandbox cannot be applied, the turn fails at its start with the sentence that says why. The script is never run outside it.
+- **Setup leaves nothing running, and what it made is read before the CLI starts.** Each setup command is a process group of its own, killed when the command ends, so a process it left in the background does not go on writing the workspace; one that leaves its group on purpose (a second `setsid`, a daemon's double fork) is not found by this. Then the agent reads every repository under the workspace itself, running no git and following no link: a `.git` folder wherever it is, a submodule's and a worktree's own, what a `.git` file names, and any folder laid out as a bare repository. The CLI runs git itself outside its sandbox, and git does what a repository's own directory says, so the turn fails at its start, naming the repository and the thing, when one holds anything that could run:
+  - **`config` and `config.worktree`** may carry what git writes as it makes, fetches and checks out a repository: `core.repositoryformatversion`, `filemode`, `bare`, `logallrefupdates`, `ignorecase`, `precomposeunicode`, `symlinks`, `sparsecheckout`, `sparsecheckoutcone`, `untrackedcache`, `autocrlf`, `eol`, `safecrlf`, `quotepath`, `abbrev`, `commitgraph`, `multipackindex`, and `worktree` and `excludesfile` inside the workspace; `remote.<name>.url`, `pushurl`, `fetch`, `promisor`, `partialclonefilter`, `tagopt`; `branch.<name>.remote`, `merge`, `rebase`; `user.name`, `user.email`; `init.defaultbranch`; `extensions.objectformat`, `partialclone`, `worktreeconfig`; `submodule.<name>.url`, `active`, `update` (`checkout`, `rebase`, `merge` or `none`); `fetch.prune`, `prunetags`, `fsckobjects`, `unpacklimit`, `recursesubmodules`, `parallel`, `output`, `negotiationalgorithm`, `showforcedupdates`, `writecommitgraph`, `all`; `pull.rebase`, `pull.ff`; `push.default`, `autosetupremote`, `followtags`, `recursesubmodules`, `useforceifincludes`, `negotiate`, `usebitmaps`; `gc.auto`; a `pack.*` that is a number; and `credential.helper`, `credential.<url>.helper` and `useHttpPath`.
+  - **A remote's and a submodule's address is `https://`.** `ssh://`, `git@host:path`, `http://`, `file:` and `ext::` are refused: an address can name a program git runs to reach it.
+  - **A credential helper is empty or a bare name with plain arguments**: `helper = myapp --session ses_1 --repository acme/app`, which git runs as `git-credential-myapp` from the `PATH`. Not a path, not a leading `!`, and nothing a shell acts on anywhere in the line (quotes, `$`, `;`, `|`, `>`), because git hands the whole line to a shell.
+  - **Everything else is refused**, an `include` or `includeIf`, an `alias`, a `filter` (a repository with git-lfs installed in its own config among them: install it for the account instead), `diff` and `merge` drivers, `core.fsmonitor`, `core.hooksPath`, `core.sshCommand`, `core.pager`, `core.editor`, `core.askPass`, `url.*.insteadOf`, `http.*`, and any setting not named above.
+  - **`hooks/`** holds nothing but git's own `.sample` files, and **`info/attributes`** names no `filter=`, `diff=` or `merge=`. `info/exclude` and `info/sparse-checkout` are yours to write, and a repository's own `.gitattributes` stays: with no driver in the settings it names nothing that runs.
+
+  A package's install script that writes one of these fails the turn like any other: husky sets `core.hooksPath` when `npm install` runs it, so a setup script that installs packages sets `HUSKY=0` for that command, or installs with `--ignore-scripts`.
+- **What the agent's variables may not say.** A harness starts programs of its own outside its sandbox: git, and the ssh, editor and pager git starts; ripgrep; a shell. Each takes orders from the environment, so the variables that give them are not set, whichever harness runs: every `GIT_…` and `SSH_…` name, `RIPGREP_CONFIG_PATH`, a shell's (`SHELL`, `BASH_ENV`, `ENV`, `ZDOTDIR`, `PROMPT_COMMAND`), `EDITOR`, `VISUAL`, `PAGER`, `LESSOPEN`, and an interpreter's start-up (`PERL5OPT`, `PERL5LIB`, `PYTHONSTARTUP`, `PYTHONPATH`, `RUBYOPT`, `RUBYLIB`, `JAVA_TOOL_OPTIONS`), beside what loads code into the harness or sends its requests elsewhere (`NODE_OPTIONS`, `NODE_PATH`, `DYLD_…`, `LD_…`, the proxy variables). Each one left out is named to the harness with why. A command that needs one sets it for itself (`PYTHONPATH=src pytest`).
+
+**The harness reads the turn's configuration and not the machine owner's.** Its sign-in stays the owner's own. Beyond that:
+
+| Harness | What it is started with | What is left out |
+| --- | --- | --- |
+| Claude Code | The turn's MCP server alone (`--strict-mcp-config`) and no settings file but the turn's own (`--setting-sources ""`) | The owner's own settings, hooks, plugins and MCP servers, their `CLAUDE.md` files in the folders around the workspace, and the workspace's own `.claude/settings.json`: its hooks and helper commands would run on the machine outside any sandbox. The workspace's `CLAUDE.md` is words, and is still given |
+| Codex | The turn's MCP server alone, under a permission profile of the turn's own | The owner's `config.toml` and rules (`--ignore-user-config`, `--ignore-rules`), and the workspace's own `.codex` config: the workspace is not a trusted project. Codex still reads the `AGENTS.md` of its own home folder |
+| Gemini CLI | Of MCP servers, the turn's alone (`--allowed-mcp-server-names palbase`) | Nothing else: the owner's other settings and extensions are read, and so are the workspace's own `.gemini/settings.json` and `.env` |
+
+What a harness is not given: Palbase's own tools (the engine's shell, files, commits and pushes, its subagents, memory, web search, the search that finds an MCP server's tools lazily). A harness works in the workspace with its own tools, and an agent's subagents and advisor are the engine's. The commands a harness runs are its own too: Palbase does not run them, so what Palbase does for an agent's command on that machine, such as the proxy that fills a sealed secret, is not done for a harness's.
+
+### The harness's own calls are in the chat
+
+A harness works with tools of its own: it runs commands, edits files, searches, calls the tools of other MCP servers its owner gave it. Each of those is a `tool` part of the chat, as a call of Palbase's own engine is: `running` as it starts, with what it was called with, then `completed` or `failed` with the end of what it printed, in its place in the answer's text. So a chat shows what its agent did wherever it is watched, and `GET /ai/chats/{id}/parts` and the reads of a call show it later.
+
+Such a part says `origin: "harness"`: Palbase recorded the call and did not run it. It asks for no approval, no member answers it, it is not counted in the agent's `max_tool_calls`, and nothing is billed for it. Tell such a call by its `origin`, never by its `name`: a harness names its tools as it likes, and may name one as a tool of Palbase's is named.
+
+A turn on a harness is its machine's word on what it did. Toward a goal, its harness's calls count as the turn's work and are among what the goal's judge reads, as an engine's calls are, though Palbase ran none of them.
+
+| Harness | The part's `name` |
+| --- | --- |
+| Claude Code | Its tool: `Bash`, `Edit`, `Write`, `Read`, `Grep`, `WebSearch`, `Task`, or `mcp__<server>__<tool>` for another server's |
+| Codex | `shell`, `file_change`, `web_search`, or `<server>.<tool>` for another server's |
+| Gemini CLI | The call's kind (`execute`, `edit`, `read`, `fetch`), with the harness's own words for the call as `title` |
+
+A call of one of the agent's own tools is one part: the one Palbase ran. A subagent's calls (Claude Code's `Task`) are parts of the turn like the rest.
+
+What is kept of a call is bounded. Its input is whole up to 64 KiB, and past that the start of its text (`input_truncated`). Its output is kept by its end, the last 256 KiB, of which the stream's part shows the last 16 KiB; `omitted_bytes` says how much came before, in the part and in the whole read of the call. Secrets are masked as everything the harness says is.
+
+So is what a turn keeps of them: 3,000 calls, and 48 MiB of them in all, past the longest and the heaviest turns of real coding work Palbase measured. Past either, the turn records no more of its harness's calls, and says so once, as it ends, in a `tool` part of its own: `origin: "harness"`, `unrecorded`, how many more calls the harness made as far as Palbase counted, and `output`, that in a sentence. That part is no call: it has no answer to read. A call still open then is closed `failed`, saying its result was not kept.
+
+A call that had not ended when its turn ended is closed then, `failed`, or `canceled` where the turn was stopped before the harness's own turn had ended. Tell how a turn ended by the turn's own end, not by its calls. Nothing of a harness stays `running` after its turn.
+
+### A harness is confined to its workspace
+
+A harness is its owner's own CLI, signed in as them, on their own machine. On a Mac, the turn that starts Claude Code or Codex confines it with the CLI's own sandbox (Claude Code's sandbox and file blocks, a Codex permission profile):
+
+- **Files.** Its file tools refuse a path outside the workspace. Its shell commands run in the CLI's own sandbox, which shuts the home folder, `/Users` and `/Volumes`. A command **writes** the workspace, a folder of the session's own beside it, and a folder of the session's own inside each of the two macOS hands every process of an account (the temporary one is its `$TMPDIR`): nothing of the owner's home, and nothing else of those two folders, where the owner's own tools keep what they run from (xcrun's cache of where each tool is, clang's module cache, Xcode's caches). One name there is written besides: what `xcodebuild` is saving (`TemporaryItems/NSIRD_xcodebuild_…`), which that program keeps nowhere else. It **reads**, besides those and the system, the toolchains a build runs and nothing else: `~/.cargo/bin`, `~/.rustup/toolchains` and `~/.rustup/settings.toml`, `~/.nvm/versions`, `~/.volta/bin` and `~/.volta/tools`, `~/.fnm/node-versions` and `~/.fnm/aliases`, `~/.mise/installs` and `~/.mise/shims`, `~/.bun/bin`, `~/.local/bin`, `~/Library/Android/sdk`, `~/Library/Java` and `~/Library/Developer/Toolchains`. No file or folder that holds a registry token, a signing key, a device key or another project's output is opened: not `~/.npmrc`, `~/.cargo`, `~/.gradle`, `~/.android`, `~/.swiftpm`, `~/.ssh`, the keychains, the shared derived data or the simulators' devices, nor the `etc/npmrc` a Node install keeps inside one of those toolchains.
+- **Hosts.** A command reaches the hosts the machine allows and the hosts of the secrets the turn was given, and no other: the sandbox's own proxy refuses the rest. The list bounds where a command reaches, not what it sends there: GitHub's API and every registry take an upload under a token, and a token the turn was given, or one in the workspace, is the command's to use. What the sandbox keeps from a session is the owner's own credentials, so nothing is sent as them. It neither listens on a port of the machine nor reaches one, and it looks up no service of the machine but the one that checks a certificate.
+- **Without asking.** Inside that, every command runs: a turn has nobody to ask, so a command that waits for a yes would be a command refused. No command leaves the sandbox, and a Claude Code that cannot sandbox does not start.
+
+**What a build keeps is the session's own.** Each package manager is pointed at the session's folder by the variable it reads itself, so a later turn of the same session finds its caches warm and no other session, and nothing the owner runs later, reads them. The folder goes when the session's workspace does. These variables are the commands' and not the CLI's own: Claude Code runs a script of the turn's before each command, in the command's shell, and Codex sets them on its commands alone. The CLI itself, and the git it starts outside its sandbox, keep the machine's own environment, so nothing a session can write steers a program the CLI runs itself. Claude Code's background updater is off for the turn (`DISABLE_AUTOUPDATER`).
+
+| Tool | Kept in the session's folder by |
+| --- | --- |
+| npm | `npm_config_cache`, and `npm_config_userconfig` (the owner's `~/.npmrc` is not read) |
+| pnpm, Yarn, Bun | `PNPM_HOME`, `YARN_CACHE_FOLDER`, `BUN_INSTALL_CACHE_DIR` |
+| Yarn 2 and later, Corepack | `YARN_GLOBAL_FOLDER`, `COREPACK_HOME` |
+| node-gyp | `npm_config_devdir` (the headers of the Node an addon is built for) |
+| clang, swiftc | `CLANG_MODULE_CACHE_PATH` |
+| Cargo | `CARGO_HOME` |
+| Gradle, Android | `GRADLE_USER_HOME`, `ANDROID_USER_HOME` |
+| Go | `GOPATH`, `GOCACHE` |
+| pip, CocoaPods | `PIP_CACHE_DIR`, `CP_HOME_DIR` |
+| Xcode | Derived data, fetched packages and the package cache, by the turn's own `xcodebuild` |
+| SwiftPM | Its cache, configuration and security folders, by the turn's own `swift` |
+
+A registry that needs a token is given it as one of the agent's secrets, not from the owner's home.
+
+**Xcode and SwiftPM.** They put their own work in a sandbox, and macOS nests none in another. The turn puts its own `xcodebuild`, `swift` and `xcrun` first on the `PATH` of what the harness runs: `xcodebuild …`, `swift build`, `swift test`, `swift run`, `swift package …`, `xcrun xcodebuild …` and `xcrun swift …`, with xcrun's own options before the tool too (`xcrun --sdk macosx swift build`), start Xcode's and SwiftPM's work without theirs, inside the harness's, with the session's folders. Called by its whole path (`/usr/bin/xcodebuild`) the same command fails in the sandbox.
+
+Three things follow from a session not writing the account's temporary folder:
+
+- `swift build`, `swift test` and `swift run` are given `--build-system native` unless the command names a build system. SwiftPM's newer one starts the linker with none of the session's environment, and the linker then keeps its files in the account's own temporary folder (`error: permissionDenied` at the link of every executable and test bundle). SwiftPM prints that the native one is deprecated; a command that says `--build-system swiftbuild` is run as written, and fails there.
+- Xcode compiles a package's manifest with an empty environment. The turn's `xcodebuild` names the compiler of manifests (`SWIFT_EXEC_MANIFEST`), which starts the real one with the session's temporary folder.
+- xcrun reads its cache of where each tool is and does not write it. For a tool the cache does not hold it prints `couldn't create cache file` on standard error and goes on: the command runs.
+
+**What does not build in a session.** A step that fetches from a host the machine does not allow, such as a postinstall that downloads a binary from its own site: the proxy refuses it, and the host is added to the machine's policy or to a secret's hosts. Signing with the owner's identity, for a device or an archive: their keychain is not a session's (`security find-identity` finds none); a build signed to run locally passes. A test that writes outside the workspace, the session's folders and `$TMPDIR`.
+
+**git.** A session's git reads a configuration of the turn's own, which it cannot write: who commits (the owner's `user.name` and `user.email`) and where git's ignore and attributes files are. The owner's own configuration files (`~/.gitconfig`, `~/.config/git/config` and every file they include) are not read, because a token is sometimes kept there. `git config --global` is refused; on a machine whose owner set no name for git, a commit names its author itself (`git -c user.name=… -c user.email=… commit`). While the CLI runs, what was read stays as it was read: a command cannot write a repository's `config`, `config.worktree`, `hooks`, `info/attributes` or `commondir`, for every repository the workspace has as the turn starts (up to 256) and for the workspace's own top folder whether or not it is a repository yet. `git add` and `git commit` in a repository the workspace already has work. A folder laid out as a bare repository is no repository to a session's git unless it is named as one (`--git-dir`).
+
+**A repository made mid-turn.** Under Claude Code a command cannot make one: `git init` stops at the new repository's hooks, which `git clone` writes the same way. Under Codex a command can make one in a folder of the workspace (not at its top), and that repository's settings are the command's to write until the turn ends. The CLI's own git runs at the workspace's top (measured on both: with the shell's folder moved into another repository, every git the CLI started itself stood at the top), so what such a repository says is acted on by the session's own sandboxed commands alone; and it is read like any other as the next turn starts, which fails if a command left something there that could run. Clone repositories in the setup script.
+
+**Codex differs in two things.** Its sandbox cannot open a folder's way down without the folders on the way, so a command can list the names in the folders above what the turn opens, the home folder's among them, and read none of what they name: `harnesses` says `folder_names_listed`. And it keeps the simulators shut whatever the machine's policy says.
+
+**Gemini CLI is not confined.** Its own sandbox on a Mac wraps the whole CLI: its open profile keeps writes to the project but leaves the home folder read and every host reached, and it reads the workspace's own settings. A turn starts it as it always did, unless the machine's policy says `"confined_only": true`: then no turn is started on a CLI the machine does not confine, and one that asks for it fails at its start with the sentence that says so.
+
+**On Linux** a harness is not given a sandbox of its own: none was measured there. It runs inside the agent's own boundary where the machine has one, which holds its files and not its hosts, and a command runs without asking only there. On a machine with neither, a command Claude Code would ask about is refused.
+
+`harnesses` says which holds for each CLI of a machine: `confinement` is `workspace` (the CLI's own sandbox, as above), `runner` (the agent's boundary on Linux) or `none`, and `confinement_gaps` says what that leaves open, and `not_started_unconfined` beside a CLI that is not confined on a machine that starts only what it confines.
+
+The harness itself is started by its whole path, found once as the turn starts. A CLI installed in a folder a session can write (the workspace, the session's own folders, Claude Code's temporary folder), or an agent whose `PATH` has such a folder in it, starts nothing: the turn ends with the sentence that names the folder. The agent does not ask such a CLI its version either: `harnesses` reports it as not installed. Claude Code is given a temporary folder of the session's own under `/tmp`, in place of the one every Claude Code of the account shares. So does a workspace whose path has a character a sandbox reads as a pattern (`* ? [ ] { }`).
+
+Whoever starts the agent on a machine says what a session may reach of it besides its workspace, in `session-policy.json` in the agent's state directory (the folder of its `agent.json`; an app that embeds the agent gives that folder with `--state-dir`). The file is the owner's alone (mode `0600`) and is read as each turn starts:
+
+```json
+{
+  "unix_sockets": ["/Users/me/Library/Application Support/MyApp/helper.sock"],
+  "read_folders": ["/Applications/MyApp.app/Contents/Helpers"],
+  "hosts": ["github.com", "*.githubusercontent.com", "api.myapp.example"],
+  "simulators": false,
+  "local_network": false,
+  "confined_only": false
+}
+```
+
+| Key | What a session's commands may do | Left out |
+| --- | --- | --- |
+| `unix_sockets` | Connect to these sockets, such as an embedding app's own helper | No socket |
+| `read_folders` | Read these folders besides the workspace | The folder `palbase-agent` itself is in, where an embedding app puts the tools it wants on a session's `PATH` |
+| `hosts` | Reach these hosts: a name, or `*.name` for every name under one | What a build fetches from: GitHub, the package registries of npm, Yarn (and `repo.yarnpkg.com`, where Corepack fetches Yarn itself), Maven, Gradle, CocoaPods, Swift, Cargo, Go, PyPI and RubyGems, and Apple's downloads |
+| `simulators` | Use the simulators (`simctl`, a build that runs in one), on Claude Code | Shut: `xcrun simctl` is refused, and a build for the Mac itself still passes |
+| `local_network` | Listen on a port of the machine, and reach the machine's own ports | Shut |
+| `confined_only` | Nothing more: with `true`, a CLI the machine does not confine (Gemini CLI on a Mac; any CLI on a Linux machine with no boundary of the agent's) is not started | `false`: every installed CLI is started, and `harnesses` says which are not confined |
+
+The last two open more than they name. What runs in a simulator, a repository's own code among it, runs under the simulator's launcher: outside the sandbox, with the owner's files and every host. A command that reaches the machine's own ports reaches every service that listens there, a database or a development server of the owner's. A machine that turns one on has it said under `harnesses` (`simulators_open`, `local_network_open`).
+
+A machine nobody configured is not a machine with no network, since an agent that cannot fetch a dependency builds nothing; and it does not reach every host, since an agent that does can send the code to any of them. The hosts it does reach take uploads too (above): a machine whose code must not leave names fewer. `"hosts": []` allows none at all: the hosts of the turn's own secrets do not join it either.
+
+The hosts of the secrets a turn was given join the machine's within bounds the machine keeps: at most 16 of them, a name or every name under one registered name (`*.example.com`, never `*.co.uk` or `*.github.io`), never an address. One that is left out is said to the agent with why.
+
+What the file names is bounded too. A folder to read is never the home folder or one that holds it, nor the agent's state directory or one that holds it, where the device's key is; where the file names no folder, the folder `palbase-agent` is in is read only if it is neither. A socket's path that is already there must be a socket. A host is a name, not an address or a name that ends like one.
+
+The file is read as the owner's word only if it is their own plain file (no link, mode `0600`) and one JSON object with nothing after it. A file that does not read (a key it does not know, a path that is not absolute, a folder it may not name) starts no harness: the turn ends at its start, failed, with the sentence that says which file and what is wrong with it.
+
+A tool that answers later (`{ deferred: true }`) is waited for while the harness's own call waits, for up to eight and a half minutes: a harness waits ten for a call of the agent's tools. Its answer returns to the same call, and the turn goes on. A harness makes several calls at once and Palbase takes them one at a time: a call that waited behind another is as old as that one, so it is waited for only what is left of those minutes, and one with none left is not run. The harness is told so, and the call it makes again runs once.
+
+A tool call that waits for a person (a tool that asks for approval, a client tool your app answers), or for an answer later still, ends the harness's turn where it is: no machine is held while a person decides. The harness's own conversation is kept. When the answer comes the harness resumes that conversation and is told what became of the call: the tool, its exact arguments, and to make that call again exactly so. With the same tool and the same arguments it is given what was decided, and the tool is not run twice. A call a person refused is named as refused, and is not run. Where there is no conversation to resume (a chat on a pool, whose turn may go on with another of its machines, or a Gemini CLI that does not offer to load one) the harness is started with the turn's message again, the same lines ahead of it.
+
+The machine's `palbase-agent` must be one that carries the agent to a harness: an older one starts the harness with the message alone, with none of the above.
+
+Every turn on a harness is started with the turn's configuration alone, as the table says, whether or not the agent has tools or instructions to give it. The CLI must be recent enough to be started so: Claude Code 2.1.314, Codex 0.163.0 or Gemini CLI 0.33.0, or later. An older one, and one whose `--version` says no version the agent can read, is listed under `harnesses` with the status `outdated` and the version it needs (`min_cli_version`). A turn starts a CLI only on a version it read from that very program as the turn starts: on any other it ends at its start, failed, with the sentence that says which CLI, what it printed and what is needed. That sentence is the turn's own reason, as your app reads it.
 
 ## macOS VM Profiles & Key Rotation
 
@@ -21562,7 +21721,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.26.1")
 ```
 
 | Product | What it is |
@@ -21585,7 +21744,7 @@ In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/pa
 | `PalbaseNotifyUI` | In-app messages shown over the app, and the person's inbox, drawn natively. |
 | `PalbaseDebug` | The [in-app debug console](/docs/ios/debug-console)'s screens. |
 | `Palbe` | What the [backend clients](/docs/ios/backend-calls) `palbase apps:sync` generates compile against. Link it when the project has a backend. |
-| `PalbaseAI` | Client AI: guardrailed templates (App Attest), streaming chats, live session mirroring & handoff, and voice transport control. |
+| `PalbaseAI` | Client AI (`pb.ai`): guardrailed templates (App Attest), and a member's chats with no gateway — followed live, written to, stopped ([Gateways](/docs/ios/gateways#a-chat-with-no-gateway)). |
 | `PalbaseVoice` | A chat's live [voice](/docs/ios/voice) over WebRTC (`PBVoice`), on iOS and macOS. |
 | `PalbaseCalls` | Voice and video [calls](/docs/ios/calls), group huddles (`pb.calls.place(_:)`), screen sharing and `CallVideoView`, on iOS and macOS. |
 
@@ -21684,7 +21843,20 @@ nonisolated let pb = PalbaseClient(try! .environment.with(
 - `analytics`: which of analytics' own events it makes ([Analytics](/docs/ios/analytics#the-apps-own-events)).
 - `appGroup`: the app group the app shares with its notification service extension, where the extension leaves a report it could not send ([Notifications](/docs/ios/notifications#the-notification-service-extension)).
 
-A configuration given in code, for a test or a tool, is `PalbaseConfiguration(url:publishableKey:keychainGroup:backends:passkeyRelyingParty:consent:analytics:appGroup:)`. The address must be `https` (plain `http` only for `localhost`) and the project's origin alone, and the key must be the publishable one (`pb_<ref>_c…`): a secret key is refused with a `ConfigurationError`, because it never goes in an app.
+A configuration given in code, for a test or a tool, is `PalbaseConfiguration(url:publishableKey:keychainGroup:backends:passkeyRelyingParty:consent:analytics:appGroup:)`. The address must be the project's origin alone, and the key must be the publishable one (`pb_<ref>_c…`): a secret key is refused with a `ConfigurationError`, because it never goes in an app.
+
+### An address on this machine
+
+A build that ships reaches the project and its backends over https only. A build you run from Xcode may also use http to this machine: `localhost`, `127.0.0.1`, or `::1`. That is how a test starts its own server, and how the app calls a backend running on your Mac while you develop.
+
+The SDK reads which build it is from the app's signing while it runs, so nothing is set in code:
+
+- A simulator build may use http to this machine.
+- A Mac build signed for debugging may. Xcode signs the build it runs that way, in the Debug and the Release configuration, and the app that hosts your tests. So does `swift build` for a debug build, and `swift test` runs in a test runner signed that way. An archive is not signed for debugging.
+- A device build signed with a development provisioning profile may.
+- A build from the App Store or TestFlight, an ad hoc or enterprise build, and a notarized Mac app may not: `PalbaseConfiguration` and `pb.palbe(url:)` refuse the address with a `ConfigurationError`.
+
+A Mac build made with code signing turned off (`CODE_SIGNING_ALLOWED=NO`) carries no signature to read and counts as a build that ships. Sign it to run locally instead (`CODE_SIGN_IDENTITY=-`).
 
 ## The session
 
@@ -22384,7 +22556,7 @@ func ping() async throws -> Bool {
 
 ## A backend on your computer
 
-`palbase apps:sync --backend ../server` generates the client from a backend checkout on this computer, before any machine serves its routes: its `palbase/backend` app writes its contract and exits, and nothing is connected to. `pb.palbe(url:)` is a client of a backend at an address of its own, such as `http://localhost:8080` in the simulator, for its untyped calls and its gateways; the address must be `https`, or `http` on `localhost`.
+`palbase apps:sync --backend ../server` generates the client from a backend checkout on this computer, before any machine serves its routes: its `palbase/backend` app writes its contract and exits, and nothing is connected to. `pb.palbe(url:)` is a client of a backend at an address of its own, such as `http://localhost:8080` in the simulator, for its untyped calls and its gateways. The address must be `https`; a build you run from Xcode may also use `http` to this machine, and a build that ships may not ([An address on this machine](/docs/ios/overview#an-address-on-this-machine)).
 
 ## Related
 
@@ -22563,6 +22735,39 @@ A picture or a file a message carries is read back with `pb.chatAttachment(chatI
 
 `PBChat(parts:me:)` makes a chat from parts you give it, through the same fold: what a SwiftUI preview or a test shows a chat with.
 
+## A chat with no gateway
+
+A chat left on its own channel is followed by the member's own session, with no gateway and no backend route ([AI](/docs/backend/ai#a-chat-with-no-gateway)). Link `PalbaseAI`. `pb.ai.chats.stream(_:)` tells the latest turn whole, then every part as the platform tells it; after a drop it joins the channel again and reads what it missed first, so each part, and each byte of an answer, comes once.
+
+<!-- given: chatId: String -->
+```swift
+import Palbase
+import PalbaseAI
+
+for try await part in pb.ai.chats.stream(chatId) {
+    switch part.type {
+    case "text": print(part.text ?? "", terminator: "")            // the answer, placed by part.offset
+    case "turn" where part.endsItsTurn: print("\n— \(part.status ?? "")")
+    default: break                                                  // message, tool, agent, goal, voice…
+    }
+}
+```
+
+A part is its `type`, its `data` as the stream says it, and `seq`, the chat's own numbering of it (an answer's text has none: it is placed by `offset` in the answer of `responseId`). Follow again from a part you hold with `stream(_:afterSeq:)`; `live: false` reads the past and ends. The channel keeps nothing and may drop a part on a slow connection. The stream looks for what was dropped in the chat's past — after each join, a moment after an answer's text comes with a gap before it, at a turn's end once it saw a loss in that turn, when a turn at work goes silent — and tells what it finds then: place an answer's text by `offset` and order the parts you keep by `seq`, never by when they came. A `reset` cuts the answer back to its `offset`. A part dropped with nothing missing around it may not be told: a screen that must hold a turn whole reads it once it ended, with `pb.ai.api.listChatParts(chatId:turns:)`. The stream throws `join_refused` for one who is not a member of the chat (at once, or later, when they are taken out of it), and `no_channel` for a chat whose stream your backend put into a gateway's channel: that one is followed through its gateway, above.
+
+What the member does goes to the chat itself, as them:
+
+<!-- given: chatId: String -->
+```swift
+let sent = try await pb.ai.chats.send(chatId, text: "Ship it")
+let stopped = try await pb.ai.chats.stop(chatId)      // the turn it stopped; nil when none was at work
+let chat = try await pb.ai.chats.get(chatId)          // its title, members, where it runs
+```
+
+`approve(_:approvalId:approved:reason:)` answers an approval of the member's own turn, and `pb.ai.sessions.execution(_:)` reads where the chat runs. `pb.ai.api` has every call the AI module serves an app, as its contract names them: a chat's messages and parts by page, a tool call's whole answer, a client tool's answer.
+
+`PBChat` folds a chat's parts into its state, and a gateway gives one. A chat followed this way gives the parts themselves.
+
 ## Related
 
 - [Calling Your Backend](/docs/ios/backend-calls): the generated client the gateways are in
@@ -22695,7 +22900,7 @@ The project holds its clients to limits the platform sets and the project may lo
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.25.0 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.26.1 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.
@@ -22927,10 +23132,10 @@ When the person signs out, what the phone kept of their conversations is dropped
 `PalbaseCalls` ships directly in `https://github.com/palgroup/palbase-swift` for **iOS 18+** and **macOS 15+** with zero external dependencies:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.26.1")
 ```
 
-Link `PalbaseCalls` to the app (it brings `Palbase` and `PalbaseNotify` with it). On iOS, if your app also shares the whole screen in the background via a Broadcast Upload Extension ([Sharing a screen](#sharing-a-screen)), add `https://github.com/palgroup/palbase-swift-calls` at the same version (`exact: "0.25.0"`) and link `PalbaseCallsBroadcast` to the extension target alone. **Do not add LiveKit's own Swift package beside them**: LiveKit's client SDK is already inside `PalbaseCalls`. Requires iOS 18 or macOS 15, and Xcode 16.3 or newer.
+Link `PalbaseCalls` to the app (it brings `Palbase` and `PalbaseNotify` with it). On iOS, if your app also shares the whole screen in the background via a Broadcast Upload Extension ([Sharing a screen](#sharing-a-screen)), add `https://github.com/palgroup/palbase-swift-calls` at the same version (`exact: "0.26.1"`) and link `PalbaseCallsBroadcast` to the extension target alone. **Do not add LiveKit's own Swift package beside them**: LiveKit's client SDK is already inside `PalbaseCalls`. Requires iOS 18 or macOS 15, and Xcode 16.3 or newer.
 
 The app:
 
@@ -23970,7 +24175,7 @@ A chat of the project's agents can be talked to out loud ([AI › Voice](/docs/b
 `PalbaseVoice` ships directly in `https://github.com/palgroup/palbase-swift` for **iOS 18+** and **macOS 15+** with zero external dependencies:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.26.1")
 ```
 
 Link `PalbaseVoice`; it brings `Palbase` with it. The app's Info.plist says why it asks for the microphone, in `NSMicrophoneUsageDescription`.
@@ -24196,7 +24401,7 @@ A JSON body is JSON, its numbers as the server wrote them, a text body is text, 
 
 The Android SDK is `studio.palbase:palbase` and one artifact per module, in Kotlin, with coroutines. `palbase` holds the project's address and publishable key, the transport every call goes through, the signed-in user's session, the realtime socket, consent and auth. Each module (flags, analytics, realtime, notify, storage, iap, payments) is an artifact of its own that hangs off the same client, as `pb.flags`, `pb.notify` and so on. A backend of yours is a typed client that `palbase apps:sync` writes into the app, and it calls through the same client too.
 
-The version on this page is **0.20.1**.
+The version on this page is **0.21.0**.
 
 ## Requirements
 
@@ -24241,7 +24446,7 @@ android {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.20.1"))
+    implementation(platform("studio.palbase:palbase-bom:0.21.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-flags")     // and the other modules the app uses
     implementation("studio.palbase:palbase-palbe")     // when the app calls a backend of yours
@@ -24263,7 +24468,7 @@ dependencies {
 | `palbase-payments-ui` | Optional drop-in PCI-DSS SAQ-A Compose checkout (`PaymentSheet`, `WalletTopUpSheet`, `SavedCardsView`, `SpendQRView`) | `rememberPaymentSheet`, `PaymentSheet` ([Payments](/docs/payments/android-sdk)) |
 | `palbase-commerce` | Storefront & marketplace commerce client (catalog, carts, checkout, orders, returns & seller portal) | `pb.commerce` ([Commerce](/docs/commerce/overview)) |
 | `palbase-messaging` | Direct and group conversations kept on the device and live, with encrypted attachments | `pb.messaging` ([Messaging](/docs/android/messaging)) |
-| `palbase-ai` | Guardrailed client AI templates, streaming chats, and voice transport control | `pb.ai` |
+| `palbase-ai` | Guardrailed client AI templates, and a member's chats with no gateway — followed live, written to, stopped | `pb.ai` ([Gateways](/docs/android/gateways#a-chat-with-no-gateway)) |
 | `palbase-palbe` | Your backends' generated clients, their gateways and chats | `pb.<name>` ([Calling Your Backend](/docs/android/backend-calls), [Gateways](/docs/android/gateways)) |
 | `palbase-debug` | The debug console's screens, in Compose | `PalbaseConsole(pb.debug)` ([Debug Console](/docs/android/debug-console)) |
 | `palbase-voice` | A chat's live voice over WebRTC | `PBVoice.connect(…)` ([Voice](/docs/android/voice)) |
@@ -24428,7 +24633,7 @@ Every request says the user's languages in `Accept-Language`, the device's in th
 pb.setPreferredLanguages(listOf("tr", "en"))   // null goes back to the device's
 ```
 
-Requests also carry `X-Palbase-SDK: android/0.20.1` (`PalbaseClient.VERSION`).
+Requests also carry `X-Palbase-SDK: android/0.21.0` (`PalbaseClient.VERSION`).
 
 ### Observable state
 
@@ -24791,7 +24996,7 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.20.1"))
+    implementation(platform("studio.palbase:palbase-bom:0.21.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-palbe")
 }
@@ -25136,6 +25341,38 @@ val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
 
 `pb.chatToolCall(chatId, callId)` reads a tool call's whole answer, where the channel shows its last 16 KiB. `pb.chatWorkspaceFile(chatId, path)` reads a file of the chat's workspace. Both throw `PalbaseError` like any project call. Attaching a file is the backend's: the app uploads it, and the backend sends the message naming it.
 
+## A chat with no gateway
+
+A chat left on its own channel is followed by the member's own session, with no gateway and no backend route ([AI](/docs/backend/ai#a-chat-with-no-gateway)). Add `studio.palbase:palbase-ai`. `pb.ai.chats.stream(chatId)` tells the latest turn whole, then every part as the platform tells it; after a drop it joins the channel again and reads what it missed first, so each part, and each byte of an answer, comes once.
+
+<!-- given: chatId: String -->
+```kotlin
+import studio.palbase.ai.ai
+
+pb.ai.chats.stream(chatId).collect { part ->
+    when {
+        part.type == "text" -> print(part.text.orEmpty())           // the answer, placed by part.offset
+        part.endsItsTurn -> println("\n— ${part.status}")
+        else -> Unit                                                 // message, tool, agent, goal, voice…
+    }
+}
+```
+
+A part is its `type`, its `data` as the stream says it, and `seq`, the chat's own numbering of it (an answer's text has none: it is placed by `offset` in the answer of `responseId`). Follow again from a part you hold with `stream(chatId, afterSeq = …)`; `live = false` reads the past and ends. The channel keeps nothing and may drop a part on a slow connection. The stream looks for what was dropped in the chat's past — after each join, a moment after an answer's text comes with a gap before it, at a turn's end once it saw a loss in that turn, when a turn at work goes silent — and tells what it finds then: place an answer's text by `offset` and order the parts you keep by `seq`, never by when they came. A `reset` cuts the answer back to its `offset`. A part dropped with nothing missing around it may not be told: a screen that must hold a turn whole reads it once it ended, with `pb.ai.api.listChatParts(chatId, turns = 1)`. The flow throws `join_refused` for one who is not a member of the chat (at once, or later, when they are taken out of it), and `no_channel` for a chat whose stream your backend put into a gateway's channel: that one is followed through its gateway, above.
+
+What the member does goes to the chat itself, as them:
+
+<!-- given: chatId: String -->
+```kotlin
+val sent = pb.ai.chats.send(chatId, text = "Ship it")
+val stopped = pb.ai.chats.stop(chatId)      // the turn it stopped; null when none was at work
+val chat = pb.ai.chats.get(chatId)          // its title, members, where it runs
+```
+
+`approve(chatId, approvalId, approved, reason)` answers an approval of the member's own turn, and `pb.ai.sessions.execution(chatId)` reads where the chat runs. `pb.ai.api` has every call the AI module serves an app, as its contract names them: a chat's messages and parts by page, a tool call's whole answer, a client tool's answer.
+
+`PBChat` folds a chat's parts into its state, and a gateway gives one. A chat followed this way gives the parts themselves.
+
 ## Related
 
 - [Gateways](/docs/backend/gateways): declaring one in the backend
@@ -25327,7 +25564,7 @@ dependencyResolutionManagement {
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.20.1"))
+    implementation(platform("studio.palbase:palbase-bom:0.21.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // pushes: the FCM token, and the service that draws them
     implementation("studio.palbase:palbase-messaging")  // pb.messaging
@@ -25540,7 +25777,7 @@ The phone's copy is kept in the app's own SQLite, in files not backed up. When t
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.20.1"))
+    implementation(platform("studio.palbase:palbase-bom:0.21.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-notify")     // the FCM token, and the service a ring arrives through
     implementation("studio.palbase:palbase-calls")      // pb.calls
@@ -25968,7 +26205,7 @@ pluginManagement { repositories { gradlePluginPortal(); google(); mavenCentral()
 // app/build.gradle.kts
 plugins {
     id("com.android.application")
-    id("studio.palbase") version "0.20.1"
+    id("studio.palbase") version "0.21.0"
 }
 ```
 
@@ -31066,10 +31303,10 @@ export function formatFailure(code: string | undefined): string {
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` (0.25.0 or later) and link `PalbasePayments` for headless checkout, plus `PalbasePaymentsUI` when you want Palbase's optional drop-in PCI-DSS SAQ-A SwiftUI sheets:
+Add `https://github.com/palgroup/palbase-swift` (0.26.1 or later) and link `PalbasePayments` for headless checkout, plus `PalbasePaymentsUI` when you want Palbase's optional drop-in PCI-DSS SAQ-A SwiftUI sheets:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.26.1")
 ```
 
 Attach `.palbasePayments(pb.payments)` once at the root of your SwiftUI hierarchy and forward payment return URLs via `.onOpenURL`:
@@ -31195,7 +31432,7 @@ Add `palbase-payments` for headless checkout and `palbase-payments-ui` for optio
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.20.1"))
+    implementation(platform("studio.palbase:palbase-bom:0.21.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-payments")
     implementation("studio.palbase:palbase-payments-ui")

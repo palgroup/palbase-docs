@@ -11,7 +11,7 @@ Add `palbase-payments` for headless checkout and `palbase-payments-ui` for optio
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.20.1"))
+    implementation(platform("studio.palbase:palbase-bom:0.21.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-payments")
     implementation("studio.palbase:palbase-payments-ui")

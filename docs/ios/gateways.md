@@ -165,6 +165,39 @@ A picture or a file a message carries is read back with `pb.chatAttachment(chatI
 
 `PBChat(parts:me:)` makes a chat from parts you give it, through the same fold: what a SwiftUI preview or a test shows a chat with.
 
+## A chat with no gateway
+
+A chat left on its own channel is followed by the member's own session, with no gateway and no backend route ([AI](https://palbase.studio/docs/backend/ai#a-chat-with-no-gateway)). Link `PalbaseAI`. `pb.ai.chats.stream(_:)` tells the latest turn whole, then every part as the platform tells it; after a drop it joins the channel again and reads what it missed first, so each part, and each byte of an answer, comes once.
+
+<!-- given: chatId: String -->
+```swift
+import Palbase
+import PalbaseAI
+
+for try await part in pb.ai.chats.stream(chatId) {
+    switch part.type {
+    case "text": print(part.text ?? "", terminator: "")            // the answer, placed by part.offset
+    case "turn" where part.endsItsTurn: print("\n— \(part.status ?? "")")
+    default: break                                                  // message, tool, agent, goal, voice…
+    }
+}
+```
+
+A part is its `type`, its `data` as the stream says it, and `seq`, the chat's own numbering of it (an answer's text has none: it is placed by `offset` in the answer of `responseId`). Follow again from a part you hold with `stream(_:afterSeq:)`; `live: false` reads the past and ends. The channel keeps nothing and may drop a part on a slow connection. The stream looks for what was dropped in the chat's past — after each join, a moment after an answer's text comes with a gap before it, at a turn's end once it saw a loss in that turn, when a turn at work goes silent — and tells what it finds then: place an answer's text by `offset` and order the parts you keep by `seq`, never by when they came. A `reset` cuts the answer back to its `offset`. A part dropped with nothing missing around it may not be told: a screen that must hold a turn whole reads it once it ended, with `pb.ai.api.listChatParts(chatId:turns:)`. The stream throws `join_refused` for one who is not a member of the chat (at once, or later, when they are taken out of it), and `no_channel` for a chat whose stream your backend put into a gateway's channel: that one is followed through its gateway, above.
+
+What the member does goes to the chat itself, as them:
+
+<!-- given: chatId: String -->
+```swift
+let sent = try await pb.ai.chats.send(chatId, text: "Ship it")
+let stopped = try await pb.ai.chats.stop(chatId)      // the turn it stopped; nil when none was at work
+let chat = try await pb.ai.chats.get(chatId)          // its title, members, where it runs
+```
+
+`approve(_:approvalId:approved:reason:)` answers an approval of the member's own turn, and `pb.ai.sessions.execution(_:)` reads where the chat runs. `pb.ai.api` has every call the AI module serves an app, as its contract names them: a chat's messages and parts by page, a tool call's whole answer, a client tool's answer.
+
+`PBChat` folds a chat's parts into its state, and a gateway gives one. A chat followed this way gives the parts themselves.
+
 ## Related
 
 - [Calling Your Backend](https://palbase.studio/docs/ios/backend-calls): the generated client the gateways are in

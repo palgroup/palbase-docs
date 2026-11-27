@@ -96,6 +96,8 @@ Five namespaces are the platform's and cannot be declared: `roles:`, `flags:`, `
 
 All three are read-only: only the platform writes them.
 
+One more channel is the platform's to decide only where the project declared nothing for it: `chat:<chat_id>`, a chat's own channel, where the AI module writes the chat's stream ([A chat with no gateway](https://palbase.studio/docs/backend/ai#a-chat-with-no-gateway)). The chat's members join it and read it, and no member writes on it. `chat:` is not a reserved namespace: a pattern of yours that matches (`chat:{room}`) decides the channel instead, as any declared channel is decided — whoever your rule lets in then reads the streams of the chats written there. One thing holds whatever the rule says: on a channel named `chat:<chat_id>` a client's broadcast of the event `chat` is refused (`forbidden`), since that is how the platform tells a chat's parts.
+
 ## When it changes
 
 - **Open sockets are decided again within a heartbeat** of a new declaration: a client whose channel is no longer theirs is put off it.

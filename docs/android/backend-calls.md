@@ -14,7 +14,7 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("studio.palbase:palbase-bom:0.20.1"))
+    implementation(platform("studio.palbase:palbase-bom:0.21.0"))
     implementation("studio.palbase:palbase")
     implementation("studio.palbase:palbase-palbe")
 }

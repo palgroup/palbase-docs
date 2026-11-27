@@ -9,10 +9,10 @@
 `PalbaseCalls` ships directly in `https://github.com/palgroup/palbase-swift` for **iOS 18+** and **macOS 15+** with zero external dependencies:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.26.1")
 ```
 
-Link `PalbaseCalls` to the app (it brings `Palbase` and `PalbaseNotify` with it). On iOS, if your app also shares the whole screen in the background via a Broadcast Upload Extension ([Sharing a screen](#sharing-a-screen)), add `https://github.com/palgroup/palbase-swift-calls` at the same version (`exact: "0.25.0"`) and link `PalbaseCallsBroadcast` to the extension target alone. **Do not add LiveKit's own Swift package beside them**: LiveKit's client SDK is already inside `PalbaseCalls`. Requires iOS 18 or macOS 15, and Xcode 16.3 or newer.
+Link `PalbaseCalls` to the app (it brings `Palbase` and `PalbaseNotify` with it). On iOS, if your app also shares the whole screen in the background via a Broadcast Upload Extension ([Sharing a screen](#sharing-a-screen)), add `https://github.com/palgroup/palbase-swift-calls` at the same version (`exact: "0.26.1"`) and link `PalbaseCallsBroadcast` to the extension target alone. **Do not add LiveKit's own Swift package beside them**: LiveKit's client SDK is already inside `PalbaseCalls`. Requires iOS 18 or macOS 15, and Xcode 16.3 or newer.
 
 The app:
 

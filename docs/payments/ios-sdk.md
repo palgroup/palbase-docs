@@ -6,10 +6,10 @@
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` (0.25.0 or later) and link `PalbasePayments` for headless checkout, plus `PalbasePaymentsUI` when you want Palbase's optional drop-in PCI-DSS SAQ-A SwiftUI sheets:
+Add `https://github.com/palgroup/palbase-swift` (0.26.1 or later) and link `PalbasePayments` for headless checkout, plus `PalbasePaymentsUI` when you want Palbase's optional drop-in PCI-DSS SAQ-A SwiftUI sheets:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.26.1")
 ```
 
 Attach `.palbasePayments(pb.payments)` once at the root of your SwiftUI hierarchy and forward payment return URLs via `.onOpenURL`:

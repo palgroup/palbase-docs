@@ -193,7 +193,7 @@ func ping() async throws -> Bool {
 
 ## A backend on your computer
 
-`palbase apps:sync --backend ../server` generates the client from a backend checkout on this computer, before any machine serves its routes: its `palbase/backend` app writes its contract and exits, and nothing is connected to. `pb.palbe(url:)` is a client of a backend at an address of its own, such as `http://localhost:8080` in the simulator, for its untyped calls and its gateways; the address must be `https`, or `http` on `localhost`.
+`palbase apps:sync --backend ../server` generates the client from a backend checkout on this computer, before any machine serves its routes: its `palbase/backend` app writes its contract and exits, and nothing is connected to. `pb.palbe(url:)` is a client of a backend at an address of its own, such as `http://localhost:8080` in the simulator, for its untyped calls and its gateways. The address must be `https`; a build you run from Xcode may also use `http` to this machine, and a build that ships may not ([An address on this machine](https://palbase.studio/docs/ios/overview#an-address-on-this-machine)).
 
 ## Related
 

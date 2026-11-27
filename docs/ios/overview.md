@@ -36,7 +36,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.25.0")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.26.1")
 ```
 
 | Product | What it is |
@@ -59,7 +59,7 @@ In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/pa
 | `PalbaseNotifyUI` | In-app messages shown over the app, and the person's inbox, drawn natively. |
 | `PalbaseDebug` | The [in-app debug console](https://palbase.studio/docs/ios/debug-console)'s screens. |
 | `Palbe` | What the [backend clients](https://palbase.studio/docs/ios/backend-calls) `palbase apps:sync` generates compile against. Link it when the project has a backend. |
-| `PalbaseAI` | Client AI: guardrailed templates (App Attest), streaming chats, live session mirroring & handoff, and voice transport control. |
+| `PalbaseAI` | Client AI (`pb.ai`): guardrailed templates (App Attest), and a member's chats with no gateway — followed live, written to, stopped ([Gateways](https://palbase.studio/docs/ios/gateways#a-chat-with-no-gateway)). |
 | `PalbaseVoice` | A chat's live [voice](https://palbase.studio/docs/ios/voice) over WebRTC (`PBVoice`), on iOS and macOS. |
 | `PalbaseCalls` | Voice and video [calls](https://palbase.studio/docs/ios/calls), group huddles (`pb.calls.place(_:)`), screen sharing and `CallVideoView`, on iOS and macOS. |
 
@@ -158,7 +158,20 @@ nonisolated let pb = PalbaseClient(try! .environment.with(
 - `analytics`: which of analytics' own events it makes ([Analytics](https://palbase.studio/docs/ios/analytics#the-apps-own-events)).
 - `appGroup`: the app group the app shares with its notification service extension, where the extension leaves a report it could not send ([Notifications](https://palbase.studio/docs/ios/notifications#the-notification-service-extension)).
 
-A configuration given in code, for a test or a tool, is `PalbaseConfiguration(url:publishableKey:keychainGroup:backends:passkeyRelyingParty:consent:analytics:appGroup:)`. The address must be `https` (plain `http` only for `localhost`) and the project's origin alone, and the key must be the publishable one (`pb_<ref>_c…`): a secret key is refused with a `ConfigurationError`, because it never goes in an app.
+A configuration given in code, for a test or a tool, is `PalbaseConfiguration(url:publishableKey:keychainGroup:backends:passkeyRelyingParty:consent:analytics:appGroup:)`. The address must be the project's origin alone, and the key must be the publishable one (`pb_<ref>_c…`): a secret key is refused with a `ConfigurationError`, because it never goes in an app.
+
+### An address on this machine
+
+A build that ships reaches the project and its backends over https only. A build you run from Xcode may also use http to this machine: `localhost`, `127.0.0.1`, or `::1`. That is how a test starts its own server, and how the app calls a backend running on your Mac while you develop.
+
+The SDK reads which build it is from the app's signing while it runs, so nothing is set in code:
+
+- A simulator build may use http to this machine.
+- A Mac build signed for debugging may. Xcode signs the build it runs that way, in the Debug and the Release configuration, and the app that hosts your tests. So does `swift build` for a debug build, and `swift test` runs in a test runner signed that way. An archive is not signed for debugging.
+- A device build signed with a development provisioning profile may.
+- A build from the App Store or TestFlight, an ad hoc or enterprise build, and a notarized Mac app may not: `PalbaseConfiguration` and `pb.palbe(url:)` refuse the address with a `ConfigurationError`.
+
+A Mac build made with code signing turned off (`CODE_SIGNING_ALLOWED=NO`) carries no signature to read and counts as a build that ships. Sign it to run locally instead (`CODE_SIGN_IDENTITY=-`).
 
 ## The session
 
