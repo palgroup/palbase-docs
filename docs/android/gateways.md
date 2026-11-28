@@ -191,6 +191,34 @@ val chat = pb.ai.chats.get(chatId)          // its title, members, where it runs
 
 `PBChat` folds a chat's parts into its state, and a gateway gives one. A chat followed this way gives the parts themselves.
 
+## A person's own machines
+
+When the project lets its users connect machines of their own ([A person's own machine](https://palbase.studio/docs/backend/ai-machines#a-persons-own-machine)), `pb.ai.machines` is the signed-in person's: their list, the list as it changes, and what they do to a machine of theirs. Add `studio.palbase:palbase-ai`.
+
+```kotlin
+import studio.palbase.ai.ai
+
+// The person's machines now, then again each time one changes.
+pb.ai.machines.watch().collect { machines ->
+    machines.forEach { machine ->
+        println("${machine.name} ${machine.state.value} ${machine.lastSeenAt ?: "never"} ${machine.harnesses.orEmpty().map { it.name.value }}")
+    }
+}
+```
+
+`watch()` is a cold flow: collecting it reads the list, follows the person's own channel and reads again when Palbase says the list changed, and once a minute whatever the channel does. It emits a list only when it differs from the last one. A dropped connection does not end it: it ends with an error when the person is refused (`401`, `403`), signs out, or someone else signs in. Cancelling the collection leaves the channel. `list()` and `get(machineId)` read once.
+
+<!-- given: machineId: String -->
+```kotlin
+pb.ai.machines.cordon(machineId)                  // paused: it takes no new turn
+pb.ai.machines.resume(machineId)
+pb.ai.machines.delete(machineId, now = true)      // removed whatever it is doing
+```
+
+Each machine is its `id`, `name`, `state` (`ONLINE`, `OFFLINE`, or `CORDONED` when it is paused), `lastSeenAt`, `registeredAt` and `harnesses`, the coding CLIs found on it. A machine that is not the person's is `404 not_found` on every call, as one that does not exist. `delete(machineId)` removes a paused machine that holds nothing (`409 machine_not_cordoned`, `409 machine_busy` otherwise).
+
+A machine is enrolled by the app that runs on it, a Mac or a Linux machine ([Enrolling from the app](https://palbase.studio/docs/backend/ai-machines#enrolling-from-the-app)). `pb.ai.machines.keys.create(os, arch, label)` mints its key from a phone too, for an app that hands the key over to the machine itself: it is said once, and refused `403 user_machines_disabled` while the project's setting is off and `409 machine_limit_reached` at the person's limit.
+
 ## Related
 
 - [Gateways](https://palbase.studio/docs/backend/gateways): declaring one in the backend

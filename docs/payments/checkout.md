@@ -36,7 +36,7 @@ export async function createOrderIntent(customerId: string, orderId: string) {
 
 ### Split card + wallet checkout
 
-To let a customer pay part of an order from their closed-loop wallet and the remainder by card in one atomic checkout, pass `wallet_key` and `wallet_amount` in `POST /payments/intents`. Palbase places a two-phase wallet hold on `wallet_amount`, charges `amount - wallet_amount` on the routed card channel, commits the wallet hold only when the card settles, and releases the wallet hold automatically if the intent fails or is canceled.
+To let a customer pay part of an order from their closed-loop wallet and the remainder by card in one atomic checkout, pass `wallet_key` and `wallet_amount` in `POST /payments/intents`. Palbase places a two-phase wallet hold on `wallet_amount`, charges `amount - wallet_amount` on the routed card channel, commits the wallet hold only when the card settles, and releases the wallet hold automatically if the intent fails or is canceled. The wallet's share is the buyer's again only once the payment ends, so a payment a wallet and a card pay together stays open an hour at most, whatever `expires_in_seconds` asks: a buyer who walks away has the balance back within the hour and a quarter. A card's payment, or a wallet's alone, keeps the time it was given.
 
 ### Manual capture (authorize then capture)
 

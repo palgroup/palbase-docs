@@ -48,7 +48,7 @@ The web SDK is `palbase/web`, a part of the npm package `palbase`: `npm install 
 ```json
 {
   "dependencies": {
-    "palbase": "^0.73.0"
+    "palbase": "^0.77.0"
   }
 }
 ```
@@ -101,7 +101,7 @@ What comes back:
 | `pb.notify` | This browser's pushes (`push`), the signed-in person's inbox (`inbox`) and the project's in-app campaigns (`inApp`). See [Notifications](https://palbase.studio/docs/web/notifications). |
 | `pb.campaigns` | On-site / in-app campaign messages (`listOnSiteMessages`, `recordImpression`, `recordEvent`) and tracking-link attribution (`captureAttribution`, `getAttribution`, `applyAttributedPromo`). See [Campaigns](https://palbase.studio/docs/campaigns/overview). |
 | `pb.calls` | The signed-in person's voice and video calls: made, rung, answered — one to one or in a group. See [Calls](https://palbase.studio/docs/web/calls). |
-| `pb.ai` | Guardrailed client AI (`pb.ai.templates`): run, stream, speech, and live voice against server-locked templates. |
+| `pb.ai` | Guardrailed client AI (`pb.ai.templates`): run, stream, speech, and live voice against server-locked templates. The person's own machines (`pb.ai.machines`): a key that enrols one, their list, and the list live ([Gateways](https://palbase.studio/docs/web/gateways#a-persons-own-machines)). |
 | `pb.payments` | Direct card checkout (`confirm`, `present`, `submitOtp`, `waitForIntent`), capabilities, Turkish BIN installments, saved cards, closed-loop wallets & QR spend tokens, billing profile, subscriptions and portal. See [Payments Web SDK](https://palbase.studio/docs/payments/web-sdk). |
 | `pb.commerce` | Storefront product discovery (`listProducts`, `getProduct`), guest & customer carts (`createCart`, `addItem`, `applyPromoCode`, `checkout`), customer orders & returns, and user-pinned Seller Portal (`pb.commerce.seller(storeId)`). See [Commerce](https://palbase.studio/docs/commerce/overview). |
 | `pb.iap` | What the signed-in customer has, kept current; the catalog's offerings and paywalls; buying catalog products on the web through Payments. See [In-App Purchases on the web](https://palbase.studio/docs/iap/web). |

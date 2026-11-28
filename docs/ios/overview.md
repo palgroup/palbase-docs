@@ -36,7 +36,7 @@ struct RootView: View {
 In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/palgroup/palbase-swift`, and add the products the app uses to its target. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/palgroup/palbase-swift", from: "0.26.1")
+.package(url: "https://github.com/palgroup/palbase-swift", from: "0.27.0")
 ```
 
 | Product | What it is |
@@ -59,7 +59,7 @@ In Xcode, **File › Add Package Dependencies…**, enter `https://github.com/pa
 | `PalbaseNotifyUI` | In-app messages shown over the app, and the person's inbox, drawn natively. |
 | `PalbaseDebug` | The [in-app debug console](https://palbase.studio/docs/ios/debug-console)'s screens. |
 | `Palbe` | What the [backend clients](https://palbase.studio/docs/ios/backend-calls) `palbase apps:sync` generates compile against. Link it when the project has a backend. |
-| `PalbaseAI` | Client AI (`pb.ai`): guardrailed templates (App Attest), and a member's chats with no gateway — followed live, written to, stopped ([Gateways](https://palbase.studio/docs/ios/gateways#a-chat-with-no-gateway)). |
+| `PalbaseAI` | Client AI (`pb.ai`): guardrailed templates (App Attest), and a member's chats with no gateway — followed live, written to, stopped ([Gateways](https://palbase.studio/docs/ios/gateways#a-chat-with-no-gateway)) — and the person's own machines, enrolled and watched live ([Gateways](https://palbase.studio/docs/ios/gateways#a-persons-own-machines)). |
 | `PalbaseVoice` | A chat's live [voice](https://palbase.studio/docs/ios/voice) over WebRTC (`PBVoice`), on iOS and macOS. |
 | `PalbaseCalls` | Voice and video [calls](https://palbase.studio/docs/ios/calls), group huddles (`pb.calls.place(_:)`), screen sharing and `CallVideoView`, on iOS and macOS. |
 

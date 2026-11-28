@@ -2,9 +2,9 @@
 
 # CLI reference
 
-Every command of `palbase` 0.73.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
+Every command of `palbase` 0.77.0 — the CLI in the `palbase` npm package — as its own help prints it. Run it with `npx palbase <command>`, or `palbase <command>` once the package is installed; `palbase help <command>` prints the same in a terminal. Signing in, choosing an environment and using a token in CI are in [the CLI overview](https://palbase.studio/docs/cli/overview).
 
-560 commands in 41 groups.
+558 commands in 41 groups.
 
 ## Global flags
 
@@ -2465,12 +2465,13 @@ palbase ai:settings:get
 Change what the environment allows its chats, and its monthly AI budget: a setting left out is left as it is
 
 ```sh
-palbase ai:settings:set [--clients on|off] [--messages-per-minute <n>] [--history-limit <bytes>|none] [--monthly-budget <usd>|none] [--open-secrets-for-app-users yes|no]
+palbase ai:settings:set [--clients on|off] [--messages-per-minute <n>] [--history-limit <bytes>|none] [--monthly-budget <usd>|none] [--open-secrets-for-app-users yes|no] [--user-machines on|off] [--user-machine-limit <n>]
 ```
 
 --open-secrets-for-app-users yes lets the work an app's user starts (a member's message, goal or voice) have the environment's open secrets (ai:env:set --open): anyone who signs in to the app can then drive an agent to read them — asked of you wherever it is turned on (-y confirms it). Off (the default), only the work its developers and its server start has them. Said, yes or no, by an owner or an admin of the organization signed in as themselves, never with a key or a token (PALBASE_TOKEN): refused before anything is sent.
 --monthly-budget is the most the environment spends a month on Palbase's models (the platform's provider keys), at what it is billed: past it a call they would serve is refused (ai_budget_reached) until the month turns (UTC) or the budget is raised, and the organization's owners are emailed once. Its own provider keys are not counted: their provider bills them. palbase ai:spend says what is spent.
 Only an owner or an admin of the organization sets it, as themselves: a member's change of it is refused, and so is a key's or a token's — what spends the money does not raise its own limit.
+--user-machines on lets the app's signed-in users enrol a Mac or a Linux box of their own from the app, with their session and no secret key on the device (pb.ai.machines.keys.create); off (the default), such a key is refused (user_machines_disabled) and only the server mints one for a user it names. Turned off, the machines people already enrolled stay theirs and keep serving. --user-machine-limit is how many machines one user holds at most (1–20, 3 by default), a key still waiting for its machine counted as one: a user at it mints no new key (machine_limit_reached); lowered, nobody's machine is taken away.
 
 ```text
       --clients <on|off>                     the app's users talk to the agents of their chats with their own session
@@ -2478,6 +2479,8 @@ Only an owner or an admin of the organization sets it, as themselves: a member's
       --history-limit <bytes|none>           the chat history kept at most, in bytes; none: the plan's
       --monthly-budget <usd|none>            the most spent a month on Palbase's models, in US dollars (0.01–1000000, cents at most); none: no budget
       --open-secrets-for-app-users <yes|no>  the work an app's user starts has the environment's open secrets
+      --user-machines <on|off>               the app's signed-in users enrol machines of their own
+      --user-machine-limit <n>               how many machines one user holds at most (1–20)
 ```
 
 ### `palbase ai:agents:list`
@@ -2775,22 +2778,6 @@ Delete a runtime environment and its build records
 
 ```sh
 palbase ai:environments:delete <name>
-```
-
-### `palbase ai:environments:build`
-
-Queue an immutable pre-bake build for a runtime environment
-
-```sh
-palbase ai:environments:build <name>
-```
-
-### `palbase ai:environments:build:get`
-
-Read the status of a runtime environment build
-
-```sh
-palbase ai:environments:build:get <name> <build_id>
 ```
 
 ### `palbase ai:pools:create`

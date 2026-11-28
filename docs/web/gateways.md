@@ -277,7 +277,7 @@ What `state` holds:
 | `goal` | The chat's goal once one was set: `objective`, `status` (`active`, `paused`, `blocked`, `budget_limited`, `achieved`, or `cleared`), its stop code and reason, and its `events`. `null` without one. |
 | `voice` | The chat's voice, the last that began in it, live or ended: `status` (`started`, `closed`), `mine`, `seconds` and `closeReason` once it closed. `null` without one. |
 | `forkedFrom` | A fork's: `{ chatId, beforeMessage }`, the chat it was forked from. `null` for a chat of its own. |
-| `execution` | Live execution state folded from stream parts: `target`, `generation`, `workspaceSeq`, `machineId`, `machineStatus` (`online`, `offline`, `waking`), `failoverAt`, `lastHandoff`, `compactions`, and `offloads`. |
+| `execution` | Live execution state folded from stream parts: `target`, `generation`, `workspaceSeq`, `machineId`, `machineStatus` (`online`, `offline`, or `removed` once the machine was deleted), `failoverAt`, `lastHandoff`, `compactions`, and `offloads`. |
 
 An answer's `parts` are its pieces in order, each one of four types: `{ type: "text", text }`; `{ type: "tool", tool }`, a tool call; `{ type: "agent", agent }`, a subagent handed work (or refused it, `status: "denied"` with its `reason`); and `{ type: "thinking", thinking }`, a step's reasoning (`text`, or `unavailable: true` with the provider's `reason` when the agent shows its reasoning and the provider gave none). A render that leaves a type out leaves that piece of the conversation out.
 
@@ -453,6 +453,37 @@ export async function answerCities(chatId: string, pick: (reason: string) => Pro
   };
 }
 ```
+
+## A person's own machines
+
+When the project lets its users connect machines of their own ([A person's own machine](https://palbase.studio/docs/backend/ai-machines#a-persons-own-machine)), `pb.ai.machines` is the signed-in person's: a key that enrols one, their list, and the list as it changes.
+
+```ts
+// src/machines.ts
+import type { Machine } from "palbase/web";
+import { pb } from "../palbase/shop-web";
+
+/** The person's machines now, then again each time one changes, until the signal aborts. */
+export async function followMachines(show: (machines: Machine[]) => void, signal: AbortSignal): Promise<void> {
+  for await (const machines of pb.ai.machines.watch({ signal })) show(machines);
+}
+
+/** A key for a Mac of theirs, said once: the app that runs the agent writes it to a file and enrols with it. */
+export async function keyForAMac(label: string) {
+  const { key, enroll } = await pb.ai.machines.keys.create({ os: "macos", arch: "arm64", label });
+  return { key, url: enroll.url, serverName: enroll.serverName, caCertificate: enroll.caCertificate };
+}
+
+export const pause = (machineId: string) => pb.ai.machines.cordon(machineId);
+export const resume = (machineId: string) => pb.ai.machines.resume(machineId);
+export const removeNow = (machineId: string) => pb.ai.machines.delete(machineId, { now: true });
+```
+
+`watch()` reads the list, follows the person's own channel and reads again when Palbase says the list changed, and once a minute whatever the channel does. It hands over a list only when it differs from the last one. A dropped connection does not end it: it ends with an error when the person is refused (`401`, `403`) or is no longer the one signed in. `list()` and `get(id)` read once.
+
+Each machine is its `id`, `name`, `state` (`online`, `offline`, or `cordoned` when it is paused), `lastSeenAt`, `registeredAt` and `harnesses`, the coding CLIs found on it. A machine that is not the person's is `404 not_found` on every call, as one that does not exist. `keys.create` is refused `403 user_machines_disabled` while the project's setting is off, and `409 machine_limit_reached` when the person already holds as many machines as the project allows. `delete(id)` removes a paused machine that holds nothing (`409 machine_not_cordoned`, `409 machine_busy` otherwise); `delete(id, { now: true })` removes it whatever it is doing.
+
+A browser cannot run the agent. A web app shows a person's machines and manages them, and the app on the machine enrols it ([Enrolling from the app](https://palbase.studio/docs/backend/ai-machines#enrolling-from-the-app)).
 
 ## Related
 

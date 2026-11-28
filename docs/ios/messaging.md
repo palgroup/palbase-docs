@@ -6,7 +6,7 @@
 
 ## Install
 
-Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.26.1 or later:
+Add `https://github.com/palgroup/palbase-swift` with Swift Package Manager, at 0.27.0 or later:
 
 - the app's target: `Palbase` and `PalbaseMessaging`;
 - the notification service extension's target (below): `PalbaseMessagingNotificationService`.

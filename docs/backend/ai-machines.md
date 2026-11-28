@@ -31,7 +31,7 @@ A pool is of one type: an operating system (`linux` or `macos`) and an architect
 curl -X POST "https://<ref>.palbase.studio/ai/pools" \
   -H "apikey: $PALBASE_SECRET_KEY" -H "Content-Type: application/json" \
   -d '{"name":"mac-builds","os":"macos","arch":"arm64"}'
-# → 201 { "id": "rpl_…", "name": "mac-builds", "os": "macos", "arch": "arm64", "created_at": "…" }
+# → 201 { "id": "pool_…", "name": "mac-builds", "os": "macos", "arch": "arm64", "created_at": "…" }
 ```
 
 A pool is named in the API by its id or its name. `GET /ai/pools` lists the project's pools, each with its machines, the sessions they take at once (`capacity_total`), the sessions they hold now (`capacity_used`) and the sessions waiting for a place (`waiting`). `DELETE /ai/pools/{pool}` deletes a pool with no machine left in it. One that still has machines is refused with `409 pool_not_empty`.
@@ -138,6 +138,97 @@ export async function scale(pool: string, rent: () => Promise<void>, giveBack: (
   }
 }
 ```
+
+## A person's own machine
+
+A machine can belong to one of your app's users: the Mac they work on, connected from your Mac app with `palbase-agent` inside it. Such a machine has an **owner**. Only its owner and your server run a chat on it, read its state and what is installed on it, pause it and remove it. A machine enrolled into a pool with your secret key has no owner and is the project's, as above.
+
+A person's machine holds their folders and the CLIs they are signed in to, so Palbase keeps other people off it:
+
+- It takes only the chats that name it. A chat on a pool, a subagent's run, and the work of a chat that names another machine never land on it.
+- It is named by its id alone. A name is not an id: `machine_id` is `rnr_…`, and a machine that does not exist, belongs to another project or is someone else's is `404` for a signed-in user, with the same words for all three.
+- What is installed and signed in on it (`harnesses`) is read by its owner and your server, and by no one else.
+
+### Turning it on
+
+**Let app users connect their own machines** is off until a person turns it on: an owner or an admin of the organization, in Studio (AI → Settings) or signed in to the CLI. A key or a token cannot (`403 person_required`). `user_machine_limit` is how many machines one user holds at most, 1 to 20, 3 unless you say otherwise. Turning it off again leaves the machines already connected where they are and mints no new key; lowering the limit removes nobody's machine.
+
+Your server mints a key for a user whatever the setting says.
+
+### Enrolling from the app
+
+The signed-in user asks for a key, with their own session and no key of yours on the device:
+
+```sh
+curl -X POST "https://<ref>.palbase.studio/ai/machine-keys" \
+  -H "apikey: $PALBASE_PUBLISHABLE_KEY" -H "Authorization: Bearer $USER_ACCESS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"os":"macos","arch":"arm64","label":"work-macbook"}'
+# → 201 { "id": "rpk_…", "key": "rpk_….…", "owner": "usr_…", "pool_id": "pool_…",
+#         "enroll": { "url": "https://…", "server_name": "…", "ca_certificate": "-----BEGIN CERTIFICATE-----…" } }
+```
+
+The key is said once and enrols one machine, ever. It waits fifteen minutes for its machine; unused by then it enrols nothing. A user who already holds `user_machine_limit` machines, a key still waiting counted as one, gets `409 machine_limit_reached`; with the setting off, `403 user_machines_disabled`. From your server, the same call with the secret key names the user: `{ "os", "arch", "owner": "usr_…" }`.
+
+Your app carries `palbase-agent` and `palbase-session-engine` side by side (both are in the agent's release archive, `https://get.palbase.studio/agent/<version>/palbase-agent-<version>-<os>-<arch>.tar.gz`; `latest.txt` beside it names the version). It writes the key and the certificate to files only the user reads, enrols once, and then runs the agent for as long as the app is open:
+
+```sh
+STATE="$HOME/Library/Application Support/MyApp/agent"     # the app's own folder, mode 0700
+palbase-agent enroll --embedded --state-dir "$STATE" \
+  --url "$ENROLL_URL" --server-name "$ENROLL_SERVER_NAME" --ca-file "$STATE/enroll-ca.pem" --key-file "$STATE/enroll.key"
+palbase-agent --state-dir "$STATE" --exit-on-stdin-eof     # started by the app, its stdin a pipe the app holds
+```
+
+`--embedded` writes the machine's configuration and identity into `--state-dir` and installs no service: the app starts the agent itself. With `--exit-on-stdin-eof` the agent stops when the app that holds its standard input quits or crashes, so nothing of it runs on in the background. The key file is spent once the machine has enrolled; delete it. The machine's name is its host name.
+
+People's machines join a pool Palbase opens by itself for each type, named `user-machines-macos-arm64` and the like. It shows among the project's pools, and its state lists each machine with its `owner`. It is not a chat's `pool`, and no target names it: a person's machine is named one at a time. A new pool of your own cannot take a name that begins `user-machines-`; one you made before keeps working as it did.
+
+### Reading a person's machines
+
+`GET /ai/machines` answers the signed-in user's own machines, and `GET /ai/machines/{machine}` one of them:
+
+| Field | What it is |
+| --- | --- |
+| `id` | What a chat's target names: `rnr_…`. |
+| `name` | The machine's host name. |
+| `owner` | The user it belongs to. |
+| `state` | `online` (its agent was heard from in the last 90 seconds), `offline`, or `cordoned` (paused: it takes no new work). |
+| `last_seen_at`, `registered_at` | When its agent was last heard from, and when it enrolled. |
+| `harnesses` | The coding CLIs found on it, and whether each is signed in ([below](#claude-code-codex-or-gemini-cli-as-the-agent)). |
+| `pool_id`, `os`, `arch` | Its pool and its type. |
+
+Your server reads one user's with `GET /ai/machines?owner=usr_…`, and every machine of the project by its id.
+
+The list changes without a call. Palbase tells the user's own realtime channel, `ai_machines:<ref>:<user id>`, the broadcast `machines.changed.v1` whenever one of their machines enrols, comes online, goes offline, is paused, resumed or removed, or reports other CLIs. It carries no data: read the list again. Only that user joins the channel and only Palbase writes on it. The client SDKs do both for you and hand your app the list each time it changes ([Web](https://palbase.studio/docs/web/gateways#a-persons-own-machines), [iOS](https://palbase.studio/docs/ios/gateways#a-persons-own-machines), [Android](https://palbase.studio/docs/android/gateways#a-persons-own-machines)). A machine that stops without a word is told offline within about two minutes.
+
+### Running a chat on it
+
+A chat runs on a person's machine when its `target` names it: `{"compute": {"kind": "machine", "machine_id": "rnr_…"}, "executor": {"kind": "palbase"}}`, or an `acp` executor for the owner's own CLI. Your server gives the target when it starts the chat or hands it over (`POST /ai/chats/{chat_id}/handoff`). The owner hands a chat they are a member of to their own machine themselves, and takes it off again, back to Palbase's own machines, with the same call: nothing but owning the machine is asked of them. Nobody else names it. Another member of the same chat who asks is refused, with the answer a machine that does not exist gets.
+
+From then **every turn of that chat runs on that machine**, whoever writes: another member's message too, in the owner's workspace and, with an `acp` executor, on the owner's own subscription. Bind a chat to someone's machine only when its members may work there.
+
+- **The owner leaves the chat**, or your server takes them out: a turn running on their machine is stopped first, and the chat goes back to Palbase's own machines before they are gone.
+- **A fork** keeps the machine only when the owner is a member of the fork.
+- **Your variables on it.** A session's commands get the project's variables that are no secret, as on any machine. They get your open secrets only while app users' work may use them (`open_secrets_for_app_users`), whoever started the turn — your server's turn too: what reaches a person's machine, that person reads. A Mac is given no sealed secret.
+
+### Who is told what
+
+| Who asks | What they read of the machine |
+| --- | --- |
+| Its owner, and your server | Everything: `name`, `state`, `last_seen_at`, `harnesses`. |
+| Another member of a chat that runs on it | Its name and whether it is online, in `GET /ai/chats/{chat_id}/execution` (`machine_name`, `machine_status`: `online` or `offline`) and in the chat's summary (`machine_name`, `machine_online`, and `compute`: `mac` or `linux`, the kind of machine). No `harnesses`, and a paused machine reads `offline`. |
+| Anyone else | Nothing. The machine is `404`, and it is in no list of theirs. |
+
+A turn that fails on a person's machine tells the chat its error's code and one fixed sentence, "the turn failed on the machine this chat runs on; its owner sees why on that machine": the machine's own words — a CLI that is missing or too old, its version, a path — would say what is installed there. The owner reads them in the agent's log on the machine, and your server reads the engine's own detail on the response (`GET /ai/responses/{id}`).
+
+The chat's channel tells its members when the machine changes, as it does for any machine: `session.machine_status` with `chat_id`, `machine_id` and `status` (`online`, `offline`, or `removed`), and `failover_at` when the chat moves by itself after a time offline. Every member of the chat hears it, the owner or not, so it says no more than the second row.
+
+### Pausing and removing
+
+The owner, or your server, pauses a machine with `POST /ai/machines/{machine}/cordon` (it takes no new turn; what it holds runs on) and lets it work again with `…/resume`. `DELETE /ai/machines/{machine}` removes a paused machine that holds nothing, as for a pool's machine. `DELETE /ai/machines/{machine}?now=true` removes it whatever it is doing: its agent is cut off at once and cannot connect again, and a turn running on it ends failed with the code `machine_removed`.
+
+A chat that still names a removed machine says so: `machine_status` is `removed`, its members hear `session.machine_status` with `removed`, and a message sent to it fails with `machine_removed` until the chat is handed to another target. The same Mac comes back only by enrolling again with a new key, as a new machine with a new id.
+
+**When the owner's account is deleted**, their machines are removed that way, at once: a turn running on one stops, the agent is refused from then on, the keys they had not used yet enrol nothing, and the chats that named the machine say it was removed.
 
 ## Environment variables and secrets
 

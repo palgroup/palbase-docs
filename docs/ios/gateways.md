@@ -198,6 +198,48 @@ let chat = try await pb.ai.chats.get(chatId)          // its title, members, whe
 
 `PBChat` folds a chat's parts into its state, and a gateway gives one. A chat followed this way gives the parts themselves.
 
+## A person's own machines
+
+When the project lets its users connect machines of their own ([A person's own machine](https://palbase.studio/docs/backend/ai-machines#a-persons-own-machine)), `pb.ai.machines` is the signed-in person's: a key that enrols one, their list, and the list as it changes. Link `PalbaseAI`.
+
+```swift
+import Palbase
+import PalbaseAI
+
+// The person's machines now, then again each time one changes.
+for try await machines in pb.ai.machines.watch() {
+    for machine in machines {
+        let seen = machine.lastSeenAt.map { "\($0)" } ?? "never"
+        print(machine.name, machine.state, seen, machine.harnesses?.map(\.name.rawValue) ?? [])
+    }
+}
+```
+
+`watch()` reads the list, follows the person's own channel and reads again when Palbase says the list changed, and once a minute whatever the channel does. It yields a list only when it differs from the last one. A dropped connection does not end it: it ends with an error when the person is refused (`401`, `403`), signs out, or someone else signs in. `list()` and `get(_:)` read once.
+
+A Mac app enrols the Mac it runs on. The key is said once: write it to a file only the person reads and hand that file to the agent the app carries, never the key on a command line ([Enrolling from the app](https://palbase.studio/docs/backend/ai-machines#enrolling-from-the-app)).
+
+<!-- given: stateDir: URL -->
+```swift
+import Foundation
+import Palbase
+import PalbaseAI
+
+let minted = try await pb.ai.machines.keys.create(os: .macos, arch: .arm64, label: "Work MacBook")
+let keyFile = stateDir.appendingPathComponent("enroll.key")
+FileManager.default.createFile(atPath: keyFile.path, contents: Data(minted.key.utf8), attributes: [.posixPermissions: 0o600])
+// palbase-agent enroll --embedded --state-dir <stateDir> --key-file <keyFile> --url <minted.enroll.url> …
+```
+
+<!-- given: machineId: String -->
+```swift
+try await pb.ai.machines.cordon(machineId)                  // paused: it takes no new turn
+try await pb.ai.machines.resume(machineId)
+try await pb.ai.machines.delete(machineId, now: true)       // removed whatever it is doing
+```
+
+Each machine is its `id`, `name`, `state` (`.online`, `.offline`, or `.cordoned` when it is paused), `lastSeenAt`, `registeredAt` and `harnesses`, the coding CLIs found on it. A machine that is not the person's is `404 not_found` on every call, as one that does not exist. `keys.create` is refused `403 user_machines_disabled` while the project's setting is off, and `409 machine_limit_reached` when the person already holds as many machines as the project allows. `delete(_:)` removes a paused machine that holds nothing (`409 machine_not_cordoned`, `409 machine_busy` otherwise).
+
 ## Related
 
 - [Calling Your Backend](https://palbase.studio/docs/ios/backend-calls): the generated client the gateways are in
